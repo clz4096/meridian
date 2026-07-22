@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0e0f13">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Meridian">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Meridian</title>
+<style>
+:root{
+  --bg:#0E1116; --panel:#161B22; --panel2:#1C222B; --line:rgba(255,255,255,.10);
+  --text:#E7EBF2; --muted:#8B95A7; --dim:#5C6678; --track:#232A33;
+  --teal:#4FB0A5; --tealSoft:#10241d; --fuel:#E0A64B; --ok:#1D9E75; --deficit:#D8654F;
+  --protein:#8A6FD1; --interview:#D8654F;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.5}
+body{padding-bottom:env(safe-area-inset-bottom)}
+.appwrap{max-width:820px;margin:0 auto;padding:0 14px 90px}
+.brandrow{display:flex;align-items:center;justify-content:space-between;padding:16px 2px 8px;position:sticky;top:0;background:linear-gradient(var(--bg),var(--bg) 70%,transparent);z-index:20}
+.brand{font-weight:600;font-size:18px;letter-spacing:.02em}
+.brand b{color:var(--teal)}
+/* save status chip */
+.savechip{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:20px;padding:5px 12px;cursor:pointer;user-select:none}
+.savechip .dot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.savechip.dirty{cursor:pointer;border-color:var(--fuel);color:var(--fuel)}
+.savechip.dirty .dot{background:var(--fuel)}
+.savechip.saving{color:var(--muted)}
+/* tab bar */
+.tabbar{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding:4px 0 10px;position:sticky;top:52px;background:var(--bg);z-index:19}
+.tabbar::-webkit-scrollbar{display:none}
+.tabbar button{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:10px;padding:8px 14px;font-size:13.5px;font-family:var(--sans);cursor:pointer;white-space:nowrap}
+.tabbar button.on{background:var(--panel2);color:var(--text);border-color:var(--teal)}
+.tabpane{display:none}
+.tabpane.on{display:block}
+/* panels */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-top:14px}
+.panel-t{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-family:var(--mono);margin:0 0 12px}
+.empty{color:var(--dim);font-size:13px}
+.placeholder{border:1px dashed var(--line);border-radius:14px;padding:28px 18px;color:var(--dim);text-align:center;margin-top:14px;font-size:14px}
+/* buttons/inputs */
+.mbtn{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:9px 13px;cursor:pointer;font-size:13.5px;font-family:var(--sans)}
+.mbtn:hover{border-color:var(--dim)}
+.mbtn.primary{background:var(--teal);color:#04211d;border:none;font-weight:600}
+.mrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.mpanel input,.mpanel select,textarea{background:var(--panel2);border:1px solid var(--line);color:var(--text);font-family:var(--mono);font-size:13px;border-radius:8px;padding:8px 10px;outline:none}
+.mpanel input:focus,textarea:focus{border-color:var(--teal)}
+/* today stat row */
+.statgrid{display:flex;gap:22px;flex-wrap:wrap}
+.stat .v{font-family:var(--mono);font-size:23px;font-weight:500}
+.stat .k{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
+/* schedule rows */
+.tdrow{display:flex;align-items:center;gap:10px;padding:9px 6px;border-radius:9px;margin:3px 0;font-size:14px;border:1px solid transparent}
+.tdrow.tnow{background:var(--panel2);border-color:var(--teal)}
+.tdrow.done{opacity:.5}.tdrow.done .lab{text-decoration:line-through}
+.chk{width:22px;height:22px;border:1.5px solid var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ok);font-weight:700;flex-shrink:0}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;gap:2px}
+.lab{}
+.meta{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.nowtag{font-size:10px;background:var(--teal);color:#04211d;padding:1px 6px;border-radius:8px;margin-left:4px}
+.bar{height:8px;background:var(--track);border-radius:6px;overflow:hidden;margin-bottom:8px}
+.bar>div{height:100%;background:var(--ok);border-radius:6px}
+.goalrow{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+.goalrow:last-child{border-bottom:none}
+.chiprow{display:flex;gap:10px;flex-wrap:wrap}
+.chip{display:flex;flex-direction:column;gap:2px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 13px;min-width:96px}
+.chip .cv{font-family:var(--mono);font-size:17px}
+.chip .ck{font-size:10px;color:var(--dim);text-transform:uppercase}
+.savedflash{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ok);color:#04211d;font-family:var(--mono);font-size:12px;padding:8px 16px;border-radius:20px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:50}
+.savedflash.show{opacity:1}
+.note{font-size:12px;color:var(--muted)}
+.dictxt{width:100%;min-height:150px;font-family:var(--mono);font-size:11px}
+/* study */
+.slabel{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)}
+.sched-edit{display:flex;align-items:center;gap:8px;padding:8px 4px;border-radius:8px;margin:2px 0;font-size:13.5px;border:1px solid transparent}
+.sched-edit.tnow{background:var(--panel2);border-color:var(--teal)}
+.sched-edit .ed,.sched-edit .rm{color:var(--dim);cursor:pointer;font-size:12px;font-family:var(--mono)}
+.sched-edit .ed:hover{color:var(--text)}.sched-edit .rm:hover{color:var(--deficit)}
+.subblocks{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 2px 30px}
+.sb{font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:5px;border:1px solid var(--line)}
+.sb.work{color:var(--teal);border-color:var(--tealSoft);background:var(--tealSoft)}
+.sb.rest{color:var(--dim)}
+.mapline{font-family:var(--mono);font-size:11px;color:var(--fuel);margin:2px 0 0 30px}
+.noteline{font-size:12px;color:var(--muted);margin:2px 0 0 30px}
+.sentry{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.sentry:last-child{border-bottom:none}
+.sentry .rm{margin-left:auto;color:var(--dim);cursor:pointer;padding:0 5px}
+.sentry .rm:hover{color:var(--deficit)}
+.mchip{display:inline-block;font-size:11px;padding:1px 8px;border-radius:12px;font-family:var(--mono)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--panel2);color:var(--muted);padding:7px 10px;font-family:var(--mono);font-size:12px;cursor:pointer}
+.seg button.on{background:var(--panel);color:var(--text)}
+/* workout */
+.lift{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:12px}
+.lift-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.lift-name{font-size:16px;font-weight:600}
+.cue{font-family:var(--mono);font-size:11px;padding:2px 9px;border-radius:12px;white-space:nowrap}
+.cue.bump{background:var(--tealSoft);color:var(--teal)}
+.cue.hold{background:var(--panel2);color:var(--muted)}
+.cue.add{background:#2a2010;color:var(--fuel)}
+.cue.deload{background:#3a1a1a;color:var(--deficit)}
+.lift-target{font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:3px}
+.setrow{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.setrow input{width:66px;text-align:center}
+.setrow.cur{background:var(--tealSoft);border-radius:8px;padding:4px 6px;margin-left:-6px}
+.lastline{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:6px}
+.logged{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.setpill{font-family:var(--mono);font-size:11px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:2px 7px}
+/* knowledge */
+.ktabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0 8px}
+.ktabs::-webkit-scrollbar{display:none}
+.ktab{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:7px 12px;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.ktab.on{background:var(--panel2);color:var(--text);border-color:var(--protein)}
+.ktab .cnt{font-family:var(--mono);font-size:10px;color:var(--dim);margin-left:5px}
+.timebar{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:4px 0 10px}
+.timebar button{border:0;background:var(--panel2);color:var(--muted);padding:6px 11px;font-family:var(--mono);font-size:11px;cursor:pointer}
+.timebar button.on{background:var(--protein);color:#0d0716}
+.qcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:10px}
+.qtop{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.qtime{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:10px;background:var(--panel2);color:var(--protein);white-space:nowrap}
+.qprompt{font-size:14.5px;margin:8px 0 6px;line-height:1.55}
+.qsrc{font-family:var(--mono);font-size:11px;color:var(--fuel)}
+.qsrc a,.klink a{color:var(--teal)}
+.qvid{font-size:12px;margin-top:4px}.qvid a{color:var(--teal)}
+.qactions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.reveal{margin-top:10px;padding:10px 12px;background:var(--panel2);border-radius:9px;border:1px solid var(--line);font-size:13.5px;line-height:1.55;display:none}
+.reveal.on{display:block}
+.rate{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.rate button{border:1px solid var(--line);background:var(--panel2);color:var(--muted);border-radius:7px;padding:5px 9px;font-family:var(--mono);font-size:11px;cursor:pointer}
+.rate button:hover{border-color:var(--protein);color:var(--text)}
+.masterbadge{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:9px}
+.klink{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:12px 14px;margin-top:10px;font-size:12.5px}
+.klink b{color:var(--text)}
+.stub{color:var(--dim);font-size:13px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="appwrap">
+  <div class="brandrow">
+    <div class="brand"><b>Meridian</b></div>
+    <div class="savechip" id="savechip"><span class="dot"></span><span id="savetxt">All changes saved</span></div>
+    <script>document.addEventListener('keydown',e=>{ if((e.metaKey||e.ctrlKey)&&e.key==='s'){ e.preventDefault(); if(typeof saveAll==='function') saveAll(false); } });</script>
+  </div>
+
+  <div class="tabbar" id="tabbar">
+    <button data-t="today" class="on">Today</button>
+    <button data-t="study">Study</button>
+    <button data-t="knowledge">Knowledge</button>
+    <button data-t="workout">Workout</button>
+    <button data-t="weight">Meal Tracker</button>
+    <button data-t="data">Data</button>
+  </div>
+
+  <div class="tabpane on" id="pane-today"></div>
+  <div class="tabpane" id="pane-study"></div>
+  <div class="tabpane" id="pane-knowledge"></div>
+  <div class="tabpane" id="pane-workout"></div>
+  <div class="tabpane" id="pane-weight"></div>
+  <div class="tabpane" id="pane-data"></div>
+</div>
+<div class="savedflash" id="savedflash">Saved \u2713</div>
+
+<script>
+/* =========================================================================
+   MERIDIAN v2 — SAVE / SYNC CORE  (slice 1)
+   - Keeps the 4 existing v1 storage keys so old data survives.
+   - Adds an explicit save layer: in-memory state + a Save chip that shows
+     "Unsaved changes" the moment anything changes, and commits on demand.
+   - Auto-commit is ALSO on (debounced) so nothing is ever lost, but the
+     chip gives you manual control + visible confirmation (kills the
+     "did my data save?" anxiety that caused v1 data loss).
+   ========================================================================= */
+const KEYS = {
+  core:    'meridian-core',          // schedule + study entries (this app owns)
+  overload:'overload-tracker-state', // workout (v1)
+  surplus: 'surplus-tracker-state',  // weight gain + tadalafil (v1)
+  csgraph: 'csgraph_profile_v2'       // knowledge graph (v1)
+};
+const hasWS = (typeof window!=='undefined' && window.storage && window.storage.get);
+
+/* ---- Durable storage: three backends, newer-wins ----
+   - IndexedDB  : primary local store (survives iOS eviction, large quota)
+   - localStorage: synchronous fast copy (survives hard-kill mid-write)
+   - window.storage: Claude-account store → shared across mobile + browser
+   Every write stamps a version (timestamp) in a companion key in each backend.
+   Every read returns the copy with the newest version, so a stale/dropped
+   write can never overwrite good data. Writes are explicit + awaited. */
+
+// IndexedDB minimal promise wrapper
+const IDB = (function(){
+  let dbp=null;
+  function open(){
+    if(dbp) return dbp;
+    dbp=new Promise((res,rej)=>{
+      try{
+        const r=indexedDB.open('meridian_db',1);
+        r.onupgradeneeded=()=>{ try{ r.result.createObjectStore('kv'); }catch(e){} };
+        r.onsuccess=()=>res(r.result);
+        r.onerror=()=>rej(r.error);
+      }catch(e){ rej(e); }
+    });
+    return dbp;
+  }
+  async function get(key){ try{ const db=await open(); return await new Promise((res)=>{ const t=db.transaction('kv','readonly').objectStore('kv').get(key); t.onsuccess=()=>res(t.result==null?null:t.result); t.onerror=()=>res(null); }); }catch(e){ return null; } }
+  async function set(key,val){ try{ const db=await open(); return await new Promise((res)=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').put(val,key); tx.oncomplete=()=>res(true); tx.onerror=()=>res(false); }); }catch(e){ return false; } }
+  return {get,set, ok:(typeof indexedDB!=='undefined')};
+})();
+
+function lsGet(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
+function lsSet(key,v){ try{ localStorage.setItem(key,v); return true; }catch(e){ return false; } }
+async function wsGet(key){ if(!hasWS) return null; try{ const r=await window.storage.get(key); return (r&&r.value!=null)?r.value:null; }catch(e){ return null; } }
+async function wsSet(key,v){ if(!hasWS) return false; try{ await window.storage.set(key,v); return true; }catch(e){ return false; } }
+
+async function rawGet(key){
+  const vk=key+'__v';
+  // gather (value, version) from all three backends
+  const lv=lsGet(key), lvv=parseInt(lsGet(vk)||'0',10)||0;
+  const iv=await IDB.get(key), ivv=parseInt((await IDB.get(vk))||'0',10)||0;
+  let wv=null,wvv=0; if(hasWS){ wv=await wsGet(key); wvv=parseInt((await wsGet(vk))||'0',10)||0; }
+  const cands=[[lv,lvv],[iv,ivv],[wv,wvv]].filter(c=>c[0]!=null);
+  if(!cands.length) return null;
+  cands.sort((a,b)=>b[1]-a[1]);           // newest version first
+  const best=cands[0];
+  // heal the other backends toward the newest copy (so all converge)
+  if(best[0]!=null){ lsSet(key,best[0]); lsSet(vk,String(best[1]||Date.now())); IDB.set(key,best[0]); IDB.set(vk,String(best[1]||Date.now())); }
+  return best[0];
+}
+async function rawSet(key,val){
+  const vk=key+'__v', now=Date.now();
+  lsSet(key,val); lsSet(vk,String(now));          // sync — survives hard kill
+  await IDB.set(key,val); await IDB.set(vk,String(now));   // durable local
+  if(hasWS){ await wsSet(key,val); await wsSet(vk,String(now)); }  // cross-device
+  return true;
+}
+
+// ---- CORE (this app's own store): { schedule:{date:[tasks]}, entries:[] } ----
+let CORE = { schedule:{}, entries:[] };
+let dirty = false;
+let saveTimer = null;
+
+/* ================= CLOUD BACKEND (Pantry REST store) =================
+   A real cross-device backend: a free hosted JSON store reached over HTTP.
+   Setup once: get a Pantry ID at getpantry.cloud, paste it in Data > Cloud.
+   Model: cloud is the source of truth. Save -> push. Load -> pull.
+   The Pantry ID lives only in localStorage (never synced, never in exports). */
+const PANTRY_BASE='https://getpantry.cloud/apiv1/pantry';
+const BASKET='meridian';
+function cloudId(){ try{ return localStorage.getItem('meridian_pantry_id')||''; }catch(e){ return ''; } }
+function setCloudId(v){ try{ localStorage.setItem('meridian_pantry_id', v||''); }catch(e){} }
+function cloudEnabled(){ return !!cloudId(); }
+
+async function cloudPush(){
+  const id=cloudId(); if(!id) return {ok:false,err:'no id'};
+  const payload={ syncedAt:Date.now(),
+    core: JSON.stringify(CORE),
+    overload: await rawGet(KEYS.overload),
+    surplus:  await rawGet(KEYS.surplus),
+    csgraph:  await rawGet(KEYS.csgraph)
+  };
+  try{
+    const r=await fetch(PANTRY_BASE+'/'+encodeURIComponent(id)+'/basket/'+BASKET,{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    if(!r.ok) return {ok:false,err:'HTTP '+r.status};
+    return {ok:true,at:payload.syncedAt};
+  }catch(e){ return {ok:false,err:e.message}; }
+}
+async function cloudPull(){
+  const id=cloudId(); if(!id) return {ok:false,err:'no id'};
+  try{
+    const r=await fetch(PANTRY_BASE+'/'+encodeURIComponent(id)+'/basket/'+BASKET);
+    if(!r.ok) return {ok:false,err:'HTTP '+r.status};
+    const d=await r.json();
+    return {ok:true,data:d,at:d.syncedAt};
+  }catch(e){ return {ok:false,err:e.message}; }
+}
+// apply a pulled payload into all stores (cloud authoritative), then persist locally
+async function cloudApply(d){
+  const now=Date.now();
+  const put=async(key,val)=>{ if(val==null) return; lsSet(key,val); lsSet(key+'__v',String(now)); await IDB.set(key,val); await IDB.set(key+'__v',String(now)); };
+  await put(KEYS.core, d.core);
+  await put(KEYS.overload, d.overload);
+  await put(KEYS.surplus, d.surplus);
+  await put(KEYS.csgraph, d.csgraph);
+}
+
+function markDirty(){
+  dirty = true;
+  paintSaveChip();
+  // No aggressive autosave. Explicit Save button is primary; a long safety net + flush-on-hide back it up.
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>saveAll(true), 20000);
+}
+function anyDirty(){
+  return dirty
+    || (typeof wkDirty!=='undefined' && wkDirty)
+    || (typeof sgDirty!=='undefined' && sgDirty)
+    || (typeof kgDirtyFlag!=='undefined' && kgDirtyFlag);
+}
+function paintSaveChip(){
+  const c=document.getElementById('savechip'), t=document.getElementById('savetxt');
+  if(!c) return;
+  if(anyDirty()){ c.className='savechip dirty'; t.textContent='Unsaved \u2014 tap to Save'; }
+  else { c.className='savechip'; t.textContent='All changes saved'; }
+}
+async function commit(silent){
+  if(!coreHydrated) return;
+  const ok = await rawSet(KEYS.core, JSON.stringify(CORE));
+  dirty = false;
+  return ok;
+}
+// Explicit, awaited save of EVERY store. This is the button the user presses.
+async function saveAll(silent){
+  const c=document.getElementById('savechip'), t=document.getElementById('savetxt');
+  if(c){ c.className='savechip saving'; t.textContent='Saving\u2026'; }
+  let ok=true;
+  try{
+    if(coreHydrated && dirty){ ok = (await rawSet(KEYS.core, JSON.stringify(CORE))) && ok; dirty=false; }
+    if(typeof wkLoaded!=='undefined' && wkLoaded && typeof wkDirty!=='undefined' && wkDirty){ ok=(await rawSet(KEYS.overload, JSON.stringify(WK)))&&ok; wkDirty=false; }
+    if(typeof sgLoaded!=='undefined' && sgLoaded && typeof sgDirty!=='undefined' && sgDirty){ ok=(await rawSet(KEYS.surplus, JSON.stringify(SG)))&&ok; sgDirty=false; }
+    if(typeof kgLoaded!=='undefined' && kgLoaded && typeof KG!=='undefined' && KG){ ok=(await rawSet(KEYS.csgraph, JSON.stringify(KG)))&&ok; if(typeof kgDirtyFlag!=='undefined') kgDirtyFlag=false; }
+  }catch(e){ ok=false; }
+  paintSaveChip();
+  if(ok && !silent) flashSaved();
+  if(!ok && c){ c.className='savechip dirty'; t.textContent='Save failed \u2014 retry'; }
+  // push to cloud backend if configured (fire-and-forget; UI already saved locally)
+  if(ok && cloudEnabled()){ cloudPush().then(r=>{ if(!r.ok) console.warn('cloud push failed:',r.err); }); }
+  return ok;
+}
+function flashSaved(){
+  const f=document.getElementById('savedflash');
+  if(f){ f.classList.add('show'); setTimeout(()=>f.classList.remove('show'),1200); }
+}
+document.getElementById('savechip').addEventListener('click',()=>saveAll(false));
+
+async function loadCore(){
+  const s = await rawGet(KEYS.core);
+  if(s){ try{ CORE = JSON.parse(s); }catch(e){ CORE={schedule:{},entries:[]}; } }
+  if(!CORE.schedule) CORE.schedule={};
+  if(!CORE.entries)  CORE.entries=[];
+  if(!Object.keys(CORE.schedule).length) CORE.schedule = seedSchedule();
+  coreHydrated=true;
+}
+let coreHydrated=false;
+
+/* ---- helpers ---- */
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function dstr(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function toMin(hm){ const p=hm.split(':'); return +p[0]*60 + +p[1]; }
+function fromMin(m){ m=((m%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+function h12(hm){ const p=hm.split(':'); let H=+p[0]; const m=p[1]; const ap=H<12?'AM':'PM'; let h=H%12; if(h===0)h=12; return h+':'+m+' '+ap; }
+function nowMin(){ const d=new Date(); return d.getHours()*60+d.getMinutes(); }
+const CATC={prep:'#378ADD',gym:'#6BBF73',math:'#8A6FD1',physics:'#8A6FD1',course:'#E0A64B',interview:'#D8654F',rest:'#8B95A7'};
+
+function seedSchedule(){
+  // minimal starter so Today isn't empty on first run; Study tab (slice 2) owns editing
+  const t = dstr();
+  return { [t]: [
+    {id:uid(),start:'07:00',label:'Protein + structural hour',cat:'prep',done:false,mins:120},
+    {id:uid(),start:'09:00',label:'Fluency hour \u2014 timed mediums',cat:'prep',done:false,mins:120},
+    {id:uid(),start:'11:00',label:'Gym',cat:'gym',done:false,mins:180},
+    {id:uid(),start:'15:00',label:'C++ depth + delta review',cat:'prep',done:false,mins:90},
+    {id:uid(),start:'16:30',label:'Math Academy',cat:'math',done:false,mins:30}
+  ]};
+}
+
+/* ---- read-only peeks into the other 3 stores (for Today cross-links) ---- */
+async function peekProteinToday(){
+  const s = await rawGet(KEYS.surplus); if(!s) return null;
+  try{
+    const st = JSON.parse(s); const day = (st.days && st.days[dstr()]) || [];
+    if(!Array.isArray(day)) return null;
+    const p = day.reduce((a,x)=>a + (+((x&&x.protein)||0)),0);
+    return p;
+  }catch(e){ return null; }
+}
+async function peekTadToday(){
+  const s = await rawGet(KEYS.surplus); if(!s) return null;
+  try{ const st=JSON.parse(s); return (st.tad && st.tad[dstr()])||0; }catch(e){ return null; }
+}
+async function peekLiftedToday(){
+  const s = await rawGet(KEYS.overload); if(!s) return false;
+  try{ const st=JSON.parse(s); return !!(st.days && st.days[dstr()]); }catch(e){ return false; }
+}
+
+/* ================= TODAY ================= */
+const paneToday = document.getElementById('pane-today');
+async function renderToday(){
+  const t = dstr();
+  const tasks = (CORE.schedule[t]||[]).slice().sort((a,b)=> a.start<b.start?-1:1);
+  const now = nowMin();
+  let curIdx=-1; tasks.forEach((x,i)=>{ if(toMin(x.start)<=now) curIdx=i; });
+  const done = tasks.filter(x=>x.done).length;
+  const pct = tasks.length? Math.round(100*done/tasks.length):0;
+
+  const nd = new Date();
+  const dateStr = nd.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const timeStr = nd.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit',timeZoneName:'short'});
+
+  // study-today stats
+  const te = (CORE.entries||[]).filter(e=>e.date===t);
+  const xp = te.filter(e=>e.stream==='kg'||e.stream==='math').reduce((a,e)=>a+(+e.xp||0),0);
+  const probs = te.filter(e=>e.stream==='kg'||e.stream==='leetcode');
+  const solved = probs.filter(e=>e.status==='solved').length;
+
+  // knowledge review due
+  let kgDue=0; try{ if(!kgLoaded) await kgLoad(); kgDue=dueCount(); }catch(e){}
+  const tad = await peekTadToday();
+  // cross-links
+  const protein = await peekProteinToday();
+  const lifted = await peekLiftedToday();
+
+  let h='';
+  h += '<div class="panel"><div style="font-size:15px">'+dateStr+'</div>'
+     + '<div style="font-family:var(--mono);color:var(--teal);font-size:20px;margin-top:2px">'+timeStr+'</div></div>';
+
+  // at-a-glance chips (cross-links)
+  h += '<div class="panel"><p class="panel-t">Today at a glance</p><div class="chiprow">'
+     + chip(xp,'XP','var(--fuel)')
+     + chip(solved,'Solved','var(--teal)')
+     + chip(probs.length,'Attempted','var(--text)')
+     + chip(protein==null?'\u2014':(protein+'g'),'Protein','var(--protein)')
+     + chip(lifted?'\u2713':'\u2014','Lifted','var(--ok)')
+     + chip(tad?(tad+'\u00d79'):'\u2014','Tadalafil','var(--muted)')
+     + chip(kgDue,'Review due', kgDue?'var(--protein)':'var(--dim)')
+     + '</div></div>';
+
+  // schedule
+  h += '<div class="panel"><p class="panel-t">Today \u00b7 '+t+'</p>';
+  if(!tasks.length){ h+='<div class="empty">No schedule yet. Add tasks in the Study tab.</div>'; }
+  else{
+    h += '<div class="bar"><div style="width:'+pct+'%"></div></div>'
+       + '<div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:8px">'+done+' / '+tasks.length+' done</div>';
+    h += tasks.map((x,i)=>{
+      const col=CATC[x.cat]||'#8B95A7'; const isNow=(i===curIdx&&!x.done);
+      const ns = i+1<tasks.length? tasks[i+1].start : null;
+      const range = h12(x.start) + (ns?(' \u2013 '+h12(ns)):'');
+      return '<div class="tdrow'+(x.done?' done':'')+(isNow?' tnow':'')+'">'
+        + '<span class="chk" data-tog="'+x.id+'">'+(x.done?'\u2713':'')+'</span>'
+        + '<span class="dot" style="background:'+col+'"></span>'
+        + '<span class="main"><span class="lab">'+esc(x.label)+(isNow?' <span class="nowtag">NOW</span>':'')+'</span>'
+        + '<span class="meta">'+range+' \u00b7 '+(x.cat)+(x.mins?(' \u00b7 '+x.mins+'m'):'')+'</span></span>'
+        + '</div>';
+    }).join('');
+  }
+  h += '</div>';
+
+  // workout goals — top-set target per exercise, from the real plan
+  let wg='';
+  try{
+    if(!wkLoaded) await wkLoad();
+    const exs=allExercises().filter(e=>!isCardio(e));
+    const rows=exs.map(e=>{ const p=buildPlan(e,t); if(!p||!p.top) return ''; 
+      const bump=p.bumped?' <span style="color:var(--teal);font-family:var(--mono);font-size:11px">\u2191</span>':'';
+      return '<div class="goalrow"><span style="flex:1">'+esc(e)+'</span><span style="font-family:var(--mono);color:var(--text)">'+p.top.w+' \u00d7 '+p.top.reps+'</span>'+bump+'</div>'; }).filter(Boolean).join('');
+    wg = rows || '<div class="empty">No workout history yet \u2014 log a set in the Workout tab.</div>';
+  }catch(e){ wg='<div class="empty">Open the Workout tab to load targets.</div>'; }
+  h += '<div class="panel"><p class="panel-t">Today\u2019s top-set targets</p>'+wg+'</div>';
+
+  paneToday.innerHTML = h;
+  paneToday.querySelectorAll('[data-tog]').forEach(el=>{
+    el.onclick=()=>{
+      const id=el.getAttribute('data-tog');
+      const task=(CORE.schedule[t]||[]).find(x=>x.id===id);
+      if(task){ task.done=!task.done; markDirty(); renderToday(); }
+    };
+  });
+}
+function chip(v,k,color){
+  return '<div class="chip"><span class="cv" style="color:'+color+'">'+v+'</span><span class="ck">'+k+'</span></div>';
+}
+
+/* ================= DATA (sync — option C) ================= */
+const paneData = document.getElementById('pane-data');
+function renderData(){
+  paneData.innerHTML =
+    '<div class="panel mpanel"><p class="panel-t">\u2601 Cloud backend (sync across devices)</p>'
+    + '<div class="note" style="margin-bottom:10px">Real cross-device sync via a free JSON store. <b>One-time setup:</b> go to <b>getpantry.cloud</b>, enter an email, copy the Pantry ID they give you, paste it below. Then every Save syncs, and every device pulls the latest on open. Your Pantry ID stays on this device only.</div>'
+    + '<div class="mrow"><input id="d-pantry" placeholder="Paste Pantry ID here" style="flex:1;min-width:180px" value="'+ (cloudId()||'') +'"><button class="mbtn primary" id="d-pantry-save">Save ID</button></div>'
+    + '<div class="mrow" style="margin-top:8px"><button class="mbtn" id="d-test">Test connection</button><button class="mbtn" id="d-push">\u2601\u2191 Push now</button><button class="mbtn" id="d-pull">\u2601\u2193 Pull now</button></div>'
+    + '<div id="d-cloudmsg" class="note" style="margin-top:6px">'+(cloudEnabled()?'Cloud sync is ON.':'Cloud sync is OFF \u2014 add a Pantry ID to enable.')+'</div>'
+    + '<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>'
+    + '<p class="panel-t">Manual backup (always reliable)</p>'
+    + '<div class="note" style="margin-bottom:10px">Fallback if the sandbox blocks network calls. Export on one device, paste + import on another.</div>'
+    + '<div class="mrow"><button class="mbtn primary" id="d-exp">Export everything</button>'
+    + '<button class="mbtn" id="d-imp">Import from paste</button>'
+    + '<button class="mbtn" id="d-copy">Copy to clipboard</button></div>'
+    + '<textarea id="d-io" class="dictxt" style="margin-top:10px" placeholder="Exported JSON appears here. To sync: Export on device A, copy, paste here on device B, Import."></textarea>'
+    + '<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>'
+    + '<p class="panel-t">Restore a single-app backup</p>'
+    + '<div class="note" style="margin-bottom:8px">Import an original Overload / Surplus / Knowledge export (the per-app JSON files). Pick which store it belongs to, paste below, and Import.</div>'
+    + '<div class="mrow"><select id="d-single-key"><option value="overload">Workout (overload)</option><option value="surplus">Meal Tracker (surplus)</option><option value="csgraph">Knowledge (csgraph)</option><option value="core">Schedule (meridian-core)</option></select><button class="mbtn primary" id="d-single-imp">Import single backup</button></div>'
+    + '<textarea id="d-single-io" class="dictxt" style="margin-top:10px" placeholder="Paste one app\u2019s raw backup JSON here (e.g. overload-backup-....json contents)."></textarea>'
+    + '<div id="d-msg" class="note" style="color:var(--ok);margin-top:6px"></div></div>';
+
+  const io=()=>document.getElementById('d-io');
+  const msg=(m,bad)=>{ const e=document.getElementById('d-msg'); e.style.color=bad?'var(--deficit)':'var(--ok)'; e.textContent=m; setTimeout(()=>{if(e)e.textContent='';},4000); };
+  const cmsg=(m,bad)=>{ const e=document.getElementById('d-cloudmsg'); if(!e)return; e.style.color=bad?'var(--deficit)':'var(--teal)'; e.textContent=m; };
+
+  document.getElementById('d-pantry-save').onclick=()=>{
+    const v=(document.getElementById('d-pantry').value||'').trim();
+    setCloudId(v);
+    cmsg(v?'Saved. Cloud sync is ON. Tap "Test connection" to verify.':'Cleared. Cloud sync is OFF.');
+  };
+  document.getElementById('d-test').onclick=async()=>{
+    if(!cloudEnabled()){ cmsg('Add a Pantry ID first.',true); return; }
+    cmsg('Testing\u2026');
+    const r=await cloudPush();   // push writes the basket (also creates it)
+    if(r.ok){ const p=await cloudPull(); cmsg(p.ok?'\u2713 Connection works. Cloud sync is live.':('Push ok but read failed: '+p.err),!p.ok); }
+    else cmsg('\u2717 Could not reach cloud: '+r.err+'. The sandbox may block network calls \u2014 use manual backup below.',true);
+  };
+  document.getElementById('d-push').onclick=async()=>{
+    if(!cloudEnabled()){ cmsg('Add a Pantry ID first.',true); return; }
+    cmsg('Pushing\u2026'); await saveAll(true); const r=await cloudPush();
+    cmsg(r.ok?('\u2713 Pushed at '+new Date(r.at).toLocaleTimeString()+'. Other devices pull on open, or tap Pull.'):'Push failed: '+r.err, !r.ok);
+  };
+  document.getElementById('d-pull').onclick=async()=>{
+    if(!cloudEnabled()){ cmsg('Add a Pantry ID first.',true); return; }
+    cmsg('Pulling\u2026'); const r=await cloudPull();
+    if(!r.ok){ cmsg('Pull failed: '+r.err,true); return; }
+    if(!r.data){ cmsg('Cloud is empty. Push from another device first.',true); return; }
+    await cloudApply(r.data); cmsg('\u2713 Pulled '+(r.at?('from '+new Date(r.at).toLocaleString()):'')+'. Reloading\u2026');
+    setTimeout(()=>location.reload(),700);
+  };
+
+  document.getElementById('d-exp').onclick=async()=>{
+    // ensure current in-memory CORE is captured even if unsaved
+    const bundle = { meridian_v2:1, exportedAt:dstr(), data:{
+      core: JSON.stringify(CORE),
+      overload: await rawGet(KEYS.overload),
+      surplus:  await rawGet(KEYS.surplus),
+      csgraph:  await rawGet(KEYS.csgraph)
+    }};
+    io().value = JSON.stringify(bundle);
+    msg('Exported all 4 stores.');
+  };
+  document.getElementById('d-copy').onclick=async()=>{
+    try{ await navigator.clipboard.writeText(io().value||''); msg('Copied.'); }
+    catch(e){ io().select(); msg('Select+copy manually.',true); }
+  };
+  document.getElementById('d-single-imp').onclick=async()=>{
+    const raw=(document.getElementById('d-single-io').value||'').trim();
+    if(!raw){ msg('Paste a backup first.',true); return; }
+    let parsed; try{ parsed=JSON.parse(raw); }catch(e){ msg('Invalid JSON: '+e.message,true); return; }
+    const which=document.getElementById('d-single-key').value;
+    const key=KEYS[which];
+    const payload=JSON.stringify(parsed);
+    msg('Saving '+(payload.length)+' chars to '+which+'\u2026');
+    let ok=false;
+    // write to BOTH window.storage (if present) and localStorage, so mobile always persists
+    try{ if(hasWS){ const r=await window.storage.set(key,payload); ok=!!r; } }catch(e){ msg('storage.set error: '+e.message,true); }
+    try{ localStorage.setItem(key,payload); ok=true; }catch(e){ if(!ok){ msg('localStorage error: '+e.message,true); return; } }
+    // verify it landed
+    let check=null; try{ check = hasWS ? (await window.storage.get(key)) : null; }catch(e){}
+    const lsCheck = (()=>{ try{ return localStorage.getItem(key); }catch(e){ return null; } })();
+    if(!ok && !lsCheck){ msg('Import failed \u2014 nothing was written.',true); return; }
+    msg('\u2713 Imported '+which+' ('+(lsCheck?lsCheck.length:payload.length)+' chars). Reloading\u2026');
+    setTimeout(()=>location.reload(),900);
+  };
+  document.getElementById('d-imp').onclick=async()=>{
+    const raw=io().value.trim(); if(!raw){ msg('Paste a backup first.',true); return; }
+    let p; try{ p=JSON.parse(raw); }catch(e){ msg('Invalid JSON.',true); return; }
+    if(!p||!p.meridian_v2||!p.data){ msg('Not a Meridian v2 backup.',true); return; }
+    const d=p.data; const S=v=> (typeof v==='string'?v:JSON.stringify(v));
+    if(d.core!=null){ await rawSet(KEYS.core,S(d.core)); }
+    if(d.overload!=null) await rawSet(KEYS.overload,S(d.overload));
+    if(d.surplus!=null)  await rawSet(KEYS.surplus,S(d.surplus));
+    if(d.csgraph!=null)  await rawSet(KEYS.csgraph,S(d.csgraph));
+    msg('Imported. Reloading\u2026'); setTimeout(()=>location.reload(),700);
+  };
+}
+
+/* ================= STUDY ================= */
+const paneStudy = document.getElementById('pane-study');
+let selDate = dstr();
+const CATS=['prep','gym','math','physics','course','interview','rest'];
+
+function dLabel(ds){ const p=ds.split('-'); const dt=new Date(+p[0],+p[1]-1,+p[2]); const wd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()]; const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.getMonth()]; return (ds===dstr()?'Today \u00b7 ':'')+wd+', '+mo+' '+dt.getDate(); }
+function shift(ds,n){ const p=ds.split('-'); const d=new Date(+p[0],+p[1]-1,+p[2]); d.setDate(d.getDate()+n); return dstr(d); }
+function dayName(ds){ const p=ds.split('-'); const d=new Date(+p[0],+p[1]-1,+p[2]); return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]; }
+function roundUp5(m){ return Math.ceil(m/5)*5; }
+function endMin(x){ return toMin(x.start)+(x.mins||60); }
+function parsePom(s){ const m=(s||'').match(/(\d+)\s*\/\s*(\d+)/); return m?[+m[1],+m[2]]:null; }
+function subBlocks(start,mins,pom){ const work=pom[0],rest=pom[1]; let cur=toMin(start),left=mins,out=[],g=0;
+  while(left>0&&g++<48){ const w=Math.min(work,left); out.push({t0:fromMin(cur),t1:fromMin(cur+w),kind:'work'}); cur+=w; left-=w;
+    if(left>0){ out.push({t0:fromMin(cur),t1:fromMin(cur+rest),kind:'rest'}); cur+=rest; } } return out; }
+function focusTask(tasks,isToday){
+  const undone=tasks.filter(x=>!x.done); if(!undone.length) return null;
+  if(!isToday) return undone[0];
+  const nm=nowMin();
+  const on=undone.filter(x=>toMin(x.start)<=nm&&endMin(x)>nm); if(on.length) return on[0];
+  const up=undone.filter(x=>toMin(x.start)>nm).sort((a,b)=>toMin(a.start)-toMin(b.start)); if(up.length) return up[0];
+  return undone[undone.length-1];
+}
+function carryOver(){
+  const y=shift(dstr(),-1); const undone=(CORE.schedule[y]||[]).filter(x=>!x.done);
+  if(!undone.length){ alert('Nothing unfinished from yesterday.'); return; }
+  const today=dstr(); if(!CORE.schedule[today]) CORE.schedule[today]=[];
+  let cur=roundUp5(nowMin()); (CORE.schedule[today]||[]).forEach(x=>{ cur=Math.max(cur,endMin(x)); });
+  undone.forEach(t=>{ CORE.schedule[today].push({id:uid(),start:fromMin(cur),label:t.label,cat:t.cat,done:false,mins:t.mins||30,pom:t.pom,note:'\u21a9 from '+y+(t.note?(' \u00b7 '+t.note):''),maps:t.maps}); cur+=(t.mins||30); });
+  selDate=today; markDirty(); renderStudy();
+  alert('Moved '+undone.length+' task'+(undone.length>1?'s':'')+' into today.');
+}
+function row2(e){
+  let lab,pill;
+  if(e.stream==='kg'){ lab='<b>'+esc(e.problem||'KG')+'</b> <span style="color:var(--dim)">'+esc(e.topic||'knowledge')+'</span>'; pill='<span class="mchip" style="background:var(--panel2);color:var(--teal)">kg</span>'; }
+  else if(e.stream==='leetcode'){ lab='<b>'+esc(e.problem)+'</b> <span style="color:var(--dim)">'+esc(e.pattern||'')+'</span>'; pill='<span class="mchip" style="background:var(--panel2);color:var(--fuel)">'+(e.difficulty||'lc')+'</span>'; }
+  else { lab='<b>'+(e.xp||0)+' XP</b> '+esc(e.source||''); pill='<span class="mchip" style="background:var(--panel2);color:var(--protein)">xp</span>'; }
+  return '<div class="sentry">'+pill+'<span style="flex:1">'+lab+'</span><span class="rm" data-del="'+e.id+'">\u00d7</span></div>';
+}
+
+function renderStudy(){
+  const isToday=(selDate===dstr());
+  const tasks=(CORE.schedule[selDate]||[]).slice().sort((a,b)=> a.start<b.start?-1:1);
+  const done=tasks.filter(x=>x.done).length;
+  const focus=focusTask(tasks,isToday);
+  const nd=new Date();
+  const dateStr=nd.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const timeStr=nd.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit',timeZoneName:'short'});
+
+  let h='';
+  h+='<div class="panel"><div style="font-size:15px">'+dateStr+'</div><div style="font-family:var(--mono);color:var(--teal);font-size:20px;margin-top:2px">'+timeStr+'</div></div>';
+
+  // schedule editor
+  h+='<div class="panel mpanel"><div class="mrow" style="justify-content:space-between"><p class="panel-t" style="margin:0">Schedule</p>'
+   + '<div class="mrow"><button class="mbtn" id="s-prev">\u2039</button><span style="font-family:var(--mono);font-size:12px;min-width:150px;text-align:center">'+dLabel(selDate)+'</span><button class="mbtn" id="s-next">\u203a</button>'+(isToday?'':'<button class="mbtn" id="s-today">\u2192 Today</button>')+'</div></div>';
+  h+='<div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin:6px 0">'+(isToday?'Today':dayName(selDate))+' \u00b7 '+selDate+' \u00b7 '+done+'/'+tasks.length+' done</div>';
+  if(!tasks.length) h+='<div class="empty">No tasks. Add one below or carry over from yesterday.</div>';
+  h+=tasks.map(x=>{
+    const col=CATC[x.cat]||'#8B95A7'; const isF=focus&&x.id===focus.id;
+    return '<div class="sched-edit'+(isF?' tnow':'')+'"'+(x.done?' style="opacity:.5"':'')+'>'
+      + '<span class="chk" data-tog="'+x.id+'">'+(x.done?'\u2713':'')+'</span>'
+      + '<span class="dot" style="background:'+col+'"></span>'
+      + '<span style="font-family:var(--mono);font-size:12px;color:var(--muted);min-width:70px">'+h12(x.start)+'</span>'
+      + '<span style="flex:1'+(x.done?';text-decoration:line-through':'')+'">'+esc(x.label)+(x.mins?(' <span style="color:var(--dim);font-size:11px">'+x.mins+'m</span>'):'')+(isF?' <span class="nowtag">NOW</span>':'')+'</span>'
+      + '<span class="ed" data-ed="'+x.id+'">edit</span><span class="rm" data-rm="'+x.id+'">\u00d7</span></div>';
+  }).join('');
+  h+='<div class="mrow" style="margin-top:10px"><input type="time" id="a-start" value="09:00" style="width:110px"><input id="a-label" placeholder="task" style="flex:1;min-width:120px"><select id="a-cat">'+CATS.map(c=>'<option>'+c+'</option>').join('')+'</select><input id="a-mins" type="number" placeholder="min" style="width:64px"><input id="a-pom" placeholder="pom 30/5" style="width:82px"><button class="mbtn primary" id="a-add">Add</button></div>';
+  h+='<div class="mrow" style="margin-top:6px"><input id="a-note" placeholder="detail / course \u2192 WGU mapping (optional)" style="flex:1;min-width:180px"></div>';
+  h+='<div class="mrow" style="margin-top:8px"><button class="mbtn" id="s-carry">\u21a9 Bring unfinished from yesterday</button></div></div>';
+
+  // current focus
+  h+='<div class="panel"><p class="panel-t">Current focus</p>';
+  if(!focus) h+='<div class="empty">'+(tasks.length?'All done for the day \u2014 nice.':'Nothing scheduled.')+'</div>';
+  else{
+    const col=CATC[focus.cat]||'#8B95A7'; const range=h12(focus.start)+(focus.mins?(' \u2013 '+h12(fromMin(toMin(focus.start)+focus.mins))):'');
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="dot" style="background:'+col+'"></span><span style="font-size:17px">'+esc(focus.label)+'</span></div>';
+    h+='<div style="font-family:var(--mono);font-size:12px;color:var(--muted)">'+range+' \u00b7 '+focus.cat+(focus.mins?(' \u00b7 '+focus.mins+'m'):'')+'</div>';
+    if(focus.pom&&focus.mins){ const sb=subBlocks(focus.start,focus.mins,focus.pom); h+='<div class="subblocks" style="margin-left:0">'+sb.map(b=>'<span class="sb '+b.kind+'">'+h12(b.t0)+'\u2013'+h12(b.t1)+(b.kind==='rest'?' rest':'')+'</span>').join('')+'</div>'; }
+    if(focus.maps) h+='<div class="mapline" style="margin-left:0">\u2192 WGU '+esc(focus.maps)+'</div>';
+    if(focus.note) h+='<div class="noteline" style="margin-left:0">'+esc(focus.note)+'</div>';
+    h+='<div class="mrow" style="margin-top:12px"><button class="mbtn primary" data-donefocus="'+focus.id+'">Mark done</button></div>';
+  }
+  h+='</div>';
+
+  // log math/physics XP
+  h+='<div class="panel mpanel"><p class="panel-t">Log math / physics XP</p><div class="mrow"><div class="seg" id="m-src"><button data-s="Math Academy" class="on">Math Academy</button><button data-s="PhysicsGraph">PhysicsGraph</button></div><input id="m-xp" type="number" placeholder="XP" style="width:90px"><button class="mbtn primary" id="m-add">Add XP</button></div></div>';
+
+  // work logged today
+  const wl=(CORE.entries||[]).filter(e=>e.date===dstr());
+  const wlxp=wl.filter(e=>e.stream==='kg'||e.stream==='math').reduce((a,e)=>a+(+e.xp||0),0);
+  h+='<div class="panel"><p class="panel-t">Work logged today'+(wlxp?(' \u00b7 '+wlxp+' XP'):'')+'</p>'+(wl.length?wl.slice().reverse().map(row2).join(''):'<div class="empty">No work logged yet. Knowledge problems show here once scored.</div>')+'</div>';
+
+  paneStudy.innerHTML=h;
+  wireStudy();
+}
+function segv(id,a){ const el=document.getElementById(id); const on=el&&el.querySelector('button.on'); return on?on.getAttribute('data-'+a):''; }
+function wireStudy(){
+  const g=id=>document.getElementById(id);
+  g('s-prev').onclick=()=>{ selDate=shift(selDate,-1); renderStudy(); };
+  g('s-next').onclick=()=>{ selDate=shift(selDate,1); renderStudy(); };
+  { const tb=g('s-today'); if(tb) tb.onclick=()=>{ selDate=dstr(); renderStudy(); }; }
+  g('a-add').onclick=()=>{ const l=g('a-label').value.trim(); if(!l) return; if(!CORE.schedule[selDate]) CORE.schedule[selDate]=[];
+    const mins=+g('a-mins').value||0, pom=parsePom(g('a-pom').value), note=g('a-note').value.trim();
+    CORE.schedule[selDate].push({id:uid(),start:g('a-start').value,label:l,cat:g('a-cat').value,done:false,mins:mins||60,pom:pom,note:note,maps:''}); markDirty(); renderStudy(); };
+  g('s-carry').onclick=()=>carryOver();
+  paneStudy.querySelectorAll('[data-tog]').forEach(el=>{ el.onclick=()=>{ const id=el.getAttribute('data-tog'); const t=(CORE.schedule[selDate]||[]).find(x=>x.id===id); if(t){ t.done=!t.done; markDirty(); renderStudy(); } }; });
+  paneStudy.querySelectorAll('[data-rm]').forEach(el=>{ el.onclick=()=>{ const id=el.getAttribute('data-rm'); CORE.schedule[selDate]=(CORE.schedule[selDate]||[]).filter(x=>x.id!==id); markDirty(); renderStudy(); }; });
+  paneStudy.querySelectorAll('[data-ed]').forEach(el=>{ el.onclick=()=>{ const id=el.getAttribute('data-ed'); const t=(CORE.schedule[selDate]||[]).find(x=>x.id===id); if(!t) return;
+    const nl=prompt('Task:',t.label); if(nl===null) return; const ns=prompt('Start (24h HH:MM):',t.start); if(ns===null) return; const nn=prompt('Detail / mapping note:',t.note||'');
+    t.label=nl.trim()||t.label; if(/^\d{2}:\d{2}$/.test(ns)) t.start=ns; if(nn!==null) t.note=nn.trim(); markDirty(); renderStudy(); }; });
+  const df=paneStudy.querySelector('[data-donefocus]'); if(df) df.onclick=()=>{ const id=df.getAttribute('data-donefocus'); const t=(CORE.schedule[selDate]||[]).find(x=>x.id===id); if(t){ t.done=true; markDirty(); renderStudy(); } };
+  const seg=g('m-src'); if(seg) seg.querySelectorAll('button').forEach(b=>{ b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); }; });
+  g('m-add').onclick=()=>{ const x=+g('m-xp').value; if(!x) return; CORE.entries.push({id:uid(),date:dstr(),stream:'math',source:segv('m-src','s'),xp:x}); markDirty(); renderStudy(); };
+}
+
+/* ================= WORKOUT (real Overload data model) =================
+   Storage: overload-tracker-state = { settings, days:{date:[set]}, bw:{date:w}, rpe:{} }
+   set = { id, ex, muscle, group, type:'warm'|'top'|'back'|'cardio', weight, reps }
+   Model (locked with user):
+   - Top set is the ONE progressing number.
+   - Bump weight when last top set reps >= REP_HI (8); increment inferred per-exercise from history.
+   - Warm-ups & back-offs are % of the top set, ratios inferred from that exercise's last session.
+   - Everything rounded to nearest 5 and PRE-FILLED into the input boxes (no top badge). */
+const paneWorkout = document.getElementById('pane-workout');
+let WK = { settings:{}, days:{}, bw:{}, rpe:{} };
+const DEFAULT_WK = {"v":1,"settings":{"bwCurrent":120,"bwGoal":150,"benchGoal":150,"benchStart":125,"volLow":10,"volHigh":20},"days":{"2026-07-03":[{"id":1783114348370.892,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":5},{"id":1783114594538.7588,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":6},{"id":1783114911812.9878,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":125,"reps":6},{"id":1783115173675.021,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":115,"reps":6},{"id":1783115390881.0293,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":100,"reps":10},{"id":1783115587837.8508,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"warm","weight":25,"reps":10},{"id":1783115745322.4102,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"top","weight":42.5,"reps":7},{"id":1783115908162.8042,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":10},{"id":1783116091606.8875,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":10},{"id":1783116334268.0269,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1783116627332.8625,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":30,"reps":8},{"id":1783117235363.9458,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":25,"reps":10},{"id":1783117263334.1274,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":25,"reps":10},{"id":1783117349962.735,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":25,"reps":10},{"id":1783117550198.3257,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":42.5,"reps":8},{"id":1783117947681.3662,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":10},{"id":1783118136302.101,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":10},{"id":1783118923005.7573,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":2.5,"reps":10},{"id":1783118939197.8682,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":3},{"id":1783119171086.2573,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":4.5,"reps":1},{"id":1783119181672.8499,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":3},{"id":1783119471459.1504,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":2.3,"reps":1},{"id":1783119784370.0764,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":125,"reps":8},{"id":1783120150083.9946,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":205,"reps":7},{"id":1783120474174.7617,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":185,"reps":8},{"id":1783120728270.4648,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":165,"reps":9},{"id":1783120862439.6416,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":85,"reps":8},{"id":1783121140796.782,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":145,"reps":8},{"id":1783121373362.0222,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":125,"reps":10},{"id":1783121769523.4617,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":105,"reps":10},{"id":1783121776223.5176,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":60,"reps":8},{"id":1783122067610.072,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":100,"reps":9},{"id":1783122436492.4165,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":90,"reps":8},{"id":1783122543350.485,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":60,"reps":8},{"id":1783126070393.514,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":100,"reps":8}],"2026-07-05":[{"id":1783290099229.6572,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":15},{"id":1783290187315.6565,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":125,"reps":8},{"id":1783290645564.99,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":205,"reps":8},{"id":1783290696256.5947,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":185,"reps":8},{"id":1783291010025.3394,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":165,"reps":8},{"id":1783291161274.1597,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":65,"reps":8},{"id":1783291410325.245,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":105,"reps":8},{"id":1783291686003.9468,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":95,"reps":9},{"id":1783291874533.943,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":70,"reps":10},{"id":1783291958258.9392,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":115,"reps":10},{"id":1783292321949.7744,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":100,"reps":10},{"id":1783292510570.6582,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":105,"reps":8},{"id":1783292934159.412,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":165,"reps":7},{"id":1783293282252.7732,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":145,"reps":8},{"id":1783293474002.769,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":125,"reps":8},{"id":1783293717329.548,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":10},{"id":1783294014763.4053,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":8},{"id":1783294317084.0747,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":130,"reps":5},{"id":1783294557663.2612,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":115,"reps":6},{"id":1783294750061.3638,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":105,"reps":6},{"id":1783295060819.3228,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":32,"reps":10},{"id":1783295079354.9368,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"warm","weight":25,"reps":10},{"id":1783295225692.3108,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"top","weight":42.5,"reps":8},{"id":1783295288159.2263,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":45,"reps":8},{"id":1783295427561.6392,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":7},{"id":1783295493004.9739,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":8},{"id":1783295671534.475,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":8},{"id":1783295836723.1592,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":8},{"id":1783295959115.7842,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1783296189405.3086,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":35,"reps":5},{"id":1783296404350.82,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":7},{"id":1783296413114.0571,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":0},{"id":1783296563191.1726,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":60,"reps":8},{"id":1783296769643.7302,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":105,"reps":8},{"id":1783296976603.7876,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":90,"reps":8}],"2026-07-07":[{"id":1783459455754.13,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"warm","weight":27,"reps":10},{"id":1783459707730.6304,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"top","weight":45,"reps":6},{"id":1783459913055.2712,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":7},{"id":1783460175464.4858,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":10},{"id":1783460220224.0178,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1783460477247.1377,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":10},{"id":1783460615474.4214,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":6},{"id":1783460964932.775,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":130,"reps":5},{"id":1783461214418.3088,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":115,"reps":6},{"id":1783461519657.7144,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":105,"reps":6},{"id":1783461726054.4675,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":30,"reps":10},{"id":1783461989777.5547,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":47.5,"reps":10},{"id":1783462303801.5076,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":45,"reps":8},{"id":1783462548416.0408,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":8},{"id":1783462728109.652,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":35,"reps":5},{"id":1783463006257.7485,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":8},{"id":1783463234743.4014,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":8},{"id":1783466753754.8357,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":2.5,"reps":10},{"id":1783466761022.3586,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":10},{"id":1783466767391.0637,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":4.5,"reps":1},{"id":1783466774476.8066,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":5},{"id":1783466780361.6934,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":4.5,"reps":1},{"id":1783466789411.2764,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":2.5,"reps":10},{"id":1783466871023.9807,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":130,"reps":8},{"id":1783467202217.9807,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":215,"reps":6},{"id":1783467441419.4612,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":195,"reps":6},{"id":1783467659889.4822,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":170,"reps":7},{"id":1783467973006.472,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":100,"reps":8},{"id":1783468226657.299,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":165,"reps":8},{"id":1783468464628.1785,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":145,"reps":8},{"id":1783468807852.6045,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":65,"reps":8},{"id":1783469047251.8457,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":115,"reps":8},{"id":1783469229953.1482,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":100,"reps":10},{"id":1783469594494.61,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":90,"reps":8},{"id":1783469660852.884,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":70,"reps":8},{"id":1783469849467.2683,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":125,"reps":8},{"id":1783470157105.2761,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":110,"reps":10},{"id":1783470160787.3271,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":95,"reps":10}],"2026-07-09":[{"id":1783616381566.664,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":10},{"id":1783616444544.367,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":6},{"id":1783616895093.2463,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":130,"reps":6},{"id":1783617223951.9548,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":115,"reps":6},{"id":1783617621425.4229,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":105,"reps":9},{"id":1783617864997.3923,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"warm","weight":27.5,"reps":10},{"id":1783617958967.289,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":32.5,"reps":10},{"id":1783618215775.898,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"top","weight":45,"reps":8},{"id":1783618435168.7957,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":50,"reps":10},{"id":1783618802717.018,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":45,"reps":10},{"id":1783619226408.4888,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":10},{"id":1783619232365.6816,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":10},{"id":1783619306792.9468,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":10},{"id":1783619760154.2695,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1783620000033.411,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":35,"reps":6},{"id":1783620211812.9583,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":9},{"id":1783620504025.466,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":7},{"id":1783623300162.9849,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":20},{"id":1783623418026.5688,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":130,"reps":8},{"id":1783623750511.9385,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":215,"reps":7},{"id":1783623972852.473,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":195,"reps":7},{"id":1783624302196.289,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":170,"reps":8},{"id":1783624437402.2705,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":70,"reps":8},{"id":1783624674430.039,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":115,"reps":8},{"id":1783624953041.1096,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":105,"reps":8},{"id":1783625458041.9973,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":105,"reps":8},{"id":1783625660359.7083,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":185,"reps":6},{"id":1783625832022.9106,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":165,"reps":8},{"id":1783626125646.76,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":75,"reps":8},{"id":1783626273580.6858,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":120,"reps":8},{"id":1783626488411.003,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":110,"reps":10},{"id":1783626712277.5623,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":95,"reps":10},{"id":1783626791330.3904,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":80,"reps":10},{"id":1783626948096.1846,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":130,"reps":10},{"id":1783627174624.3643,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":115,"reps":10},{"id":1783627250262.1199,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":105,"reps":10}],"2026-07-10":[{"id":1783699398478.2954,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":10},{"id":1783699554897.6628,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":5},{"id":1783699946064.5828,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":115,"reps":3},{"id":1783700299555.724,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":135,"reps":5},{"id":1783700769664.1335,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":120,"reps":8},{"id":1783701170842.9087,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":110,"reps":10},{"id":1783701330005.447,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"warm","weight":30,"reps":10},{"id":1783701424207.6274,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":32.5,"reps":10},{"id":1783701731670.9028,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"top","weight":47.5,"reps":6},{"id":1783701826896.254,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":52.5,"reps":8},{"id":1783701963628.917,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":45,"reps":6},{"id":1783702027304.5046,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":45,"reps":9},{"id":1783702152475.457,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1783702295192.8958,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":10},{"id":1783702420169.9172,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":35,"reps":3}],"2026-07-12":[{"id":1783901734332.1687,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":0},{"id":1783901842555.6626,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":6},{"id":1783902210775.7776,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":115,"reps":5},{"id":1783902539169.158,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":135,"reps":4},{"id":1783902992387.1912,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":125,"reps":5},{"id":1783903282965.2527,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":115,"reps":9},{"id":1783903458493.173,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1783903688041.7222,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":30,"reps":8},{"id":1783903859761.1997,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":25,"reps":10},{"id":1783906249131.1191,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":20},{"id":1783906291177.6191,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":130,"reps":8},{"id":1783906526543.5383,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":215,"reps":8},{"id":1783906717652.2104,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":195,"reps":7},{"id":1783906946144.377,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":170,"reps":10}],"2026-07-14":[{"id":1784073246126.8574,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":0},{"id":1784073250380.7808,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":5},{"id":1784073671010.0586,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":115,"reps":5},{"id":1784073674895.5735,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":135,"reps":5},{"id":1784073987169.825,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":125,"reps":8},{"id":1784074365181.356,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":115,"reps":8},{"id":1784074469420.256,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1784074634816.084,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":30,"reps":8},{"id":1784074896957.2727,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":8},{"id":1784075066477.7668,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"warm","weight":30,"reps":10},{"id":1784075071588.8054,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":35,"reps":10},{"id":1784075204274.556,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"top","weight":47.5,"reps":5},{"id":1784075274223.9275,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":55,"reps":6},{"id":1784075306122.7961,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":8},{"id":1784075454651.4062,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":45,"reps":6},{"id":1784075591909.9744,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":8},{"id":1784075673486.911,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":50,"reps":7},{"id":1784075827933.9458,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":45,"reps":8},{"id":1784076068471.5552,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":75,"reps":10},{"id":1784076262184.4402,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":125,"reps":6},{"id":1784076464834.3933,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":115,"reps":6},{"id":1784078053006.2344,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":135,"reps":8},{"id":1784078067690.1655,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":215,"reps":6},{"id":1784078306376.5598,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":195,"reps":7},{"id":1784078605066.9897,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":110,"reps":10},{"id":1784078749933.9097,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":185,"reps":6},{"id":1784078877966.06,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":165,"reps":8}],"2026-07-17":[{"id":1784332652549.0823,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":4},{"id":1784332657266.7502,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":5},{"id":1784332866716.266,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":115,"reps":5},{"id":1784333068325.3455,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":135,"reps":5},{"id":1784333485558.4587,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":120,"reps":8},{"id":1784333836668.3662,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":110,"reps":9},{"id":1784333991129.3826,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1784334220053.7488,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":30,"reps":6}]},"bw":{"2026-07-03":120,"2026-07-04":120,"2026-07-05":120,"2026-07-07":121,"2026-07-12":120,"2026-07-14":120},"rpe":{}};
+let wkLoaded=false, wkDirty=false, wkTimer=null;
+const REP_HI = 8;
+
+function wkMarkDirty(){ wkDirty=true; paintSaveChip(); }
+async function wkCommit(silent){ if(!wkLoaded) return; await rawSet(KEYS.overload, JSON.stringify(WK)); wkDirty=false; if(!dirty) paintSaveChip(); if(!silent) flashSaved(); }
+async function wkLoad(){
+  const s=await rawGet(KEYS.overload);
+  if(s){ try{ const st=JSON.parse(s); WK={settings:st.settings||{},days:st.days||{},bw:st.bw||{},rpe:st.rpe||{}}; }catch(e){ WK=null; } }
+  // Fresh device / empty storage → seed from baked-in defaults IN MEMORY ONLY.
+  // Do NOT write it back: if this was a transient empty read on a device that
+  // actually has data, writing would destroy that data. Persist only when the
+  // user logs a real set (wkMarkDirty).
+  if(!s || !WK || !WK.days || Object.keys(WK.days).length===0){
+    WK = JSON.parse(JSON.stringify(DEFAULT_WK));
+    if(!WK.settings) WK.settings={}; if(!WK.days) WK.days={}; if(!WK.bw) WK.bw={}; if(!WK.rpe) WK.rpe={};
+  }
+  wkLoaded=true; if(!wkDate) wkDate=dstr();
+}
+function round5(x){ return Math.round(x/5)*5; }
+function cssId(s){ return s.replace(/[^a-z0-9]/gi,''); }
+function daysSorted(){ return Object.keys(WK.days).sort(); }
+function topOf(sets){ return sets.find(s=>s.type==='top')||null; }
+function exSessions(ex){ return daysSorted().filter(d=>(WK.days[d]||[]).some(s=>s.ex===ex)); }
+function lastSession(ex,before){ const ds=exSessions(ex).filter(d=>d<before); if(!ds.length) return null; const d=ds[ds.length-1]; return {date:d,sets:(WK.days[d]||[]).filter(s=>s.ex===ex)}; }
+function exMeta(ex){ const ds=exSessions(ex); for(let i=ds.length-1;i>=0;i--){ const s=(WK.days[ds[i]]||[]).find(x=>x.ex===ex); if(s) return {muscle:s.muscle||'',group:s.group||''}; } return {muscle:'',group:''}; }
+function isCardio(ex){ const m=exMeta(ex).muscle; return m==='cardio' || (WK.days[daysSorted().slice(-1)[0]]||[]).some(s=>s.ex===ex&&s.type==='cardio'); }
+function inferIncr(ex){ const tops=[]; daysSorted().forEach(d=>{ const t=(WK.days[d]||[]).find(s=>s.ex===ex&&s.type==='top'); if(t) tops.push(+t.weight); });
+  const c={}; for(let i=1;i<tops.length;i++){ const dd=tops[i]-tops[i-1]; if(dd>0) c[dd]=(c[dd]||0)+1; }
+  let best=5,bc=0; Object.keys(c).forEach(k=>{ if(c[k]>bc){bc=c[k];best=+k;} }); return best||5; }
+
+// build the prescribed plan for an exercise (targets pre-filled in boxes)
+function allExercises(){ const m={}; daysSorted().forEach(d=>{ (WK.days[d]||[]).forEach(s=>{ if(!m[s.ex]||d>m[s.ex]) m[s.ex]=d; }); }); return Object.keys(m).sort((a,b)=> m[b]<m[a]?-1:1); }
+function currentBW(){ const ds=Object.keys(WK.bw||{}).sort(); return ds.length? WK.bw[ds[ds.length-1]] : (WK.settings.bwCurrent||null); }
+function latestTop(ex){ const ds=exSessions(ex); for(let i=ds.length-1;i>=0;i--){ const t=(WK.days[ds[i]]||[]).find(s=>s.ex===ex&&s.type==='top'); if(t) return +t.weight; } return null; }
+function firstTop(ex){ const ds=exSessions(ex); for(let i=0;i<ds.length;i++){ const t=(WK.days[ds[i]]||[]).find(s=>s.ex===ex&&s.type==='top'); if(t) return +t.weight; } return null; }
+function weeklySets(){ let n=0; const cut=shift(dstr(),-7); Object.keys(WK.days).forEach(d=>{ if(d>cut) (WK.days[d]||[]).forEach(s=>{ if(s.type==='top'||s.type==='back') n++; }); }); return n; }
+function bwTrend(){ const ds=Object.keys(WK.bw||{}).sort(); if(ds.length<2) return null; return (+WK.bw[ds[ds.length-1]]) - (+WK.bw[ds[0]]); }
+let wkDate=null;
+let wkDeload={};   // session-only "feel weak / missed days" recalibration per exercise
+
+// derive the TYPICAL set template (counts + ratios) from history, so an
+// incomplete last session never drops warm-ups or back-offs.
+function template(ex){
+  const sess=exSessions(ex).map(d=>({date:d,sets:(WK.days[d]||[]).filter(s=>s.ex===ex)})).filter(s=>topOf(s.sets)).slice(-6);
+  if(!sess.length) return null;
+  const wc={},bc={};
+  sess.forEach(s=>{ const w=s.sets.filter(x=>x.type==='warm').length,b=s.sets.filter(x=>x.type==='back').length; wc[w]=(wc[w]||0)+1; bc[b]=(bc[b]||0)+1; });
+  const mode=o=>{ let k=0,c=-1; Object.keys(o).forEach(x=>{ if(o[x]>c||(o[x]===c&&+x>+k)){c=o[x];k=+x;} }); return k; };
+  const ratioAt=(type,i)=>{ let sum=0,n=0,reps=null; sess.forEach(s=>{ const top=topOf(s.sets),arr=s.sets.filter(x=>x.type===type); if(arr[i]&&top){ sum+=(+arr[i].weight)/(+top.weight||1); n++; reps=+arr[i].reps; } }); return n?{r:sum/n,reps}:null; };
+  const nW=mode(wc),nB=mode(bc),warms=[],backs=[];
+  for(let i=0;i<nW;i++){ const x=ratioAt('warm',i); if(x) warms.push(x); }
+  for(let i=0;i<nB;i++){ const x=ratioAt('back',i); if(x) backs.push(x); }
+  return {warms,backs};
+}
+function buildPlan(ex,today){
+  const last=lastSession(ex,today); if(!last) return null;
+  const top=topOf(last.sets); if(!top) return {cardio:true};
+  const tw=+top.weight||1, tr=+top.reps||0, incr=inferIncr(ex);
+  let bumped = tr>=REP_HI;
+  let newTop = bumped ? round5(tw+incr) : tw;
+  let topReps = bumped ? 6 : tr;
+  if(wkDeload[ex]){ newTop=round5(newTop*0.9); topReps=Math.max(5,Math.min(topReps,REP_HI-2)); bumped=false; } // rebuild session
+  const tmpl=template(ex);
+  const warms=(tmpl?tmpl.warms:[]).map(w=>({w:round5(w.r*newTop),reps:w.reps}));
+  const backs=(tmpl?tmpl.backs:[]).map(b=>({w:round5(b.r*newTop),reps:b.reps}));
+  return {warms,top:{w:newTop,reps:topReps},backs,bumped,deload:!!wkDeload[ex],incr,lastTopW:tw,lastTopReps:tr,lastDate:last.date};
+}
+function renderWorkout(keepScroll){
+  if(!wkLoaded){ paneWorkout.innerHTML='<div class="empty">Loading\u2026</div>'; wkLoad().then(()=>renderWorkout()); return; }
+  const sy = keepScroll ? window.scrollY : 0;
+  const td=wkDate||dstr(); const isToday=(td===dstr());
+  const bw=currentBW(), goal=WK.settings.bwGoal;
+  let h='';
+  h+='<div class="panel"><p class="panel-t">Bodyweight</p><div class="mrow" style="justify-content:space-between">'
+    +'<div><span style="font-family:var(--mono);font-size:24px">'+(bw!=null?bw:'\u2014')+'</span><span style="color:var(--dim)"> lb'+(goal?(' \u2192 '+goal):'')+'</span></div>'
+    +'<div class="mrow"><input id="bw-in" type="number" placeholder="today" style="width:90px"><button class="mbtn" id="bw-add">Log</button></div></div>';
+  if(bw!=null&&goal){ const start=WK.settings.bwCurrent||bw; const pct=Math.max(0,Math.min(100,Math.round(100*(bw-start)/((goal-start)||1))));
+    h+='<div class="bar" style="margin-top:10px"><div style="width:'+pct+'%"></div></div><div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:4px">'+(goal-bw)+' lb to goal</div>'; }
+  h+='</div>';
+  // ---- progress panel: status, trends, goals ----
+  {
+    const s=WK.settings||{};
+    const bench=latestTop('Bench Press'), bStart=+s.benchStart||bench, bGoal=+s.benchGoal;
+    const bwNow=currentBW(), bwGoal=+s.bwGoal, bwStart=+s.bwCurrent||bwNow, bwDelta=bwTrend();
+    const wk=weeklySets(), lo=+s.volLow||10, hi=+s.volHigh||20;
+    let pg='<div class="panel"><p class="panel-t">Progress</p>';
+    // status row
+    pg+='<div class="statgrid" style="margin-bottom:6px">'
+      +'<div class="stat"><div class="v">'+(bwNow!=null?bwNow:'\u2014')+'</div><div class="k">bodyweight'+(bwDelta!=null?(' ('+(bwDelta>=0?'+':'')+bwDelta+')'):'')+'</div></div>'
+      +(bench!=null?'<div class="stat"><div class="v" style="color:var(--fuel)">'+bench+'</div><div class="k">bench top</div></div>':'')
+      +'<div class="stat"><div class="v" style="color:'+(wk>=lo?'var(--ok)':'var(--fuel)')+'">'+wk+'</div><div class="k">sets / 7d</div></div>'
+      +'</div>';
+    // bodyweight goal bar
+    if(bwNow!=null&&bwGoal){ const p=Math.max(0,Math.min(100,Math.round(100*(bwNow-bwStart)/((bwGoal-bwStart)||1))));
+      pg+='<div class="slabel">Bodyweight '+bwNow+' \u2192 '+bwGoal+' lb</div><div class="bar"><div style="width:'+p+'%"></div></div>'; }
+    // bench goal bar
+    if(bench!=null&&bGoal){ const p=Math.max(0,Math.min(100,Math.round(100*(bench-bStart)/((bGoal-bStart)||1))));
+      pg+='<div class="slabel" style="margin-top:6px">Bench '+bStart+' \u2192 '+bGoal+' lb (now '+bench+')</div><div class="bar"><div style="width:'+p+'%;background:var(--fuel)"></div></div>'; }
+    // volume note
+    pg+='<div class="note" style="margin-top:6px">Working sets this week: '+wk+' \u00b7 target '+lo+'\u2013'+hi+' per muscle/week</div>';
+    // per-lift trend list
+    const trend=allExercises().filter(e=>!isCardio(e)).map(e=>{ const f=firstTop(e),l=latestTop(e); if(f==null||l==null) return null; const dd=l-f;
+      return '<div class="goalrow"><span style="flex:1">'+esc(e)+'</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">'+f+' \u2192 '+l+'</span><span style="font-family:var(--mono);font-size:12px;color:'+(dd>0?'var(--ok)':(dd<0?'var(--deficit)':'var(--dim)'))+';min-width:44px;text-align:right">'+(dd>0?'+':'')+dd+'</span></div>'; }).filter(Boolean).join('');
+    if(trend) pg+='<div style="margin-top:10px"><div class="slabel" style="margin-bottom:4px">Top-set trend (first \u2192 latest)</div>'+trend+'</div>';
+    pg+='</div>';
+    h+=pg;
+  }
+  h+='<div class="panel"><div class="mrow" style="justify-content:space-between"><p class="panel-t" style="margin:0">Session</p>'
+   +'<div class="mrow"><button class="mbtn" id="wk-prev">\u2039</button>'
+   +'<span style="font-family:var(--mono);font-size:12px;min-width:150px;text-align:center">'+dLabel(td)+'</span>'
+   +'<button class="mbtn" id="wk-next">\u203a</button>'
+   +(isToday?'':'<button class="mbtn" id="wk-today">\u2192 Today</button>')+'</div></div></div>';
+  const exs=allExercises();
+  if(!exs.length) h+='<div class="placeholder">No workout history yet. Log a set below to start.</div>';
+  exs.forEach(ex=>{
+    const id=cssId(ex);
+    const todayLog=(WK.days[td]||[]).filter(s=>s.ex===ex);
+    if(isCardio(ex)){
+      const last=lastSession(ex,td); const pre=last?last.sets[last.sets.length-1]:{weight:'',reps:''};
+      h+='<div class="lift"><div class="lift-h"><span class="lift-name">'+esc(ex)+'</span><span class="cue hold">cardio</span></div>';
+      h+='<div class="setrow"><input id="w-'+id+'-c" type="number" value="'+(pre.weight||'')+'"><span style="color:var(--dim)">spd/inc \u00d7</span><input id="r-'+id+'-c" type="number" value="'+(pre.reps||'')+'"><span style="color:var(--dim)">min</span><button class="mbtn primary" data-log="'+ex+'|cardio|w-'+id+'-c|r-'+id+'-c">Log</button></div>';
+      if(todayLog.length) h+='<div class="logged">'+todayLog.map(s=>'<span class="setpill" data-del="'+td+'|'+s.id+'">'+s.weight+'\u00d7'+s.reps+' \u00d7</span>').join('')+'</div>';
+      h+='</div>'; return;
+    }
+    const plan=buildPlan(ex,td);
+    h+='<div class="lift"><div class="lift-h"><span class="lift-name">'+esc(ex)+(plan&&plan.deload?' <span class="cue deload">deload \u221210%</span>':'')+'</span>';
+    h+='<button class="mbtn" style="padding:4px 9px;font-size:11px" data-deload="'+ex+'">'+(plan&&plan.deload?'\u2713 rebuild':'Feel weak')+'</button></div>';
+    if(plan&&plan.lastDate) h+='<div class="lastline">last '+plan.lastTopW+'\u00d7'+plan.lastTopReps+' \u00b7 '+plan.lastDate.slice(5)+'</div>';
+    if(!plan){ h+='<div class="empty" style="margin-top:6px">First time \u2014 log your sets below.</div>'; }
+    else{
+      // flat prescribed sequence for current-set highlight; next = number logged today
+      const nextIdx = todayLog.length;
+      let flat=0;
+      const rowsHTML=(arr,type,label)=>arr.map((s)=>{
+        const myIdx=flat++; const wid='w-'+id+'-'+type+myIdx, rid='r-'+id+'-'+type+myIdx;
+        const isCur = (myIdx===nextIdx);
+        let cue='';
+        if(type==='top'){ cue = plan.bumped
+            ? ' <span style="color:var(--teal);font-family:var(--mono);font-size:11px">\u2191 +'+plan.incr+' from '+plan.lastTopW+'</span>'
+            : (plan.deload? '' : ' <span style="color:var(--dim);font-family:var(--mono);font-size:11px">hold \u00b7 +'+plan.incr+' at '+REP_HI+' reps</span>'); }
+        return '<div class="setrow'+(isCur?' cur':'')+'"><span style="min-width:70px;color:'+(isCur?'var(--teal)':'var(--dim)')+';font-family:var(--mono);font-size:11px">'+(isCur?'\u25b6 ':'')+label+'</span>'
+          +'<input id="'+wid+'" type="number" value="'+s.w+'"><span style="color:var(--dim)">\u00d7</span>'
+          +'<input id="'+rid+'" type="number" value="'+s.reps+'">'
+          +'<button class="mbtn'+(type==='top'?' primary':'')+'" data-log="'+ex+'|'+type+'|'+wid+'|'+rid+'">Log</button>'+cue+'</div>';
+      }).join('');
+      h+=rowsHTML(plan.warms,'warm','Warmup');
+      h+=rowsHTML([plan.top],'top','Top set');
+      h+=rowsHTML(plan.backs,'back','Back-off');
+    }
+    if(todayLog.length) h+='<div class="logged">'+todayLog.map(s=>'<span class="setpill" data-del="'+td+'|'+s.id+'">'+(s.type&&s.type!=='cardio'?s.type[0].toUpperCase()+':':'')+s.weight+'\u00d7'+s.reps+' \u00d7</span>').join('')+'</div>';
+    h+='</div>';
+  });
+  const exList=exs.map(e=>'<option value="'+esc(e)+'">').join('');
+  h+='<div class="panel mpanel"><p class="panel-t">Log another set</p><datalist id="exlist">'+exList+'</datalist>'
+    +'<div class="mrow"><input id="c-ex" list="exlist" placeholder="exercise" style="flex:1;min-width:130px">'
+    +'<select id="c-type"><option value="warm">warm</option><option value="top" selected>top</option><option value="back">back</option><option value="cardio">cardio</option></select>'
+    +'<input id="c-w" type="number" placeholder="wt" style="width:70px"><input id="c-r" type="number" placeholder="reps" style="width:70px">'
+    +'<button class="mbtn primary" id="c-log">Log</button></div></div>';
+  paneWorkout.innerHTML=h;
+  wireWorkout();
+  if(keepScroll) requestAnimationFrame(()=>window.scrollTo(0,sy));
+}
+function logSet(ex,type,w,reps){
+  if(!ex||!w||!reps) return;
+  const td=wkDate||dstr(); if(!WK.days[td]) WK.days[td]=[];
+  const m=exMeta(ex);
+  WK.days[td].push({id:Date.now()+Math.random(), ex, muscle:m.muscle, group:m.group, type, weight:w, reps});
+  wkMarkDirty(); renderWorkout(true);
+}
+function wireWorkout(){
+  const g=id=>document.getElementById(id);
+  g('bw-add').onclick=()=>{ const v=+g('bw-in').value; if(!v) return; WK.bw[wkDate||dstr()]=v; if(!WK.settings.bwCurrent) WK.settings.bwCurrent=v; wkMarkDirty(); renderWorkout(true); };
+  { const p=g('wk-prev'); if(p) p.onclick=()=>{ wkDate=shift(wkDate||dstr(),-1); renderWorkout(); }; }
+  { const n=g('wk-next'); if(n) n.onclick=()=>{ wkDate=shift(wkDate||dstr(),1); renderWorkout(); }; }
+  { const t=g('wk-today'); if(t) t.onclick=()=>{ wkDate=dstr(); renderWorkout(); }; }
+  paneWorkout.querySelectorAll('[data-deload]').forEach(b=>b.onclick=()=>{ const ex=b.getAttribute('data-deload'); wkDeload[ex]=!wkDeload[ex]; renderWorkout(true); });
+  paneWorkout.querySelectorAll('[data-log]').forEach(btn=>{ btn.onclick=()=>{ const [ex,type,wid,rid]=btn.getAttribute('data-log').split('|'); logSet(ex,type,+g(wid).value,+g(rid).value); }; });
+  paneWorkout.querySelectorAll('[data-del]').forEach(el=>{ el.onclick=()=>{ const [d,id]=el.getAttribute('data-del').split('|'); WK.days[d]=(WK.days[d]||[]).filter(s=>String(s.id)!==id); wkMarkDirty(); renderWorkout(true); }; });
+  const cl=g('c-log'); if(cl) cl.onclick=()=>{ logSet(g('c-ex').value.trim(), g('c-type').value, +g('c-w').value, +g('c-r').value); };
+}
+
+/* ================= KNOWLEDGE ENGINE (slice 3) =================
+   8 topic sub-tabs. Items are time-boxed (5/15/30/60 min). Each item is an
+   ORIGINAL question I wrote, citing the canonical chapter/section + a video.
+   Longer items use attempt -> reveal -> self-rate (writes mastery + an entry
+   into meridian-core so it shows in Study/Today). Stored in csgraph_profile_v2. */
+const paneKnow = document.getElementById('pane-knowledge');
+let KG = { mastery:{}, srs:{}, log:[], gymDone:{} };          // mastery[itemId] = 1..5 ; log = attempts
+let kgTopic='algorithms', kgTime='all', kgLoaded=false, kgGym=false;
+
+const KG_BOOKS = {
+  clrs:{t:'CLRS \u2014 Introduction to Algorithms',u:'https://www.cs.mcgill.ca/~akroit/math/compsci/Cormen%20Introduction%20to%20Algorithms.pdf'},
+  csapp:{t:'CSAPP \u2014 Computer Systems: A Programmer\u2019s Perspective',u:'https://www.cs.sfu.ca/~ashriram/Courses/CS295/assets/books/CSAPP_2016.pdf'},
+  tanenbaum:{t:'Tanenbaum \u2014 Modern Operating Systems',u:'https://www.dc16iupat.org/wp-content/uploads/2020/04/Modern.Operating.Systems.2nd.Ed_.by_.Tanenbaum-not-scanned-1-1.pdf'},
+  cia:{t:'Anthony Williams \u2014 C++ Concurrency in Action, 2nd ed.',u:'https://beefnoodles.cc/assets/book/C++%20Concurrency%20in%20Action.pdf'},
+  hp:{t:'Hennessy & Patterson \u2014 Computer Architecture: A Quantitative Approach',u:'https://acs.pub.ro/~cpop/SMPA/Computer%20Architecture,%20Sixth%20Edition_%20A%20Quantitative%20Approach%20(%20PDFDrive%20).pdf'},
+  cod:{t:'Patterson & Hennessy \u2014 Computer Organization and Design',u:'https://nsec.sjtu.edu.cn/data/MK.Computer.Organization.and.Design.4th.Edition.Oct.2011.pdf'},
+  unp:{t:'Stevens \u2014 UNIX Network Programming, Vol. 2 (IPC)',u:'http://library.bagrintsev.me/Net/W.%20Richard%20Stevens%20-%20Unix%20Network%20Programming%20Vol2.pdf'},
+  cornell:{t:'Cornell Virtual Workshop \u2014 Roadmaps (parallel, GPU/CUDA)',u:'https://cvw.cac.cornell.edu/roadmaps'},
+  hwint:{t:'hardware-interview.com \u2014 study',u:'https://www.hardware-interview.com/study'},
+  baremetal:{t:'Alexey Robenko \u2014 Practical Guide to Bare-metal C++',u:'https://arobenko.github.io/bare_metal_cpp/'},
+  cpuland:{t:'cpu.land \u2014 Putting the You in CPU',u:'https://cpu.land/'},
+  coreg:{t:'C++ Core Guidelines',u:'https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines'},
+  tlpi:{t:'Michael Kerrisk \u2014 The Linux Programming Interface',u:'https://broman.dev/download/The%20Linux%20Programming%20Interface.pdf'},
+  playlist:{t:'YouTube \u2014 core CS playlist',u:'https://www.youtube.com/watch?v=sQqniayndb4&list=PLMrJAkhIeNNR3sNYvfgiKgcStwuPSts9V'}
+};
+const KG_TOPICS = [
+  {id:'algorithms', name:'Algorithms / LC', books:['clrs'], seeded:true},
+  {id:'concurrency', name:'Concurrency / Parallel / Async', books:['cia','tanenbaum','cornell'], seeded:true},
+  {id:'graph', name:'Graph Theory', books:['clrs'], seeded:false},
+  {id:'probstats', name:'Prob & Stats', books:[], seeded:false},
+  {id:'comparch', name:'Comp Arch / Assembly / RISC-V', books:['csapp','hp','cod','cpuland'], seeded:true},
+  {id:'cpp', name:'C++', books:['coreg','baremetal','hwint'], seeded:true},
+  {id:'gpu', name:'GPUs / TPUs', books:['cornell'], seeded:false},
+  {id:'distributed', name:'Distributed Systems', books:['unp','cia'], seeded:true},
+  {id:'linux', name:'Linux / Systems Programming', books:['tlpi'], seeded:true}
+];
+
+const ytS=q=>'https://www.youtube.com/results?search_query='+encodeURIComponent(q);
+const KG_PLAYLIST='https://www.youtube.com/watch?v=sQqniayndb4&list=PLMrJAkhIeNNR3sNYvfgiKgcStwuPSts9V';
+// Gym-session study: videos to watch + readings to do (phone-friendly, passive).
+const KG_GYM={
+  algorithms:{videos:[['Recursion (playlist)','https://www.youtube.com/watch?v=44TwrxjfIfo&list=PLDV1Zeh2NRsCmu1lb9grUcljeYJtmgmYc'],['Dynamic programming (playlist)','https://www.youtube.com/watch?v=_tur2nPkIKo&list=PLDV1Zeh2NRsAsbafOroUBnNV8fhZa7P4u'],['Tree algorithms (playlist)','https://www.youtube.com/watch?v=1XC3p2zBK34&list=PLDV1Zeh2NRsDfGc8rbQ0_58oEZQVtvoIc'],['Graph theory (playlist)','https://youtube.com/playlist?list=PLDV1Zeh2NRsDGO4--qE8yH72HFL1Km93P']],reading:[['clrs','\u00a722.2\u201322.4 BFS, DFS, topological sort'],['clrs','Ch.24 shortest paths (Dijkstra)'],['clrs','Ch.21 disjoint sets'],['clrs','Ch.15 dynamic programming']]},
+  graph:{videos:[['Graph theory (full playlist)','https://youtube.com/playlist?list=PLDV1Zeh2NRsDGO4--qE8yH72HFL1Km93P'],['Tree algorithms (playlist)','https://www.youtube.com/watch?v=1XC3p2zBK34&list=PLDV1Zeh2NRsDfGc8rbQ0_58oEZQVtvoIc']],reading:[['clrs','Ch.20 elementary graph algorithms'],['clrs','Ch.22\u201323 MST & shortest paths']]},
+  concurrency:{videos:[['C++ memory model',ytS('C++ memory model acquire release explained')],['Lock-free programming',ytS('lock free programming C++ introduction')],['False sharing',ytS('false sharing cache line C++')],['Mutex vs atomic',ytS('mutex vs atomic C++ when to use')]],reading:[['cia','Ch.5 memory model & atomics'],['cia','Ch.7 lock-free data structures'],['tanenbaum','\u00a76 deadlocks']]},
+  comparch:{videos:[['CPU caches explained',ytS('CPU cache explained memory hierarchy')],['Pipelining & hazards',ytS('CPU pipeline hazards explained')],['Branch prediction',ytS('branch prediction explained')],['Virtual memory & TLB',ytS('virtual memory paging TLB explained')]],reading:[['csapp','Ch.6 memory hierarchy & caches'],['csapp','Ch.9 virtual memory'],['cod','Ch.4 the processor (pipelining)'],['cpuland','rings, syscalls, execution']]},
+  cpp:{videos:[['RAII explained',ytS('RAII C++ explained')],['Move semantics',ytS('C++ move semantics explained')],['Smart pointers',ytS('unique_ptr shared_ptr weak_ptr explained')],['vtables & virtual',ytS('C++ vtable virtual function how it works')]],reading:[['coreg','R.1, R.20\u2013R.24 resources & smart pointers'],['coreg','C.20\u2013C.21 rule of zero/five'],['baremetal','compile-time polymorphism, no-heap C++']]},
+  distributed:{videos:[['CAP theorem',ytS('CAP theorem explained')],['Raft consensus',ytS('Raft consensus algorithm visualized')],['Consistent hashing',ytS('consistent hashing explained')],['Vector clocks',ytS('lamport vector clocks explained')]],reading:[['cia','concurrency foundations'],['unp','IPC & message semantics (Stevens Vol.2)']]},
+  linux:{videos:[['fork/exec model',ytS('linux fork exec explained')],['epoll vs select',ytS('epoll vs select poll explained')],['File descriptors',ytS('linux file descriptors explained')],['Processes & signals',ytS('linux processes signals explained')]],reading:[['tlpi','Ch.24 process creation'],['tlpi','\u00a75.4 file descriptors & open files'],['tlpi','Ch.63 epoll & I/O models']]}
+};
+
+/* Each item: {id, mins:5|15|30|60, prompt, src:{book,ref}, video?, reveal?, flow:'flip'|'full'} */
+const KG_ITEMS = {
+  algorithms:[
+    {id:'a-bfs-5',mins:5,flow:'flip',prompt:'In one sentence: what invariant makes BFS give the shortest path in an unweighted graph, and why does DFS not?',src:{book:'clrs',ref:'\u00a722.2 Breadth-first search'},reveal:'BFS explores in rings of increasing distance, so the first time a node is dequeued it is reached by a fewest-edges path \u2014 nothing shorter can arrive later. DFS dives down one path and may reach a node via a long route first, with no distance guarantee.'},
+    {id:'a-dijkstra-5',mins:5,flow:'flip',prompt:'What single data-structure swap turns BFS into Dijkstra, and what breaks if edge weights can be negative?',src:{book:'clrs',ref:'\u00a722.3 / Ch.24 Single-source shortest paths'},reveal:'Swap the FIFO queue for a min-priority-queue keyed on tentative distance. Dijkstra assumes non-negative weights so that a popped (finalized) node can never later be improved; a negative edge can improve an already-finalized node, violating that invariant (use Bellman-Ford instead).'},
+    {id:'a-union-5',mins:5,flow:'flip',prompt:'State the union-find invariant that lets "are these in the same set?" be answered in ~O(1) amortized.',src:{book:'clrs',ref:'\u00a721 Data structures for disjoint sets'},reveal:'Every element points toward a representative root; two elements are in the same set iff they reach the same root. Path compression + union by rank keep trees near-flat, giving inverse-Ackermann (\u2248 constant) amortized cost.'},
+    {id:'a-invariant-15',mins:15,flow:'full',prompt:'Sliding-window: given a string, find the longest substring with no repeating characters. Before coding, state the window invariant, then the O(n) approach and its space.',src:{book:'clrs',ref:'Ch.15\u201316 (greedy/DP framing); LC 3'},reveal:'Invariant: the window [l,r] always contains no duplicate. Expand r; when s[r] duplicates something in the window, advance l past the previous occurrence (tracked in a hashmap of char\u2192lastIndex). Each index enters/leaves once \u2192 O(n) time, O(min(n,\u03a3)) space. The "throw-away" is every window that would contain a repeat \u2014 never examined.'},
+    {id:'a-grid-30',mins:30,flow:'full',prompt:'Grid with a consumable resource (fuel): BFS where state is (row,col,fuel). What is the dominance-pruning invariant, and what is the resulting time complexity?',src:{book:'clrs',ref:'Ch.22 BFS extended with state'},reveal:'Invariant: for each cell keep the maximum fuel ever seen arriving there; only enqueue an arrival that strictly beats it. That prunes dominated states (same cell, \u2264 fuel). Time is O(rows\u00d7cols\u00d7maxFuel) because each cell can be improved at most maxFuel times. This is the ladder BFS \u2192 BFS+state \u2192 Dijkstra.'},
+    {id:'a-topo-15',mins:15,flow:'full',prompt:'Course-schedule / ordering: when is a valid ordering impossible, and name the two algorithms that detect it.',src:{book:'clrs',ref:'\u00a722.4 Topological sort'},reveal:'Impossible iff the dependency graph has a cycle. Kahn\u2019s algorithm (repeatedly emit in-degree-0 nodes; if fewer than N emitted, a cycle exists) or DFS with a recursion-stack "gray" marker (a back-edge to a gray node = cycle). Emit order = reverse DFS finish times.'},
+    {id:'a-heap-30',mins:30,flow:'full',prompt:'Streaming median: design a structure supporting add(x) and getMedian() efficiently over a stream. State the invariant across the two heaps.',src:{book:'clrs',ref:'Ch.6 Heapsort / priority queues; LC 295'},reveal:'Max-heap holds the lower half, min-heap the upper half. Invariants: every element in the low heap \u2264 every element in the high heap, and their sizes differ by \u2264 1. add = push then rebalance across the tops; median = top of the larger heap (or average of both tops). add O(log n), getMedian O(1).'}
+  ],
+  concurrency:[
+    {id:'c-race-5',mins:5,flow:'flip',prompt:'Define a data race precisely (not just "two threads touch memory").',src:{book:'cia',ref:'Ch.5 The C++ memory model & atomic operations'},reveal:'A data race = two threads access the same memory location concurrently, at least one access is a write, and there is no happens-before ordering (no synchronization) between them. In C++ it is undefined behavior. Note: not every race is a bug, but every data race is UB.'},
+    {id:'c-ordering-15',mins:15,flow:'full',prompt:'Explain acquire vs release memory ordering as a pair. Why does a producer publishing a buffer need release, and the consumer need acquire?',src:{book:'cia',ref:'Ch.5 — synchronizing operations & memory ordering'},reveal:'release on a store: all memory writes sequenced-before it become visible to any thread that later performs an acquire-load reading that value. acquire on a load: once you observe the released value, you also observe everything that happened-before the release. Producer writes buffer then stores the "ready" flag with release; consumer acquire-loads the flag, guaranteeing the buffer write is visible before it reads it. Without the pair, the flag could be seen before the data lands.'},
+    {id:'c-spsc-60',mins:60,flow:'full',prompt:'Design a lock-free single-producer/single-consumer ring buffer. State: how you distinguish full from empty, which index uses which memory ordering, and why no lock is needed.',src:{book:'cia',ref:'Ch.7 Designing lock-free concurrent data structures'},reveal:'Two monotonic counters head/tail (mask to index; capacity a power of two). Empty: tail-head==0. Full: tail-head==capacity (no wasted slot). Producer: relaxed-load own tail, acquire-load head, write slot, release-store tail+1. Consumer: acquire-load tail, relaxed-load head, read slot, release-store head+1. No lock is needed because exactly one thread writes each index; the acquire/release pair orders the slot write before the index publish. size_approx uses two relaxed loads.'},
+    {id:'c-deadlock-15',mins:15,flow:'full',prompt:'State the four Coffman conditions for deadlock and the single most common prevention discipline.',src:{book:'tanenbaum',ref:'\u00a76 Deadlocks'},reveal:'Mutual exclusion, hold-and-wait, no preemption, circular wait \u2014 all four must hold. Break any one to prevent deadlock; the standard discipline is to impose a global lock-ordering so circular wait cannot form (always acquire lock A before lock B, everywhere).'},
+    {id:'c-falsesharing-15',mins:15,flow:'full',prompt:'What is false sharing, why does it wreck multithreaded performance, and how do you fix it?',src:{book:'cia',ref:'Ch.8 — data structures & false sharing (CSAPP Ch.6 caches)'},reveal:'Two threads write to different variables that happen to sit on the same 64-byte cache line; the cache-coherence protocol ping-pongs the line between cores as if they shared data, even though they logically do not. Fix: pad/align hot per-thread data to its own cache line (alignas(64) or padding).'},
+    {id:'c-concpar-5',mins:5,flow:'flip',prompt:'Concurrency vs parallelism in one line each \u2014 and can you have one without the other?',src:{book:'cornell',ref:'Parallel programming roadmap'},reveal:'Concurrency = structuring a program as independently-progressing tasks (dealing with many things at once); parallelism = actually executing multiple tasks simultaneously on multiple cores (doing many at once). You can have concurrency without parallelism (one core interleaving tasks) and design for concurrency so parallelism becomes possible when cores exist.'},
+    {id:'c-atomicvslock-30',mins:30,flow:'full',prompt:'When is an atomic (lock-free) approach actually better than a mutex, and what is the hidden cost of lock-free code?',src:{book:'cia',ref:'Ch.5 primitives / Ch.9\u201310'},reveal:'Atomics win when the critical section is tiny (a counter, an index, a flag) and contention or the cost of blocking/scheduling would dominate; no thread ever blocks, so no priority inversion or convoying. Hidden costs: correctness is much harder (memory ordering, the ABA problem), progress guarantees are subtle (lock-free \u2260 wait-free), and heavy contention still causes cache-line bouncing. For anything non-trivial, a mutex is often the right, readable default.'}
+  ],
+  linux:[
+    {id:'l-fork-5',mins:5,flow:'flip',prompt:'After fork(), how do parent and child differ in return value and memory, and is memory actually copied?',src:{book:'tlpi',ref:'Ch.24 Process Creation'},reveal:'fork() returns the child PID to the parent and 0 to the child (−1 on failure). The child gets a copy of the parent\u2019s address space, but modern kernels use copy-on-write: pages are shared read-only and only duplicated when either side writes, so the copy is lazy, not upfront.'},
+    {id:'l-fd-15',mins:15,flow:'full',prompt:'Explain the three-level file-descriptor model: the per-process fd table, the open file table, and the inode table. Why does this structure make dup() and fork() behave the way they do?',src:{book:'tlpi',ref:'Ch.5 §5.4 Relationship between file descriptors and open files'},reveal:'A file descriptor indexes the per-process fd table; each entry points to an open file description (system-wide) holding the offset and status flags; that points to the inode. dup() and fork() copy the fd entry but SHARE the open file description — so duplicated/inherited fds share a file offset (a write through one advances the other), whereas two independent open() calls to the same file get separate offsets.'},
+    {id:'l-epoll-30',mins:30,flow:'full',prompt:'You must handle 10k concurrent sockets. Why do select()/poll() scale poorly, and what does epoll change? Contrast level- vs edge-triggered.',src:{book:'tlpi',ref:'Ch.63 Alternative I/O Models (epoll)'},reveal:'select()/poll() are O(n): every call re-passes and re-scans the entire fd set, so cost grows with total connections even if few are active. epoll keeps the interest set in the kernel and returns only ready fds — O(ready), not O(total). Level-triggered fires while data remains (simpler, poll-like); edge-triggered fires once on a readiness transition, so you must drain the fd fully (loop until EAGAIN) or you lose events — faster but easier to get wrong.'}
+  ],
+  comparch:[
+    {id:'ca-cache-5',mins:5,flow:'flip',prompt:'Why is a cache line typically 64 bytes, not 1 byte? State the principle it exploits.',src:{book:'csapp',ref:'\u00a76.2\u20136.4 The memory hierarchy & cache memories'},reveal:'Spatial locality: programs tend to access data near data they just used. Fetching a 64-byte line amortizes the fixed cost of a memory access across neighbors you\u2019ll likely need next, so sequential access gets many hits per miss. A 1-byte line would waste that latency on every element.'},
+    {id:'ca-pipeline-5',mins:5,flow:'flip',prompt:'In one sentence: what does instruction pipelining buy you, and what is the hazard that stalls it?',src:{book:'cod',ref:'Ch.4 The Processor (pipelining)'},reveal:'Pipelining overlaps the stages (fetch/decode/execute/mem/writeback) of consecutive instructions so throughput approaches one instruction per cycle. Hazards stall it: data hazards (an instruction needs a result not yet ready), control hazards (branches whose direction isn\u2019t known yet), and structural hazards (two instructions want the same unit).'},
+    {id:'ca-branch-15',mins:15,flow:'full',prompt:'Explain branch prediction and why a mispredict is expensive. How does this connect to the classic "sorted array is faster to process" result?',src:{book:'hp',ref:'Ch.3 Instruction-Level Parallelism & its exploitation'},reveal:'The CPU guesses a branch\u2019s direction and speculatively executes down that path to keep the pipeline full. A mispredict means flushing all speculated work and refetching \u2014 tens of cycles lost. Processing a sorted array is faster because the data-dependent branch (e.g. if x < threshold) becomes highly predictable (long runs of the same outcome), so the predictor is almost always right; on shuffled data it mispredicts constantly.'},
+    {id:'ca-virtmem-30',mins:30,flow:'full',prompt:'Walk through what happens on a memory access from virtual address to data, including the TLB and a page fault. Why does the TLB exist?',src:{book:'csapp',ref:'Ch.9 Virtual Memory (\u00a79.6 address translation)'},reveal:'The CPU issues a virtual address. The MMU splits it into a page number + offset and must translate the page number to a physical frame via the page table \u2014 but walking the page table is itself memory accesses. The TLB caches recent translations, so a TLB hit gives the frame in ~1 cycle. On a TLB miss the MMU walks the page table; if the page isn\u2019t resident, a page fault traps to the OS, which loads the page from disk, updates the table, and restarts the instruction. The TLB exists because without it every memory access would cost several extra accesses just to translate.'},
+    {id:'ca-riscv-15',mins:15,flow:'full',prompt:'Why is RISC-V\u2019s load/store architecture significant? Contrast with a memory-operand (CISC) design and say why it matters for pipelining.',src:{book:'cod',ref:'Ch.2 Instructions: Language of the Computer (RISC-V)'},reveal:'In a load/store ISA, arithmetic instructions operate only on registers; memory is touched solely by explicit load/store instructions. This keeps instructions fixed-length and single-purpose, which makes decoding and pipelining regular \u2014 every instruction takes a predictable path through the stages. CISC instructions that can read memory operands directly have variable latency and complexity, complicating the pipeline. RISC-V\u2019s regularity is also why it\u2019s attractive for custom accelerators (e.g. Tenstorrent\u2019s baby cores).'},
+    {id:'ca-syscall-15',mins:15,flow:'full',prompt:'What mechanically happens when user code makes a system call? Why can\u2019t a program just jump into kernel code?',src:{book:'cpuland',ref:'cpu.land \u2014 Rings & Syscalls'},reveal:'A privilege-level bit (rings) separates user (low privilege) from kernel (high). A syscall instruction raises the privilege level AND transfers control to a fixed, kernel-defined entry point \u2014 the caller cannot choose where it lands. The kernel dispatches on the syscall number, does the work, and returns, lowering privilege again. You can\u2019t jump directly into kernel code because the transition instruction hardwires the entry point and the MMU forbids user code from executing kernel pages \u2014 that controlled door is the basis of OS security.'},
+    {id:'ca-ooo-30',mins:30,flow:'full',prompt:'What problem does out-of-order execution solve, and what guarantees must it preserve? Name the structure that lets results retire in order.',src:{book:'hp',ref:'Ch.3 ILP (Tomasulo, reorder buffer)'},reveal:'A single slow instruction (e.g. a cache-missing load) would stall everything behind it in program order. OOO execution runs later independent instructions while the slow one waits, extracting instruction-level parallelism. It must preserve the illusion of sequential execution: results are computed out of order but committed (retired) in program order via a reorder buffer (ROB), and register renaming removes false dependencies. This keeps exceptions precise and memory visible in program order.'}
+  ],
+  cpp:[
+    {id:'cpp-raii-5',mins:5,flow:'flip',prompt:'Define RAII in one sentence and name three resources it manages besides heap memory.',src:{book:'coreg',ref:'C.30\u2013C.33 / R.1 Manage resources automatically'},reveal:'RAII (Resource Acquisition Is Initialization): bind a resource\u2019s lifetime to an object\u2019s lifetime \u2014 acquire in the constructor, release in the destructor \u2014 so cleanup is automatic and exception-safe. Besides heap memory: file handles (std::fstream), locks (std::lock_guard), sockets, database connections, GPU buffers.'},
+    {id:'cpp-move-15',mins:15,flow:'full',prompt:'What does std::move actually do, and why can a std::vector be moved in O(1) but copied in O(n)?',src:{book:'coreg',ref:'F.18/F.19 & ES.56 (move semantics)'},reveal:'std::move is just a cast to an rvalue reference \u2014 it moves nothing itself; it marks an object as eligible to be moved from. A vector move copies only its three members (data pointer, size, capacity) and nulls the source, so the heap buffer is transferred, not duplicated \u2014 O(1). A copy must allocate a new buffer and copy every element \u2014 O(n). This is why unique_ptr is movable but not copyable: transferring sole ownership makes sense; duplicating it does not.'},
+    {id:'cpp-ptr-15',mins:15,flow:'full',prompt:'unique_ptr vs shared_ptr vs weak_ptr: when each, and what problem does weak_ptr solve?',src:{book:'coreg',ref:'R.20\u2013R.24 (smart pointers & ownership)'},reveal:'unique_ptr = single exclusive owner, zero overhead vs a raw pointer \u2014 your default. shared_ptr = shared ownership via an atomic reference count; the object dies when the count hits zero (use only when ownership is genuinely shared \u2014 counting costs). weak_ptr = a non-owning observer of a shared_ptr that doesn\u2019t keep it alive; it breaks reference cycles (two shared_ptrs pointing at each other would never reach count zero \u2014 a leak). You lock() a weak_ptr to get a shared_ptr if the object still exists.'},
+    {id:'cpp-rule-5',mins:5,flow:'flip',prompt:'State the Rule of Zero and why it\u2019s preferred over the Rule of Five.',src:{book:'coreg',ref:'C.20 (Rule of Zero) / C.21 (Rule of Five)'},reveal:'Rule of Zero: design classes so they need NO user-declared destructor, copy/move constructor, or copy/move assignment \u2014 by holding resources in types that already manage themselves (smart pointers, containers). Then the compiler-generated special members are correct. It\u2019s preferred because hand-written special members are error-prone; if you must write one (Rule of Five says write all five), you\u2019re usually better off wrapping the raw resource in an RAII type instead.'},
+    {id:'cpp-vtable-15',mins:15,flow:'full',prompt:'How does a virtual function call work under the hood (vtable/vptr), and what is its cost vs a normal call?',src:{book:'coreg',ref:'C.67 & the object model; see also bare-metal C++ on avoiding it'},reveal:'Each polymorphic class has a vtable (array of function pointers); each object holds a hidden vptr to its class\u2019s vtable. A virtual call dereferences the vptr, indexes the vtable, and calls through the pointer \u2014 one extra indirection, and it usually can\u2019t be inlined, which is the bigger cost. In hot or bare-metal code you often prefer compile-time polymorphism (templates/CRTP) to get the abstraction with zero runtime dispatch and no vtable.'},
+    {id:'cpp-baremetal-30',mins:30,flow:'full',prompt:'On a bare-metal target with no heap and exceptions disabled, how do you get polymorphism and dynamic-like behavior? What must you avoid from the STL?',src:{book:'baremetal',ref:'Practical Guide to Bare-metal C++ \u2014 Compile-Time Polymorphism & Dynamic Memory'},reveal:'Use compile-time polymorphism \u2014 templates and CRTP \u2014 so dispatch is resolved at compile time with zero runtime cost and no vtable/heap. Avoid STL facilities that allocate (std::vector, std::string, std::map) or that rely on exceptions/RTTI; prefer fixed-capacity containers, std::array, and static storage. Wrap hardware registers in typed volatile abstractions. The book\u2019s thesis: modern C++ abstractions cost nothing at runtime if you push them to compile time.'},
+    {id:'cpp-align-15',mins:15,flow:'full',prompt:'Explain struct padding and alignment. Why can reordering fields shrink a struct, and how does this interact with cache lines?',src:{book:'csapp',ref:'CSAPP \u00a73.9 (data alignment); C++ Core Guidelines on layout'},reveal:'The compiler inserts padding so each field sits at an address that is a multiple of its size (alignment), which the hardware requires or strongly prefers. A small field followed by a larger one forces padding; ordering fields largest-to-smallest minimizes the holes, shrinking the struct. Smaller, well-packed structs fit more per 64-byte cache line, so traversals pull in more useful data per fetch \u2014 layout is a cache decision.'}
+  ],
+  distributed:[
+    {id:'ds-cap-5',mins:5,flow:'flip',prompt:'State the CAP theorem precisely. During a network partition, what is the real choice?',src:{book:'cia',ref:'(systems context) \u2014 see also DDIA Ch.9'},reveal:'CAP: a distributed data store cannot simultaneously guarantee Consistency (every read sees the latest write), Availability (every request gets a non-error response), and Partition tolerance (the system keeps working despite dropped messages). Since partitions are unavoidable in practice, the real choice during a partition is C vs A: either refuse some requests to stay consistent (CP), or serve possibly-stale data to stay available (AP).'},
+    {id:'ds-idempotent-5',mins:5,flow:'flip',prompt:'Why is idempotency critical in distributed systems, and give one way to make a non-idempotent operation safe to retry.',src:{book:'unp',ref:'Stevens UNP Vol.2 \u2014 IPC & message semantics'},reveal:'Networks drop and duplicate messages, so clients must retry \u2014 but retrying a non-idempotent op (e.g. "add $100") can double-apply. An idempotent op produces the same result no matter how many times it\u2019s applied. Make one safe by attaching a unique request/idempotency key the server records; on a duplicate key it returns the prior result instead of re-executing.'},
+    {id:'ds-consensus-30',mins:30,flow:'full',prompt:'What problem does a consensus algorithm (Raft/Paxos) solve, and why is a majority quorum the key mechanism? What happens with an even split?',src:{book:'cia',ref:'(distributed consensus) \u2014 pair with the Raft paper'},reveal:'Consensus makes a set of nodes agree on a single value/log order despite failures, so the cluster behaves like one consistent state machine (used for leader election, replicated logs). A majority quorum (N/2+1) is key because any two majorities must overlap in at least one node, so a newly elected leader\u2019s majority necessarily includes a node that saw the latest committed entry \u2014 preventing divergence. An even split (no majority reachable) means no side can make progress: the system stalls rather than risk two leaders, which is why clusters use odd numbers of nodes.'},
+    {id:'ds-replication-15',mins:15,flow:'full',prompt:'Contrast synchronous vs asynchronous replication. What does each cost, and how does it relate to the durability/latency tradeoff?',src:{book:'cia',ref:'(replication) \u2014 pair with DDIA Ch.5'},reveal:'Synchronous: the primary waits for replicas to acknowledge before confirming a write \u2014 strong durability and consistency, but every write pays the slowest replica\u2019s latency, and a slow/down replica can stall writes. Asynchronous: the primary confirms immediately and streams to replicas after \u2014 low latency and availability, but a primary crash can lose the not-yet-replicated tail (weaker durability, possible stale reads). Many systems use semi-sync (wait for one replica) to balance the two.'},
+    {id:'ds-lb-15',mins:15,flow:'full',prompt:'You must shard a stream of keyed events across N servers so the same key always lands on the same server, and adding a server shouldn\u2019t reshuffle everything. What technique, and why not plain hash-mod-N?',src:{book:'unp',ref:'Stevens UNP Vol.2 \u2014 partitioning & the Deduplicator follow-up'},reveal:'Consistent hashing (a hash ring). Plain hash(key) % N remaps almost every key when N changes (add/remove a server \u2192 mod changes for nearly all keys \u2192 massive reshuffle and cache invalidation). Consistent hashing places servers and keys on a ring; a key belongs to the next server clockwise, so adding/removing a node only moves the keys in that node\u2019s arc \u2014 O(K/N) keys move, not O(K). Virtual nodes smooth the distribution.'},
+    {id:'ds-clock-30',mins:30,flow:'full',prompt:'Why can\u2019t you trust wall-clock timestamps to order events across machines? What do logical/vector clocks give you instead?',src:{book:'cia',ref:'(time & ordering) \u2014 pair with Lamport\u2019s paper'},reveal:'Physical clocks drift and are not perfectly synchronized, so a smaller timestamp on machine A doesn\u2019t reliably mean an event happened before one on machine B \u2014 you can get impossible orderings. Lamport logical clocks assign counters that respect causality (if A causes B, then clock(A) < clock(B)), giving a consistent total order for causally related events. Vector clocks go further: they can detect concurrency \u2014 tell whether two events are causally ordered or truly independent \u2014 which logical clocks alone cannot.'}
+  ]
+};
+
+let kgDirtyFlag=false;
+function kgMarkDirty(){ kgDirtyFlag=true; paintSaveChip(); }
+async function kgLoad(){ const s=await rawGet(KEYS.csgraph); if(s){ try{ const p=JSON.parse(s); if(p&&p.mastery){ KG=p; } }catch(e){} } if(!KG.mastery)KG.mastery={}; if(!KG.srs)KG.srs={}; if(!KG.log)KG.log=[]; if(!KG.gymDone)KG.gymDone={}; kgLoaded=true; }
+
+/* ---- spaced repetition (SM-2 style, driven by the 1..5 self-rating) ---- */
+function addDaysISO(n){ return shift(dstr(), n); }
+function allKGItems(){ const out=[]; Object.keys(KG_ITEMS).forEach(tp=>{ (KG_ITEMS[tp]||[]).forEach(it=>out.push(Object.assign({topic:tp},it))); }); return out; }
+function srsOf(id){ return (KG.srs&&KG.srs[id])||null; }
+function schedule(id, rating){
+  if(!KG.srs) KG.srs={};
+  let s = KG.srs[id] || {interval:0, ease:2.5, reps:0};
+  if(rating<=1){ s.reps=0; s.interval=1; }                 // lapse: retest tomorrow
+  else {
+    if(s.reps===0) s.interval=1;
+    else if(s.reps===1) s.interval=3;
+    else s.interval=Math.round(s.interval*s.ease);
+    s.reps+=1;
+    s.ease = Math.max(1.3, s.ease + (0.1 - (5-rating)*(0.08+(5-rating)*0.02)));
+  }
+  s.due = addDaysISO(s.interval);
+  s.last = dstr();
+  KG.srs[id]=s;
+  return s;
+}
+function dueItems(){ return allKGItems().filter(it=>{ const s=srsOf(it.id); return s && s.due<=dstr(); }); }
+function dueCount(){ return dueItems().length; }
+
+function bookRef(bk,ref){ const b=KG_BOOKS[bk]; if(!b) return esc(ref||''); return '<a href="'+b.u+'" target="_blank" rel="noopener">'+esc(b.t.split(' \u2014 ')[0])+'</a> \u00b7 '+esc(ref); }
+function masterColor(m){ return ['','#D8654F','#E0A64B','#E0A64B','#6BBF73','#4FB0A5'][m]||'#5C6678'; }
+function masterLabel(m){ return ['','shaky','learning','learning','solid','mastered'][m]||'new'; }
+
+function renderKnowledge(){
+  if(!kgLoaded){ paneKnow.innerHTML='<div class="empty">Loading\u2026</div>'; kgLoad().then(renderKnowledge); return; }
+  const items = kgTopic==='__review__' ? dueItems() : (KG_ITEMS[kgTopic]||[]);
+  const shown=items.filter(it=> kgTime==='all' || String(it.mins)===kgTime);
+  let h='<div class="ktabs">'+KG_TOPICS.map(tp=>{
+    const n=(KG_ITEMS[tp.id]||[]).length;
+    return '<button class="ktab'+(tp.id===kgTopic?' on':'')+'" data-kt="'+tp.id+'">'+esc(tp.name)+(n?'<span class="cnt">'+n+'</span>':'<span class="cnt">soon</span>')+'</button>';
+  }).join('')+'</div>';
+
+  const due=dueItems();
+  if(due.length && kgTopic!=='__review__' && !kgGym){
+    h+='<div class="panel" style="border-color:var(--protein)"><div class="mrow" style="justify-content:space-between"><p class="panel-t" style="margin:0;color:var(--protein)">Due for review \u00b7 '+due.length+'</p><button class="mbtn" id="kg-review">Start review</button></div>'
+     +'<div class="note">Interleaved recall across all topics \u2014 the highest-value thing you can do today.</div></div>';
+  }
+  const topic=KG_TOPICS.find(t=>t.id===kgTopic);
+
+  // GYM SESSION toggle (per real topic)
+  if(topic && kgTopic!=='__review__'){
+    h+='<div class="mrow" style="margin-top:10px;gap:8px"><button class="mbtn'+(kgGym?' primary':'')+'" id="kg-gym">\ud83c\udfa7 '+(kgGym?'\u2190 Back to questions':'Gym session')+'</button>'
+      +'<span class="note" style="align-self:center">'+(kgGym?'Videos + readings for the gym':'Recall practice')+'</span></div>';
+  }
+
+  // GYM MODE: videos + readings, phone-friendly
+  if(kgGym && KG_GYM[kgTopic]){
+    const gm=KG_GYM[kgTopic];
+    h+='<div class="panel"><p class="panel-t">Watch \u2014 videos for the gym</p>'
+      + gm.videos.map((v,i)=>{const k=kgTopic+'|v|'+i;const done=!!KG.gymDone[k];return '<div class="goalrow"><span class="chk" data-gymdone="'+k+'" style="width:20px;height:20px">'+(done?'\u2713':'')+'</span><span style="flex:1'+(done?';opacity:.5;text-decoration:line-through':'')+'">'+esc(v[0])+'</span><a href="'+v[1]+'" target="_blank" rel="noopener" style="color:var(--teal)">open \u2197</a></div>';}).join('')
+      + '</div>';
+    h+='<div class="panel"><p class="panel-t">Read \u2014 sections for this topic</p>'
+      + gm.reading.map((r,i)=>{const b=KG_BOOKS[r[0]];const k=kgTopic+'|r|'+i;const done=!!KG.gymDone[k];return '<div class="goalrow"><span class="chk" data-gymdone="'+k+'" style="width:20px;height:20px">'+(done?'\u2713':'')+'</span><span style="flex:1'+(done?';opacity:.5;text-decoration:line-through':'')+'">'+esc(r[1])+'</span>'+(b?'<a href="'+b.u+'" target="_blank" rel="noopener" style="color:var(--teal)">'+esc(b.t.split(' \u2014 ')[0])+' \u2197</a>':'')+'</div>';}).join('')
+      + '</div>';
+    paneKnow.innerHTML=h; wireKnowledge(); return;
+  }
+
+  if(topic && topic.books.length){ h+='<div class="klink"><b>Sources for '+esc(topic.name)+':</b> '+topic.books.map(bk=>{const b=KG_BOOKS[bk];return '<a href="'+b.u+'" target="_blank" rel="noopener">'+esc(b.t)+'</a>';}).join(' \u00b7 ')+'</div>'; }
+
+  if(!items.length){
+    h+='<div class="stub">This topic is scaffolded \u2014 questions land here next. Tap \u201cGym session\u201d above for videos and readings while this fills in.</div>';
+    paneKnow.innerHTML=h; wireKnowledge(); return;
+  }
+
+  h+='<div class="timebar" style="margin-top:10px">'+['all','5','15','30','60'].map(tm=>'<button class="'+(tm===kgTime?'on':'')+'" data-ktime="'+tm+'">'+(tm==='all'?'All':tm+'m')+'</button>').join('')+'</div>';
+
+  h+=shown.map(it=>{
+    const m=KG.mastery[it.id]||0; const full=(it.flow!=='flip');
+    let c='<div class="qcard" id="qc-'+it.id+'"><div class="qtop"><span class="qtime">'+it.mins+' min \u00b7 '+(full?'attempt':'flip')+'</span>'
+      +(m?'<span class="masterbadge" style="background:'+masterColor(m)+'22;color:'+masterColor(m)+'">'+masterLabel(m)+'</span>':'')+'</div>';
+    c+='<div class="qprompt">'+esc(it.prompt)+'</div>';
+    c+='<div class="qsrc">'+bookRef(it.src.book,it.src.ref)+'</div>';
+    // in-app answer box for attempt items
+    if(full){ c+='<textarea class="ans dictxt" id="ans-'+it.id+'" style="min-height:80px;margin-top:8px" placeholder="Write your answer here, then reveal to compare \u2014 active recall beats just reading."></textarea>'; }
+    c+='<div class="qactions"><button class="mbtn" data-reveal="'+it.id+'">'+(full?'Reveal model answer':'Show answer')+'</button>'
+      +(full?'<button class="mbtn" data-aigrade="'+it.id+'">AI grade my answer</button>':'')+'</div>';
+    c+='<div id="ai-'+it.id+'" class="note" style="margin-top:6px"></div>';
+    c+='<div class="reveal" id="rv-'+it.id+'">'+esc(it.reveal)+'<div class="rate" id="rate-'+it.id+'">'
+      +'<span style="color:var(--dim);font-size:11px;align-self:center">Rate recall:</span>'
+      +[1,2,3,4,5].map(n=>'<button data-rate="'+it.id+'|'+n+'">'+n+' '+masterLabel(n)+'</button>').join('')+'</div></div>';
+    c+='</div>';
+    return c;
+  }).join('');
+
+  paneKnow.innerHTML=h; wireKnowledge();
+}
+
+function wireKnowledge(){
+  paneKnow.querySelectorAll('[data-kt]').forEach(b=>b.onclick=()=>{ kgTopic=b.getAttribute('data-kt'); kgTime='all'; renderKnowledge(); });
+  const rb=document.getElementById('kg-review'); if(rb) rb.onclick=()=>{ kgTopic='__review__'; kgTime='all'; kgGym=false; renderKnowledge(); };
+  const gb=document.getElementById('kg-gym'); if(gb) gb.onclick=()=>{ kgGym=!kgGym; renderKnowledge(); };
+  paneKnow.querySelectorAll('[data-gymdone]').forEach(el=>el.onclick=()=>{ const k=el.getAttribute('data-gymdone'); KG.gymDone[k]=!KG.gymDone[k]; kgMarkDirty(); renderKnowledge(); });
+  paneKnow.querySelectorAll('[data-aigrade]').forEach(b=>b.onclick=async()=>{
+    const id=b.getAttribute('data-aigrade'); const it=allKGItems().find(x=>x.id===id);
+    const ans=(document.getElementById('ans-'+id)||{}).value||''; const out=document.getElementById('ai-'+id);
+    if(!ans.trim()){ out.style.color='var(--deficit)'; out.textContent='Write an answer first.'; return; }
+    out.style.color='var(--muted)'; out.textContent='Grading\u2026';
+    try{
+      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        model:'claude-sonnet-4-6',max_tokens:400,
+        messages:[{role:'user',content:'You are grading a technical interview answer. Question: '+it.prompt+'\n\nModel answer: '+it.reveal+'\n\nCandidate answer: '+ans+'\n\nGive a 1-2 sentence assessment of what was right and what was missed, then on a new line output exactly: SCORE: N (where N is 1-5 recall quality). Be concise and honest.'}]
+      })});
+      const data=await r.json(); let txt=(data.content||[]).filter(x=>x.type==='text').map(x=>x.text).join('');
+      const mm=txt.match(/SCORE:\s*([1-5])/); const sc=mm?+mm[1]:null;
+      out.style.color='var(--text)'; out.innerHTML=esc(txt.replace(/SCORE:\s*[1-5]/,'').trim());
+      const rv=document.getElementById('rv-'+id); if(rv) rv.classList.add('on');
+      if(sc){ const rateBtns=document.querySelectorAll('[data-rate="'+id+'|'+sc+'"]'); if(rateBtns[0]){ rateBtns[0].style.borderColor='var(--teal)'; rateBtns[0].style.color='var(--text)'; } out.innerHTML+='<br><span style="color:var(--teal)">AI suggests recall '+sc+'/5 \u2014 tap to confirm.</span>'; }
+    }catch(e){ out.style.color='var(--deficit)'; out.textContent='Grading failed \u2014 rate yourself after revealing.'; }
+  });
+  paneKnow.querySelectorAll('[data-ktime]').forEach(b=>b.onclick=()=>{ kgTime=b.getAttribute('data-ktime'); renderKnowledge(); });
+  paneKnow.querySelectorAll('[data-reveal]').forEach(b=>b.onclick=()=>{ const id=b.getAttribute('data-reveal'); const rv=document.getElementById('rv-'+id); rv.classList.toggle('on'); b.textContent=rv.classList.contains('on')?'Hide':'Show answer'; });
+  paneKnow.querySelectorAll('[data-rate]').forEach(b=>b.onclick=()=>{
+    const [id,n]=b.getAttribute('data-rate').split('|'); const score=+n;
+    KG.mastery[id]=score;
+    const sc=schedule(id,score);
+    const it=allKGItems().find(x=>x.id===id);
+    KG.log.push({id,date:dstr(),score,topic:kgTopic});
+    kgMarkDirty();
+    // cross-link into Study/Today: count a solved problem when score>=4
+    CORE.entries.push({id:uid(),date:dstr(),stream:'kg',problem:(it?it.prompt.slice(0,42)+'\u2026':id),topic:kgTopic,status:score>=4?'solved':'attempted',score,xp:score*4});
+    markDirty();
+    renderKnowledge();
+  });
+}
+
+/* ================= WEIGHT GAIN (Surplus) — real data model =================
+   Storage: surplus-tracker-state = { settings:{current,goal,maintenance,proteinTarget,surplus}, days:{iso:[meal]} }
+   meal = { id, name, cal, protein, est }
+   AI meal estimator via Anthropic API (claude-sonnet-4-6). */
+const paneWeight = document.getElementById('pane-weight');
+let SG = { settings:{}, days:{}, tad:{} };
+let sgLoaded=false, sgDirty=false, sgTimer=null, sgDate=null;
+
+function sgMarkDirty(){ sgDirty=true; paintSaveChip(); }
+async function sgCommit(silent){ if(!sgLoaded) return; await rawSet(KEYS.surplus, JSON.stringify(SG)); sgDirty=false; if(!dirty) paintSaveChip(); if(!silent) flashSaved(); }
+async function sgLoad(){ const s=await rawGet(KEYS.surplus);
+  if(s){ try{ const st=JSON.parse(s); SG={settings:st.settings||{},days:st.days||{},tad:st.tad||{}}; }catch(e){ SG={settings:{},days:{},tad:{}}; } }
+  // Fresh device → bake in your real bulk targets so the header is correct immediately.
+  const DEF={current:120,goal:147,maintenance:2200,surplus:500,proteinTarget:147};
+  if(!SG.settings || Object.keys(SG.settings).length===0) SG.settings={...DEF};
+  if(!SG.settings.maintenance) SG.settings.maintenance=DEF.maintenance;
+  if(!SG.settings.surplus) SG.settings.surplus=DEF.surplus;
+  if(!SG.settings.proteinTarget) SG.settings.proteinTarget=DEF.proteinTarget;
+  if(!SG.settings.current) SG.settings.current=DEF.current;
+  if(!SG.settings.goal) SG.settings.goal=DEF.goal;
+  sgLoaded=true; if(!SG.tad) SG.tad={}; if(!sgDate) sgDate=dstr();
+}
+function dayMeals(d){ return SG.days[d]||[]; }
+function sumCal(d){ return dayMeals(d).reduce((a,x)=>a+(+x.cal||0),0); }
+function sumPro(d){ return dayMeals(d).reduce((a,x)=>a+(+x.protein||0),0); }
+
+function renderWeight(){
+  if(!sgLoaded){ paneWeight.innerHTML='<div class="empty">Loading\u2026</div>'; sgLoad().then(renderWeight); return; }
+  const s=SG.settings, d=sgDate, isToday=(d===dstr());
+  const target=(+s.maintenance||0)+(+s.surplus||0);
+  const cal=sumCal(d), pro=sumPro(d);
+  const calPct=target?Math.min(100,Math.round(100*cal/target)):0;
+  const proPct=s.proteinTarget?Math.min(100,Math.round(100*pro/s.proteinTarget)):0;
+
+  let h='';
+  // goal header
+  h+='<div class="panel"><p class="panel-t">Bulk target</p><div class="statgrid">'
+   +'<div class="stat"><div class="v">'+(s.current||'\u2014')+'</div><div class="k">current lb</div></div>'
+   +'<div class="stat"><div class="v" style="color:var(--teal)">'+(s.goal||'\u2014')+'</div><div class="k">goal lb</div></div>'
+   +'<div class="stat"><div class="v">'+target+'</div><div class="k">daily kcal</div></div>'
+   +'<div class="stat"><div class="v" style="color:var(--protein)">'+(s.proteinTarget||'\u2014')+'g</div><div class="k">protein</div></div>'
+   +'</div>'
+   +'<div class="mrow" style="margin-top:10px"><button class="mbtn" id="wg-settings">Edit targets</button></div></div>';
+
+  // today's intake
+  h+='<div class="panel"><div class="mrow" style="justify-content:space-between"><p class="panel-t" style="margin:0">Intake</p>'
+   +'<div class="mrow"><button class="mbtn" id="wg-prev">\u2039</button>'
+   +'<span style="font-family:var(--mono);font-size:12px;min-width:150px;text-align:center">'+dLabel(d)+'</span>'
+   +'<button class="mbtn" id="wg-next">\u203a</button>'
+   +(isToday?'':'<button class="mbtn" id="wg-today">\u2192 Today</button>')+'</div></div>';
+  h+='<div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin:6px 0">'+d+'</div>';
+  h+='<div class="slabel">Calories '+cal+' / '+target+'</div><div class="bar"><div style="width:'+calPct+'%;background:var(--fuel)"></div></div>';
+  h+='<div class="slabel">Protein '+pro+'g / '+(s.proteinTarget||0)+'g</div><div class="bar"><div style="width:'+proPct+'%;background:var(--protein)"></div></div>';
+  const surplusNow=cal-(+s.maintenance||0);
+  h+='<div class="note" style="margin-top:6px">'+(surplusNow>=0?('+'+surplusNow+' over maintenance'):(surplusNow+' under maintenance'))+(cal>=target?' \u00b7 target hit \u2713':'')+'</div>';
+
+  // meals list
+  const meals=dayMeals(d);
+  h+='<div style="margin-top:10px">'+(meals.length?meals.map(m=>
+     '<div class="sentry"><span style="flex:1">'+esc(m.name)+(m.est?' <span class="mchip" style="background:var(--panel2);color:var(--teal)">est</span>':'')+'</span>'
+     +'<span style="font-family:var(--mono);color:var(--muted);font-size:12px">'+m.cal+' kcal \u00b7 '+m.protein+'g</span>'
+     +'<span class="rm" data-delm="'+m.id+'">\u00d7</span></div>').join(''):'<div class="empty">No meals logged.</div>')+'</div>';
+  h+='</div>';
+
+  // tadalafil panel (real data: SG.tad[date] = count)
+  const tadCount=(SG.tad&&SG.tad[d])||0;
+  // steady-state: count doses in the last 5 days
+  let recent=0; for(let i=0;i<5;i++){ recent += (SG.tad[shift(d,-i)]||0); }
+  h+='<div class="panel"><div class="mrow" style="justify-content:space-between"><p class="panel-t" style="margin:0">Tadalafil</p>'
+   +'<div class="mrow"><button class="mbtn" id="tad-minus">\u2212</button>'
+   +'<span style="font-family:var(--mono);font-size:20px;min-width:44px;text-align:center">'+tadCount+'\u00d79mg</span>'
+   +'<button class="mbtn" id="tad-plus">+</button></div></div>'
+   +'<div class="note">'+recent+' doses in the last 5 days'+(recent>=10?' \u00b7 steady state':'')+'</div></div>';
+
+  // quick-add presets (one tap)
+  h+='<div class="panel mpanel"><p class="panel-t">Quick add</p><div class="mrow" style="flex-wrap:wrap;gap:8px">'
+   +'<button class="mbtn" id="preset-cp">+ Core Power Elite · 230 / 42g</button>'
+   +'<button class="mbtn" id="preset-cu">+ Cook Unity · 900 / 40g</button>'
+   +'</div></div>';
+  // add meal (manual)
+  h+='<div class="panel mpanel"><p class="panel-t">Add meal</p><div class="mrow"><input id="m-name" placeholder="meal" style="flex:1;min-width:120px"><input id="m-cal" type="number" placeholder="kcal" style="width:80px"><input id="m-pro" type="number" placeholder="protein" style="width:90px"><button class="mbtn primary" id="m-add">Add</button></div>';
+  // AI estimate
+  h+='<div style="margin-top:10px"><p class="slabel" style="margin-bottom:6px">Or estimate from a description</p><div class="mrow"><input id="m-desc" placeholder="e.g. 2 eggs, oatmeal, banana, whole milk" style="flex:1;min-width:160px"><button class="mbtn" id="m-est">Estimate with AI</button></div><div id="m-eststatus" class="note" style="margin-top:6px"></div></div></div>';
+
+  paneWeight.innerHTML=h; wireWeight();
+}
+function wireWeight(){
+  const g=id=>document.getElementById(id);
+  g('wg-prev').onclick=()=>{ sgDate=shift(sgDate,-1); renderWeight(); };
+  g('wg-next').onclick=()=>{ sgDate=shift(sgDate,1); renderWeight(); };
+  { const tb=g('wg-today'); if(tb) tb.onclick=()=>{ sgDate=dstr(); renderWeight(); }; }
+  g('wg-settings').onclick=()=>{
+    const cur=prompt('Current weight (lb):',SG.settings.current||''); if(cur!==null&&cur!=='') SG.settings.current=+cur;
+    const goal=prompt('Goal weight (lb):',SG.settings.goal||''); if(goal!==null&&goal!=='') SG.settings.goal=+goal;
+    const maint=prompt('Maintenance calories:',SG.settings.maintenance||''); if(maint!==null&&maint!=='') SG.settings.maintenance=+maint;
+    const sur=prompt('Daily surplus (kcal above maintenance):',SG.settings.surplus||''); if(sur!==null&&sur!=='') SG.settings.surplus=+sur;
+    const pt=prompt('Protein target (g):',SG.settings.proteinTarget||''); if(pt!==null&&pt!=='') SG.settings.proteinTarget=+pt;
+    sgMarkDirty(); renderWeight();
+  };
+  const addMeal=(name,cal,pro,est)=>{ if(!name) return; if(!SG.days[sgDate])SG.days[sgDate]=[]; SG.days[sgDate].push({id:Date.now()+Math.random(),name,cal:+cal||0,protein:+pro||0,est:!!est}); sgMarkDirty(); renderWeight(); };
+  const tp=g('tad-plus'), tm=g('tad-minus');
+  if(tp) tp.onclick=()=>{ SG.tad[sgDate]=((SG.tad[sgDate]||0)+1); sgMarkDirty(); renderWeight(); };
+  if(tm) tm.onclick=()=>{ SG.tad[sgDate]=Math.max(0,(SG.tad[sgDate]||0)-1); sgMarkDirty(); renderWeight(); };
+  g('m-add').onclick=()=>addMeal(g('m-name').value.trim(), g('m-cal').value, g('m-pro').value, false);
+  { const b=g('preset-cp'); if(b) b.onclick=()=>addMeal('Core Power Elite',230,42,false); }
+  { const b=g('preset-cu'); if(b) b.onclick=()=>addMeal('Cook Unity',900,40,false); }
+  paneWeight.querySelectorAll('[data-delm]').forEach(el=>el.onclick=()=>{ const id=el.getAttribute('data-delm'); SG.days[sgDate]=(SG.days[sgDate]||[]).filter(m=>String(m.id)!==id); sgMarkDirty(); renderWeight(); });
+  g('m-est').onclick=async()=>{
+    const desc=g('m-desc').value.trim(); if(!desc) return;
+    const st=g('m-eststatus'); st.style.color='var(--muted)'; st.textContent='Estimating\u2026';
+    try{
+      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        model:'claude-sonnet-4-6',max_tokens:300,
+        messages:[{role:'user',content:'Estimate total calories and protein grams for this food. Reply ONLY as compact JSON: {"name":"short label","cal":number,"protein":number}. Food: '+desc}]
+      })});
+      const data=await r.json();
+      let txt=(data.content||[]).filter(x=>x.type==='text').map(x=>x.text).join('').replace(/```json|```/g,'').trim();
+      const obj=JSON.parse(txt);
+      addMeal(obj.name||desc.slice(0,40), obj.cal, obj.protein, true);
+      st.textContent='Added: '+(obj.cal)+' kcal \u00b7 '+(obj.protein)+'g';
+    }catch(e){ st.style.color='var(--deficit)'; st.textContent='Estimate failed \u2014 add manually.'; }
+  };
+}
+
+/* ================= TAB ROUTER ================= */
+document.querySelectorAll('#tabbar button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#tabbar button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.querySelectorAll('.tabpane').forEach(p=>p.classList.remove('on'));
+    const t=b.getAttribute('data-t');
+    document.getElementById('pane-'+t).classList.add('on');
+    if(t==='today') renderToday();
+    if(t==='study') renderStudy();
+    if(t==='workout') renderWorkout();
+    if(t==='knowledge') renderKnowledge();
+    if(t==='weight') renderWeight();
+    if(t==='data')  renderData();
+  };
+});
+
+/* ================= BOOT ================= */
+(async function init(){
+  // If cloud is configured, pull first so this device shows the latest across devices.
+  if(cloudEnabled()){
+    try{ const r=await cloudPull(); if(r.ok && r.data){ await cloudApply(r.data); } }catch(e){}
+  }
+  await loadCore();
+  paintSaveChip();
+  renderToday();
+  await persistenceSelfTest();   // harness: verify storage actually persists across sessions
+  // live clock refresh on Today (pause while typing)
+  setInterval(()=>{
+    const p=document.getElementById('pane-today');
+    if(p&&p.classList.contains('on')){
+      const ae=document.activeElement, tg=ae&&ae.tagName;
+      if(tg!=='INPUT'&&tg!=='SELECT'&&tg!=='TEXTAREA') renderToday();
+    }
+  },30000);
+})();
+
+/* ============ DURABILITY: flush every dirty store on exit/background ============
+   Mobile Safari kills debounce timers when you switch apps or lock the screen,
+   so pending saves were lost. Force a synchronous-as-possible flush on the
+   moments the OS gives us: visibilitychange->hidden, pagehide, beforeunload. */
+function flushAll(reason){
+  try{
+    // Synchronous localStorage writes as the hard-kill backstop (window.storage/IDB may not finish).
+    if(typeof dirty!=='undefined' && dirty && coreHydrated){ lsSet(KEYS.core, JSON.stringify(CORE)); lsSet(KEYS.core+'__v', String(Date.now())); }
+    if(typeof wkDirty!=='undefined' && wkDirty && wkLoaded){ lsSet(KEYS.overload, JSON.stringify(WK)); lsSet(KEYS.overload+'__v', String(Date.now())); }
+    if(typeof sgDirty!=='undefined' && sgDirty && sgLoaded){ lsSet(KEYS.surplus, JSON.stringify(SG)); lsSet(KEYS.surplus+'__v', String(Date.now())); }
+    if(typeof KG!=='undefined' && KG && typeof kgLoaded!=='undefined' && kgLoaded && kgDirtyFlag){ lsSet(KEYS.csgraph, JSON.stringify(KG)); lsSet(KEYS.csgraph+'__v', String(Date.now())); }
+    // Also kick the full async save (may complete on soft-close); harmless if it doesn't finish.
+    saveAll(true);
+    try{ localStorage.setItem('meridian_last_flush', new Date().toISOString()+' ('+(reason||'')+')'); }catch(e){}
+  }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushAll('hidden'); });
+window.addEventListener('pagehide',()=>flushAll('pagehide'));
+window.addEventListener('beforeunload',()=>flushAll('beforeunload'));
+
+/* ============ HARNESS: prove persistence works across sessions ============
+   Increments a boot counter and round-trips a probe value. If the counter
+   never climbs past 1 across real app restarts, storage is NOT persisting
+   in this environment — surfaced visibly instead of failing silently. */
+async function persistenceSelfTest(){
+  const probeKey='meridian_persist_probe';
+  const bootKey='meridian_boot_count';
+  let report={ backend: hasWS?'window.storage(+localStorage)':'localStorage', boots:1, roundtrip:false, lastFlush:null };
+  try{
+    // round-trip probe
+    const token='ok-'+Date.now();
+    await rawSet(probeKey, token);
+    const got=await rawGet(probeKey);
+    report.roundtrip=(got===token);
+    // boot counter (persists across sessions if storage works)
+    const prev=await rawGet(bootKey);
+    const n=(prev?parseInt(prev,10):0)+1;
+    await rawSet(bootKey, String(n));
+    report.boots=n;
+    report.lastFlush=lsGet('meridian_last_flush');
+  }catch(e){ report.error=e.message; }
+  renderStorageHealth(report);
+  return report;
+}
+function renderStorageHealth(r){
+  // small badge on the Today pane header; tap for detail
+  const host=document.getElementById('pane-today'); if(!host) return;
+  let bar=document.getElementById('storage-health');
+  if(!bar){ bar=document.createElement('div'); bar.id='storage-health'; bar.style.cssText='margin:8px 0;padding:8px 10px;border-radius:8px;font-family:var(--mono),monospace;font-size:11px;cursor:pointer'; host.insertBefore(bar, host.firstChild); }
+  const healthy = r.roundtrip && r.boots>1;
+  const warn = r.roundtrip && r.boots<=1;   // writes work this session but no prior boot seen yet
+  const bad = !r.roundtrip;
+  bar.style.background = bad?'rgba(220,80,80,.15)': warn?'rgba(220,180,60,.15)':'rgba(80,200,140,.12)';
+  bar.style.color = bad?'#e57373': warn?'#d4b03c':'#5ac88c';
+  const label = bad?'⚠ storage NOT persisting — data will not save':
+                warn?'storage OK this session · restart to confirm persistence':
+                '✓ storage healthy · session #'+r.boots;
+  bar.textContent = label;
+  bar.title = JSON.stringify(r,null,2);
+  bar.onclick=()=>alert('Storage health\n\nBackend: '+r.backend+'\nWrite round-trip: '+(r.roundtrip?'PASS':'FAIL')+'\nSessions recorded: '+r.boots+'\nLast flush: '+(r.lastFlush||'none')+(r.error?('\nError: '+r.error):'')+'\n\nIf sessions stays at 1 after fully reopening the app, this environment is wiping storage between sessions.');
+}
+
+</script>
+<script>
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }); }
+</script>
+</body>
+</html>
