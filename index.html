@@ -27,6 +27,12 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 .brand b{color:var(--teal)}
 /* save status chip */
 .savechip{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:20px;padding:5px 12px;cursor:pointer;user-select:none}
+.savefab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));z-index:50;display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:13px;border:none;border-radius:24px;padding:12px 22px;cursor:pointer;user-select:none;background:var(--panel2,#1a1c22);color:var(--muted);box-shadow:0 6px 20px rgba(0,0,0,.45);transition:background .15s,color .15s}
+.savefab .dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.savefab.dirty{background:var(--fuel);color:#0e0f13;font-weight:600}
+.savefab.dirty .dot{background:#0e0f13}
+.savefab.saving{opacity:.7}
+.appwrap{padding-bottom:88px}
 .savechip .dot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
 .savechip.dirty{cursor:pointer;border-color:var(--fuel);color:var(--fuel)}
 .savechip.dirty .dot{background:var(--fuel)}
@@ -144,7 +150,6 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 <div class="appwrap">
   <div class="brandrow">
     <div class="brand"><b>Meridian</b></div>
-    <div class="savechip" id="savechip"><span class="dot"></span><span id="savetxt">All changes saved</span></div>
     <script>document.addEventListener('keydown',e=>{ if((e.metaKey||e.ctrlKey)&&e.key==='s'){ e.preventDefault(); if(typeof saveAll==='function') saveAll(false); } });</script>
   </div>
 
@@ -164,6 +169,7 @@ body{padding-bottom:env(safe-area-inset-bottom)}
   <div class="tabpane" id="pane-weight"></div>
   <div class="tabpane" id="pane-data"></div>
 </div>
+<button class="savefab" id="savechip"><span class="dot"></span><span id="savetxt">All changes saved</span></button>
 <div class="savedflash" id="savedflash">Saved \u2713</div>
 
 <script>
@@ -305,8 +311,8 @@ function anyDirty(){
 function paintSaveChip(){
   const c=document.getElementById('savechip'), t=document.getElementById('savetxt');
   if(!c) return;
-  if(anyDirty()){ c.className='savechip dirty'; t.textContent='Unsaved \u2014 tap to Save'; }
-  else { c.className='savechip'; t.textContent='All changes saved'; }
+  if(anyDirty()){ c.className='savefab dirty'; t.textContent='Unsaved \u2014 tap to Save'; }
+  else { c.className='savefab'; t.textContent='All changes saved'; }
 }
 async function commit(silent){
   if(!coreHydrated) return;
@@ -317,7 +323,7 @@ async function commit(silent){
 // Explicit, awaited save of EVERY store. This is the button the user presses.
 async function saveAll(silent){
   const c=document.getElementById('savechip'), t=document.getElementById('savetxt');
-  if(c){ c.className='savechip saving'; t.textContent='Saving\u2026'; }
+  if(c){ c.className='savefab saving'; t.textContent='Saving\u2026'; }
   let ok=true;
   try{
     if(coreHydrated && dirty){ ok = (await rawSet(KEYS.core, JSON.stringify(CORE))) && ok; dirty=false; }
@@ -327,7 +333,7 @@ async function saveAll(silent){
   }catch(e){ ok=false; }
   paintSaveChip();
   if(ok && !silent) flashSaved();
-  if(!ok && c){ c.className='savechip dirty'; t.textContent='Save failed \u2014 retry'; }
+  if(!ok && c){ c.className='savefab dirty'; t.textContent='Save failed \u2014 retry'; }
   // push to cloud backend if configured (fire-and-forget; UI already saved locally)
   if(ok && cloudEnabled()){ cloudPush().then(r=>{ if(!r.ok) console.warn('cloud push failed:',r.err); }); }
   return ok;
