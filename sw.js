@@ -1,14 +1,16 @@
-const CACHE='meridian-v1';
+const CACHE='meridian-v2';   // bump to invalidate old cached app shell
 const ASSETS=['./','./index.html','./manifest.webmanifest'];
 self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())); });
 self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); });
 self.addEventListener('fetch',e=>{
   const url=new URL(e.request.url);
-  // never cache the Pantry API — always go to network for sync
-  if(url.hostname.includes('getpantry.cloud')||url.hostname.includes('anthropic.com')) return;
-  // app shell: cache-first, fall back to network
-  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(resp=>{
-    if(e.request.method==='GET' && resp.ok){ const cp=resp.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); }
-    return resp;
-  }).catch(()=>caches.match('./index.html'))));
+  if(url.hostname.includes('getpantry.cloud')||url.hostname.includes('anthropic.com')) return; // never cache sync/API
+  const isShell = e.request.mode==='navigate' || url.pathname.endsWith('/index.html') || url.pathname.endsWith('/meridian/') || url.pathname.endsWith('/');
+  if(isShell){
+    // NETWORK-FIRST for the app shell: always get the freshest HTML when online, cache as offline fallback
+    e.respondWith(fetch(e.request).then(resp=>{ if(resp.ok){ const cp=resp.clone(); caches.open(CACHE).then(c=>c.put('./index.html',cp)); } return resp; }).catch(()=>caches.match('./index.html')));
+    return;
+  }
+  // other GETs: cache-first is fine
+  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(resp=>{ if(e.request.method==='GET'&&resp.ok){ const cp=resp.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); } return resp; })));
 });
