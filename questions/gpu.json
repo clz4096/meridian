@@ -1,0 +1,79 @@
+[
+ {
+  "id": "gp-model-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "In one sentence: what is the fundamental architectural difference between a CPU and a GPU, and what workload does each favor?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Ch.1 Introduction — heterogeneous computing"
+  },
+  "reveal": "A CPU spends transistors on control logic, branch prediction, and large caches to make a few threads fast (latency-optimized); a GPU spends them on thousands of simple ALUs sharing control logic to run many threads at once (throughput-optimized). CPUs favor branchy, sequential, latency-sensitive work; GPUs favor wide, regular, data-parallel work — the same operation over huge arrays, which is exactly what matmul is."
+ },
+ {
+  "id": "gp-warp-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is a warp, and what is warp divergence? Why does an if/else inside a kernel cost more than on a CPU?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Ch.4 Compute architecture and scheduling"
+  },
+  "reveal": "A warp is a group of 32 threads that execute in lockstep — one instruction, all threads (SIMT). Warp divergence happens when threads in the same warp take different branches: the hardware must execute BOTH paths serially, masking off the inactive threads each time. So a branch that splits a warp roughly doubles that section’s cost, whereas a CPU branch predictor would simply predict one way and move on. Minimizing divergence means arranging data so threads in a warp follow the same path."
+ },
+ {
+  "id": "gp-coalesce-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is memory coalescing and why does it dominate GPU kernel performance? Connect it to CPU cache lines.",
+  "src": {
+   "book": "pmpp",
+   "ref": "Ch.5 Memory architecture and data locality"
+  },
+  "reveal": "When the threads of a warp access consecutive memory addresses, the hardware merges them into a single wide memory transaction — coalescing. Scattered access forces many separate transactions, wasting most of each fetch. It is the same principle as a CPU cache line (fetching 64 bytes whether you use 1 or 64), amplified: the GPU is bandwidth-bound, so wasted bytes translate directly into lost throughput. Getting the access pattern right often matters more than the arithmetic."
+ },
+ {
+  "id": "gp-hier-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Name the GPU memory hierarchy from fastest to slowest and state what shared memory is FOR.",
+  "src": {
+   "book": "pmpp",
+   "ref": "Ch.5 Memory hierarchy"
+  },
+  "reveal": "Registers (per thread, fastest) → shared memory / L1 (per thread block, on-chip) → L2 (device-wide) → global HBM/DRAM (slowest, off-chip). Shared memory is a PROGRAMMER-MANAGED cache: it exists so a thread block can cooperatively load a tile of data from global memory once and then reuse it many times on-chip — the tiling that makes matmul compute-bound instead of bandwidth-bound."
+ },
+ {
+  "id": "gp-roofline-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Define arithmetic intensity and use the roofline model to explain why a large matmul is compute-bound while an elementwise add is memory-bound.",
+  "src": {
+   "book": "pmpp",
+   "ref": "Performance considerations; see also the roofline model"
+  },
+  "reveal": "Arithmetic intensity is FLOPs performed per byte moved from memory. Roofline: achievable performance = min(peak FLOPs, intensity × memory bandwidth) — below a hardware-specific intensity you are bandwidth-bound, above it compute-bound. An elementwise add on n elements does ~1 FLOP per ~12 bytes moved (two reads, one write) — tiny intensity, memory-bound. An n×n matmul does ~2n³ FLOPs on ~3n² bytes, so intensity grows with n — large matmuls sit far to the right and become compute-bound. This is why kernel fusion helps: it removes memory round-trips between cheap ops."
+ },
+ {
+  "id": "gp-tile-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Explain tiled matrix multiplication: what problem does tiling solve, and roughly how much does it reduce global-memory traffic?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Ch.5 Tiled matrix multiplication"
+  },
+  "reveal": "Naive matmul re-reads rows and columns from global memory for every output element — each input element is fetched O(n) times, so the kernel is bandwidth-starved. Tiling loads a T×T tile of each input into shared memory once, then every thread in the block reuses it for T multiply-accumulates before moving on. Global traffic drops by roughly a factor of T (the tile width). This is the canonical example of trading on-chip memory for off-chip bandwidth — and it is the same idea as keeping weights in SRAM next to compute on Cerebras/Tenstorrent hardware."
+ },
+ {
+  "id": "gp-occupancy-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is occupancy, and why is maximizing it NOT always the goal?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Ch.4 Resource assignment and occupancy"
+  },
+  "reveal": "Occupancy is the ratio of active warps on a streaming multiprocessor to the maximum it supports. High occupancy helps hide memory latency — while some warps wait on memory, others compute. But it is not the goal in itself: registers and shared memory are finite, and raising occupancy means giving each thread fewer of them, which can force register spilling or block the tiling that actually made the kernel fast. A lower-occupancy kernel with good data reuse often beats a high-occupancy one with poor reuse."
+ }
+]

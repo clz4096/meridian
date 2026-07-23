@@ -1,0 +1,68 @@
+[
+ {
+  "id": "ds-cap-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "State the CAP theorem precisely. During a network partition, what is the real choice?",
+  "src": {
+   "book": "cia",
+   "ref": "(systems context) — see also DDIA Ch.9"
+  },
+  "reveal": "CAP: a distributed data store cannot simultaneously guarantee Consistency (every read sees the latest write), Availability (every request gets a non-error response), and Partition tolerance (the system keeps working despite dropped messages). Since partitions are unavoidable in practice, the real choice during a partition is C vs A: either refuse some requests to stay consistent (CP), or serve possibly-stale data to stay available (AP)."
+ },
+ {
+  "id": "ds-idempotent-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Why is idempotency critical in distributed systems, and give one way to make a non-idempotent operation safe to retry.",
+  "src": {
+   "book": "unp",
+   "ref": "Stevens UNP Vol.2 — IPC & message semantics"
+  },
+  "reveal": "Networks drop and duplicate messages, so clients must retry — but retrying a non-idempotent op (e.g. \"add $100\") can double-apply. An idempotent op produces the same result no matter how many times it’s applied. Make one safe by attaching a unique request/idempotency key the server records; on a duplicate key it returns the prior result instead of re-executing."
+ },
+ {
+  "id": "ds-consensus-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "What problem does a consensus algorithm (Raft/Paxos) solve, and why is a majority quorum the key mechanism? What happens with an even split?",
+  "src": {
+   "book": "cia",
+   "ref": "(distributed consensus) — pair with the Raft paper"
+  },
+  "reveal": "Consensus makes a set of nodes agree on a single value/log order despite failures, so the cluster behaves like one consistent state machine (used for leader election, replicated logs). A majority quorum (N/2+1) is key because any two majorities must overlap in at least one node, so a newly elected leader’s majority necessarily includes a node that saw the latest committed entry — preventing divergence. An even split (no majority reachable) means no side can make progress: the system stalls rather than risk two leaders, which is why clusters use odd numbers of nodes."
+ },
+ {
+  "id": "ds-replication-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Contrast synchronous vs asynchronous replication. What does each cost, and how does it relate to the durability/latency tradeoff?",
+  "src": {
+   "book": "cia",
+   "ref": "(replication) — pair with DDIA Ch.5"
+  },
+  "reveal": "Synchronous: the primary waits for replicas to acknowledge before confirming a write — strong durability and consistency, but every write pays the slowest replica’s latency, and a slow/down replica can stall writes. Asynchronous: the primary confirms immediately and streams to replicas after — low latency and availability, but a primary crash can lose the not-yet-replicated tail (weaker durability, possible stale reads). Many systems use semi-sync (wait for one replica) to balance the two."
+ },
+ {
+  "id": "ds-lb-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "You must shard a stream of keyed events across N servers so the same key always lands on the same server, and adding a server shouldn’t reshuffle everything. What technique, and why not plain hash-mod-N?",
+  "src": {
+   "book": "unp",
+   "ref": "Stevens UNP Vol.2 — partitioning & the Deduplicator follow-up"
+  },
+  "reveal": "Consistent hashing (a hash ring). Plain hash(key) % N remaps almost every key when N changes (add/remove a server → mod changes for nearly all keys → massive reshuffle and cache invalidation). Consistent hashing places servers and keys on a ring; a key belongs to the next server clockwise, so adding/removing a node only moves the keys in that node’s arc — O(K/N) keys move, not O(K). Virtual nodes smooth the distribution."
+ },
+ {
+  "id": "ds-clock-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Why can’t you trust wall-clock timestamps to order events across machines? What do logical/vector clocks give you instead?",
+  "src": {
+   "book": "cia",
+   "ref": "(time & ordering) — pair with Lamport’s paper"
+  },
+  "reveal": "Physical clocks drift and are not perfectly synchronized, so a smaller timestamp on machine A doesn’t reliably mean an event happened before one on machine B — you can get impossible orderings. Lamport logical clocks assign counters that respect causality (if A causes B, then clock(A) < clock(B)), giving a consistent total order for causally related events. Vector clocks go further: they can detect concurrency — tell whether two events are causally ordered or truly independent — which logical clocks alone cannot."
+ }
+]

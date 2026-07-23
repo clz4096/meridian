@@ -1,0 +1,41 @@
+{
+ "version": 1,
+ "topics": {
+  "graph": {
+   "file": "questions/graph.json",
+   "count": 7
+  },
+  "probstats": {
+   "file": "questions/probstats.json",
+   "count": 7
+  },
+  "gpu": {
+   "file": "questions/gpu.json",
+   "count": 7
+  },
+  "algorithms": {
+   "file": "questions/algorithms.json",
+   "count": 7
+  },
+  "concurrency": {
+   "file": "questions/concurrency.json",
+   "count": 7
+  },
+  "linux": {
+   "file": "questions/linux.json",
+   "count": 3
+  },
+  "comparch": {
+   "file": "questions/comparch.json",
+   "count": 7
+  },
+  "cpp": {
+   "file": "questions/cpp.json",
+   "count": 7
+  },
+  "distributed": {
+   "file": "questions/distributed.json",
+   "count": 6
+  }
+ }
+}

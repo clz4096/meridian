@@ -1,0 +1,79 @@
+[
+ {
+  "id": "ca-cache-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Why is a cache line typically 64 bytes, not 1 byte? State the principle it exploits.",
+  "src": {
+   "book": "csapp",
+   "ref": "§6.2–6.4 The memory hierarchy & cache memories"
+  },
+  "reveal": "Spatial locality: programs tend to access data near data they just used. Fetching a 64-byte line amortizes the fixed cost of a memory access across neighbors you’ll likely need next, so sequential access gets many hits per miss. A 1-byte line would waste that latency on every element."
+ },
+ {
+  "id": "ca-pipeline-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "In one sentence: what does instruction pipelining buy you, and what is the hazard that stalls it?",
+  "src": {
+   "book": "cod",
+   "ref": "Ch.4 The Processor (pipelining)"
+  },
+  "reveal": "Pipelining overlaps the stages (fetch/decode/execute/mem/writeback) of consecutive instructions so throughput approaches one instruction per cycle. Hazards stall it: data hazards (an instruction needs a result not yet ready), control hazards (branches whose direction isn’t known yet), and structural hazards (two instructions want the same unit)."
+ },
+ {
+  "id": "ca-branch-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Explain branch prediction and why a mispredict is expensive. How does this connect to the classic \"sorted array is faster to process\" result?",
+  "src": {
+   "book": "hp",
+   "ref": "Ch.3 Instruction-Level Parallelism & its exploitation"
+  },
+  "reveal": "The CPU guesses a branch’s direction and speculatively executes down that path to keep the pipeline full. A mispredict means flushing all speculated work and refetching — tens of cycles lost. Processing a sorted array is faster because the data-dependent branch (e.g. if x < threshold) becomes highly predictable (long runs of the same outcome), so the predictor is almost always right; on shuffled data it mispredicts constantly."
+ },
+ {
+  "id": "ca-virtmem-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Walk through what happens on a memory access from virtual address to data, including the TLB and a page fault. Why does the TLB exist?",
+  "src": {
+   "book": "csapp",
+   "ref": "Ch.9 Virtual Memory (§9.6 address translation)"
+  },
+  "reveal": "The CPU issues a virtual address. The MMU splits it into a page number + offset and must translate the page number to a physical frame via the page table — but walking the page table is itself memory accesses. The TLB caches recent translations, so a TLB hit gives the frame in ~1 cycle. On a TLB miss the MMU walks the page table; if the page isn’t resident, a page fault traps to the OS, which loads the page from disk, updates the table, and restarts the instruction. The TLB exists because without it every memory access would cost several extra accesses just to translate."
+ },
+ {
+  "id": "ca-riscv-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why is RISC-V’s load/store architecture significant? Contrast with a memory-operand (CISC) design and say why it matters for pipelining.",
+  "src": {
+   "book": "cod",
+   "ref": "Ch.2 Instructions: Language of the Computer (RISC-V)"
+  },
+  "reveal": "In a load/store ISA, arithmetic instructions operate only on registers; memory is touched solely by explicit load/store instructions. This keeps instructions fixed-length and single-purpose, which makes decoding and pipelining regular — every instruction takes a predictable path through the stages. CISC instructions that can read memory operands directly have variable latency and complexity, complicating the pipeline. RISC-V’s regularity is also why it’s attractive for custom accelerators (e.g. Tenstorrent’s baby cores)."
+ },
+ {
+  "id": "ca-syscall-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What mechanically happens when user code makes a system call? Why can’t a program just jump into kernel code?",
+  "src": {
+   "book": "cpuland",
+   "ref": "cpu.land — Rings & Syscalls"
+  },
+  "reveal": "A privilege-level bit (rings) separates user (low privilege) from kernel (high). A syscall instruction raises the privilege level AND transfers control to a fixed, kernel-defined entry point — the caller cannot choose where it lands. The kernel dispatches on the syscall number, does the work, and returns, lowering privilege again. You can’t jump directly into kernel code because the transition instruction hardwires the entry point and the MMU forbids user code from executing kernel pages — that controlled door is the basis of OS security."
+ },
+ {
+  "id": "ca-ooo-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "What problem does out-of-order execution solve, and what guarantees must it preserve? Name the structure that lets results retire in order.",
+  "src": {
+   "book": "hp",
+   "ref": "Ch.3 ILP (Tomasulo, reorder buffer)"
+  },
+  "reveal": "A single slow instruction (e.g. a cache-missing load) would stall everything behind it in program order. OOO execution runs later independent instructions while the slow one waits, extracting instruction-level parallelism. It must preserve the illusion of sequential execution: results are computed out of order but committed (retired) in program order via a reorder buffer (ROB), and register renaming removes false dependencies. This keeps exceptions precise and memory visible in program order."
+ }
+]

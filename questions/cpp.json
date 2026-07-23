@@ -1,0 +1,79 @@
+[
+ {
+  "id": "cpp-raii-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Define RAII in one sentence and name three resources it manages besides heap memory.",
+  "src": {
+   "book": "coreg",
+   "ref": "C.30–C.33 / R.1 Manage resources automatically"
+  },
+  "reveal": "RAII (Resource Acquisition Is Initialization): bind a resource’s lifetime to an object’s lifetime — acquire in the constructor, release in the destructor — so cleanup is automatic and exception-safe. Besides heap memory: file handles (std::fstream), locks (std::lock_guard), sockets, database connections, GPU buffers."
+ },
+ {
+  "id": "cpp-move-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What does std::move actually do, and why can a std::vector be moved in O(1) but copied in O(n)?",
+  "src": {
+   "book": "coreg",
+   "ref": "F.18/F.19 & ES.56 (move semantics)"
+  },
+  "reveal": "std::move is just a cast to an rvalue reference — it moves nothing itself; it marks an object as eligible to be moved from. A vector move copies only its three members (data pointer, size, capacity) and nulls the source, so the heap buffer is transferred, not duplicated — O(1). A copy must allocate a new buffer and copy every element — O(n). This is why unique_ptr is movable but not copyable: transferring sole ownership makes sense; duplicating it does not."
+ },
+ {
+  "id": "cpp-ptr-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "unique_ptr vs shared_ptr vs weak_ptr: when each, and what problem does weak_ptr solve?",
+  "src": {
+   "book": "coreg",
+   "ref": "R.20–R.24 (smart pointers & ownership)"
+  },
+  "reveal": "unique_ptr = single exclusive owner, zero overhead vs a raw pointer — your default. shared_ptr = shared ownership via an atomic reference count; the object dies when the count hits zero (use only when ownership is genuinely shared — counting costs). weak_ptr = a non-owning observer of a shared_ptr that doesn’t keep it alive; it breaks reference cycles (two shared_ptrs pointing at each other would never reach count zero — a leak). You lock() a weak_ptr to get a shared_ptr if the object still exists."
+ },
+ {
+  "id": "cpp-rule-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "State the Rule of Zero and why it’s preferred over the Rule of Five.",
+  "src": {
+   "book": "coreg",
+   "ref": "C.20 (Rule of Zero) / C.21 (Rule of Five)"
+  },
+  "reveal": "Rule of Zero: design classes so they need NO user-declared destructor, copy/move constructor, or copy/move assignment — by holding resources in types that already manage themselves (smart pointers, containers). Then the compiler-generated special members are correct. It’s preferred because hand-written special members are error-prone; if you must write one (Rule of Five says write all five), you’re usually better off wrapping the raw resource in an RAII type instead."
+ },
+ {
+  "id": "cpp-vtable-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How does a virtual function call work under the hood (vtable/vptr), and what is its cost vs a normal call?",
+  "src": {
+   "book": "coreg",
+   "ref": "C.67 & the object model; see also bare-metal C++ on avoiding it"
+  },
+  "reveal": "Each polymorphic class has a vtable (array of function pointers); each object holds a hidden vptr to its class’s vtable. A virtual call dereferences the vptr, indexes the vtable, and calls through the pointer — one extra indirection, and it usually can’t be inlined, which is the bigger cost. In hot or bare-metal code you often prefer compile-time polymorphism (templates/CRTP) to get the abstraction with zero runtime dispatch and no vtable."
+ },
+ {
+  "id": "cpp-baremetal-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "On a bare-metal target with no heap and exceptions disabled, how do you get polymorphism and dynamic-like behavior? What must you avoid from the STL?",
+  "src": {
+   "book": "baremetal",
+   "ref": "Practical Guide to Bare-metal C++ — Compile-Time Polymorphism & Dynamic Memory"
+  },
+  "reveal": "Use compile-time polymorphism — templates and CRTP — so dispatch is resolved at compile time with zero runtime cost and no vtable/heap. Avoid STL facilities that allocate (std::vector, std::string, std::map) or that rely on exceptions/RTTI; prefer fixed-capacity containers, std::array, and static storage. Wrap hardware registers in typed volatile abstractions. The book’s thesis: modern C++ abstractions cost nothing at runtime if you push them to compile time."
+ },
+ {
+  "id": "cpp-align-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Explain struct padding and alignment. Why can reordering fields shrink a struct, and how does this interact with cache lines?",
+  "src": {
+   "book": "csapp",
+   "ref": "CSAPP §3.9 (data alignment); C++ Core Guidelines on layout"
+  },
+  "reveal": "The compiler inserts padding so each field sits at an address that is a multiple of its size (alignment), which the hardware requires or strongly prefers. A small field followed by a larger one forces padding; ordering fields largest-to-smallest minimizes the holes, shrinking the struct. Smaller, well-packed structs fit more per 64-byte cache line, so traversals pull in more useful data per fetch — layout is a cache decision."
+ }
+]

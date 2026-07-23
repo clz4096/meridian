@@ -1,0 +1,79 @@
+[
+ {
+  "id": "a-bfs-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "In one sentence: what invariant makes BFS give the shortest path in an unweighted graph, and why does DFS not?",
+  "src": {
+   "book": "clrs",
+   "ref": "§22.2 Breadth-first search"
+  },
+  "reveal": "BFS explores in rings of increasing distance, so the first time a node is dequeued it is reached by a fewest-edges path — nothing shorter can arrive later. DFS dives down one path and may reach a node via a long route first, with no distance guarantee."
+ },
+ {
+  "id": "a-dijkstra-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "What single data-structure swap turns BFS into Dijkstra, and what breaks if edge weights can be negative?",
+  "src": {
+   "book": "clrs",
+   "ref": "§22.3 / Ch.24 Single-source shortest paths"
+  },
+  "reveal": "Swap the FIFO queue for a min-priority-queue keyed on tentative distance. Dijkstra assumes non-negative weights so that a popped (finalized) node can never later be improved; a negative edge can improve an already-finalized node, violating that invariant (use Bellman-Ford instead)."
+ },
+ {
+  "id": "a-union-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "State the union-find invariant that lets \"are these in the same set?\" be answered in ~O(1) amortized.",
+  "src": {
+   "book": "clrs",
+   "ref": "§21 Data structures for disjoint sets"
+  },
+  "reveal": "Every element points toward a representative root; two elements are in the same set iff they reach the same root. Path compression + union by rank keep trees near-flat, giving inverse-Ackermann (≈ constant) amortized cost."
+ },
+ {
+  "id": "a-invariant-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Sliding-window: given a string, find the longest substring with no repeating characters. Before coding, state the window invariant, then the O(n) approach and its space.",
+  "src": {
+   "book": "clrs",
+   "ref": "Ch.15–16 (greedy/DP framing); LC 3"
+  },
+  "reveal": "Invariant: the window [l,r] always contains no duplicate. Expand r; when s[r] duplicates something in the window, advance l past the previous occurrence (tracked in a hashmap of char→lastIndex). Each index enters/leaves once → O(n) time, O(min(n,Σ)) space. The \"throw-away\" is every window that would contain a repeat — never examined."
+ },
+ {
+  "id": "a-grid-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Grid with a consumable resource (fuel): BFS where state is (row,col,fuel). What is the dominance-pruning invariant, and what is the resulting time complexity?",
+  "src": {
+   "book": "clrs",
+   "ref": "Ch.22 BFS extended with state"
+  },
+  "reveal": "Invariant: for each cell keep the maximum fuel ever seen arriving there; only enqueue an arrival that strictly beats it. That prunes dominated states (same cell, ≤ fuel). Time is O(rows×cols×maxFuel) because each cell can be improved at most maxFuel times. This is the ladder BFS → BFS+state → Dijkstra."
+ },
+ {
+  "id": "a-topo-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Course-schedule / ordering: when is a valid ordering impossible, and name the two algorithms that detect it.",
+  "src": {
+   "book": "clrs",
+   "ref": "§22.4 Topological sort"
+  },
+  "reveal": "Impossible iff the dependency graph has a cycle. Kahn’s algorithm (repeatedly emit in-degree-0 nodes; if fewer than N emitted, a cycle exists) or DFS with a recursion-stack \"gray\" marker (a back-edge to a gray node = cycle). Emit order = reverse DFS finish times."
+ },
+ {
+  "id": "a-heap-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Streaming median: design a structure supporting add(x) and getMedian() efficiently over a stream. State the invariant across the two heaps.",
+  "src": {
+   "book": "clrs",
+   "ref": "Ch.6 Heapsort / priority queues; LC 295"
+  },
+  "reveal": "Max-heap holds the lower half, min-heap the upper half. Invariants: every element in the low heap ≤ every element in the high heap, and their sizes differ by ≤ 1. add = push then rebalance across the tops; median = top of the larger heap (or average of both tops). add O(log n), getMedian O(1)."
+ }
+]

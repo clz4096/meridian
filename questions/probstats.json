@@ -1,0 +1,79 @@
+[
+ {
+  "id": "p-ev-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Expected number of coin flips to get the first head (fair coin). Set up the recurrence, do not just recall the number.",
+  "src": {
+   "book": "mathcs",
+   "ref": "Expectation — MIT 6.042J"
+  },
+  "reveal": "Let E be the answer. One flip always happens. With probability 1/2 it is a head and you stop; with probability 1/2 it is a tail and you are back where you started. So E = 1 + (1/2)(0) + (1/2)(E), giving E/2 = 1, so E = 2. The general result for probability p is 1/p — a geometric distribution."
+ },
+ {
+  "id": "p-bayes-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "A test is 99% accurate for a disease affecting 1 in 10,000. You test positive. Roughly what is the probability you have it, and what drives the answer?",
+  "src": {
+   "book": "mathcs",
+   "ref": "Conditional probability / Bayes"
+  },
+  "reveal": "Roughly 1%. Out of 1,000,000 people: ~100 have it and ~99 test positive; ~999,900 do not and ~1% — about 9,999 — test positive falsely. So P(disease | positive) ≈ 99 / (99 + 9999) ≈ 1%. The driver is the base rate: when the prior is tiny, false positives from the huge healthy population swamp true positives. This is base-rate neglect."
+ },
+ {
+  "id": "p-linearity-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "State linearity of expectation and why it is unusually powerful. Use it on: expected number of fixed points in a random permutation of n items.",
+  "src": {
+   "book": "mathcs",
+   "ref": "Expectation, indicator variables"
+  },
+  "reveal": "E[X+Y] = E[X] + E[Y] regardless of whether X and Y are independent — that independence-freedom is what makes it powerful. For fixed points, define an indicator Xᵢ = 1 if item i maps to position i. P(Xᵢ=1) = 1/n, so E[Xᵢ] = 1/n. Summing over n items: E[X] = n · (1/n) = 1. Exactly one fixed point on average, for any n — and the indicators are dependent, which does not matter."
+ },
+ {
+  "id": "p-var-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Define variance and standard deviation, and state why standard deviation is usually reported instead.",
+  "src": {
+   "book": "mathcs",
+   "ref": "Variance and deviation"
+  },
+  "reveal": "Variance is E[(X − μ)²], the mean squared deviation from the mean; equivalently E[X²] − (E[X])². Standard deviation is its square root. Standard deviation is reported because squaring changes the units (dollars become dollars-squared); the square root restores the original units, so it is directly comparable to the data."
+ },
+ {
+  "id": "p-clt-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "State the central limit theorem precisely and name one common way people misapply it.",
+  "src": {
+   "book": "mathcs",
+   "ref": "Sums of random variables"
+  },
+  "reveal": "The CLT says the distribution of the SAMPLE MEAN of n independent, identically distributed variables with finite variance approaches a normal distribution as n grows — regardless of the original distribution’s shape. Common misapplication: assuming the DATA itself becomes normal (it does not — only the sampling distribution of the mean does), or applying it to heavy-tailed distributions with infinite variance, where it fails."
+ },
+ {
+  "id": "p-condprob-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Monty Hall: you pick door 1, the host opens door 3 revealing a goat, and offers a switch. Switch or stay? Justify without hand-waving.",
+  "src": {
+   "book": "mathcs",
+   "ref": "Conditional probability"
+  },
+  "reveal": "Switch — it wins 2/3 of the time. Your initial pick is right with probability 1/3, so the prize is behind one of the other two doors with probability 2/3. The host, who knows the layout and always opens a goat door, concentrates that entire 2/3 onto the single remaining door. The key premise is that the host’s choice is not random — if he opened a door at random and it happened to show a goat, switching would be 50/50."
+ },
+ {
+  "id": "p-markov-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "What defines a Markov chain, and what does a stationary distribution mean? Give the gambler’s-ruin intuition.",
+  "src": {
+   "book": "mathcs",
+   "ref": "Random walks and Markov chains"
+  },
+  "reveal": "A Markov chain is a state process where the next state depends only on the current state, not the history — the memoryless property. A stationary distribution π satisfies πP = π: once the chain is distributed as π, it stays that way. Gambler’s ruin: a random walk between 0 and N with absorbing barriers — with a fair coin, the probability of hitting N before 0 starting from k is k/N, and the game ends with probability 1. Against a house with an edge, ruin becomes near-certain over enough plays."
+ }
+]

@@ -1,0 +1,79 @@
+[
+ {
+  "id": "c-race-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Define a data race precisely (not just \"two threads touch memory\").",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.5 The C++ memory model & atomic operations"
+  },
+  "reveal": "A data race = two threads access the same memory location concurrently, at least one access is a write, and there is no happens-before ordering (no synchronization) between them. In C++ it is undefined behavior. Note: not every race is a bug, but every data race is UB."
+ },
+ {
+  "id": "c-ordering-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Explain acquire vs release memory ordering as a pair. Why does a producer publishing a buffer need release, and the consumer need acquire?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.5 — synchronizing operations & memory ordering"
+  },
+  "reveal": "release on a store: all memory writes sequenced-before it become visible to any thread that later performs an acquire-load reading that value. acquire on a load: once you observe the released value, you also observe everything that happened-before the release. Producer writes buffer then stores the \"ready\" flag with release; consumer acquire-loads the flag, guaranteeing the buffer write is visible before it reads it. Without the pair, the flag could be seen before the data lands."
+ },
+ {
+  "id": "c-spsc-60",
+  "mins": 60,
+  "flow": "full",
+  "prompt": "Design a lock-free single-producer/single-consumer ring buffer. State: how you distinguish full from empty, which index uses which memory ordering, and why no lock is needed.",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.7 Designing lock-free concurrent data structures"
+  },
+  "reveal": "Two monotonic counters head/tail (mask to index; capacity a power of two). Empty: tail-head==0. Full: tail-head==capacity (no wasted slot). Producer: relaxed-load own tail, acquire-load head, write slot, release-store tail+1. Consumer: acquire-load tail, relaxed-load head, read slot, release-store head+1. No lock is needed because exactly one thread writes each index; the acquire/release pair orders the slot write before the index publish. size_approx uses two relaxed loads."
+ },
+ {
+  "id": "c-deadlock-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "State the four Coffman conditions for deadlock and the single most common prevention discipline.",
+  "src": {
+   "book": "tanenbaum",
+   "ref": "§6 Deadlocks"
+  },
+  "reveal": "Mutual exclusion, hold-and-wait, no preemption, circular wait — all four must hold. Break any one to prevent deadlock; the standard discipline is to impose a global lock-ordering so circular wait cannot form (always acquire lock A before lock B, everywhere)."
+ },
+ {
+  "id": "c-falsesharing-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is false sharing, why does it wreck multithreaded performance, and how do you fix it?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.8 — data structures & false sharing (CSAPP Ch.6 caches)"
+  },
+  "reveal": "Two threads write to different variables that happen to sit on the same 64-byte cache line; the cache-coherence protocol ping-pongs the line between cores as if they shared data, even though they logically do not. Fix: pad/align hot per-thread data to its own cache line (alignas(64) or padding)."
+ },
+ {
+  "id": "c-concpar-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Concurrency vs parallelism in one line each — and can you have one without the other?",
+  "src": {
+   "book": "cornell",
+   "ref": "Parallel programming roadmap"
+  },
+  "reveal": "Concurrency = structuring a program as independently-progressing tasks (dealing with many things at once); parallelism = actually executing multiple tasks simultaneously on multiple cores (doing many at once). You can have concurrency without parallelism (one core interleaving tasks) and design for concurrency so parallelism becomes possible when cores exist."
+ },
+ {
+  "id": "c-atomicvslock-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "When is an atomic (lock-free) approach actually better than a mutex, and what is the hidden cost of lock-free code?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.5 primitives / Ch.9–10"
+  },
+  "reveal": "Atomics win when the critical section is tiny (a counter, an index, a flag) and contention or the cost of blocking/scheduling would dominate; no thread ever blocks, so no priority inversion or convoying. Hidden costs: correctness is much harder (memory ordering, the ABA problem), progress guarantees are subtle (lock-free ≠ wait-free), and heavy contention still causes cache-line bouncing. For anything non-trivial, a mutex is often the right, readable default."
+ }
+]

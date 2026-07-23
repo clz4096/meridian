@@ -1,0 +1,79 @@
+[
+ {
+  "id": "g-repr-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Adjacency list vs adjacency matrix: state the space cost of each and the one question that decides which to use.",
+  "src": {
+   "book": "cses",
+   "ref": "§11 Basics of graphs"
+  },
+  "reveal": "Adjacency list is O(V+E); adjacency matrix is O(V²). The deciding question is density: use a matrix only when the graph is dense (E approaches V²) or you need O(1) edge-existence lookups; otherwise use lists. Interview default is lists, since most graphs are sparse."
+ },
+ {
+  "id": "g-bfsdfs-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "When does BFS give you a shortest path and when does it fail? What replaces it when it fails?",
+  "src": {
+   "book": "cses",
+   "ref": "§12 Graph traversal; §13 Shortest paths"
+  },
+  "reveal": "BFS gives shortest paths only when every edge has the same weight — it explores in layers of equal cost. With differing positive weights it fails, and Dijkstra replaces it (swap the queue for a min-heap). With negative edges Dijkstra fails too, and Bellman–Ford handles it."
+ },
+ {
+  "id": "g-topo-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Explain topological sort: what must be true of the graph, the two standard algorithms, and how you detect that it is impossible.",
+  "src": {
+   "book": "cses",
+   "ref": "§16 Directed graphs (topological sorting)"
+  },
+  "reveal": "It orders vertices so every edge points forward; it requires a DAG. Kahn’s algorithm repeatedly removes in-degree-zero nodes with a queue; the DFS method pushes each node onto a stack after its descendants finish, then reverses. Impossible exactly when a cycle exists — Kahn detects it when fewer than V nodes are emitted; DFS detects a back edge to a node still on the recursion stack."
+ },
+ {
+  "id": "g-dijkstra-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why does Dijkstra break with negative edges? Be precise about the invariant that is violated.",
+  "src": {
+   "book": "cses",
+   "ref": "§13 Shortest paths (Dijkstra, Bellman–Ford)"
+  },
+  "reveal": "Dijkstra assumes that once a node is popped with the smallest tentative distance, that distance is final — because every remaining path can only add non-negative weight. A negative edge breaks that: a later, longer-looking path can become cheaper after traversing the negative edge, so a finalized node may need updating. Bellman–Ford relaxes all edges V−1 times instead, and a further relaxation on pass V proves a negative cycle."
+ },
+ {
+  "id": "g-union-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Describe union-find with both optimizations and state the resulting complexity. Name two problems where it is the right tool.",
+  "src": {
+   "book": "cses",
+   "ref": "§15 Spanning trees (union-find)"
+  },
+  "reveal": "Union by size/rank attaches the smaller tree under the larger, keeping depth low; path compression flattens the path to the root on every find. Together they give near-constant amortized time — the inverse Ackermann function α(n). Right tool for: Kruskal’s MST (detect whether an edge joins two components) and dynamic connectivity / counting connected components as edges arrive."
+ },
+ {
+  "id": "g-grid-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Grid BFS with extra state (e.g. fuel, keys, remaining wall-breaks): what goes in the visited set, and what is the pruning invariant?",
+  "src": {
+   "book": "cses",
+   "ref": "§12 Graph traversal, extended"
+  },
+  "reveal": "The visited set must be keyed on the full state, not just the cell: (row, col, extraState). The pruning invariant is dominance — only revisit a cell if you arrive in a strictly better state (more fuel, more keys, more breaks left); a strictly worse or equal arrival can never lead to a better outcome, so prune it. Store best[r][c] as the best resource seen rather than a plain boolean."
+ },
+ {
+  "id": "g-mst-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Kruskal vs Prim for minimum spanning tree: mechanism, data structure, and which you pick when.",
+  "src": {
+   "book": "cses",
+   "ref": "§15 Spanning trees"
+  },
+  "reveal": "Kruskal sorts all edges and adds the cheapest that does not form a cycle, using union-find — O(E log E), naturally suited to sparse graphs and edge lists. Prim grows one tree from a start vertex, always taking the cheapest edge leaving the tree, using a min-heap — O(E log V), better on dense graphs, and structurally almost identical to Dijkstra (the only change is the key: edge weight instead of accumulated distance)."
+ }
+]

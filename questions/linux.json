@@ -1,0 +1,35 @@
+[
+ {
+  "id": "l-fork-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "After fork(), how do parent and child differ in return value and memory, and is memory actually copied?",
+  "src": {
+   "book": "tlpi",
+   "ref": "Ch.24 Process Creation"
+  },
+  "reveal": "fork() returns the child PID to the parent and 0 to the child (−1 on failure). The child gets a copy of the parent’s address space, but modern kernels use copy-on-write: pages are shared read-only and only duplicated when either side writes, so the copy is lazy, not upfront."
+ },
+ {
+  "id": "l-fd-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Explain the three-level file-descriptor model: the per-process fd table, the open file table, and the inode table. Why does this structure make dup() and fork() behave the way they do?",
+  "src": {
+   "book": "tlpi",
+   "ref": "Ch.5 §5.4 Relationship between file descriptors and open files"
+  },
+  "reveal": "A file descriptor indexes the per-process fd table; each entry points to an open file description (system-wide) holding the offset and status flags; that points to the inode. dup() and fork() copy the fd entry but SHARE the open file description — so duplicated/inherited fds share a file offset (a write through one advances the other), whereas two independent open() calls to the same file get separate offsets."
+ },
+ {
+  "id": "l-epoll-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "You must handle 10k concurrent sockets. Why do select()/poll() scale poorly, and what does epoll change? Contrast level- vs edge-triggered.",
+  "src": {
+   "book": "tlpi",
+   "ref": "Ch.63 Alternative I/O Models (epoll)"
+  },
+  "reveal": "select()/poll() are O(n): every call re-passes and re-scans the entire fd set, so cost grows with total connections even if few are active. epoll keeps the interest set in the kernel and returns only ready fds — O(ready), not O(total). Level-triggered fires while data remains (simpler, poll-like); edge-triggered fires once on a readiness transition, so you must drain the fd fully (loop until EAGAIN) or you lose events — faster but easier to get wrong."
+ }
+]
