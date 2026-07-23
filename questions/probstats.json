@@ -6,9 +6,13 @@
   "prompt": "Expected number of coin flips to get the first head (fair coin). Set up the recurrence, do not just recall the number.",
   "src": {
    "book": "mathcs",
-   "ref": "Expectation — MIT 6.042J"
+   "ref": "Expectation \u2014 MIT 6.042J"
   },
-  "reveal": "Let E be the answer. One flip always happens. With probability 1/2 it is a head and you stop; with probability 1/2 it is a tail and you are back where you started. So E = 1 + (1/2)(0) + (1/2)(E), giving E/2 = 1, so E = 2. The general result for probability p is 1/p — a geometric distribution."
+  "reveal": "Let E be the answer. One flip always happens. With probability 1/2 it is a head and you stop; with probability 1/2 it is a tail and you are back where you started. So E = 1 + (1/2)(0) + (1/2)(E), giving E/2 = 1, so E = 2. The general result for probability p is 1/p \u2014 a geometric distribution.",
+  "tags": [
+   "quant",
+   "math"
+  ]
  },
  {
   "id": "p-bayes-15",
@@ -19,7 +23,11 @@
    "book": "mathcs",
    "ref": "Conditional probability / Bayes"
   },
-  "reveal": "Roughly 1%. Out of 1,000,000 people: ~100 have it and ~99 test positive; ~999,900 do not and ~1% — about 9,999 — test positive falsely. So P(disease | positive) ≈ 99 / (99 + 9999) ≈ 1%. The driver is the base rate: when the prior is tiny, false positives from the huge healthy population swamp true positives. This is base-rate neglect."
+  "reveal": "Roughly 1%. Out of 1,000,000 people: ~100 have it and ~99 test positive; ~999,900 do not and ~1% \u2014 about 9,999 \u2014 test positive falsely. So P(disease | positive) \u2248 99 / (99 + 9999) \u2248 1%. The driver is the base rate: when the prior is tiny, false positives from the huge healthy population swamp true positives. This is base-rate neglect.",
+  "tags": [
+   "quant",
+   "math"
+  ]
  },
  {
   "id": "p-linearity-15",
@@ -30,7 +38,11 @@
    "book": "mathcs",
    "ref": "Expectation, indicator variables"
   },
-  "reveal": "E[X+Y] = E[X] + E[Y] regardless of whether X and Y are independent — that independence-freedom is what makes it powerful. For fixed points, define an indicator Xᵢ = 1 if item i maps to position i. P(Xᵢ=1) = 1/n, so E[Xᵢ] = 1/n. Summing over n items: E[X] = n · (1/n) = 1. Exactly one fixed point on average, for any n — and the indicators are dependent, which does not matter."
+  "reveal": "E[X+Y] = E[X] + E[Y] regardless of whether X and Y are independent \u2014 that independence-freedom is what makes it powerful. For fixed points, define an indicator X\u1d62 = 1 if item i maps to position i. P(X\u1d62=1) = 1/n, so E[X\u1d62] = 1/n. Summing over n items: E[X] = n \u00b7 (1/n) = 1. Exactly one fixed point on average, for any n \u2014 and the indicators are dependent, which does not matter.",
+  "tags": [
+   "quant",
+   "math"
+  ]
  },
  {
   "id": "p-var-5",
@@ -41,7 +53,11 @@
    "book": "mathcs",
    "ref": "Variance and deviation"
   },
-  "reveal": "Variance is E[(X − μ)²], the mean squared deviation from the mean; equivalently E[X²] − (E[X])². Standard deviation is its square root. Standard deviation is reported because squaring changes the units (dollars become dollars-squared); the square root restores the original units, so it is directly comparable to the data."
+  "reveal": "Variance is E[(X \u2212 \u03bc)\u00b2], the mean squared deviation from the mean; equivalently E[X\u00b2] \u2212 (E[X])\u00b2. Standard deviation is its square root. Standard deviation is reported because squaring changes the units (dollars become dollars-squared); the square root restores the original units, so it is directly comparable to the data.",
+  "tags": [
+   "quant",
+   "math"
+  ]
  },
  {
   "id": "p-clt-15",
@@ -52,7 +68,11 @@
    "book": "mathcs",
    "ref": "Sums of random variables"
   },
-  "reveal": "The CLT says the distribution of the SAMPLE MEAN of n independent, identically distributed variables with finite variance approaches a normal distribution as n grows — regardless of the original distribution’s shape. Common misapplication: assuming the DATA itself becomes normal (it does not — only the sampling distribution of the mean does), or applying it to heavy-tailed distributions with infinite variance, where it fails."
+  "reveal": "The CLT says the distribution of the SAMPLE MEAN of n independent, identically distributed variables with finite variance approaches a normal distribution as n grows \u2014 regardless of the original distribution\u2019s shape. Common misapplication: assuming the DATA itself becomes normal (it does not \u2014 only the sampling distribution of the mean does), or applying it to heavy-tailed distributions with infinite variance, where it fails.",
+  "tags": [
+   "quant",
+   "math"
+  ]
  },
  {
   "id": "p-condprob-15",
@@ -63,17 +83,220 @@
    "book": "mathcs",
    "ref": "Conditional probability"
   },
-  "reveal": "Switch — it wins 2/3 of the time. Your initial pick is right with probability 1/3, so the prize is behind one of the other two doors with probability 2/3. The host, who knows the layout and always opens a goat door, concentrates that entire 2/3 onto the single remaining door. The key premise is that the host’s choice is not random — if he opened a door at random and it happened to show a goat, switching would be 50/50."
+  "reveal": "Switch \u2014 it wins 2/3 of the time. Your initial pick is right with probability 1/3, so the prize is behind one of the other two doors with probability 2/3. The host, who knows the layout and always opens a goat door, concentrates that entire 2/3 onto the single remaining door. The key premise is that the host\u2019s choice is not random \u2014 if he opened a door at random and it happened to show a goat, switching would be 50/50.",
+  "tags": [
+   "quant",
+   "math"
+  ]
  },
  {
   "id": "p-markov-30",
   "mins": 30,
   "flow": "full",
-  "prompt": "What defines a Markov chain, and what does a stationary distribution mean? Give the gambler’s-ruin intuition.",
+  "prompt": "What defines a Markov chain, and what does a stationary distribution mean? Give the gambler\u2019s-ruin intuition.",
   "src": {
    "book": "mathcs",
    "ref": "Random walks and Markov chains"
   },
-  "reveal": "A Markov chain is a state process where the next state depends only on the current state, not the history — the memoryless property. A stationary distribution π satisfies πP = π: once the chain is distributed as π, it stays that way. Gambler’s ruin: a random walk between 0 and N with absorbing barriers — with a fair coin, the probability of hitting N before 0 starting from k is k/N, and the game ends with probability 1. Against a house with an edge, ruin becomes near-certain over enough plays."
+  "reveal": "A Markov chain is a state process where the next state depends only on the current state, not the history \u2014 the memoryless property. A stationary distribution \u03c0 satisfies \u03c0P = \u03c0: once the chain is distributed as \u03c0, it stays that way. Gambler\u2019s ruin: a random walk between 0 and N with absorbing barriers \u2014 with a fair coin, the probability of hitting N before 0 starting from k is k/N, and the game ends with probability 1. Against a house with an edge, ruin becomes near-certain over enough plays.",
+  "tags": [
+   "quant",
+   "math"
+  ]
+ },
+ {
+  "id": "p-twoheads-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Expected number of flips to see two consecutive heads. Set up the states and solve.",
+  "src": {
+   "book": "mathcs",
+   "ref": "Expectation / Markov chains"
+  },
+  "reveal": "Define states by progress: S0 = no useful streak, S1 = one head so far. From S0: one flip, then half the time you reach S1, half you stay in S0 \u2014 E0 = 1 + \u00bdE1 + \u00bdE0. From S1: one flip, half the time you are done, half you fall back to S0 \u2014 E1 = 1 + \u00bd(0) + \u00bdE0. Substituting gives E0 = 6. The general pattern for k consecutive heads with a fair coin is 2^(k+1) \u2212 2, so k=1 gives 2 and k=2 gives 6.",
+  "tags": [
+   "quant",
+   "math"
+  ]
+ },
+ {
+  "id": "p-collector-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Coupon collector: how many draws to collect all n distinct coupons? Derive it with linearity.",
+  "src": {
+   "book": "mathcs",
+   "ref": "Expectation, indicator variables"
+  },
+  "reveal": "Break the process into phases: phase i is the time to get the i-th NEW coupon after having i\u22121. In that phase the chance any draw is new is (n\u2212i+1)/n, so the expected wait is a geometric with mean n/(n\u2212i+1). By linearity, total = n(1/n + 1/(n\u22121) + ... + 1/1) = n\u00b7H\u2093 \u2248 n ln n + 0.577n. So collecting all 50 states takes roughly 225 draws, not 50 \u2014 the last few coupons dominate the cost.",
+  "tags": [
+   "quant",
+   "math"
+  ]
+ },
+ {
+  "id": "p-maxdice-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Expected maximum of n independent fair dice rolls. What is the trick that avoids brute force?",
+  "src": {
+   "book": "mathcs",
+   "ref": "Expectation and distributions"
+  },
+  "reveal": "Use the tail-sum formula: for a non-negative integer variable, E[X] = \u03a3 P(X \u2265 k). P(max \u2265 k) = 1 \u2212 P(all rolls < k) = 1 \u2212 ((k\u22121)/6)^n. So E[max] = \u03a3 from k=1 to 6 of [1 \u2212 ((k\u22121)/6)^n]. For n=2 this gives 161/36 \u2248 4.47. The trick is that P(max \u2264 k) factorizes into independent per-roll probabilities, whereas the density of the max does not \u2014 always attack max/min problems through the CDF.",
+  "tags": [
+   "quant",
+   "math"
+  ]
+ },
+ {
+  "id": "p-independence-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Distinguish mutually exclusive from independent events. Can two events with positive probability be both?",
+  "src": {
+   "book": "mathcs",
+   "ref": "Probability foundations"
+  },
+  "reveal": "Mutually exclusive means they cannot co-occur: P(A\u2229B) = 0. Independent means one gives no information about the other: P(A\u2229B) = P(A)P(B). No \u2014 if both have positive probability they cannot be both, because exclusivity forces P(A\u2229B)=0 while independence would require P(A)P(B) > 0. In fact mutually exclusive events are maximally DEPENDENT: knowing A occurred tells you B definitely did not.",
+  "tags": [
+   "quant",
+   "math"
+  ]
+ },
+ {
+  "id": "p-birthday-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "The birthday problem: why does it only take 23 people for a 50% chance, and what is the general heuristic?",
+  "src": {
+   "book": "mathcs",
+   "ref": "Counting and probability"
+  },
+  "reveal": "Count the PAIRS, not the people: 23 people form C(23,2) = 253 pairs, each with a 1/365 chance of matching. Compute via the complement: P(all distinct) = (365/365)(364/365)...(343/365) \u2248 0.493, so a match has probability \u2248 0.507. The general heuristic: with N equally likely values you need roughly \u221aN samples for a 50% collision chance \u2014 which is exactly the birthday bound behind hash-collision attacks and why a 64-bit hash starts colliding around 2\u00b3\u00b2 items.",
+  "tags": [
+   "quant",
+   "math"
+  ]
+ },
+ {
+  "id": "p-mle-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "What is maximum likelihood estimation, and what does it give for the mean of a normal sample?",
+  "src": {
+   "book": "mathcs",
+   "ref": "Estimation and inference"
+  },
+  "reveal": "MLE picks the parameter value that makes the OBSERVED data most probable: maximize the likelihood \u220f f(x\u1d62; \u03b8), usually by maximizing the log-likelihood since sums are easier to differentiate. For a normal with unknown mean \u03bc, the log-likelihood is \u2212\u03a3(x\u1d62\u2212\u03bc)\u00b2/(2\u03c3\u00b2) plus constants; differentiating and setting to zero gives \u03bc\u0302 = sample mean. Note the MLE for the VARIANCE divides by n and is biased; the unbiased estimator divides by n\u22121 \u2014 a standard interview follow-up.",
+  "tags": [
+   "quant",
+   "math"
+  ]
+ },
+ {
+  "id": "p-ols-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Derive the closed form for ordinary least squares and state what each part means geometrically.",
+  "src": {
+   "book": "mathcs",
+   "ref": "Regression; matrix calculus"
+  },
+  "reveal": "Minimize \u2016y \u2212 X\u03b2\u2016\u00b2. Expand: \u03b2\u1d40X\u1d40X\u03b2 \u2212 2\u03b2\u1d40X\u1d40y + y\u1d40y. Differentiate with respect to \u03b2 and set to zero: 2X\u1d40X\u03b2 \u2212 2X\u1d40y = 0, giving the normal equations X\u1d40X\u03b2 = X\u1d40y and \u03b2\u0302 = (X\u1d40X)\u207b\u00b9X\u1d40y. Geometrically, X\u03b2\u0302 is the ORTHOGONAL PROJECTION of y onto the column space of X \u2014 the residual y \u2212 X\u03b2\u0302 is perpendicular to every column of X, which is exactly what X\u1d40(y \u2212 X\u03b2\u0302) = 0 says. X\u1d40X is invertible only if the columns are linearly independent, i.e. no perfect multicollinearity.",
+  "tags": [
+   "quant",
+   "math"
+  ]
+ },
+ {
+  "id": "p-ridge-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "What does ridge regression change in the OLS solution, and why does it help with multicollinearity?",
+  "src": {
+   "book": "mathcs",
+   "ref": "Regularization"
+  },
+  "reveal": "Ridge minimizes \u2016y \u2212 X\u03b2\u2016\u00b2 + \u03bb\u2016\u03b2\u2016\u00b2, giving \u03b2\u0302 = (X\u1d40X + \u03bbI)\u207b\u00b9X\u1d40y \u2014 the only change is adding \u03bb to the diagonal. That guarantees invertibility even when X\u1d40X is singular or near-singular, which is precisely the multicollinearity case: correlated columns make X\u1d40X nearly singular, so its inverse has huge entries and coefficient variance explodes. Adding \u03bbI bounds the smallest eigenvalue away from zero, shrinking coefficients and trading a little bias for a large variance reduction.",
+  "tags": [
+   "quant",
+   "math"
+  ]
+ },
+ {
+  "id": "p-lasso-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Lasso versus ridge: which produces sparsity, and what is the geometric reason?",
+  "src": {
+   "book": "mathcs",
+   "ref": "Regularization (L1 vs L2)"
+  },
+  "reveal": "Lasso (L1 penalty) produces sparsity \u2014 it drives coefficients exactly to zero, performing feature selection; ridge (L2) shrinks them toward zero but never to zero. The geometric reason: the L1 constraint region is a diamond with CORNERS on the axes, and the elliptical contours of the squared-error loss are most likely to first touch the region at a corner \u2014 where some coordinates are exactly zero. The L2 region is a smooth circle with no corners, so the contact point generically has all coordinates non-zero. Lasso also has no closed form, requiring coordinate descent or LARS.",
+  "tags": [
+   "quant",
+   "math"
+  ]
+ },
+ {
+  "id": "p-biasvar-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "State the bias-variance decomposition and explain why a more complex model is not always better.",
+  "src": {
+   "book": "mathcs",
+   "ref": "Model evaluation"
+  },
+  "reveal": "Expected test error = bias\u00b2 + variance + irreducible noise. Bias is error from wrong assumptions (a model too simple to capture the structure); variance is sensitivity to the particular training sample (a model so flexible it fits noise). Increasing complexity lowers bias but raises variance, so total error is U-shaped \u2014 there is an optimum, and pushing past it overfits. Irreducible noise sets the floor no model can beat. Regularization, more data, and ensembling are the standard variance-reduction levers.",
+  "tags": [
+   "quant",
+   "math"
+  ]
+ },
+ {
+  "id": "p-corr-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Pearson versus Spearman correlation: when is each appropriate, and what does correlation fail to capture?",
+  "src": {
+   "book": "mathcs",
+   "ref": "Correlation and dependence"
+  },
+  "reveal": "Pearson measures LINEAR association and assumes roughly interval data; it is sensitive to outliers and to non-linear but monotone relationships. Spearman is Pearson applied to the RANKS, so it captures any monotone relationship and is robust to outliers and skew \u2014 preferred for financial returns and heavy-tailed data. Both fail on non-monotone dependence: y = x\u00b2 over a symmetric range has essentially zero correlation despite perfect determinism. Correlation also says nothing about causation or about tail dependence.",
+  "tags": [
+   "quant",
+   "math"
+  ]
+ },
+ {
+  "id": "p-pvalue-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What does a p-value actually mean, and name two common misinterpretations.",
+  "src": {
+   "book": "mathcs",
+   "ref": "Hypothesis testing"
+  },
+  "reveal": "A p-value is P(observing data at least this extreme | the null hypothesis is TRUE). Misinterpretation 1: treating it as the probability the null is true \u2014 that is a Bayesian posterior and requires a prior. Misinterpretation 2: treating p < 0.05 as proof of a large or important effect \u2014 with enough data, a trivially small effect becomes significant, so effect size and confidence intervals matter more. A third trap is p-hacking: testing many hypotheses and reporting the significant ones without correcting for multiplicity.",
+  "tags": [
+   "quant",
+   "math"
+  ]
+ },
+ {
+  "id": "p-mc-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How does Monte Carlo estimation work, and how does its error scale with sample size?",
+  "src": {
+   "book": "mathcs",
+   "ref": "Simulation and estimation"
+  },
+  "reveal": "Estimate an expectation by drawing n independent samples and averaging: \u03bc\u0302 = (1/n)\u03a3f(X\u1d62). By the law of large numbers it converges to the true value, and by the CLT the standard error is \u03c3/\u221an \u2014 so accuracy improves only as the SQUARE ROOT of effort: 100\u00d7 more samples for 10\u00d7 more precision. Crucially that rate is independent of DIMENSION, which is why Monte Carlo beats grid-based numerical integration in high dimensions. Variance-reduction techniques (antithetic variates, control variates, importance sampling) buy accuracy without more samples.",
+  "tags": [
+   "quant",
+   "math"
+  ]
  }
 ]

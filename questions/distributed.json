@@ -6,9 +6,12 @@
   "prompt": "State the CAP theorem precisely. During a network partition, what is the real choice?",
   "src": {
    "book": "cia",
-   "ref": "(systems context) — see also DDIA Ch.9"
+   "ref": "(systems context) \u2014 see also DDIA Ch.9"
   },
-  "reveal": "CAP: a distributed data store cannot simultaneously guarantee Consistency (every read sees the latest write), Availability (every request gets a non-error response), and Partition tolerance (the system keeps working despite dropped messages). Since partitions are unavoidable in practice, the real choice during a partition is C vs A: either refuse some requests to stay consistent (CP), or serve possibly-stale data to stay available (AP)."
+  "reveal": "CAP: a distributed data store cannot simultaneously guarantee Consistency (every read sees the latest write), Availability (every request gets a non-error response), and Partition tolerance (the system keeps working despite dropped messages). Since partitions are unavoidable in practice, the real choice during a partition is C vs A: either refuse some requests to stay consistent (CP), or serve possibly-stale data to stay available (AP).",
+  "tags": [
+   "distributed"
+  ]
  },
  {
   "id": "ds-idempotent-5",
@@ -17,9 +20,12 @@
   "prompt": "Why is idempotency critical in distributed systems, and give one way to make a non-idempotent operation safe to retry.",
   "src": {
    "book": "unp",
-   "ref": "Stevens UNP Vol.2 — IPC & message semantics"
+   "ref": "Stevens UNP Vol.2 \u2014 IPC & message semantics"
   },
-  "reveal": "Networks drop and duplicate messages, so clients must retry — but retrying a non-idempotent op (e.g. \"add $100\") can double-apply. An idempotent op produces the same result no matter how many times it’s applied. Make one safe by attaching a unique request/idempotency key the server records; on a duplicate key it returns the prior result instead of re-executing."
+  "reveal": "Networks drop and duplicate messages, so clients must retry \u2014 but retrying a non-idempotent op (e.g. \"add $100\") can double-apply. An idempotent op produces the same result no matter how many times it\u2019s applied. Make one safe by attaching a unique request/idempotency key the server records; on a duplicate key it returns the prior result instead of re-executing.",
+  "tags": [
+   "distributed"
+  ]
  },
  {
   "id": "ds-consensus-30",
@@ -28,9 +34,12 @@
   "prompt": "What problem does a consensus algorithm (Raft/Paxos) solve, and why is a majority quorum the key mechanism? What happens with an even split?",
   "src": {
    "book": "cia",
-   "ref": "(distributed consensus) — pair with the Raft paper"
+   "ref": "(distributed consensus) \u2014 pair with the Raft paper"
   },
-  "reveal": "Consensus makes a set of nodes agree on a single value/log order despite failures, so the cluster behaves like one consistent state machine (used for leader election, replicated logs). A majority quorum (N/2+1) is key because any two majorities must overlap in at least one node, so a newly elected leader’s majority necessarily includes a node that saw the latest committed entry — preventing divergence. An even split (no majority reachable) means no side can make progress: the system stalls rather than risk two leaders, which is why clusters use odd numbers of nodes."
+  "reveal": "Consensus makes a set of nodes agree on a single value/log order despite failures, so the cluster behaves like one consistent state machine (used for leader election, replicated logs). A majority quorum (N/2+1) is key because any two majorities must overlap in at least one node, so a newly elected leader\u2019s majority necessarily includes a node that saw the latest committed entry \u2014 preventing divergence. An even split (no majority reachable) means no side can make progress: the system stalls rather than risk two leaders, which is why clusters use odd numbers of nodes.",
+  "tags": [
+   "distributed"
+  ]
  },
  {
   "id": "ds-replication-15",
@@ -39,30 +48,235 @@
   "prompt": "Contrast synchronous vs asynchronous replication. What does each cost, and how does it relate to the durability/latency tradeoff?",
   "src": {
    "book": "cia",
-   "ref": "(replication) — pair with DDIA Ch.5"
+   "ref": "(replication) \u2014 pair with DDIA Ch.5"
   },
-  "reveal": "Synchronous: the primary waits for replicas to acknowledge before confirming a write — strong durability and consistency, but every write pays the slowest replica’s latency, and a slow/down replica can stall writes. Asynchronous: the primary confirms immediately and streams to replicas after — low latency and availability, but a primary crash can lose the not-yet-replicated tail (weaker durability, possible stale reads). Many systems use semi-sync (wait for one replica) to balance the two."
+  "reveal": "Synchronous: the primary waits for replicas to acknowledge before confirming a write \u2014 strong durability and consistency, but every write pays the slowest replica\u2019s latency, and a slow/down replica can stall writes. Asynchronous: the primary confirms immediately and streams to replicas after \u2014 low latency and availability, but a primary crash can lose the not-yet-replicated tail (weaker durability, possible stale reads). Many systems use semi-sync (wait for one replica) to balance the two.",
+  "tags": [
+   "distributed"
+  ]
  },
  {
   "id": "ds-lb-15",
   "mins": 15,
   "flow": "full",
-  "prompt": "You must shard a stream of keyed events across N servers so the same key always lands on the same server, and adding a server shouldn’t reshuffle everything. What technique, and why not plain hash-mod-N?",
+  "prompt": "You must shard a stream of keyed events across N servers so the same key always lands on the same server, and adding a server shouldn\u2019t reshuffle everything. What technique, and why not plain hash-mod-N?",
   "src": {
    "book": "unp",
-   "ref": "Stevens UNP Vol.2 — partitioning & the Deduplicator follow-up"
+   "ref": "Stevens UNP Vol.2 \u2014 partitioning & the Deduplicator follow-up"
   },
-  "reveal": "Consistent hashing (a hash ring). Plain hash(key) % N remaps almost every key when N changes (add/remove a server → mod changes for nearly all keys → massive reshuffle and cache invalidation). Consistent hashing places servers and keys on a ring; a key belongs to the next server clockwise, so adding/removing a node only moves the keys in that node’s arc — O(K/N) keys move, not O(K). Virtual nodes smooth the distribution."
+  "reveal": "Consistent hashing (a hash ring). Plain hash(key) % N remaps almost every key when N changes (add/remove a server \u2192 mod changes for nearly all keys \u2192 massive reshuffle and cache invalidation). Consistent hashing places servers and keys on a ring; a key belongs to the next server clockwise, so adding/removing a node only moves the keys in that node\u2019s arc \u2014 O(K/N) keys move, not O(K). Virtual nodes smooth the distribution.",
+  "tags": [
+   "distributed"
+  ]
  },
  {
   "id": "ds-clock-30",
   "mins": 30,
   "flow": "full",
-  "prompt": "Why can’t you trust wall-clock timestamps to order events across machines? What do logical/vector clocks give you instead?",
+  "prompt": "Why can\u2019t you trust wall-clock timestamps to order events across machines? What do logical/vector clocks give you instead?",
   "src": {
    "book": "cia",
-   "ref": "(time & ordering) — pair with Lamport’s paper"
+   "ref": "(time & ordering) \u2014 pair with Lamport\u2019s paper"
   },
-  "reveal": "Physical clocks drift and are not perfectly synchronized, so a smaller timestamp on machine A doesn’t reliably mean an event happened before one on machine B — you can get impossible orderings. Lamport logical clocks assign counters that respect causality (if A causes B, then clock(A) < clock(B)), giving a consistent total order for causally related events. Vector clocks go further: they can detect concurrency — tell whether two events are causally ordered or truly independent — which logical clocks alone cannot."
+  "reveal": "Physical clocks drift and are not perfectly synchronized, so a smaller timestamp on machine A doesn\u2019t reliably mean an event happened before one on machine B \u2014 you can get impossible orderings. Lamport logical clocks assign counters that respect causality (if A causes B, then clock(A) < clock(B)), giving a consistent total order for causally related events. Vector clocks go further: they can detect concurrency \u2014 tell whether two events are causally ordered or truly independent \u2014 which logical clocks alone cannot.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-fallacies-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Name the fallacies of distributed computing that bite most often, and what each implies for your design.",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.8 The trouble with distributed systems"
+  },
+  "reveal": "The network is reliable (\u2192 every call needs timeouts and retries), latency is zero (\u2192 chattiness kills you; batch), bandwidth is infinite (\u2192 payload size matters), the network is secure (\u2192 authenticate and encrypt internally), topology does not change (\u2192 service discovery, not hardcoded hosts), there is one administrator, transport cost is zero, and the network is homogeneous. The unifying implication: in a distributed system, PARTIAL FAILURE is the normal case, and every remote call can fail, hang, or succeed-but-appear-to-fail.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-timeout-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "A request times out. What do you actually know, and what does that imply for retries?",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.8 Unreliable networks"
+  },
+  "reveal": "You know almost nothing: the request may never have arrived, may have arrived and be executing, may have completed with the response lost, or the remote node may be dead. You cannot distinguish a slow node from a dead one \u2014 that ambiguity is the core difficulty of distributed systems. Implication: retries must be safe, so the operation needs IDEMPOTENCY (an idempotency key the server deduplicates on). Retries also need exponential backoff with jitter to avoid synchronized retry storms, and a cap or circuit breaker so a struggling service is not overwhelmed by its own clients.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-2pc-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Explain two-phase commit and its fundamental weakness. What is the practical alternative?",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.9 Consistency and consensus (atomic commit)"
+  },
+  "reveal": "2PC: a coordinator asks all participants to PREPARE (they durably promise they can commit and lock resources), and if all vote yes it sends COMMIT, otherwise ABORT. The weakness is that it is a BLOCKING protocol: if the coordinator crashes after participants have prepared, they hold locks indefinitely, unable to decide unilaterally \u2014 a single point of failure that can freeze the system. Practical alternatives: the SAGA pattern (a sequence of local transactions with compensating actions to undo), or making the operation idempotent and eventually consistent with an outbox and retries.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-eventual-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Define eventual consistency and read-your-writes consistency. Why does the weaker model surprise users?",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.5 Replication (consistency models)"
+  },
+  "reveal": "Eventual consistency: if writes stop, all replicas eventually converge \u2014 but there is no bound on when, and reads may return stale data. Read-your-writes guarantees a user always sees their OWN updates, even if others do not yet. Eventual consistency surprises users because of the classic case: you post a comment, the page reloads from a lagging replica, and your comment is gone \u2014 which reads as a bug even though the system is behaving as specified. Fixes: route a user\u2019s reads to the replica that took their write, or read from the leader for a short window after writing.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-leader-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What does leader election give you, and what is a split brain? How is it prevented?",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.9 Consistency and consensus"
+  },
+  "reveal": "A single leader gives a serialization point: all writes go through one node, so ordering is unambiguous and you avoid write conflicts. SPLIT BRAIN is when a network partition leaves two nodes each believing they are leader, both accepting writes \u2014 producing divergent, possibly unreconcilable state. Prevention: require a MAJORITY quorum to elect a leader (two majorities must overlap, so only one side of a partition can elect), plus fencing tokens \u2014 a monotonically increasing epoch number that storage checks, so writes from a stale leader are rejected.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-heartbeat-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How do failure detectors work, and what is the fundamental tradeoff in choosing a timeout?",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.8 Knowing when a node is dead"
+  },
+  "reveal": "A node is presumed dead when heartbeats stop arriving within a timeout. The tradeoff: a SHORT timeout detects real failures quickly but produces false positives under transient slowness \u2014 declaring a healthy-but-loaded node dead, triggering unnecessary failover, which itself adds load and can cascade. A LONG timeout avoids false positives but leaves requests hanging on a genuinely dead node. Since you cannot distinguish slow from dead, every choice is a bet. Phi-accrual detectors improve on this by outputting a suspicion LEVEL based on the observed heartbeat distribution rather than a binary verdict.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-sharding-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What are the strategies for partitioning data, and what is a hot spot?",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.6 Partitioning"
+  },
+  "reveal": "Range partitioning keeps keys sorted so range scans are efficient, but sequential keys (timestamps) send all writes to one partition. Hash partitioning distributes evenly but destroys range-scan locality. A HOT SPOT is a partition receiving disproportionate traffic \u2014 a celebrity user, a trending item, a monotonic key. Mitigations: add a random or hashed prefix to spread a hot key across partitions (at the cost of scattered reads), use consistent hashing with virtual nodes for even distribution, or split hot partitions dynamically.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-lsm-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Contrast B-trees and LSM-trees. Which write pattern favors each, and what is write amplification?",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.3 Storage and retrieval"
+  },
+  "reveal": "B-trees update pages IN PLACE, so reads are fast and predictable (a few page lookups) but random writes cause random I/O and each small write may rewrite a whole page. LSM-trees buffer writes in memory and flush SEQUENTIALLY as immutable sorted files, then compact them in the background \u2014 excellent write throughput, but reads may check several levels (mitigated by bloom filters) and compaction consumes background I/O. WRITE AMPLIFICATION is the ratio of bytes actually written to disk versus bytes the application wrote; both designs amplify, and it is the key metric for SSD lifetime and sustained throughput.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-backpressure-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is backpressure and what happens in a system that lacks it?",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.11 Stream processing"
+  },
+  "reveal": "Backpressure is a consumer signalling upstream to slow down when it cannot keep up. Without it, a fast producer fills queues without bound: memory grows until the process is OOM-killed, latency climbs as queues deepen (bufferbloat), and by the time work is dequeued it may already be stale or irrelevant. Mechanisms: bounded queues that BLOCK the producer, credit-based flow control (TCP does this with its window), load shedding (drop or reject requests early with a clear error), and rate limiting. The design rule: every queue must be bounded, and you must decide explicitly what happens when it is full.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-exactlyonce-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Is exactly-once delivery possible? Explain the distinction people usually mean.",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.11 Stream processing (fault tolerance)"
+  },
+  "reveal": "Exactly-once DELIVERY over an unreliable network is impossible \u2014 the sender can never be certain a message arrived, so it must either risk loss (at-most-once) or risk duplication (at-least-once). What systems actually provide is exactly-once PROCESSING (effectively-once): at-least-once delivery combined with deduplication or idempotent operations, so duplicates have no observable effect. Implementations use a unique message id plus a durable dedup log, or make the update atomic with the offset commit (transactional writes in Kafka). The mantra: you cannot prevent duplicates, only make them harmless.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-cachestrat-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Compare cache-aside, write-through, and write-behind. What is a cache stampede and how do you stop it?",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.1/Ch.11 (derived data, caching)"
+  },
+  "reveal": "Cache-aside: the app checks the cache, and on a miss loads from the database and populates it \u2014 simplest, but stale data is possible and each miss costs a full load. Write-through: writes go to cache and database together \u2014 consistent, but adds write latency. Write-behind: write to cache, flush to the database asynchronously \u2014 fastest writes, risk of data loss on crash. A CACHE STAMPEDE is many concurrent requests all missing on the same expired key and hammering the database at once. Stop it with a lock or single-flight so only one loader runs, probabilistic early expiration, or serving stale data while refreshing in the background.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-microservice-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What does splitting a monolith into services actually cost? Name the failure modes you inherit.",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.1 Reliable, scalable, maintainable applications"
+  },
+  "reveal": "You trade in-process function calls (nanoseconds, reliable, transactional) for network calls (milliseconds, unreliable, no shared transaction). Inherited failure modes: partial failure, cascading failures when one slow service saturates its callers\u2019 thread pools, distributed transactions you can no longer do with a simple commit, versioning and schema-compatibility problems across independently deployed services, and debugging that now requires distributed tracing. The benefit is independent deployment and scaling per team \u2014 which is an ORGANIZATIONAL win. If the org does not need it, the distribution is pure cost.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-rpcstream-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "When would you choose message queues over direct RPC between services?",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.4/Ch.11 (messaging)"
+  },
+  "reveal": "Choose a queue when the caller does not need an immediate answer, when you want to decouple availability (the consumer can be down and work still buffers), when you need to absorb bursts by smoothing load, when multiple consumers should see the same event (fan-out), or when you want retries and dead-lettering handled by the infrastructure. Choose direct RPC when you need a synchronous answer to continue, latency budget is tight, and the semantics are genuinely request/response. The cost of queues: eventual consistency, ordering complexity, and duplicate delivery you must handle.",
+  "tags": [
+   "distributed"
+  ]
+ },
+ {
+  "id": "ds-tracing-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How does distributed tracing work, and why are logs alone insufficient?",
+  "src": {
+   "book": "ddia",
+   "ref": "Ch.1 (operability)"
+  },
+  "reveal": "A trace id is generated at the edge and propagated through every downstream call via headers; each service emits SPANS (start, end, parent span id, metadata) tagged with that trace id, and a collector reassembles them into a causal tree. Logs alone are insufficient because a single user request touches many services, each writing to its own log with its own clock \u2014 there is no way to reconstruct which log lines belong to the same request, or where the latency actually went. Tracing answers \u201cwhich hop was slow\u201d; metrics answer \u201chow often\u201d; logs answer \u201cwhat exactly happened.\u201d",
+  "tags": [
+   "distributed"
+  ]
  }
 ]

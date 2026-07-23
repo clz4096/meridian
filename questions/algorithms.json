@@ -1,79 +1,310 @@
 [
  {
-  "id": "a-bfs-5",
+  "id": "a-twoptr-5",
   "mins": 5,
   "flow": "flip",
-  "prompt": "In one sentence: what invariant makes BFS give the shortest path in an unweighted graph, and why does DFS not?",
+  "prompt": "When does the two-pointer technique apply, and what property of the input makes it valid?",
   "src": {
-   "book": "clrs",
-   "ref": "§22.2 Breadth-first search"
+   "book": "cses",
+   "ref": "\u00a78.1 Two pointers"
   },
-  "reveal": "BFS explores in rings of increasing distance, so the first time a node is dequeued it is reached by a fewest-edges path — nothing shorter can arrive later. DFS dives down one path and may reach a node via a long route first, with no distance guarantee."
+  "reveal": "Two pointers works when the array is sorted (or has some monotonic property) and you are searching for a pair/triple satisfying a condition. Validity rests on monotonicity: moving the left pointer right only increases the sum, moving the right pointer left only decreases it \u2014 so at each step you can eliminate an entire row or column of the search space without checking it. That is what turns O(n\u00b2) into O(n).",
+  "tags": [
+   "dsa"
+  ]
  },
  {
-  "id": "a-dijkstra-5",
+  "id": "a-window-fixed-5",
   "mins": 5,
   "flow": "flip",
-  "prompt": "What single data-structure swap turns BFS into Dijkstra, and what breaks if edge weights can be negative?",
+  "prompt": "Fixed-size sliding window: state the invariant and why it is O(n) not O(nk).",
   "src": {
-   "book": "clrs",
-   "ref": "§22.3 / Ch.24 Single-source shortest paths"
+   "book": "cses",
+   "ref": "\u00a78.2 Nearest smaller elements / sliding window"
   },
-  "reveal": "Swap the FIFO queue for a min-priority-queue keyed on tentative distance. Dijkstra assumes non-negative weights so that a popped (finalized) node can never later be improved; a negative edge can improve an already-finalized node, violating that invariant (use Bellman-Ford instead)."
+  "reveal": "The invariant is that the window always holds exactly k consecutive elements and you maintain its aggregate incrementally. Each step adds the entering element and removes the leaving one in O(1), so every element is added once and removed once \u2014 2n operations total, hence O(n). Recomputing the aggregate from scratch each step would be the O(nk) naive version.",
+  "tags": [
+   "dsa"
+  ]
  },
  {
-  "id": "a-union-5",
-  "mins": 5,
-  "flow": "flip",
-  "prompt": "State the union-find invariant that lets \"are these in the same set?\" be answered in ~O(1) amortized.",
-  "src": {
-   "book": "clrs",
-   "ref": "§21 Data structures for disjoint sets"
-  },
-  "reveal": "Every element points toward a representative root; two elements are in the same set iff they reach the same root. Path compression + union by rank keep trees near-flat, giving inverse-Ackermann (≈ constant) amortized cost."
- },
- {
-  "id": "a-invariant-15",
+  "id": "a-window-var-15",
   "mins": 15,
   "flow": "full",
-  "prompt": "Sliding-window: given a string, find the longest substring with no repeating characters. Before coding, state the window invariant, then the O(n) approach and its space.",
+  "prompt": "Variable-size sliding window (e.g. longest substring satisfying a constraint): describe the loop shape and when you shrink.",
   "src": {
-   "book": "clrs",
-   "ref": "Ch.15–16 (greedy/DP framing); LC 3"
+   "book": "cses",
+   "ref": "\u00a78.2 Sliding window"
   },
-  "reveal": "Invariant: the window [l,r] always contains no duplicate. Expand r; when s[r] duplicates something in the window, advance l past the previous occurrence (tracked in a hashmap of char→lastIndex). Each index enters/leaves once → O(n) time, O(min(n,Σ)) space. The \"throw-away\" is every window that would contain a repeat — never examined."
+  "reveal": "Outer loop expands the right edge one element at a time, always adding to the window state. An inner while loop shrinks from the left as long as the window VIOLATES the constraint. After shrinking, the window is valid, so record the answer. Each pointer only moves forward across the whole run, so it is O(n) despite the nested loop. The tell: \"longest/shortest subarray such that ...\" with a constraint that is monotone in window size.",
+  "tags": [
+   "dsa"
+  ]
  },
  {
-  "id": "a-grid-30",
-  "mins": 30,
-  "flow": "full",
-  "prompt": "Grid with a consumable resource (fuel): BFS where state is (row,col,fuel). What is the dominance-pruning invariant, and what is the resulting time complexity?",
-  "src": {
-   "book": "clrs",
-   "ref": "Ch.22 BFS extended with state"
-  },
-  "reveal": "Invariant: for each cell keep the maximum fuel ever seen arriving there; only enqueue an arrival that strictly beats it. That prunes dominated states (same cell, ≤ fuel). Time is O(rows×cols×maxFuel) because each cell can be improved at most maxFuel times. This is the ladder BFS → BFS+state → Dijkstra."
- },
- {
-  "id": "a-topo-15",
+  "id": "a-binsearch-15",
   "mins": 15,
   "flow": "full",
-  "prompt": "Course-schedule / ordering: when is a valid ordering impossible, and name the two algorithms that detect it.",
+  "prompt": "Binary search on the ANSWER: what problem shape signals it, and what must be true of the predicate?",
   "src": {
-   "book": "clrs",
-   "ref": "§22.4 Topological sort"
+   "book": "skiena",
+   "ref": "Ch.4 Sorting and searching"
   },
-  "reveal": "Impossible iff the dependency graph has a cycle. Kahn’s algorithm (repeatedly emit in-degree-0 nodes; if fewer than N emitted, a cycle exists) or DFS with a recursion-stack \"gray\" marker (a back-edge to a gray node = cycle). Emit order = reverse DFS finish times."
+  "reveal": "The signal is: \"minimize the maximum ...\" or \"find the smallest capacity/speed/time such that X is feasible\" \u2014 you are not searching an array, you are searching the answer space. The predicate feasible(x) must be MONOTONE: if x works, every larger x works (or vice versa). Then binary search the value range, calling feasible() as the test, giving O(log(range) \u00d7 costOfCheck). Getting the monotonicity argument right is the whole problem; the binary search itself is boilerplate.",
+  "tags": [
+   "dsa"
+  ]
  },
  {
-  "id": "a-heap-30",
+  "id": "a-binsearch-bounds-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Write the invariant for lower_bound (first element >= target) and explain the classic off-by-one trap.",
+  "src": {
+   "book": "cses",
+   "ref": "\u00a73.3 Binary search"
+  },
+  "reveal": "Invariant: the answer lies in [lo, hi], with everything left of lo strictly less than target and everything from hi onward >= target. Loop while lo < hi; mid = lo + (hi-lo)/2; if a[mid] >= target then hi = mid (keep mid, it is a candidate) else lo = mid+1 (mid is ruled out). The trap is writing hi = mid-1, which discards a valid answer, or using (lo+hi)/2 which can overflow. Terminating with lo == hi gives the answer position.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-prefix-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Prefix sums: give the core identity, and extend it to \"count subarrays summing to k\".",
+  "src": {
+   "book": "cses",
+   "ref": "\u00a79.1 Sum queries"
+  },
+  "reveal": "Identity: sum(i..j) = prefix[j+1] - prefix[i], so any range sum is O(1) after O(n) preprocessing. For counting subarrays summing to k, rewrite: prefix[j] - prefix[i] = k means prefix[i] = prefix[j] - k. So sweep j, and use a hash map of how many times each prefix value has been seen; add map[prefix[j]-k] to the answer, then record prefix[j]. O(n). The conceptual jump is turning a range question into a lookup of previously-seen prefix values.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-monostack-30",
   "mins": 30,
   "flow": "full",
-  "prompt": "Streaming median: design a structure supporting add(x) and getMedian() efficiently over a stream. State the invariant across the two heaps.",
+  "prompt": "Monotonic stack: what does it compute, what is in the stack, and why is it O(n) amortized?",
+  "src": {
+   "book": "cses",
+   "ref": "\u00a78.3 Nearest smaller elements"
+  },
+  "reveal": "It computes, for each element, the nearest element to the left (or right) that is smaller/larger \u2014 the basis of \"next greater element,\" largest rectangle in histogram, daily temperatures, trapping rain water. The stack holds indices whose values form a monotonic sequence; before pushing i you pop everything that i invalidates, and each pop resolves an answer. Amortized O(n) because every index is pushed once and popped at most once \u2014 2n operations total, even though a single step may pop many.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-heap-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Top-k with a heap: which heap type do you use for the k LARGEST elements, and why is that counterintuitive choice correct?",
   "src": {
    "book": "clrs",
-   "ref": "Ch.6 Heapsort / priority queues; LC 295"
+   "ref": "Ch.6 Heapsort / priority queues"
   },
-  "reveal": "Max-heap holds the lower half, min-heap the upper half. Invariants: every element in the low heap ≤ every element in the high heap, and their sizes differ by ≤ 1. add = push then rebalance across the tops; median = top of the larger heap (or average of both tops). add O(log n), getMedian O(1)."
+  "reveal": "Use a MIN-heap of size k. Counterintuitive, but correct: the min-heap root is the smallest of your current best k, so when a new element arrives you compare against the root and evict it if the newcomer is bigger. That keeps the k largest for O(n log k) instead of O(n log n) for a full sort. Mirror it for k smallest (max-heap). The rule: the heap root should be the element you are most willing to throw away.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-intervals-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Merging intervals and the \"minimum meeting rooms\" variant: what is the shared first move, and how do they diverge?",
+  "src": {
+   "book": "skiena",
+   "ref": "Ch.6 Weighted graph algorithms / greedy scheduling"
+  },
+  "reveal": "Shared first move: SORT by start time \u2014 nearly every interval problem begins there. Merging: sweep and merge the current interval with the next whenever next.start <= current.end, extending the end to max(ends). Minimum rooms: you need concurrency, not merging \u2014 so use a min-heap of end times; for each interval, pop any meeting that has ended, then push this end; the heap size at its peak is the answer. Alternatively sort starts and ends separately and sweep as +1/-1 events.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-greedy-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "What is an exchange argument, and how do you use it to prove a greedy algorithm is correct?",
+  "src": {
+   "book": "skiena",
+   "ref": "Ch.1 Introduction to algorithm design (correctness)"
+  },
+  "reveal": "An exchange argument proves greedy optimality by showing any optimal solution can be transformed into the greedy one without getting worse. Take an optimal solution that differs from greedy at the first decision point; swap that choice for greedy\u2019s choice and show the result is still valid and no worse. By induction, greedy is optimal. Classic use: interval scheduling by earliest finish time \u2014 swapping any optimal\u2019s first interval for the earliest-finishing one leaves at least as many remaining slots. If you cannot construct the exchange, greedy probably fails and you need DP.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-backtrack-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Backtracking template: name the three parts of the recursion and the single most common bug.",
+  "src": {
+   "book": "skiena",
+   "ref": "Ch.9 Combinatorial search and heuristic methods"
+  },
+  "reveal": "Three parts: (1) a base case that records a complete solution, (2) a loop over candidate choices at this position, (3) choose \u2192 recurse \u2192 UNCHOOSE (undo the state change). The most common bug is forgetting to undo \u2014 mutating shared state (a visited array, a path list) on the way down and never restoring it on the way up, so later branches see contaminated state. The second most common: appending the path by reference so all recorded solutions alias the same object; copy it when recording.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-dp-1d-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How do you convert a recursive solution into a DP? State the two questions that define any DP.",
+  "src": {
+   "book": "cses",
+   "ref": "\u00a77 Dynamic programming"
+  },
+  "reveal": "The two questions are: (1) What is the STATE \u2014 the minimal set of parameters that fully describes a subproblem? (2) What is the TRANSITION \u2014 how does the answer for a state combine answers of smaller states? Once you have those, memoize the recursion (top-down) or fill a table in dependency order (bottom-up). The complexity is (number of states) \u00d7 (work per transition). If the state has parameters that do not affect future decisions, you can drop them \u2014 that is the main compression trick.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-dp-knap-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "0/1 knapsack: give the state, transition, and how to reduce the table from 2D to 1D. Why does the 1D loop run backwards?",
+  "src": {
+   "book": "cses",
+   "ref": "\u00a77.4 Knapsack problems"
+  },
+  "reveal": "State: dp[i][w] = best value using the first i items within capacity w. Transition: dp[i][w] = max(dp[i-1][w] (skip), value[i] + dp[i-1][w-weight[i]] (take)). Since row i only depends on row i-1, keep one array. The inner capacity loop must run DOWNWARD (from W to weight[i]) so that dp[w-weight[i]] still holds the PREVIOUS row\u2019s value \u2014 running upward would let the same item be taken multiple times, which silently turns it into the unbounded knapsack.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-dp-lis-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Longest increasing subsequence: give the O(n\u00b2) DP, then explain what the O(n log n) version\u2019s array actually holds.",
+  "src": {
+   "book": "cses",
+   "ref": "\u00a77.5 Longest increasing subsequence"
+  },
+  "reveal": "O(n\u00b2): dp[i] = 1 + max(dp[j]) over all j < i with a[j] < a[i]; answer is max(dp). O(n log n): maintain an array tails where tails[k] = the SMALLEST possible tail value of an increasing subsequence of length k+1. For each element, binary search for the first tail >= it and overwrite (or append if larger than all). Crucially, tails is NOT the actual subsequence \u2014 only its LENGTH is the answer. Keeping tails minimal is what leaves the most room for future extensions.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-grid-dp-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "2D grid DP (paths, edit distance): what determines the fill order, and how do you handle the boundary?",
+  "src": {
+   "book": "cses",
+   "ref": "\u00a77.3 Paths in a grid"
+  },
+  "reveal": "Fill order must respect dependencies: if dp[i][j] depends on dp[i-1][j] and dp[i][j-1], iterate rows top-to-bottom and columns left-to-right so both are already computed. Boundaries are the base cases \u2014 first row/column usually have only one predecessor, so either initialize them explicitly or pad the table with a sentinel row/column (index shifted by 1) so the general formula applies everywhere without special-casing. The padding trick removes most off-by-one bugs.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-tree-traverse-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Give the three DFS traversal orders and one problem each is uniquely suited to.",
+  "src": {
+   "book": "clrs",
+   "ref": "Ch.12 Binary search trees"
+  },
+  "reveal": "Preorder (node, left, right) \u2014 serializing/cloning a tree, since you see the parent before children. Inorder (left, node, right) \u2014 on a BST this emits sorted order, so it validates a BST or finds the kth smallest. Postorder (left, right, node) \u2014 anything where children must be resolved first: computing height, deleting a tree, evaluating an expression tree, or bottom-up aggregation.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-bst-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How do you validate a BST, and why is \"check each node against its two children\" wrong?",
+  "src": {
+   "book": "clrs",
+   "ref": "Ch.12 Binary search trees"
+  },
+  "reveal": "Checking only against immediate children is wrong because the BST property is global, not local: every node in the left subtree must be less than the ancestor, not merely less than its parent. A node can satisfy its parent yet violate a grandparent. Correct approach: recurse carrying a (min, max) range \u2014 each node must lie strictly inside it, and the range narrows as you descend. Alternative: an inorder traversal must produce a strictly increasing sequence.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-trie-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "When is a trie the right structure over a hash map, and what is its cost profile?",
+  "src": {
+   "book": "skiena",
+   "ref": "Ch.3 Data structures (strings)"
+  },
+  "reveal": "A trie wins when you need PREFIX operations: autocomplete, \"does any word start with X,\" longest common prefix, or word-search-on-a-grid where you prune dead branches early. A hash map gives O(1) exact lookup but cannot answer prefix questions without scanning everything. Trie costs O(L) per operation where L is word length (independent of the number of words), at the price of significant memory \u2014 one node per character per distinct prefix, each with a child map.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-fastslow-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Fast/slow pointers: prove why they meet if a linked list has a cycle, and describe finding the cycle START.",
+  "src": {
+   "book": "clrs",
+   "ref": "Ch.10 Elementary data structures"
+  },
+  "reveal": "If a cycle exists, the fast pointer (2 steps) gains exactly 1 step per iteration on the slow pointer (1 step). Once both are inside the cycle, the gap closes by one each round, so it must hit zero \u2014 they meet. To find the cycle start (Floyd): after they meet, reset one pointer to the head and advance BOTH one step at a time; they meet at the cycle entrance. This falls out of the algebra: the distance from head to entrance equals the distance from meeting point to entrance, modulo cycle length.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-sortstable-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "What does it mean for a sort to be stable, and give a case where it matters.",
+  "src": {
+   "book": "clrs",
+   "ref": "Ch.8 Sorting in linear time"
+  },
+  "reveal": "A stable sort preserves the relative order of records that compare equal. It matters when you sort by multiple keys in passes: to sort employees by department then by name, you sort by name FIRST, then by department \u2014 stability keeps the name order intact within each department. It is also required for radix sort to work. Note that std::sort is NOT stable; std::stable_sort is.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-amortized-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Explain amortized analysis using dynamic array (vector) growth. Why is push_back O(1) amortized despite occasional O(n) resizes?",
+  "src": {
+   "book": "clrs",
+   "ref": "Ch.17 Amortized analysis"
+  },
+  "reveal": "Doubling capacity means a resize copying n elements happens only after n cheap pushes. Summing the cost of resizes over n insertions gives n + n/2 + n/4 + ... < 2n \u2014 a geometric series bounded by a constant multiple of n. Divided across n operations, that is O(1) per operation on average, even though any single push may cost O(n). The key is that the expensive operation PAYS FOR the cheap ones that preceded it (the accounting method). Growing by a constant amount instead of a factor would break this and give O(n) amortized.",
+  "tags": [
+   "dsa"
+  ]
+ },
+ {
+  "id": "a-complexity-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "State the complexity of: hash map lookup worst case, heap push, binary search, and sorting n items. Which of these do people most often state wrong?",
+  "src": {
+   "book": "skiena",
+   "ref": "Ch.2 Algorithm analysis"
+  },
+  "reveal": "Hash map lookup: O(1) average but O(n) WORST case (all keys colliding) \u2014 this is the one most often stated wrong; interviewers probe it. Heap push/pop: O(log n). Binary search: O(log n). Comparison sorting: O(n log n) lower bound. Also worth having ready: building a heap from an array is O(n), not O(n log n).",
+  "tags": [
+   "dsa"
+  ]
  }
 ]

@@ -6,9 +6,13 @@
   "prompt": "In one sentence: what is the fundamental architectural difference between a CPU and a GPU, and what workload does each favor?",
   "src": {
    "book": "pmpp",
-   "ref": "Ch.1 Introduction — heterogeneous computing"
+   "ref": "Ch.1 Introduction \u2014 heterogeneous computing"
   },
-  "reveal": "A CPU spends transistors on control logic, branch prediction, and large caches to make a few threads fast (latency-optimized); a GPU spends them on thousands of simple ALUs sharing control logic to run many threads at once (throughput-optimized). CPUs favor branchy, sequential, latency-sensitive work; GPUs favor wide, regular, data-parallel work — the same operation over huge arrays, which is exactly what matmul is."
+  "reveal": "A CPU spends transistors on control logic, branch prediction, and large caches to make a few threads fast (latency-optimized); a GPU spends them on thousands of simple ALUs sharing control logic to run many threads at once (throughput-optimized). CPUs favor branchy, sequential, latency-sensitive work; GPUs favor wide, regular, data-parallel work \u2014 the same operation over huge arrays, which is exactly what matmul is.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
  },
  {
   "id": "gp-warp-15",
@@ -19,7 +23,11 @@
    "book": "pmpp",
    "ref": "Ch.4 Compute architecture and scheduling"
   },
-  "reveal": "A warp is a group of 32 threads that execute in lockstep — one instruction, all threads (SIMT). Warp divergence happens when threads in the same warp take different branches: the hardware must execute BOTH paths serially, masking off the inactive threads each time. So a branch that splits a warp roughly doubles that section’s cost, whereas a CPU branch predictor would simply predict one way and move on. Minimizing divergence means arranging data so threads in a warp follow the same path."
+  "reveal": "A warp is a group of 32 threads that execute in lockstep \u2014 one instruction, all threads (SIMT). Warp divergence happens when threads in the same warp take different branches: the hardware must execute BOTH paths serially, masking off the inactive threads each time. So a branch that splits a warp roughly doubles that section\u2019s cost, whereas a CPU branch predictor would simply predict one way and move on. Minimizing divergence means arranging data so threads in a warp follow the same path.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
  },
  {
   "id": "gp-coalesce-15",
@@ -30,7 +38,11 @@
    "book": "pmpp",
    "ref": "Ch.5 Memory architecture and data locality"
   },
-  "reveal": "When the threads of a warp access consecutive memory addresses, the hardware merges them into a single wide memory transaction — coalescing. Scattered access forces many separate transactions, wasting most of each fetch. It is the same principle as a CPU cache line (fetching 64 bytes whether you use 1 or 64), amplified: the GPU is bandwidth-bound, so wasted bytes translate directly into lost throughput. Getting the access pattern right often matters more than the arithmetic."
+  "reveal": "When the threads of a warp access consecutive memory addresses, the hardware merges them into a single wide memory transaction \u2014 coalescing. Scattered access forces many separate transactions, wasting most of each fetch. It is the same principle as a CPU cache line (fetching 64 bytes whether you use 1 or 64), amplified: the GPU is bandwidth-bound, so wasted bytes translate directly into lost throughput. Getting the access pattern right often matters more than the arithmetic.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
  },
  {
   "id": "gp-hier-15",
@@ -41,7 +53,11 @@
    "book": "pmpp",
    "ref": "Ch.5 Memory hierarchy"
   },
-  "reveal": "Registers (per thread, fastest) → shared memory / L1 (per thread block, on-chip) → L2 (device-wide) → global HBM/DRAM (slowest, off-chip). Shared memory is a PROGRAMMER-MANAGED cache: it exists so a thread block can cooperatively load a tile of data from global memory once and then reuse it many times on-chip — the tiling that makes matmul compute-bound instead of bandwidth-bound."
+  "reveal": "Registers (per thread, fastest) \u2192 shared memory / L1 (per thread block, on-chip) \u2192 L2 (device-wide) \u2192 global HBM/DRAM (slowest, off-chip). Shared memory is a PROGRAMMER-MANAGED cache: it exists so a thread block can cooperatively load a tile of data from global memory once and then reuse it many times on-chip \u2014 the tiling that makes matmul compute-bound instead of bandwidth-bound.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
  },
  {
   "id": "gp-roofline-30",
@@ -52,7 +68,11 @@
    "book": "pmpp",
    "ref": "Performance considerations; see also the roofline model"
   },
-  "reveal": "Arithmetic intensity is FLOPs performed per byte moved from memory. Roofline: achievable performance = min(peak FLOPs, intensity × memory bandwidth) — below a hardware-specific intensity you are bandwidth-bound, above it compute-bound. An elementwise add on n elements does ~1 FLOP per ~12 bytes moved (two reads, one write) — tiny intensity, memory-bound. An n×n matmul does ~2n³ FLOPs on ~3n² bytes, so intensity grows with n — large matmuls sit far to the right and become compute-bound. This is why kernel fusion helps: it removes memory round-trips between cheap ops."
+  "reveal": "Arithmetic intensity is FLOPs performed per byte moved from memory. Roofline: achievable performance = min(peak FLOPs, intensity \u00d7 memory bandwidth) \u2014 below a hardware-specific intensity you are bandwidth-bound, above it compute-bound. An elementwise add on n elements does ~1 FLOP per ~12 bytes moved (two reads, one write) \u2014 tiny intensity, memory-bound. An n\u00d7n matmul does ~2n\u00b3 FLOPs on ~3n\u00b2 bytes, so intensity grows with n \u2014 large matmuls sit far to the right and become compute-bound. This is why kernel fusion helps: it removes memory round-trips between cheap ops.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
  },
  {
   "id": "gp-tile-30",
@@ -63,7 +83,11 @@
    "book": "pmpp",
    "ref": "Ch.5 Tiled matrix multiplication"
   },
-  "reveal": "Naive matmul re-reads rows and columns from global memory for every output element — each input element is fetched O(n) times, so the kernel is bandwidth-starved. Tiling loads a T×T tile of each input into shared memory once, then every thread in the block reuses it for T multiply-accumulates before moving on. Global traffic drops by roughly a factor of T (the tile width). This is the canonical example of trading on-chip memory for off-chip bandwidth — and it is the same idea as keeping weights in SRAM next to compute on Cerebras/Tenstorrent hardware."
+  "reveal": "Naive matmul re-reads rows and columns from global memory for every output element \u2014 each input element is fetched O(n) times, so the kernel is bandwidth-starved. Tiling loads a T\u00d7T tile of each input into shared memory once, then every thread in the block reuses it for T multiply-accumulates before moving on. Global traffic drops by roughly a factor of T (the tile width). This is the canonical example of trading on-chip memory for off-chip bandwidth \u2014 and it is the same idea as keeping weights in SRAM next to compute on Cerebras/Tenstorrent hardware.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
  },
  {
   "id": "gp-occupancy-15",
@@ -74,6 +98,205 @@
    "book": "pmpp",
    "ref": "Ch.4 Resource assignment and occupancy"
   },
-  "reveal": "Occupancy is the ratio of active warps on a streaming multiprocessor to the maximum it supports. High occupancy helps hide memory latency — while some warps wait on memory, others compute. But it is not the goal in itself: registers and shared memory are finite, and raising occupancy means giving each thread fewer of them, which can force register spilling or block the tiling that actually made the kernel fast. A lower-occupancy kernel with good data reuse often beats a high-occupancy one with poor reuse."
+  "reveal": "Occupancy is the ratio of active warps on a streaming multiprocessor to the maximum it supports. High occupancy helps hide memory latency \u2014 while some warps wait on memory, others compute. But it is not the goal in itself: registers and shared memory are finite, and raising occupancy means giving each thread fewer of them, which can force register spilling or block the tiling that actually made the kernel fast. A lower-occupancy kernel with good data reuse often beats a high-occupancy one with poor reuse.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
+ },
+ {
+  "id": "gp-kernel-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is the CUDA execution hierarchy \u2014 thread, block, grid \u2014 and what can synchronize with what?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Ch.3 Multidimensional grids and data"
+  },
+  "reveal": "A kernel launches a GRID of thread BLOCKS, each block containing many THREADS. Threads within a block run on the same streaming multiprocessor, share its shared memory, and can synchronize with __syncthreads(). Blocks are INDEPENDENT by design \u2014 there is no general synchronization between them within a kernel launch, because the hardware may schedule them in any order or at different times. That is what makes the model scalable across GPUs of different sizes, and it means cross-block coordination requires either separate kernel launches or atomics on global memory.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
+ },
+ {
+  "id": "gp-flashattn-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "What problem does FlashAttention solve, and what is the key insight?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Attention optimization; roofline reasoning"
+  },
+  "reveal": "Standard attention materializes the full N\u00d7N attention matrix in HBM, so memory traffic \u2014 not arithmetic \u2014 dominates, and memory grows quadratically with sequence length. FlashAttention never materializes it: it TILES the computation, loading blocks of Q, K, V into on-chip SRAM, computing partial attention there, and using an online (streaming) softmax that rescales running sums so results stay correct without seeing the whole row. Result: the same output with linear memory and far less HBM traffic \u2014 a pure memory-movement win, not a math change. It is the canonical example of IO-aware kernel design.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
+ },
+ {
+  "id": "gp-fusion-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is kernel fusion and why does it help so much for elementwise chains?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Performance considerations; Horace He, Making DL Go Brrrr"
+  },
+  "reveal": "Fusion combines several operations into one kernel so intermediate results stay in registers or shared memory instead of round-tripping through global memory. A chain like x \u2192 add \u2192 multiply \u2192 relu launched as three kernels reads and writes the whole tensor three times; fused, it reads once and writes once. Since elementwise ops have tiny arithmetic intensity, they are entirely bandwidth-bound \u2014 so cutting memory traffic by 3\u00d7 cuts runtime by roughly 3\u00d7. This is why torch.compile, XLA, and TensorRT invest so heavily in fusion.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
+ },
+ {
+  "id": "gp-training-inference-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why is LLM training compute-bound while single-stream inference is memory-bound?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Roofline; inference vs training"
+  },
+  "reveal": "Training processes large batches, so each weight loaded from memory is reused across many samples \u2014 arithmetic intensity is high and the GPU\u2019s FLOPs are the limit. Autoregressive inference generates ONE token at a time: for each token you must stream the ENTIRE weight matrix from memory to do what is essentially a matrix-vector product, reusing each weight once. Intensity is near 1 FLOP per byte, so you are bandwidth-bound and the FLOPs sit idle. This is why inference optimizations target memory: quantization, batching, speculative decoding, and keeping weights in SRAM.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
+ },
+ {
+  "id": "gp-quant-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What does quantization do for inference, and why does it help more than the FLOP count suggests?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Inference optimization"
+  },
+  "reveal": "Quantization stores weights (and sometimes activations) in lower precision \u2014 INT8, FP8, INT4 \u2014 instead of FP16/FP32. It helps disproportionately because inference is MEMORY-bound: halving the bits halves the bytes streamed per token, so throughput roughly doubles even if the arithmetic units were never the bottleneck. Secondary benefits: the model fits in less HBM (or fits on fewer GPUs), and modern tensor cores have faster low-precision paths. The risk is accuracy loss, mitigated by per-channel scales, outlier handling (some activations have extreme values), and quantization-aware training.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
+ },
+ {
+  "id": "gp-kvcache-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is the KV cache, what does it cost, and what does it save?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Transformer inference"
+  },
+  "reveal": "During autoregressive generation, each new token attends to all previous tokens \u2014 recomputing their keys and values every step would be quadratic. The KV cache stores past keys and values so each step only computes K and V for the NEW token: turning O(n\u00b2) recomputation into O(n) lookup. The cost is memory that grows linearly with sequence length \u00d7 batch \u00d7 layers \u00d7 heads, and it often exceeds the model weights themselves for long contexts \u2014 which is why paged attention (vLLM) manages it like virtual memory, and why grouped-query attention shrinks it by sharing K/V across query heads.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
+ },
+ {
+  "id": "gp-batching-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why does batching help inference throughput, and what is continuous batching?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Serving systems"
+  },
+  "reveal": "Batching amortizes the weight-streaming cost: loading a weight matrix once and applying it to B sequences turns a matrix-VECTOR product into a matrix-MATRIX product, raising arithmetic intensity roughly B\u00d7 and moving you rightward on the roofline toward compute-bound. Static batching wastes capacity because all requests must finish together \u2014 short generations wait for the longest. CONTINUOUS (in-flight) batching evicts finished sequences and admits new ones at each decoding step, keeping the batch full and typically multiplying throughput several-fold at the same latency.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
+ },
+ {
+  "id": "gp-parallelism-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Distinguish data, tensor, and pipeline parallelism. What does each cost in communication?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Distributed training; How to Scale Your Model"
+  },
+  "reveal": "DATA parallelism replicates the model and splits the batch; each step ends with an all-reduce of gradients \u2014 communication proportional to model size, per step. TENSOR parallelism splits individual matrices across GPUs, so a single layer\u2019s forward pass needs an all-reduce of ACTIVATIONS \u2014 very frequent and latency-sensitive, so it is normally confined within one node over NVLink. PIPELINE parallelism assigns different LAYERS to different GPUs, communicating only activations at stage boundaries \u2014 cheap bandwidth-wise but introduces the pipeline BUBBLE (idle stages), mitigated by splitting the batch into micro-batches. Large runs combine all three (3D parallelism).",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
+ },
+ {
+  "id": "gp-tpu-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is a systolic array and how does a TPU differ from a GPU architecturally?",
+  "src": {
+   "book": "pmpp",
+   "ref": "TPU / accelerator architecture"
+  },
+  "reveal": "A systolic array is a grid of simple multiply-accumulate cells where data flows RHYTHMICALLY between neighbours: each cell receives operands from its neighbours, does one MAC, and passes them along. Because operands move directly cell-to-cell, one memory read feeds many computations \u2014 enormous data reuse with almost no register-file or cache traffic. A TPU is built around this large matrix unit plus big on-chip memory and a simpler control model, optimized narrowly for dense matmul; a GPU is a more general many-core SIMT machine with caches and flexible branching, so it handles a much wider range of workloads at lower matmul efficiency.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
+ },
+ {
+  "id": "gp-sram-dram-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why do Cerebras and Tenstorrent emphasize on-chip SRAM? State the core economic argument.",
+  "src": {
+   "book": "pmpp",
+   "ref": "Accelerator architecture; Cerebras/Tenstorrent"
+  },
+  "reveal": "Moving a byte from off-chip DRAM (HBM) costs roughly two orders of magnitude more energy and far more latency than reading it from on-chip SRAM. Since inference is dominated by streaming weights, the machine\u2019s speed is set by memory bandwidth, not FLOPs. If the weights live in SRAM NEXT TO the compute, that trip disappears entirely \u2014 the wafer-scale (Cerebras) and distributed-SRAM-per-core (Tenstorrent) designs are both bets on this. The economic argument: HBM is expensive and supply-constrained, so an architecture that needs less of it can undercut GPU pricing while being faster on memory-bound work.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
+ },
+ {
+  "id": "gp-amdahl-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "State Amdahl\u2019s law and what it implies about GPU acceleration of a mixed workload.",
+  "src": {
+   "book": "pmpp",
+   "ref": "Ch.1 / parallel performance limits"
+  },
+  "reveal": "Speedup = 1 / ((1\u2212p) + p/s), where p is the parallelizable fraction and s the speedup on that portion. The implication is brutal: if 10% of your runtime is inherently serial, the maximum possible speedup is 10\u00d7 no matter how fast the GPU is. For a mixed workload this means the bottleneck migrates \u2014 accelerate the matmul and suddenly data loading, Python overhead, or the CPU-GPU transfer dominates. It is the reason profiling before optimizing matters, and why end-to-end wins usually require removing serial sections, not just making the parallel part faster.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
+ },
+ {
+  "id": "gp-transfer-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is the cost of CPU\u2013GPU data transfer and what techniques reduce it?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Ch.2/Ch.20 (host-device transfer)"
+  },
+  "reveal": "PCIe bandwidth is roughly an order of magnitude below on-device HBM bandwidth, so transfers easily become the bottleneck \u2014 a kernel that is fast on paper can be dominated by getting data to it. Reductions: use PINNED (page-locked) host memory so the DMA engine can transfer without staging; OVERLAP transfer and compute with CUDA streams so the next batch uploads while the current one computes; keep data resident on the device across many kernels instead of round-tripping; batch small transfers into large ones; and use unified/managed memory only where the access pattern justifies it.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
+ },
+ {
+  "id": "gp-profile-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How do you tell whether a GPU kernel is compute-bound or memory-bound in practice?",
+  "src": {
+   "book": "pmpp",
+   "ref": "Performance analysis"
+  },
+  "reveal": "Measure achieved FLOPs and achieved memory bandwidth, then compare each to the hardware peak: whichever is closer to its ceiling is your bound. Nsight Compute reports exactly this (SM throughput vs DRAM throughput) and often labels it directly. A quick analytical check first: compute arithmetic intensity by hand \u2014 total FLOPs divided by bytes moved \u2014 and compare it to the device\u2019s FLOPs-per-byte ratio (~100+ for modern GPUs); below that you are memory-bound. If neither is near peak, you are LATENCY-bound: too few warps to hide memory latency, or a dependency chain serializing the work.",
+  "tags": [
+   "ml-systems",
+   "systems"
+  ]
  }
 ]

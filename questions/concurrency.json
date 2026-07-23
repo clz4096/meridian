@@ -8,7 +8,11 @@
    "book": "cia",
    "ref": "Ch.5 The C++ memory model & atomic operations"
   },
-  "reveal": "A data race = two threads access the same memory location concurrently, at least one access is a write, and there is no happens-before ordering (no synchronization) between them. In C++ it is undefined behavior. Note: not every race is a bug, but every data race is UB."
+  "reveal": "A data race = two threads access the same memory location concurrently, at least one access is a write, and there is no happens-before ordering (no synchronization) between them. In C++ it is undefined behavior. Note: not every race is a bug, but every data race is UB.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
  },
  {
   "id": "c-ordering-15",
@@ -19,7 +23,11 @@
    "book": "cia",
    "ref": "Ch.5 — synchronizing operations & memory ordering"
   },
-  "reveal": "release on a store: all memory writes sequenced-before it become visible to any thread that later performs an acquire-load reading that value. acquire on a load: once you observe the released value, you also observe everything that happened-before the release. Producer writes buffer then stores the \"ready\" flag with release; consumer acquire-loads the flag, guaranteeing the buffer write is visible before it reads it. Without the pair, the flag could be seen before the data lands."
+  "reveal": "release on a store: all memory writes sequenced-before it become visible to any thread that later performs an acquire-load reading that value. acquire on a load: once you observe the released value, you also observe everything that happened-before the release. Producer writes buffer then stores the \"ready\" flag with release; consumer acquire-loads the flag, guaranteeing the buffer write is visible before it reads it. Without the pair, the flag could be seen before the data lands.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
  },
  {
   "id": "c-spsc-60",
@@ -30,7 +38,11 @@
    "book": "cia",
    "ref": "Ch.7 Designing lock-free concurrent data structures"
   },
-  "reveal": "Two monotonic counters head/tail (mask to index; capacity a power of two). Empty: tail-head==0. Full: tail-head==capacity (no wasted slot). Producer: relaxed-load own tail, acquire-load head, write slot, release-store tail+1. Consumer: acquire-load tail, relaxed-load head, read slot, release-store head+1. No lock is needed because exactly one thread writes each index; the acquire/release pair orders the slot write before the index publish. size_approx uses two relaxed loads."
+  "reveal": "Two monotonic counters head/tail (mask to index; capacity a power of two). Empty: tail-head==0. Full: tail-head==capacity (no wasted slot). Producer: relaxed-load own tail, acquire-load head, write slot, release-store tail+1. Consumer: acquire-load tail, relaxed-load head, read slot, release-store head+1. No lock is needed because exactly one thread writes each index; the acquire/release pair orders the slot write before the index publish. size_approx uses two relaxed loads.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
  },
  {
   "id": "c-deadlock-15",
@@ -41,7 +53,11 @@
    "book": "tanenbaum",
    "ref": "§6 Deadlocks"
   },
-  "reveal": "Mutual exclusion, hold-and-wait, no preemption, circular wait — all four must hold. Break any one to prevent deadlock; the standard discipline is to impose a global lock-ordering so circular wait cannot form (always acquire lock A before lock B, everywhere)."
+  "reveal": "Mutual exclusion, hold-and-wait, no preemption, circular wait — all four must hold. Break any one to prevent deadlock; the standard discipline is to impose a global lock-ordering so circular wait cannot form (always acquire lock A before lock B, everywhere).",
+  "tags": [
+   "systems",
+   "hft"
+  ]
  },
  {
   "id": "c-falsesharing-15",
@@ -52,7 +68,11 @@
    "book": "cia",
    "ref": "Ch.8 — data structures & false sharing (CSAPP Ch.6 caches)"
   },
-  "reveal": "Two threads write to different variables that happen to sit on the same 64-byte cache line; the cache-coherence protocol ping-pongs the line between cores as if they shared data, even though they logically do not. Fix: pad/align hot per-thread data to its own cache line (alignas(64) or padding)."
+  "reveal": "Two threads write to different variables that happen to sit on the same 64-byte cache line; the cache-coherence protocol ping-pongs the line between cores as if they shared data, even though they logically do not. Fix: pad/align hot per-thread data to its own cache line (alignas(64) or padding).",
+  "tags": [
+   "systems",
+   "hft"
+  ]
  },
  {
   "id": "c-concpar-5",
@@ -63,7 +83,11 @@
    "book": "cornell",
    "ref": "Parallel programming roadmap"
   },
-  "reveal": "Concurrency = structuring a program as independently-progressing tasks (dealing with many things at once); parallelism = actually executing multiple tasks simultaneously on multiple cores (doing many at once). You can have concurrency without parallelism (one core interleaving tasks) and design for concurrency so parallelism becomes possible when cores exist."
+  "reveal": "Concurrency = structuring a program as independently-progressing tasks (dealing with many things at once); parallelism = actually executing multiple tasks simultaneously on multiple cores (doing many at once). You can have concurrency without parallelism (one core interleaving tasks) and design for concurrency so parallelism becomes possible when cores exist.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
  },
  {
   "id": "c-atomicvslock-30",
@@ -74,6 +98,235 @@
    "book": "cia",
    "ref": "Ch.5 primitives / Ch.9–10"
   },
-  "reveal": "Atomics win when the critical section is tiny (a counter, an index, a flag) and contention or the cost of blocking/scheduling would dominate; no thread ever blocks, so no priority inversion or convoying. Hidden costs: correctness is much harder (memory ordering, the ABA problem), progress guarantees are subtle (lock-free ≠ wait-free), and heavy contention still causes cache-line bouncing. For anything non-trivial, a mutex is often the right, readable default."
+  "reveal": "Atomics win when the critical section is tiny (a counter, an index, a flag) and contention or the cost of blocking/scheduling would dominate; no thread ever blocks, so no priority inversion or convoying. Hidden costs: correctness is much harder (memory ordering, the ABA problem), progress guarantees are subtle (lock-free ≠ wait-free), and heavy contention still causes cache-line bouncing. For anything non-trivial, a mutex is often the right, readable default.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-order-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Explain relaxed, acquire, release, and seq_cst memory ordering. Which pairs with which, and what does each guarantee?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.5 The C++ memory model and atomics"
+  },
+  "reveal": "relaxed: atomicity only — no ordering guarantees with surrounding operations; safe for counters where you only need the final total. release (on a store) publishes everything written BEFORE it; acquire (on a load) sees everything published by the release it reads from — they PAIR: a release store synchronizes-with an acquire load of the same variable, creating a happens-before edge. seq_cst adds a single global total order across all seq_cst operations, which is the default and the easiest to reason about, at some cost. The common error is saying “acquire before release” — the release publishes, and a LATER acquire observes it.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-cas-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is compare-and-swap, and why is it the foundation of lock-free programming?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.7 Designing lock-free concurrent data structures"
+  },
+  "reveal": "CAS atomically checks whether a location still holds an expected value and, if so, replaces it — all as one indivisible hardware operation. It is the foundation because it lets you attempt an update optimistically and DETECT interference: read the current value, compute the new one, then CAS; if it fails, someone else changed it, so loop and retry. That read-modify-CAS-retry loop is the basic shape of nearly every lock-free algorithm. compare_exchange_weak may fail spuriously (cheaper on some architectures) so it belongs in a loop; compare_exchange_strong does not.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-aba-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "What is the ABA problem, when does it bite, and name two fixes.",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.7 Lock-free data structures"
+  },
+  "reveal": "A thread reads value A, is descheduled, and meanwhile other threads change it to B and back to A. The original thread’s CAS succeeds because the value matches — but the underlying state has changed (typically a node was freed and its memory reused). It bites in lock-free stacks/queues that CAS on pointers. Fixes: (1) a tagged/versioned pointer — pack a counter alongside the pointer so each modification changes the tag, making a reused address distinguishable; (2) deferred reclamation — hazard pointers or epoch-based reclamation, so memory is never reused while another thread might still reference it.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-mutex-atomic-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "When do you use a mutex versus an atomic? What is the real cost of each?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.5 & Ch.3 Sharing data between threads"
+  },
+  "reveal": "Use an atomic when the shared state is a single word and the operation maps to one hardware instruction (counter increment, flag, pointer swap). Use a mutex when you must keep MULTIPLE pieces of state consistent, or the critical section is non-trivial — no amount of atomics makes a multi-field invariant safe. Cost: an uncontended mutex is cheap (an atomic op plus a branch); under contention it costs a syscall and a context switch (tens of microseconds). An atomic is always a few nanoseconds, but a contended atomic still bounces the cache line between cores.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-condvar-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why must a condition_variable wait be inside a loop, and why does it need a mutex at all?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.4 Synchronizing concurrent operations"
+  },
+  "reveal": "The loop guards against SPURIOUS WAKEUPS (the OS may wake a waiter with no notify) and against another thread consuming the condition before this one runs — so you must always re-check the predicate, hence while (!pred()) cv.wait(lock). The mutex is required because checking the predicate and going to sleep must be ATOMIC relative to another thread changing the predicate and notifying: without it, you could test the condition, get preempted, miss the notify, and sleep forever — the lost-wakeup problem. wait() releases the lock while sleeping and reacquires it before returning.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-threadsafe-queue-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Design a thread-safe queue. What are the tricky parts beyond wrapping a mutex around std::queue?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.6 Designing lock-based concurrent data structures"
+  },
+  "reveal": "A naive wrapper leaves three problems. (1) The interface is racy: front() then pop() as separate calls means another thread can pop in between — so combine them into a single pop that returns the value (or takes a reference). (2) Blocking behavior: consumers need a condition_variable to wait when the queue is empty, with the predicate loop. (3) Exception safety: if the value’s copy constructor throws during pop, you may lose the element — returning by shared_ptr or moving into an out-parameter avoids that. Fine-grained versions use separate head and tail mutexes with a dummy node so producer and consumer rarely contend.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-spsc-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Why can a single-producer/single-consumer ring buffer be lock-free with only acquire/release, no CAS?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.7 Lock-free data structures"
+  },
+  "reveal": "Because there is exactly one writer for each index: the producer alone writes the tail, the consumer alone writes the head. No two threads ever contend to update the same variable, so no compare-and-swap is needed — plain atomic loads and stores suffice. Correctness comes from ordering: the producer writes the slot, then does a RELEASE store to tail; the consumer does an ACQUIRE load of tail, which guarantees the slot write is visible before it reads. That single pairing is the whole synchronization. Adding a second producer breaks it immediately and forces CAS.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-threadpool-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Outline a thread pool: what does the worker loop do, and how do you shut it down cleanly?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.9 Advanced thread management"
+  },
+  "reveal": "Workers loop: wait on a condition variable until the task queue is non-empty or a stop flag is set; pop a task; run it outside the lock (critical — never execute user code holding the queue mutex). Submission wraps the callable in a packaged_task and returns its future so callers can get results and exceptions. Clean shutdown: set an atomic stop flag, notify_all so every worker wakes and observes it, then join all threads in the destructor. Decide explicitly whether shutdown drains the remaining queue or discards it — and use jthread or an RAII joiner so an exception cannot leak a running thread.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-raii-lock-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Why should you never call mutex.lock()/unlock() directly? Name the RAII wrappers and when each applies.",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.3 Sharing data between threads"
+  },
+  "reveal": "Because any early return, break, or thrown exception between lock and unlock leaks the lock and deadlocks the program. RAII wrappers release in their destructor, so unwinding is safe. std::lock_guard — simplest, locks in the constructor, no manual control. std::unique_lock — movable, deferrable, and unlockable, required by condition_variable::wait. std::scoped_lock — C++17, takes multiple mutexes and avoids deadlock via ordering. std::shared_lock — reader side of a shared_mutex.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-typeerasure-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "How would you implement std::function? What is type erasure and where is the cost?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.4 / general C++ (callable wrappers)"
+  },
+  "reveal": "Type erasure stores an object of unknown static type behind a uniform interface. Implementation: an abstract base with a virtual call operator (and virtual clone/destroy), plus a templated derived class holding the concrete callable; std::function keeps a pointer to the base. Calls dispatch virtually, so the callable’s type is “erased” from the signature. Costs: a heap allocation unless the callable fits in the small-buffer optimization, an indirect virtual call, and usually no inlining — which is why a raw lambda or a template parameter beats std::function in hot paths. It buys you a single runtime type that can hold any compatible callable.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-fetchadd-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Why is fetch_add on an atomic different from load, add, store? What ordering do you want for a plain counter?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.5 Atomic operations"
+  },
+  "reveal": "fetch_add is a single indivisible read-modify-write instruction; load-add-store is three separate steps, so two threads can both read the same value and one increment is lost. For a plain statistics counter where you only care that the final total is correct — and no other memory needs to be ordered relative to it — memory_order_relaxed is sufficient and cheapest. Upgrade to acquire/release only if the counter also publishes other data.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-context-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What actually happens during a context switch, and why is it expensive?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.1 Hello concurrent world (background); OS internals"
+  },
+  "reveal": "The kernel saves the current thread’s register state (including program counter and stack pointer) into its task structure, selects another thread, restores that thread’s registers, and if it belongs to a different process, switches the page tables (which flushes or tags the TLB). The direct cost is roughly a microsecond, but the INDIRECT cost dominates: the new thread arrives with cold caches and a cold branch predictor, so the first thousands of instructions run slowly. That is why HFT systems pin threads to cores and busy-spin rather than block — they are avoiding the cache pollution more than the switch itself.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-spin-vs-block-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "When should a thread spin instead of blocking? What is the hybrid strategy?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.5 / performance considerations"
+  },
+  "reveal": "Spin when the expected wait is SHORTER than the cost of a context switch (roughly a microsecond) and you have a dedicated core — typical for low-latency handoffs between pinned threads. Block when the wait may be long or cores are oversubscribed, since spinning burns a core and starves other work. The hybrid: spin briefly (with a CPU pause/yield hint inside the loop to be nice to the sibling hyperthread and reduce power), and if the condition still is not met, fall back to blocking on a futex or condition variable. C++20 atomic::wait/notify implements roughly this.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-cow-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Implement a copy-on-write string: what does it save, and why did the standard ban COW for std::string in C++11?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.3 / general C++"
+  },
+  "reveal": "COW shares one buffer among copies with a reference count and only duplicates it when someone writes — saving allocations for read-heavy copying. Implementation: refcounted buffer, a detach() called at the start of every mutating operation and before handing out a non-const reference. The standard effectively banned it in C++11 because it is unsafe and slow under concurrency: operator[] returning a non-const reference must conservatively detach (defeating the savings), and the refcount must be atomic, making every copy and destruction a synchronized operation — so multi-threaded programs paid a heavy cost for a single-threaded optimization.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
+ },
+ {
+  "id": "c-happensbefore-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Define happens-before and data race precisely. What makes a program undefined behavior?",
+  "src": {
+   "book": "cia",
+   "ref": "Ch.5 The C++ memory model"
+  },
+  "reveal": "Happens-before is a partial order: within a thread it follows program order; across threads it is established by synchronization (a release store synchronizes-with an acquire load that reads it, mutex unlock with a later lock, thread creation and join). A DATA RACE occurs when two threads access the same memory location, at least one writes, and there is NO happens-before relation between them. A data race is undefined behavior in C++ — not “wrong value,” but the whole program is meaningless, so the compiler may optimize on the assumption it cannot happen. Atomics with any ordering, including relaxed, do not race.",
+  "tags": [
+   "systems",
+   "hft"
+  ]
  }
 ]

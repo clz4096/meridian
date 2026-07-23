@@ -1,0 +1,287 @@
+[
+ {
+  "id": "ml-knobs-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "In plain language, what IS a neural network, and what does \"training\" mean mechanically?",
+  "src": {
+   "book": "micrograd",
+   "ref": "Karpathy, micrograd video \u2014 intro"
+  },
+  "reveal": "A network is a large function built from multiply-and-add operations with adjustable numbers called WEIGHTS (the knobs). Training means: run inputs through, measure how wrong the output is with a loss function, work out for each weight which direction would reduce the loss, nudge every weight a little in that direction, and repeat. That is all \u2014 gradient descent over a differentiable function. Nothing about it is conceptually harder than tuning a very large number of dials by measuring which way each one helps.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-gradient-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "What is a gradient, in one sentence, without calculus notation? What does its SIGN and MAGNITUDE tell you?",
+  "src": {
+   "book": "3b1b",
+   "ref": "3Blue1Brown, Neural Networks ep. 3"
+  },
+  "reveal": "A gradient answers: if I nudge this knob a tiny bit, how much does the final error change, and in which direction. The SIGN says which way to turn the knob (move opposite the gradient to reduce error); the MAGNITUDE says how much this knob matters right now \u2014 a large gradient means a small change has a big effect, a near-zero gradient means the knob barely influences the outcome (which is also what makes vanishing gradients a training failure).",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-chainrule-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "State the chain rule in the way it is actually used in backprop, and apply it to y = f(g(h(x))).",
+  "src": {
+   "book": "cs231n",
+   "ref": "CS231n, Backpropagation notes"
+  },
+  "reveal": "If a change in A affects B, and B affects C, then the effect of A on C is the PRODUCT of the two local effects: dC/dA = (dC/dB)(dB/dA). For y = f(g(h(x))): dy/dx = f\u2032(g(h(x))) \u00b7 g\u2032(h(x)) \u00b7 h\u2032(x). Backprop applies this right-to-left \u2014 start with dy/dy = 1 at the output and multiply by each local derivative as you walk backwards through the graph. Each node only needs to know its OWN local derivative; the chain rule composes them, which is exactly why autograd can be built from small independent pieces.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-autograd-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Describe the design of a scalar autograd engine: what does each node store, and what does backward() do?",
+  "src": {
+   "book": "micrograd",
+   "ref": "Karpathy, micrograd \u2014 the Value class"
+  },
+  "reveal": "Each Value stores: its data (a number), its grad (initially 0), the set of children it was computed from, and a _backward closure describing how to push gradient to those children. Every operation (+, *, tanh) creates a new Value, records its children, and defines _backward to apply that operation\u2019s local derivative. backward() then: (1) builds a TOPOLOGICAL ORDER of the graph so every node comes after its inputs, (2) sets the output\u2019s grad to 1, (3) walks the order in REVERSE calling each _backward, accumulating (+=) into children. The accumulation matters \u2014 a value used twice receives gradient from both paths.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-accumulate-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why does autograd ACCUMULATE gradients with += rather than assigning, and what practical bug does this cause in PyTorch?",
+  "src": {
+   "book": "cs231n",
+   "ref": "CS231n, Backpropagation \u2014 gradients for repeated use"
+  },
+  "reveal": "If a value feeds into multiple downstream operations, the total effect on the loss is the SUM of the effects along each path (multivariable chain rule), so each path must add its contribution rather than overwrite. The practical consequence in PyTorch: gradients persist across backward() calls, so you must call optimizer.zero_grad() every iteration \u2014 forgetting it silently sums this batch\u2019s gradients with all previous batches, and training degrades in a way that looks like a bad learning rate rather than a bug.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-topo-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why must backprop process nodes in reverse topological order? What breaks if you do not?",
+  "src": {
+   "book": "micrograd",
+   "ref": "Karpathy, micrograd \u2014 topological sort in backward"
+  },
+  "reveal": "A node can only push correct gradient to its children once its OWN gradient is final \u2014 which requires every consumer of that node to have already contributed. Reverse topological order guarantees exactly that. If you process out of order, a node pushes a partial gradient downstream, and the later contribution never propagates past it \u2014 producing silently WRONG gradients rather than an error. This is the same dependency-ordering idea as topological sort in DP: process a state only after everything it depends on is finalized.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-gd-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Write the gradient descent update rule and explain what happens if the learning rate is too large or too small.",
+  "src": {
+   "book": "3b1b",
+   "ref": "3Blue1Brown, Gradient descent"
+  },
+  "reveal": "w \u2190 w \u2212 \u03b7 \u00b7 (\u2202L/\u2202w), where \u03b7 is the learning rate. Subtracting moves DOWNHILL because the gradient points uphill. Too large: the step overshoots the minimum and can oscillate or diverge, loss going to NaN. Too small: convergence is impractically slow and you can stall in flat regions. This is why practice uses adaptive methods (Adam keeps per-parameter running estimates of gradient mean and variance) and learning-rate schedules \u2014 warmup then decay.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-loss-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Why is squared error used for regression and cross-entropy for classification? What does each penalize?",
+  "src": {
+   "book": "cs231n",
+   "ref": "CS231n, Loss functions"
+  },
+  "reveal": "Squared error, (y \u2212 \u0177)\u00b2, penalizes distance and grows quadratically, so it punishes large misses heavily \u2014 appropriate when outputs are continuous and errors are symmetric. Cross-entropy, \u2212log(p_correct), penalizes CONFIDENT WRONGNESS: it goes to infinity as the probability assigned to the true class goes to zero, and is near zero when the model is confidently right. It pairs with softmax so that the gradient of the loss with respect to the logits simplifies beautifully to (predicted \u2212 target), which is why the pair is universal.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-matmulgrad-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Derive the gradients of C = A @ B with respect to A and B. State the shape check that confirms you got it right.",
+  "src": {
+   "book": "cs231n",
+   "ref": "CS231n, Backprop for matrices"
+  },
+  "reveal": "Given upstream gradient G = \u2202L/\u2202C: \u2202L/\u2202A = G @ B\u1d40 and \u2202L/\u2202B = A\u1d40 @ G. The reliable way to derive these without index gymnastics is the SHAPE CHECK: if A is (m,k) and B is (k,n) then C and G are (m,n). \u2202L/\u2202A must be (m,k) \u2014 the only way to build that from G (m,n) and B (k,n) is G @ B\u1d40. Similarly \u2202L/\u2202B must be (k,n), which forces A\u1d40 @ G. Shapes uniquely determine the arrangement, which is why the shape check is the standard sanity test.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-broadcast-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is broadcasting, and what happens to gradients when an operation broadcasts?",
+  "src": {
+   "book": "cs231n",
+   "ref": "NumPy semantics; CS231n backprop notes"
+  },
+  "reveal": "Broadcasting virtually expands a smaller array along size-1 dimensions so shapes match, without copying \u2014 e.g. adding a (1,n) bias to an (m,n) matrix. In the backward pass this must be REVERSED: since the bias was effectively used m times, its gradient is the SUM over the broadcast axis. Forgetting to sum leaves a shape mismatch (usually caught) or, worse, an incorrectly scaled gradient. Rule of thumb: a forward broadcast becomes a backward SUM, and a forward sum becomes a backward broadcast.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-intensity-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Define arithmetic intensity and compute it for an n\u00d7n matmul and for an elementwise add. What does the comparison tell you?",
+  "src": {
+   "book": "roofline",
+   "ref": "Williams et al., Roofline model; Horace He, Making DL Go Brrrr"
+  },
+  "reveal": "Arithmetic intensity = FLOPs performed / bytes moved from memory. Elementwise add of n floats: ~n FLOPs over ~12n bytes (two reads, one write at 4 bytes) \u2192 intensity \u2248 0.08 \u2014 deeply memory-bound. An n\u00d7n matmul: ~2n\u00b3 FLOPs over ~12n\u00b2 bytes \u2192 intensity grows with n, so for large n it far exceeds the hardware ratio and becomes compute-bound. The lesson: the SAME hardware is bandwidth-limited on one kernel and FLOP-limited on another, so \u201cis this op compute- or memory-bound\u201d is the first question in any ML-systems optimization.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-roofline-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Explain the roofline model and what the \"ridge point\" means for kernel optimization.",
+  "src": {
+   "book": "roofline",
+   "ref": "Williams, Waterman, Patterson (2009)"
+  },
+  "reveal": "Plot attainable performance (FLOP/s) against arithmetic intensity: the ceiling is min(peak FLOP/s, intensity \u00d7 peak bandwidth) \u2014 a slanted bandwidth roof that meets a flat compute roof. The RIDGE POINT is where they intersect: the intensity at which the machine transitions from memory-bound to compute-bound. Kernels left of the ridge are bandwidth-limited, so the fix is reducing memory traffic (fusion, tiling, quantization, better layout); kernels right of it are compute-limited, so the fix is better instruction mix or more FLOPs per cycle (tensor cores). Knowing which side you are on tells you which optimizations can possibly help.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-attention-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Write scaled dot-product attention from the equation and explain why it is divided by \u221ad_k.",
+  "src": {
+   "book": "attention",
+   "ref": "Vaswani et al., Attention Is All You Need \u00a73.2"
+  },
+  "reveal": "Attention(Q,K,V) = softmax(QK\u1d40 / \u221ad_k) V. Q, K, V come from linear projections of the input. QK\u1d40 scores every query against every key, softmax turns each row into weights summing to one, and multiplying by V produces a weighted average of value vectors. The \u221ad_k division exists because the dot product of two random d_k-dimensional vectors has variance proportional to d_k, so for large d_k the scores grow large, pushing softmax into saturated regions where gradients vanish. Scaling keeps the variance roughly constant so gradients stay healthy.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-attnshape-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "For a batch of sequences, state the shapes through attention: input, Q/K/V, scores, output. Where does the quadratic cost appear?",
+  "src": {
+   "book": "attention",
+   "ref": "Attention Is All You Need \u00a73.2; The Annotated Transformer"
+  },
+  "reveal": "Input (B, N, d) for batch B and sequence length N. Q, K, V each (B, N, d_k) after projection (or (B, heads, N, d_head) with multiple heads). Scores QK\u1d40 are (B, N, N) \u2014 that is where the QUADRATIC cost lives, in both compute and memory. Softmax is applied over the last axis. Multiplying (B,N,N) by V (B,N,d_k) returns to (B, N, d_k), then heads are concatenated back to (B, N, d). The N\u00d7N score matrix is the reason long context is expensive and why FlashAttention avoids materializing it.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-softmax-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why is softmax computed with the max subtracted, and what is the \"online softmax\" used in FlashAttention?",
+  "src": {
+   "book": "attention",
+   "ref": "Numerical stability; FlashAttention"
+  },
+  "reveal": "exp() overflows quickly for moderately large inputs, so implementations compute exp(x\u1d62 \u2212 max(x)) \u2014 mathematically identical since the constant cancels in the ratio, but numerically safe. ONLINE softmax extends this to streaming: you process the row in blocks, maintaining a running maximum and a running sum, and RESCALE the accumulated result whenever a new block raises the maximum. That is what lets FlashAttention compute exact softmax attention without ever holding a full row of scores in memory \u2014 the enabling trick behind the whole method.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-params-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Roughly how much memory does a model need for inference versus training? Account for each component.",
+  "src": {
+   "book": "scaling",
+   "ref": "How to Scale Your Model (JAX); training memory accounting"
+  },
+  "reveal": "Inference: weights only, so bytes \u2248 params \u00d7 bytes-per-param (2 for FP16, 1 for INT8) \u2014 a 7B model in FP16 is ~14 GB \u2014 plus the KV cache, which grows with batch \u00d7 context. Training needs far more: weights + gradients (same size as weights) + optimizer state (Adam keeps two moments, so 2\u00d7 more, often in FP32) + saved activations for the backward pass. The common rule of thumb is roughly 16 bytes per parameter for mixed-precision Adam training \u2014 about 8\u00d7 the inference footprint \u2014 which is why training needs many more GPUs than serving the same model.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-tokenize-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why do language models use subword tokenization rather than characters or words?",
+  "src": {
+   "book": "micrograd",
+   "ref": "Karpathy, Let\u2019s build the GPT Tokenizer"
+  },
+  "reveal": "Characters give a tiny vocabulary but very long sequences \u2014 and attention is quadratic in sequence length, so that is expensive. Whole words give short sequences but an unbounded vocabulary that cannot handle typos, new words, or morphology, and the embedding table explodes. SUBWORD schemes (BPE) split the difference: frequent words become single tokens while rare words decompose into pieces, giving a fixed vocabulary (~50k) with reasonable sequence lengths and no out-of-vocabulary failures. The cost is that tokenization is where many odd model behaviours originate \u2014 arithmetic, spelling, and non-English text all suffer from token boundaries.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-whyfast-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Your training step is slower than the FLOP count suggests. List the things you would check, in order.",
+  "src": {
+   "book": "brrr",
+   "ref": "Horace He, Making Deep Learning Go Brrrr"
+  },
+  "reveal": "First determine which of the three regimes you are in: COMPUTE-bound (near peak FLOPs \u2014 the good case), MEMORY-bandwidth-bound (many elementwise ops, unfused; fix with fusion and better layout), or OVERHEAD-bound (the GPU is idle waiting on Python, the data loader, or kernel launch latency \u2014 common with small models and the reason CUDA graphs and torch.compile exist). Then check: is the data loader starving the GPU? Are host-device transfers overlapping compute? Are you synchronizing every step (a .item() or .cpu() call forces a stall)? Is the batch large enough to saturate the device? Profile before changing anything.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ },
+ {
+  "id": "ml-simulator-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "You are building a timing simulator for an accelerator executing matmuls. What is the minimal cost model, and what does it deliberately ignore?",
+  "src": {
+   "book": "roofline",
+   "ref": "Roofline model; accelerator simulation"
+  },
+  "reveal": "Minimal model: for each command, compute_cycles = FLOPs / peak_FLOPs_per_cycle and memory_cycles = bytes_moved / bytes_per_cycle, then cost = max(compute_cycles, memory_cycles) \u2014 assuming perfect overlap of compute and memory. That single max() captures the roofline: small matmuls are dominated by the memory term, large ones by the compute term. It deliberately ignores cache/SRAM hit rates, dispatch and queueing overhead, contention between concurrent cores, and pipeline warm-up. Those are exactly the refinements a real study would add \u2014 and measuring where the simple model diverges from hardware is itself the research question.",
+  "tags": [
+   "ml-systems",
+   "fellows"
+  ]
+ }
+]
