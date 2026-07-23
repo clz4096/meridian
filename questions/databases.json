@@ -1,0 +1,180 @@
+[
+ {
+  "id": "db-index-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What does a database index actually store, and why can adding one make writes slower?",
+  "src": {
+   "book": "dbsys",
+   "ref": "Readings in Database Systems \u2014 storage & indexing"
+  },
+  "reveal": "An index is a separate sorted structure (usually a B+ tree) mapping key values to row locations, so lookups become O(log n) tree descents instead of a full table scan. Writes get slower because every insert, update, or delete of an indexed column must also maintain every index on that table \u2014 splitting pages, rebalancing, and writing extra pages to disk. That is the core tradeoff: indexes trade write throughput and storage for read speed, which is why you index the columns you filter and join on, not every column.",
+  "tags": [
+   "databases",
+   "systems"
+  ]
+ },
+ {
+  "id": "db-btree-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why do databases use B+ trees rather than binary search trees or hash tables for their primary index?",
+  "src": {
+   "book": "dbsys",
+   "ref": "Storage and indexing"
+  },
+  "reveal": "B+ trees have a high branching factor (hundreds of keys per node), so a table of billions of rows is only 3\u20134 levels deep \u2014 and since each node is one disk page, a lookup costs 3\u20134 I/Os instead of the ~30 a binary tree would need. All values live in the LEAVES, which are linked, so range scans and ordered traversal are sequential reads. A hash index gives O(1) point lookups but cannot do ranges or ordering at all, which is why it is a secondary option.",
+  "tags": [
+   "databases",
+   "systems"
+  ]
+ },
+ {
+  "id": "db-acid-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Define ACID. Which letter is the one most commonly relaxed in distributed systems, and why?",
+  "src": {
+   "book": "dbsys",
+   "ref": "Transactions"
+  },
+  "reveal": "Atomicity (all or nothing), Consistency (the transaction moves the database between valid states), Isolation (concurrent transactions do not interfere), Durability (committed data survives a crash). CONSISTENCY \u2014 in the CAP sense of every read seeing the latest write \u2014 is the one most often relaxed in distributed systems, traded for availability under partition. Note the C in ACID and the C in CAP are different things, which is a favourite interview trap.",
+  "tags": [
+   "databases",
+   "distributed"
+  ]
+ },
+ {
+  "id": "db-isolation-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Name the SQL isolation levels and the anomaly each one permits.",
+  "src": {
+   "book": "dbsys",
+   "ref": "Concurrency control"
+  },
+  "reveal": "READ UNCOMMITTED permits dirty reads (seeing another transaction\u2019s uncommitted data). READ COMMITTED prevents dirty reads but permits non-repeatable reads (the same row read twice returns different values). REPEATABLE READ prevents that but classically permits phantoms (a range query returns new rows on re-execution). SERIALIZABLE prevents all of them, behaving as if transactions ran one at a time. Higher levels cost concurrency, so most systems default to READ COMMITTED and rely on the application to lock explicitly where it matters.",
+  "tags": [
+   "databases",
+   "systems"
+  ]
+ },
+ {
+  "id": "db-mvcc-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is MVCC and what problem does it solve that locking does not?",
+  "src": {
+   "book": "dbsys",
+   "ref": "Concurrency control (multiversion)"
+  },
+  "reveal": "Multi-Version Concurrency Control keeps multiple versions of each row, each tagged with the transaction that created it, so a reader sees a consistent SNAPSHOT as of its start time. The problem it solves: with pure locking, readers block writers and writers block readers, which serializes throughput. Under MVCC readers never block writers and writers never block readers \u2014 only writer-writer conflicts need resolution. The cost is storage for old versions and a background vacuum/garbage-collection process to reclaim them, which is a real operational concern in Postgres.",
+  "tags": [
+   "databases",
+   "systems"
+  ]
+ },
+ {
+  "id": "db-explain-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "You have a slow query. Walk through your diagnostic process.",
+  "src": {
+   "book": "dbsys",
+   "ref": "Query optimization"
+  },
+  "reveal": "Run EXPLAIN ANALYZE first \u2014 never guess. Look for: sequential scans on large tables where an index should apply, a row-estimate wildly different from actual rows (stale statistics \u2192 ANALYZE), nested-loop joins over large inputs where a hash join belongs, and sorts spilling to disk. Then check whether an index exists on the filter and join columns, whether the query is SARGable (wrapping a column in a function defeats its index), and whether you are selecting far more columns or rows than needed. Fix the biggest cost node, re-measure, repeat.",
+  "tags": [
+   "databases",
+   "systems"
+  ]
+ },
+ {
+  "id": "db-normal-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What does normalization buy you, and when is denormalizing the right call?",
+  "src": {
+   "book": "dbsys",
+   "ref": "Data modeling"
+  },
+  "reveal": "Normalization eliminates redundancy so each fact lives in exactly one place \u2014 preventing update anomalies where the same value is changed in one row but not another. The cost is joins: reading a coherent entity may touch many tables. Denormalize when read performance dominates and the data is append-mostly or changes rarely \u2014 analytics tables, materialized views, caching a computed count. The rule of thumb: normalize until it hurts, denormalize until it works, and make the denormalized copy clearly derived so there is one source of truth.",
+  "tags": [
+   "databases"
+  ]
+ },
+ {
+  "id": "db-nplus1-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "What is the N+1 query problem and how do you fix it?",
+  "src": {
+   "book": "dbsys",
+   "ref": "ORMs and access patterns"
+  },
+  "reveal": "You run one query to fetch N parent rows, then one query per parent to fetch its children \u2014 N+1 round trips, each with network and parsing overhead. It is the classic ORM performance bug because lazy loading makes it invisible in the code. Fix by fetching children in a single query with a JOIN, or by batching: collect the parent ids and issue one WHERE parent_id IN (...) query, then stitch in memory. Most ORMs expose this as eager loading or a dataloader pattern.",
+  "tags": [
+   "databases"
+  ]
+ },
+ {
+  "id": "db-tx-log-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is a write-ahead log and how does it deliver durability and crash recovery?",
+  "src": {
+   "book": "dbsys",
+   "ref": "Recovery"
+  },
+  "reveal": "Before any change is applied to the data pages, the change is appended to a sequential log and flushed to durable storage \u2014 write-AHEAD. Because the log is sequential it is fast, and because it lands first, a crash mid-update is recoverable: on restart the system REDOES committed transactions found in the log and UNDOES uncommitted ones. This decouples durability (fsync the small log) from the expensive random writes of updating data pages, which can be flushed lazily at a checkpoint. It is also the foundation of replication \u2014 followers replay the leader\u2019s log.",
+  "tags": [
+   "databases",
+   "distributed"
+  ]
+ },
+ {
+  "id": "db-oltp-olap-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Contrast OLTP and OLAP workloads and the storage layout each favors.",
+  "src": {
+   "book": "dbsys",
+   "ref": "Data warehousing"
+  },
+  "reveal": "OLTP handles many small, latency-sensitive transactions touching a few rows each \u2014 favors ROW-oriented storage, since a whole record is fetched together, plus B-tree indexes. OLAP scans huge numbers of rows but few columns, aggregating \u2014 favors COLUMNAR storage, because you read only the columns you need and similar values compress extremely well (run-length, dictionary encoding), plus vectorized execution. Trying to serve both from one system is why the analytics replica or warehouse exists.",
+  "tags": [
+   "databases",
+   "systems"
+  ]
+ },
+ {
+  "id": "db-deadlock-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How do databases detect and resolve deadlocks between transactions?",
+  "src": {
+   "book": "dbsys",
+   "ref": "Concurrency control"
+  },
+  "reveal": "The engine maintains a WAITS-FOR graph of which transaction is blocked on which lock holder; a cycle in that graph is a deadlock. On detection it picks a VICTIM \u2014 typically the transaction with the least work done or fewest locks \u2014 aborts it, releases its locks, and returns a deadlock error so the application can retry. Some systems use timeouts instead of graph detection, which is simpler but less precise. Prevention is the same as in concurrent programming: acquire locks in a consistent global order, and keep transactions short.",
+  "tags": [
+   "databases",
+   "systems"
+  ]
+ },
+ {
+  "id": "db-cache-consistency-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "You cache database rows in Redis. What are the consistency hazards and how do you handle invalidation?",
+  "src": {
+   "book": "dbsys",
+   "ref": "Caching and derived data"
+  },
+  "reveal": "Hazards: stale reads after a write, and a race where a slow read populates the cache with pre-update data AFTER an invalidation, leaving a permanently stale entry. Standard handling: write to the database, then DELETE the cache key (do not update it \u2014 deleting is idempotent and avoids ordering races); use short TTLs as a backstop so any missed invalidation self-heals; use versioned keys so a stale write cannot overwrite a newer version. For strict cases, read-through with single-flight locking prevents both stampedes and the race.",
+  "tags": [
+   "databases",
+   "distributed"
+  ]
+ }
+]

@@ -31,7 +31,7 @@
  },
  {
   "id": "c-spsc-60",
-  "mins": 60,
+  "mins": 30,
   "flow": "full",
   "prompt": "Design a lock-free single-producer/single-consumer ring buffer. State: how you distinguish full from empty, which index uses which memory ordering, and why no lock is needed.",
   "src": {

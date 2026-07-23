@@ -1,0 +1,181 @@
+[
+ {
+  "id": "cm-phases-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Name the phases of a compiler and state what each consumes and produces.",
+  "src": {
+   "book": "crafting",
+   "ref": "Crafting Interpreters \u2014 a map of the territory"
+  },
+  "reveal": "LEXING turns characters into tokens. PARSING turns tokens into a syntax tree, enforcing grammar. Semantic ANALYSIS resolves names and types, annotating or rejecting the tree. An intermediate representation (IR) is then generated \u2014 a lower-level, machine-independent form. OPTIMIZATION rewrites the IR (constant folding, dead-code elimination, inlining). CODE GENERATION emits target instructions and allocates registers. The front end (lex/parse/analyze) is language-specific and the back end (optimize/emit) is target-specific, which is why an IR in the middle lets N languages target M machines with N+M pieces rather than N\u00d7M.",
+  "tags": [
+   "compilers",
+   "systems"
+  ]
+ },
+ {
+  "id": "cm-lexparse-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "What is the difference between lexing and parsing, and why are they separate?",
+  "src": {
+   "book": "crafting",
+   "ref": "Scanning; Representing code"
+  },
+  "reveal": "Lexing groups characters into meaningful TOKENS (identifier, number, plus-sign) and discards whitespace and comments \u2014 it is a regular-language job, so a state machine suffices. Parsing arranges those tokens into a TREE according to a grammar, which requires handling nesting and therefore a context-free grammar and a stack. They are separate because it makes each simpler and faster: the parser reasons about ten token kinds rather than a hundred character cases, and the lexer can be a tight, table-driven loop.",
+  "tags": [
+   "compilers"
+  ]
+ },
+ {
+  "id": "cm-ast-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is an abstract syntax tree, and how do you evaluate an arithmetic expression from one?",
+  "src": {
+   "book": "crafting",
+   "ref": "Representing code; Evaluating expressions"
+  },
+  "reveal": "An AST is a tree where each node is a language construct and children are its operands, with syntax noise (parentheses, semicolons) already absorbed by the structure. Evaluate it with a POST-ORDER traversal: recursively evaluate the left child, then the right, then apply the node\u2019s operator to those results. Precedence and associativity are already encoded in the SHAPE of the tree \u2014 the parser resolved them \u2014 so the evaluator itself is trivially simple. This is exactly the shape of the Jane Street arithmetic-evaluator question.",
+  "tags": [
+   "compilers",
+   "dsa"
+  ]
+ },
+ {
+  "id": "cm-precedence-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "How does a recursive descent parser encode operator precedence? Sketch it for + and *.",
+  "src": {
+   "book": "crafting",
+   "ref": "Parsing expressions"
+  },
+  "reveal": "Each precedence LEVEL becomes its own function, and lower-precedence functions call higher-precedence ones. expression() parses a term(), then loops while it sees + or \u2212, each time parsing another term() and building a binary node. term() parses a factor(), then loops while it sees * or /. factor() handles numbers and parenthesized expressions (recursing back into expression()). Because * binds inside the loop of +, multiplication naturally groups tighter. Left-associativity comes from the LOOP; right-associativity (like exponentiation) comes from recursing into the same level instead.",
+  "tags": [
+   "compilers",
+   "dsa"
+  ]
+ },
+ {
+  "id": "cm-shunting-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is the shunting-yard algorithm and when would you use it over recursive descent?",
+  "src": {
+   "book": "crafting",
+   "ref": "Parsing expressions (alternative)"
+  },
+  "reveal": "Shunting-yard converts infix to postfix (or directly evaluates) using two stacks \u2014 one for operators, one for output. Scanning left to right: operands go to output; an operator pops higher-or-equal-precedence operators to output before being pushed; parentheses bracket sub-expressions. Use it when precedence rules are DATA rather than code \u2014 e.g. a calculator with user-definable operators, or when you want one flat loop instead of many mutually recursive functions. Recursive descent is usually more readable and handles non-expression grammar more naturally.",
+  "tags": [
+   "compilers",
+   "dsa"
+  ]
+ },
+ {
+  "id": "cm-ir-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is an intermediate representation, and why is SSA form so useful for optimization?",
+  "src": {
+   "book": "crafting",
+   "ref": "Intermediate representations"
+  },
+  "reveal": "An IR is a simplified, uniform program representation between source and machine code \u2014 typically three-address instructions over a control-flow graph. STATIC SINGLE ASSIGNMENT means every variable is assigned exactly ONCE; reassignments create new versioned names, and phi-nodes merge values where control flow joins. This is powerful because each name has exactly one definition, so use-def chains are immediate \u2014 constant propagation, dead-code elimination, and common-subexpression elimination become almost trivial graph walks instead of dataflow puzzles. LLVM and MLIR are both SSA-based, which is why this matters for ML compilers.",
+  "tags": [
+   "compilers",
+   "ml-systems"
+  ]
+ },
+ {
+  "id": "cm-opts-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Name five classic compiler optimizations and what each removes.",
+  "src": {
+   "book": "crafting",
+   "ref": "Optimization"
+  },
+  "reveal": "CONSTANT FOLDING evaluates constant expressions at compile time. CONSTANT PROPAGATION replaces variables known to hold constants. DEAD CODE ELIMINATION removes computations whose results are never used. COMMON SUBEXPRESSION ELIMINATION computes a repeated expression once. INLINING replaces a call with the callee body, removing call overhead and exposing further optimization across the boundary. Also worth naming: loop-invariant code motion (hoisting work out of loops), strength reduction (multiply \u2192 shift), and vectorization.",
+  "tags": [
+   "compilers",
+   "systems"
+  ]
+ },
+ {
+  "id": "cm-jit-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How does a JIT differ from an ahead-of-time compiler, and what information does it have that AOT does not?",
+  "src": {
+   "book": "crafting",
+   "ref": "Compiling vs interpreting"
+  },
+  "reveal": "A JIT compiles at RUNTIME, typically starting interpreted and compiling hot paths once they prove worth it. Its advantage is PROFILE information the AOT compiler cannot have: which branches actually get taken, which types actually appear at a polymorphic call site, and actual loop trip counts \u2014 enabling speculative optimizations like inlining a monomorphic call with a guard that deoptimizes if the assumption breaks. The costs are warm-up time, memory for the compiler itself, and unpredictable latency spikes during compilation, which is why latency-critical systems prefer AOT.",
+  "tags": [
+   "compilers",
+   "systems"
+  ]
+ },
+ {
+  "id": "cm-interp-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Design a stack-based bytecode interpreter: what is the instruction set and the main loop?",
+  "src": {
+   "book": "crafting",
+   "ref": "A virtual machine"
+  },
+  "reveal": "Instructions operate on an operand STACK: PUSH_CONST, LOAD_LOCAL, STORE_LOCAL, ADD/SUB/MUL, JUMP, JUMP_IF_FALSE, CALL, RETURN. The main loop is: fetch the byte at the instruction pointer, advance, switch on the opcode, pop operands, compute, push the result. State is the code array, the instruction pointer, the operand stack, and a call-frame stack. Stack-based designs give compact instructions (no register fields) and trivial code generation; register-based VMs (Lua) execute fewer instructions but are harder to emit. This is the Jane Street stack-interpreter question.",
+  "tags": [
+   "compilers",
+   "dsa"
+  ]
+ },
+ {
+  "id": "cm-scope-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How does a compiler resolve variable scope, and what is a closure at the implementation level?",
+  "src": {
+   "book": "crafting",
+   "ref": "Resolving and binding; Closures"
+  },
+  "reveal": "Scope resolution walks nested environments outward from the innermost block to find a name\u2019s binding \u2014 done at compile time where possible, mapping each variable to a slot index rather than a runtime hash lookup. A CLOSURE is a function paired with the captured environment its body references. Implementation-wise, variables captured by an inner function cannot live purely on the stack (the frame dies when the function returns), so they are promoted to the heap \u2014 Lua calls these upvalues \u2014 and the closure object holds pointers to them. That promotion is precisely why capturing by reference in a C++ lambda is dangerous: C++ does NOT do it.",
+  "tags": [
+   "compilers",
+   "cpp"
+  ]
+ },
+ {
+  "id": "cm-mlir-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is an ML compiler (XLA, TVM, MLIR) doing, and why does it matter for accelerators?",
+  "src": {
+   "book": "crafting",
+   "ref": "Domain-specific compilation"
+  },
+  "reveal": "It takes a computation graph of tensor operations and lowers it, through progressively lower-level IRs, into kernels for a specific target \u2014 applying domain-specific optimizations along the way: operator FUSION (removing intermediate memory round trips), layout selection, tiling for the memory hierarchy, and choosing algorithms per shape. It matters for accelerators because new hardware only becomes usable if a compiler can map PyTorch graphs onto it \u2014 which is exactly the \"adding backends for accelerators\" work. MLIR provides reusable infrastructure for defining these multi-level IRs rather than each project inventing its own.",
+  "tags": [
+   "compilers",
+   "ml-systems"
+  ]
+ },
+ {
+  "id": "cm-abi-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is an ABI, and what specifically does a calling convention decide?",
+  "src": {
+   "book": "crafting",
+   "ref": "Code generation; systems interface"
+  },
+  "reveal": "An Application Binary Interface is the machine-level contract letting separately compiled code interoperate: data type sizes and alignment, struct layout, name mangling, and the calling convention. The CALLING CONVENTION decides which arguments go in which registers versus on the stack, where the return value goes, which registers the caller must save versus the callee, stack alignment requirements, and how the stack is cleaned up. Getting it wrong produces garbage arguments or corrupted stacks \u2014 and it is why C++ name mangling differs across compilers and why extern \"C\" exists.",
+  "tags": [
+   "compilers",
+   "cpp"
+  ]
+ }
+]

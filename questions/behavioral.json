@@ -1,0 +1,170 @@
+[
+ {
+  "id": "b-star-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "State the STAR structure and the single most common way engineers get it wrong.",
+  "src": {
+   "book": "star",
+   "ref": "STAR method \u2014 structure"
+  },
+  "reveal": "Situation (brief context), Task (what YOU specifically had to do), Action (the steps you took, in first person singular), Result (quantified outcome). The most common failure is spending 80% of the time on Situation and Action and almost none on Result \u2014 or saying \"we\" throughout, so the interviewer cannot tell what YOU did. Budget roughly 15% Situation, 15% Task, 50% Action, 20% Result, and make the Result a NUMBER wherever one exists.",
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-tellme-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Tell me about yourself.\" Draft the 90-second version aimed at an ML-systems / low-latency role.",
+  "src": {
+   "book": "star",
+   "ref": "Opening pitch"
+  },
+  "reveal": "Structure: (1) One line on what you are now \u2014 systems C++ engineer, ~6 years at Microsoft on Windows platform work. (2) Two or three concrete anchors that prove depth \u2014 startup latency taken from seconds to tens of milliseconds, memory footprint cut by ~half, SDK APIs adopted by OEM partners. (3) The pivot and WHY \u2014 that performance work is fundamentally about memory movement and hardware behaviour, which is the same problem ML systems face, and what you have been building toward it. (4) Why THIS role, specifically. Do not narrate your r\u00e9sum\u00e9 chronologically \u2014 select only what supports the story for this job.",
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-perf-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Tell me about your most technically challenging project.\" Structure it around the Game Bar startup optimization.",
+  "src": {
+   "book": "star",
+   "ref": "Impact story \u2014 performance"
+  },
+  "reveal": "Situation: Game Bar Settings widget took 1\u20134 seconds to open, on a surface used by millions of Windows gamers. Task: your ownership of making it feel instant. Action: this is where you must be SPECIFIC \u2014 how you measured (ETW traces, profiling), what you found (synchronous work on the UI thread), what you changed (refactoring to concurrent execution), and what you rejected and why. Result: 25\u201350ms cold, ~10ms warm \u2014 a 40\u2013160\u00d7 improvement. Rehearse the ACTION section hardest: interviewers probe how you found the cause, not that you fixed it.",
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-debug-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Walk me through the hardest bug you have debugged.\" Use the UI thread starvation investigation.",
+  "src": {
+   "book": "star",
+   "ref": "Debugging story"
+  },
+  "reveal": "The story should demonstrate METHOD, not heroism. Situation: inconsistent frame delivery in Compact Mode \u2014 intermittent, which is what made it hard. Task: find the root cause. Action: the tools and the reasoning chain \u2014 WinDbg, ProcMon, SysInternals; what hypothesis each observation ruled in or out; the discovery that blocking operations were starving the UI thread. Result: converted to async patterns, consistent frame delivery. What interviewers want: how you NARROW a search space. Explicitly say what you thought it was first and why you were wrong \u2014 that reads as real.",
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-conflict-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Tell me about a disagreement with a colleague or manager.\" What makes a good answer versus a disqualifying one?",
+  "src": {
+   "book": "star",
+   "ref": "Conflict story"
+  },
+  "reveal": "A good answer shows you can hold a technical position, argue it with evidence, and then commit to the outcome regardless. Structure: the disagreement was about a DECISION, not a person; you presented data or a prototype rather than opinion; you genuinely engaged with their reasoning; and either you changed your mind (fine \u2014 shows updating) or the decision went your way and you owned the result. Disqualifying versions: making the other person look stupid, describing a conflict with no resolution, or claiming you have never disagreed with anyone \u2014 which reads as either passive or dishonest.",
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-failure-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Tell me about a time you failed.\" How do you answer without either faking humility or damaging yourself?",
+  "src": {
+   "book": "star",
+   "ref": "Failure story"
+  },
+  "reveal": "Pick a REAL failure with a bounded blast radius, own it in first person without hedging, and spend most of the answer on the systemic change you made afterwards \u2014 the lesson has to be transferable, not \"I learned to work harder.\" Avoid the humble-brag (\"I was too much of a perfectionist\"), which interviewers hear constantly and score as evasive. Also avoid failures that suggest a character problem (missed deadlines through negligence, ignoring a colleague\u2019s warning). The strongest shape: a technical judgement that turned out wrong, how you detected it, and the process you changed so the class of error cannot recur.",
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-ownership-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Tell me about something you owned end to end.\" Structure it around the vPack pipeline and security compliance work.",
+  "src": {
+   "book": "star",
+   "ref": "Ownership story"
+  },
+  "reveal": "This question tests whether you operate at a scope beyond assigned tickets. Anchors from your history: owning the Windows vPack packaging pipeline shipping to millions of Windows 10/11 users, migrating CI/CD to OneBranch YAML, implementing signing via Azure Key Vaults, achieving SDL compliance and SBOM generation, and serving as team security champion including running training. The through-line to state explicitly: you took responsibility for infrastructure nobody else wanted, made it a reliable system rather than a set of manual steps, and then TAUGHT it \u2014 which is what distinguishes ownership from task completion.",
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-influence-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Tell me about a time you influenced people without authority.\" Use the OEM SDK adoption.",
+  "src": {
+   "book": "star",
+   "ref": "Influence story"
+  },
+  "reveal": "Situation: external OEM partners (ASUS ROG Ally, Lenovo Legion Go) needed to integrate Game Bar Compact Mode as their handheld overlay \u2014 you could not direct them, only persuade. Task: design an API they would actually adopt. Action: what you did to understand their constraints, how you shaped the interface around their needs rather than your internal model, how you handled pushback. Result: three OEM partners shipped on it. The point the interviewer is listening for: you got a good outcome through alignment and design quality, not through escalation.",
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-ambiguity-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Describe a time you worked with unclear requirements.\" What does a strong answer demonstrate?",
+  "src": {
+   "book": "star",
+   "ref": "Ambiguity story"
+  },
+  "reveal": "It should demonstrate that you reduce ambiguity yourself rather than waiting to be told. Strong shape: you identified the ACTUAL question behind the vague ask, wrote down your interpretation and circulated it for correction, built the smallest thing that would test the assumption, and let the result narrow the scope. The device form-factor detection API is a natural anchor \u2014 unified runtime queries across docked and undocked states, eliminating duplicate code paths in Windows OOBE. Emphasize the decision you made under uncertainty and the checkpoint you set to catch it if wrong.",
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-why-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Why are you leaving Microsoft?\" and \"Why this role?\" \u2014 how do you answer both honestly without sounding negative?",
+  "src": {
+   "book": "star",
+   "ref": "Motivation questions"
+  },
+  "reveal": "Frame it as a PULL, not a push. Never criticise Microsoft or a manager \u2014 interviewers read it as how you will describe them later. Honest and safe: you have gone deep on platform performance and hit the point where the interesting version of that problem lives closer to the hardware and to ML systems, and you have been deliberately building toward it. For \"why this role,\" be specific about THIS company and team \u2014 reference the actual work (accelerator runtimes, inference performance) and connect it to something you built. Generic enthusiasm reads as mass-applying.",
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-gap-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How do you handle a question about experience you genuinely do not have?",
+  "src": {
+   "book": "star",
+   "ref": "Handling gaps honestly"
+  },
+  "reveal": "State the gap plainly, then immediately demonstrate the adjacent depth you DO have and the concrete thing you have done to close it. \"I have not run production training jobs. What I have done is implement autograd and attention from the source equations, and I reason about these workloads the way I reason about any memory-bound system \u2014 here is the arithmetic-intensity analysis I did.\" Practitioners at frontier labs report that an honest \"I do not have practical exposure yet, but here is my theoretical understanding\" is a credible, well-received answer. Bluffing is not \u2014 the follow-up question always exposes it.",
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-questions-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "What should YOU ask at the end of an interview? Name three that actually help you.",
+  "src": {
+   "book": "star",
+   "ref": "Candidate questions"
+  },
+  "reveal": "Ask things that inform your decision and reveal how the team really works: (1) \"What does the first 90 days look like, and what would success mean at that point?\" \u2014 tests whether the role is defined. (2) \"What is the hardest technical problem the team is working on right now?\" \u2014 tells you if the work is real and lets you engage substantively. (3) \"How do decisions get made when engineers disagree?\" \u2014 reveals the culture more honestly than any values page. Avoid questions answerable from the careers page, and avoid asking only about perks.",
+  "tags": [
+   "behavioral"
+  ]
+ }
+]

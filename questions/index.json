@@ -1,5 +1,5 @@
 {
- "version": 6,
+ "version": 7,
  "topics": {
   "algorithms": {
    "file": "questions/algorithms.json",
@@ -40,6 +40,26 @@
   "mlfund": {
    "file": "questions/mlfund.json",
    "count": 19
+  },
+  "sysdesign": {
+   "file": "questions/sysdesign.json",
+   "count": 12
+  },
+  "databases": {
+   "file": "questions/databases.json",
+   "count": 12
+  },
+  "networking": {
+   "file": "questions/networking.json",
+   "count": 12
+  },
+  "compilers": {
+   "file": "questions/compilers.json",
+   "count": 12
+  },
+  "behavioral": {
+   "file": "questions/behavioral.json",
+   "count": 12
   }
  }
 }

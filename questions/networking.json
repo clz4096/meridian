@@ -1,0 +1,182 @@
+[
+ {
+  "id": "n-tcpstate-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Walk the TCP three-way handshake and connection teardown. Why does TIME_WAIT exist?",
+  "src": {
+   "book": "kurose",
+   "ref": "Computer Networking: A Top-Down Approach \u2014 Ch.3"
+  },
+  "reveal": "Handshake: client SYN \u2192 server SYN-ACK \u2192 client ACK, establishing sequence numbers in both directions. Teardown is four-way: each side sends FIN and receives ACK independently, since the connection is full-duplex and one side may keep sending. TIME_WAIT (2\u00d7MSL on the side that closed first) exists for two reasons: to absorb a retransmitted FIN so the peer\u2019s close completes, and to prevent delayed packets from an old connection being delivered to a NEW connection reusing the same four-tuple. It is why a restarted server hits \"address already in use\" without SO_REUSEADDR.",
+  "tags": [
+   "networking",
+   "systems"
+  ]
+ },
+ {
+  "id": "n-congestion-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Explain TCP congestion control: slow start, congestion avoidance, and what a loss signals.",
+  "src": {
+   "book": "kurose",
+   "ref": "Ch.3 Transport layer"
+  },
+  "reveal": "SLOW START grows the congestion window EXPONENTIALLY (doubling each RTT) until a threshold, probing capacity quickly. CONGESTION AVOIDANCE then grows it linearly (additive increase) to probe gently. A loss is interpreted as a congestion signal: three duplicate ACKs trigger fast retransmit and halve the window (multiplicative decrease); a timeout is treated as severe, collapsing the window to one. This AIMD behavior is what makes TCP fair and stable across shared links. Modern variants (CUBIC, BBR) change the growth function \u2014 BBR notably models bandwidth and RTT instead of treating loss as the only signal.",
+  "tags": [
+   "networking",
+   "systems"
+  ]
+ },
+ {
+  "id": "n-headofline-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is head-of-line blocking, and how do HTTP/2 and HTTP/3 each address it?",
+  "src": {
+   "book": "kurose",
+   "ref": "Ch.2 Application layer"
+  },
+  "reveal": "Head-of-line blocking is when one delayed item stalls everything queued behind it. HTTP/1.1 has it at the REQUEST level \u2014 one response must complete before the next on that connection. HTTP/2 fixes that with multiplexed streams over one connection, but reintroduces it at the TCP level: a single lost packet stalls ALL streams, because TCP must deliver bytes in order. HTTP/3 moves to QUIC over UDP, where each stream has independent delivery, so a loss affecting one stream does not block the others. It also folds the TLS handshake into the transport handshake, cutting setup round trips.",
+  "tags": [
+   "networking",
+   "systems"
+  ]
+ },
+ {
+  "id": "n-tls-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What does the TLS handshake accomplish, and what is the difference between a session key and the certificate keypair?",
+  "src": {
+   "book": "kurose",
+   "ref": "Ch.8 Security"
+  },
+  "reveal": "It authenticates the server (and optionally the client), negotiates the cipher suite, and establishes a shared SYMMETRIC session key. The certificate keypair is ASYMMETRIC and long-lived: the server proves it holds the private key matching the certificate a CA signed. That asymmetric operation is expensive, so it is used only to authenticate and to agree on a fresh short-lived SYMMETRIC session key (via ECDHE), which then encrypts the actual traffic cheaply. Ephemeral key exchange also gives forward secrecy \u2014 stealing the server key later does not decrypt past sessions.",
+  "tags": [
+   "networking",
+   "systems"
+  ]
+ },
+ {
+  "id": "n-nagle-net-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Why does a request/response protocol sometimes see mysterious ~40ms latency spikes over TCP?",
+  "src": {
+   "book": "kurose",
+   "ref": "Ch.3 Transport layer"
+  },
+  "reveal": "The interaction of Nagle\u2019s algorithm and delayed ACK. Nagle holds a small write until the previous data is acknowledged; delayed ACK holds the acknowledgement up to ~40ms hoping to piggyback it on a response. Each waits for the other, producing a stall that resolves only when the delayed-ACK timer fires. The fix is TCP_NODELAY on the socket, which disables Nagle \u2014 standard practice for any latency-sensitive service.",
+  "tags": [
+   "networking",
+   "hft"
+  ]
+ },
+ {
+  "id": "n-multicast-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why does market data use UDP multicast rather than TCP? What must the application then handle?",
+  "src": {
+   "book": "unp",
+   "ref": "Stevens UNP \u2014 multicast"
+  },
+  "reveal": "Multicast sends ONE packet that the network replicates to all subscribers, so adding a receiver costs the sender nothing \u2014 essential when hundreds of consumers need the same feed. UDP is chosen because a retransmitted stale quote is worthless: you would rather drop it and take the next update than wait and fall behind. The application must then handle what TCP would have: SEQUENCE NUMBERS to detect gaps and reordering, a recovery channel (a separate request for missed messages, often a TCP replay service), and often an A/B feed \u2014 the same data on two paths, arbitrated by taking whichever arrives first.",
+  "tags": [
+   "networking",
+   "hft"
+  ]
+ },
+ {
+  "id": "n-kernelbypass-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "What is kernel bypass networking, what does it eliminate, and what do you give up?",
+  "src": {
+   "book": "unp",
+   "ref": "Kernel bypass; DPDK/Onload"
+  },
+  "reveal": "Kernel bypass maps the NIC\u2019s queues directly into user space (DPDK, Solarflare Onload, RDMA), so packets move between the application and the wire without entering the kernel network stack. It eliminates: the syscall transition, the copy between kernel and user buffers, interrupt handling and scheduling latency, and the generic stack\u2019s per-packet processing \u2014 taking round trips from tens of microseconds to low single digits. What you give up: the kernel\u2019s TCP implementation (you use a user-space stack or raw UDP), standard tooling like tcpdump and iptables, ordinary socket portability, and a dedicated busy-polling core per interface.",
+  "tags": [
+   "networking",
+   "hft"
+  ]
+ },
+ {
+  "id": "n-layers-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Name the layers a packet traverses from your application to the wire and what each adds.",
+  "src": {
+   "book": "kurose",
+   "ref": "Ch.1 Computer networks and the Internet"
+  },
+  "reveal": "APPLICATION produces the message (HTTP, FIX). TRANSPORT (TCP/UDP) adds ports and, for TCP, sequencing and reliability \u2014 producing a segment. NETWORK (IP) adds source and destination IP addresses for routing \u2014 a datagram. LINK (Ethernet) adds MAC addresses for the next hop and a frame check sequence \u2014 a frame. PHYSICAL transmits the bits. Each layer encapsulates the one above, which is why MTU matters: headers at every layer eat into the payload, and exceeding the path MTU causes fragmentation or drops.",
+  "tags": [
+   "networking",
+   "systems"
+  ]
+ },
+ {
+  "id": "n-latencybudget-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Break down where the microseconds go in a network round trip inside a datacenter.",
+  "src": {
+   "book": "unp",
+   "ref": "Latency analysis"
+  },
+  "reveal": "Roughly: application processing and serialization (variable, often the biggest and most controllable), kernel network stack ~5\u201310\u00b5s each way (eliminated by bypass), NIC processing and DMA ~1\u20132\u00b5s, wire propagation ~5ns per meter (so 100m is only 0.5\u00b5s), and each switch hop ~0.5\u20131\u00b5s store-and-forward (less with cut-through). Total intra-datacenter round trip is typically 20\u2013100\u00b5s ordinarily, or single-digit microseconds tuned with bypass and cut-through switches. The lesson: distance is rarely the problem inside a building \u2014 software layers are.",
+  "tags": [
+   "networking",
+   "hft"
+  ]
+ },
+ {
+  "id": "n-dns-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Trace a DNS resolution end to end, and explain why TTL choice is an operational tradeoff.",
+  "src": {
+   "book": "kurose",
+   "ref": "Ch.2 Application layer (DNS)"
+  },
+  "reveal": "The resolver checks its cache, then asks a recursive resolver, which (on a miss) queries a root server for the TLD nameserver, that TLD server for the authoritative nameserver, and that authoritative server for the record \u2014 caching each answer for its TTL. The TTL tradeoff: a LONG TTL means fewer lookups and faster, more resilient resolution, but a change (a failover to a new IP) propagates slowly and stale clients keep hitting a dead host. A SHORT TTL makes failover fast but multiplies query load and adds resolution latency to cold requests. Systems needing fast failover use low TTLs plus health-checked load balancers rather than relying on DNS alone.",
+  "tags": [
+   "networking",
+   "systems"
+  ]
+ },
+ {
+  "id": "n-lb-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Compare L4 and L7 load balancing. What can each see and do?",
+  "src": {
+   "book": "kurose",
+   "ref": "Load balancing"
+  },
+  "reveal": "An L4 balancer works at the transport layer: it sees IPs and ports only, and forwards connections \u2014 fast, protocol-agnostic, low overhead, but it cannot route on URL path, header, or cookie, and a single long connection pins to one backend. An L7 balancer terminates the connection and parses the application protocol, so it can route by path or header, retry idempotent requests on a different backend, do TLS termination, rate limiting, and per-request load spreading over multiplexed connections. The cost is CPU, added latency, and being protocol-specific.",
+  "tags": [
+   "networking",
+   "systems"
+  ]
+ },
+ {
+  "id": "n-socketopts-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Name the socket options that actually matter for a low-latency server and what each does.",
+  "src": {
+   "book": "unp",
+   "ref": "Stevens UNP \u2014 socket options"
+  },
+  "reveal": "TCP_NODELAY disables Nagle so small writes go immediately. SO_REUSEADDR allows rebinding a port still in TIME_WAIT; SO_REUSEPORT lets multiple sockets bind the same port so the kernel load-balances across worker threads. SO_RCVBUF/SO_SNDBUF size the kernel buffers \u2014 too small throttles throughput, too large adds queueing latency. SO_BUSY_POLL makes the socket poll the device rather than sleep, cutting wakeup latency. SO_TIMESTAMPING gives hardware receive timestamps, essential for measuring true wire-to-application latency.",
+  "tags": [
+   "networking",
+   "hft"
+  ]
+ }
+]

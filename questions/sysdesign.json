@@ -1,0 +1,179 @@
+[
+ {
+  "id": "sd-lob-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Design a limit order book. What data structures give you the required operations, and what are they?",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Matching engine design"
+  },
+  "reveal": "Required operations: add order, cancel order by id, and match incoming orders against the best price \u2014 all needing best-price access in O(1) and price-level updates in O(log n) or better. Standard design: a sorted map from price \u2192 price level (bids descending, asks ascending), where each price level holds a FIFO queue of orders preserving time priority; plus a hash map from order id \u2192 a pointer/iterator into that queue so cancels are O(1) without scanning. Best bid/ask is the first entry of each map. Production systems replace the sorted map with an array indexed by price ticks, since the price range is bounded \u2014 turning O(log n) into O(1).",
+  "tags": [
+   "sysdesign",
+   "hft"
+  ]
+ },
+ {
+  "id": "sd-matching-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Describe the matching engine loop. What must be deterministic and why?",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Matching engine design"
+  },
+  "reveal": "A single-threaded loop consumes a sequenced input stream: for each incoming order, walk the opposite side from the best price, matching while the price crosses and quantity remains, emitting fills; any residual rests on the book (or is cancelled for IOC/FOK). It must be fully DETERMINISTIC \u2014 the same input sequence must always produce the same output \u2014 because that is what allows a hot standby to replay the same input and hold identical state for instant failover, and what makes the system auditable and replayable for debugging. Determinism is why matching is single-threaded: parallelism would introduce ordering nondeterminism for a component that is rarely the bottleneck anyway.",
+  "tags": [
+   "sysdesign",
+   "hft"
+  ]
+ },
+ {
+  "id": "sd-mdpipeline-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Design a market data pipeline from the wire to a strategy. Where are the queues and what are the failure modes?",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Market data systems"
+  },
+  "reveal": "Wire \u2192 NIC (hardware timestamp) \u2192 kernel-bypass receive on a pinned core \u2192 decode the binary protocol \u2192 normalize into an internal format \u2192 publish to consumers via a lock-free SPSC/SPMC ring buffer per consumer \u2192 strategy. Queues sit between decode and each consumer, and they must be BOUNDED with an explicit overflow policy. Failure modes: sequence gaps (detect via sequence numbers, request replay), a slow consumer backing up the pipeline (drop and signal rather than block the feed), burst overload at market open, and silent data staleness \u2014 so a heartbeat and a staleness alarm are mandatory.",
+  "tags": [
+   "sysdesign",
+   "hft"
+  ]
+ },
+ {
+  "id": "sd-ratelimit-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Design a rate limiter. Compare token bucket, leaky bucket, and sliding window.",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Rate limiting"
+  },
+  "reveal": "TOKEN BUCKET refills tokens at a fixed rate up to a capacity; each request spends one. It allows bursts up to the bucket size, which is usually what you want. LEAKY BUCKET drains at a constant rate, smoothing output completely but rejecting bursts. FIXED WINDOW counters are simplest but permit double the limit at a window boundary; SLIDING WINDOW LOG stores timestamps for exactness at high memory cost, and sliding window COUNTER interpolates between two fixed windows as a good compromise. Distributed enforcement needs shared state \u2014 typically Redis with an atomic Lua script, or per-node limits with a safety margin.",
+  "tags": [
+   "sysdesign",
+   "systems"
+  ]
+ },
+ {
+  "id": "sd-idgen-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Design a distributed unique ID generator. Why not UUIDs, and what does Snowflake do?",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Distributed ID generation"
+  },
+  "reveal": "Random UUIDv4s are unique but have poor locality: as a primary key they scatter B-tree inserts across the whole index, hurting write throughput and cache behaviour, and they are 128 bits. SNOWFLAKE packs a 64-bit integer as timestamp | machine id | per-millisecond sequence \u2014 giving IDs that are unique without coordination, roughly time-SORTABLE (so inserts append to the index), and compact. The catches: it needs unique machine ids assigned somehow, and clock skew or NTP stepping backwards can produce duplicates, so implementations refuse to issue IDs while the clock is behind the last-seen timestamp.",
+  "tags": [
+   "sysdesign",
+   "distributed"
+  ]
+ },
+ {
+  "id": "sd-urlshort-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Design a URL shortener. What is the ID scheme, and where does the read load go?",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Classic system design"
+  },
+  "reveal": "Generate a unique 64-bit id (counter or Snowflake), then base62-encode it into a short string \u2014 giving ~3.5 trillion codes in 7 characters, no collision checking needed. Store id \u2192 long URL in a key-value store. The workload is overwhelmingly READS, so the path is: CDN/edge cache \u2192 an in-memory cache (the popular tail is tiny relative to the corpus) \u2192 datastore only on a miss. Redirects should be 302 if you need analytics on every hit, 301 if you want browsers to cache and cut load. Custom aliases need a uniqueness check; expiry needs a TTL sweep.",
+  "tags": [
+   "sysdesign"
+  ]
+ },
+ {
+  "id": "sd-feed-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Design a news feed. Contrast fan-out on write versus fan-out on read.",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Classic system design"
+  },
+  "reveal": "FAN-OUT ON WRITE pushes each new post into every follower\u2019s precomputed timeline: reads are a single cheap lookup, but a celebrity with 50 million followers makes one write catastrophically expensive. FAN-OUT ON READ assembles the timeline at request time by merging the posts of everyone you follow: writes are trivial, reads are expensive and hard to cache. Real systems go HYBRID \u2014 fan out on write for ordinary accounts, and for high-follower accounts merge their posts in at read time. The decision is driven entirely by the follower-count distribution, which is heavy-tailed.",
+  "tags": [
+   "sysdesign",
+   "distributed"
+  ]
+ },
+ {
+  "id": "sd-chat-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Design a chat system. How do messages reach an offline user, and how do you guarantee ordering?",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Classic system design"
+  },
+  "reveal": "Clients hold a persistent connection (WebSocket) to a gateway; a session registry maps user \u2192 gateway node so a message can be routed to the right connection. Messages are written to durable storage FIRST, then pushed \u2014 so an offline user simply fetches everything after their last-acknowledged message id on reconnect. Ordering within a conversation comes from a per-conversation monotonic sequence number assigned server-side (client clocks are untrustworthy); clients sort by it and can detect gaps. Delivery is at-least-once with client-side deduplication on message id, since exactly-once delivery is not achievable.",
+  "tags": [
+   "sysdesign",
+   "distributed"
+  ]
+ },
+ {
+  "id": "sd-metrics-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What do you monitor in a production service? Distinguish the four golden signals from vanity metrics.",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Observability"
+  },
+  "reveal": "The four golden signals: LATENCY (and specifically the tail \u2014 p99/p99.9, not the mean, since averages hide the pain), TRAFFIC (requests per second), ERRORS (rate and type, including silent failures like empty responses), and SATURATION (how close resources are to their limit \u2014 queue depth, connection pool usage, CPU). Vanity metrics are things like total lifetime requests or average response time, which look reassuring and change nothing. The operating rule: alert on symptoms users feel (latency, errors), graph causes (saturation) for diagnosis, and always measure percentiles.",
+  "tags": [
+   "sysdesign",
+   "systems"
+  ]
+ },
+ {
+  "id": "sd-capacity-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How do you do a back-of-the-envelope capacity estimate? Work through a service with 10M daily users.",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Capacity planning"
+  },
+  "reveal": "Convert to per-second, then apply a peak multiplier. 10M daily users \u00d7 say 20 requests = 200M requests/day; divided by 86,400 \u2248 2,300 rps average; peak is typically 2\u20133\u00d7 average, so plan for ~7,000 rps. Storage: requests \u00d7 bytes stored per request \u00d7 retention. Bandwidth: rps \u00d7 average payload. Then sanity-check against known limits \u2014 a single modern server handles thousands of simple rps, a database maybe 10k reads/sec from cache and far fewer writes. The point is not precision, it is an order of magnitude that tells you whether this is one box or a hundred.",
+  "tags": [
+   "sysdesign"
+  ]
+ },
+ {
+  "id": "sd-tradeoffs-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "In a system design interview, what should you establish BEFORE proposing an architecture?",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Interview method"
+  },
+  "reveal": "Requirements and constraints, explicitly. Functional: what exactly must it do, and what is out of scope. Non-functional: expected scale (users, rps, data volume), read/write ratio, latency target, consistency requirement (can a read be stale?), availability target, and durability. Then do a rough capacity estimate so the numbers drive the design. Only then sketch the high-level components, and only after that go deep on the one or two pieces that are actually hard. Jumping straight to boxes and arrows without pinning the requirements is the most common failure \u2014 it produces a design that cannot be evaluated.",
+  "tags": [
+   "sysdesign"
+  ]
+ },
+ {
+  "id": "sd-degrade-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How should a system behave under overload? Name the patterns.",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Reliability patterns"
+  },
+  "reveal": "Fail fast and shed load rather than queue indefinitely \u2014 a request the user has already abandoned costs you capacity for nothing. Patterns: LOAD SHEDDING (reject a fraction early with a clear 429/503), CIRCUIT BREAKER (stop calling a failing dependency for a cooldown so it can recover, and to avoid piling up threads), BULKHEAD (separate resource pools per dependency so one slow service cannot exhaust all threads), TIMEOUTS on every call with retry plus exponential backoff and JITTER, and GRACEFUL DEGRADATION (serve stale cached data or a reduced feature set instead of an error). The unifying idea: bounded queues and explicit behaviour when they are full.",
+  "tags": [
+   "sysdesign",
+   "distributed"
+  ]
+ }
+]
