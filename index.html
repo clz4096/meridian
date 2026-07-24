@@ -282,9 +282,21 @@ function cloudId(){ try{ return localStorage.getItem('meridian_pantry_id')||''; 
 function setCloudId(v){ try{ localStorage.setItem('meridian_pantry_id', v||''); }catch(e){} }
 function cloudEnabled(){ return !!cloudId(); }
 
-async function cloudPush(){
+function baseRev(){ return parseInt(lsGet('meridian_base_rev')||'0',10)||0; }
+function setBaseRev(r){ try{ localStorage.setItem('meridian_base_rev', String(r)); }catch(e){} }
+
+// Push with optimistic concurrency: refuse to overwrite if the cloud has moved
+// on since we last pulled. force=true is only used by an explicit user override.
+async function cloudPush(force){
   const id=cloudId(); if(!id) return {ok:false,err:'no id'};
-  const payload={ syncedAt:Date.now(),
+  // read current cloud revision first
+  let cloudRev=0, cloudAt=0;
+  try{ const cur=await cloudPull(); if(cur.ok&&cur.data){ cloudRev=+cur.data.rev||0; cloudAt=+cur.data.syncedAt||0; } }catch(e){}
+  if(!force && cloudRev > baseRev()){
+    return {ok:false, conflict:true, cloudRev, cloudAt,
+            err:'Cloud has newer changes (rev '+cloudRev+' vs your '+baseRev()+'). Pull first, then save again.'};
+  }
+  const payload={ rev:cloudRev+1, syncedAt:Date.now(),
     core: JSON.stringify(CORE),
     overload: await rawGet(KEYS.overload),
     surplus:  await rawGet(KEYS.surplus),
@@ -294,7 +306,8 @@ async function cloudPush(){
     const r=await fetch(PANTRY_BASE+'/'+encodeURIComponent(id)+'/basket/'+BASKET,{
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     if(!r.ok) return {ok:false,err:'HTTP '+r.status};
-    return {ok:true,at:payload.syncedAt};
+    setBaseRev(payload.rev);
+    return {ok:true,at:payload.syncedAt,rev:payload.rev};
   }catch(e){ return {ok:false,err:e.message}; }
 }
 async function cloudPull(){
@@ -320,6 +333,9 @@ async function cloudApply(d, stamp){
   await put(KEYS.overload, d.overload);
   await put(KEYS.surplus, d.surplus);
   await put(KEYS.csgraph, d.csgraph);
+  try{ localStorage.setItem('meridian_local_mtime', String(now));
+       localStorage.setItem('meridian_cloud_mtime', String(now)); }catch(e){}
+  setBaseRev(+(d&&d.rev)||0);
 }
 
 function markDirty(){
@@ -386,7 +402,13 @@ async function saveAll(silent){
     if(t) t.textContent='Syncing\u2026';
     let r={ok:false,err:'unknown'};
     try{ r=await cloudPush(); }catch(e){ r={ok:false,err:e.message}; }
-    if(!r.ok){ if(t) t.textContent='Saved locally \u00b7 cloud sync failed'; }
+    if(!r.ok){
+      if(r.conflict){
+        if(t) t.textContent='Saved locally \u00b7 CLOUD CONFLICT \u2014 pull first';
+        if(c) c.className='savefab dirty';
+        if(!silent) alert('Saved on this device, but NOT to the cloud.\n\n'+r.err+'\n\nAnother device saved changes after your last sync. Open Data \u2192 Pull now to get them, then save again.');
+      } else if(t) t.textContent='Saved locally \u00b7 cloud sync failed';
+    }
     else { try{ localStorage.setItem('meridian_cloud_mtime', String(r.at||Date.now())); }catch(e){} paintSaveChip(); }
   }
   return ok;
@@ -552,6 +574,8 @@ function renderData(){
     + '<div class="note" style="margin-bottom:10px">Real cross-device sync via a free JSON store. <b>One-time setup:</b> go to <b>getpantry.cloud</b>, enter an email, copy the Pantry ID they give you, paste it below. Then every Save syncs, and every device pulls the latest on open. Your Pantry ID stays on this device only.</div>'
     + '<div class="mrow"><input id="d-pantry" placeholder="Paste Pantry ID here" style="flex:1;min-width:180px" value="'+ (cloudId()||'') +'"><button class="mbtn primary" id="d-pantry-save">Save ID</button></div>'
     + '<div class="mrow" style="margin-top:8px"><button class="mbtn" id="d-test">Test connection</button><button class="mbtn" id="d-push">\u2601\u2191 Push now</button><button class="mbtn" id="d-pull">\u2601\u2193 Pull now</button></div>'
+    + '<div class="mrow" style="margin-top:8px"><button class="mbtn" id="d-diag">Sync status</button></div>'
+    + '<div id="d-diagout" class="note" style="margin-top:6px;font-family:var(--mono);font-size:11px;white-space:pre-line"></div>'
     + '<div id="d-cloudmsg" class="note" style="margin-top:6px">'+(cloudEnabled()?'Cloud sync is ON.':'Cloud sync is OFF \u2014 add a Pantry ID to enable.')+'</div>'
     + '<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>'
     + '<div class="mrow" style="margin-top:8px"><button class="mbtn" id="d-restore-snap">\u21ba Undo last cloud overwrite</button></div>'
@@ -574,6 +598,25 @@ function renderData(){
   const msg=(m,bad)=>{ const e=document.getElementById('d-msg'); e.style.color=bad?'var(--deficit)':'var(--ok)'; e.textContent=m; setTimeout(()=>{if(e)e.textContent='';},4000); };
   const cmsg=(m,bad)=>{ const e=document.getElementById('d-cloudmsg'); if(!e)return; e.style.color=bad?'var(--deficit)':'var(--teal)'; e.textContent=m; };
 
+  { const db=document.getElementById('d-diag'); if(db) db.onclick=async()=>{
+      const out=document.getElementById('d-diagout'); out.textContent='Checking\u2026';
+      const lm=parseInt(lsGet('meridian_local_mtime')||'0',10)||0;
+      let cm=0, cloudOk='not configured', counts='';
+      if(cloudEnabled()){
+        const r=await cloudPull();
+        if(r.ok&&r.data){ cm=+r.data.syncedAt||0; cloudOk='reachable';
+          try{ const w=JSON.parse(r.data.overload||'{}'); counts='cloud workout days: '+Object.keys(w.days||{}).length; }catch(e){ counts='cloud workout: unreadable'; }
+        } else cloudOk='ERROR: '+(r.err||'no data');
+      }
+      let lw='local workout days: ?';
+      try{ const w=JSON.parse(lsGet(KEYS.overload)||'{}'); lw='local workout days: '+Object.keys(w.days||{}).length; }catch(e){}
+      out.textContent=
+        'cloud: '+cloudOk+'\n'+
+        'local saved:  '+(lm?new Date(lm).toLocaleString():'never')+'\n'+
+        'cloud saved:  '+(cm?new Date(cm).toLocaleString():'never')+'\n'+
+        (cm>lm?'\u2192 cloud is NEWER (boot will pull)':lm>cm?'\u2192 local is NEWER (boot will push)':'\u2192 in sync')+'\n'+
+        lw+'\n'+counts;
+    }; }
   { const rb=document.getElementById('d-restore-snap'); if(rb) rb.onclick=async()=>{
       const raw=lsGet('meridian_prev_snapshot');
       if(!raw){ cmsg('No snapshot found on this device.',true); return; }
@@ -607,7 +650,12 @@ function renderData(){
     cmsg('Pulling\u2026'); const r=await cloudPull();
     if(!r.ok){ cmsg('Pull failed: '+r.err,true); return; }
     if(!r.data){ cmsg('Cloud is empty. Push from another device first.',true); return; }
-    await cloudApply(r.data); cmsg('\u2713 Pulled '+(r.at?('from '+new Date(r.at).toLocaleString()):'')+'. Reloading\u2026');
+    const unsaved = (typeof dirty!=='undefined'&&dirty) || (typeof wkDirty!=='undefined'&&wkDirty) || (typeof sgDirty!=='undefined'&&sgDirty);
+    const lm=parseInt(lsGet('meridian_local_mtime')||'0',10)||0, cm=+r.data.syncedAt||0;
+    if(unsaved || lm>cm){
+      if(!confirm('WARNING: this device has changes the cloud does not have'+(unsaved?' (including unsaved edits)':'')+'.\n\nPulling REPLACES them with the cloud copy. A snapshot is kept (Data \u2192 Undo last cloud overwrite), but anything unsaved here will be lost.\n\nContinue?')){ cmsg('Pull cancelled.'); return; }
+    }
+    await cloudApply(r.data, +r.data.syncedAt||Date.now()); cmsg('\u2713 Pulled '+(r.at?('from '+new Date(r.at).toLocaleString()):'')+'. Reloading\u2026');
     setTimeout(()=>location.reload(),700);
   };
 
@@ -1646,16 +1694,17 @@ let pendingPush=false;
    so pending saves were lost. Force a synchronous-as-possible flush on the
    moments the OS gives us: visibilitychange->hidden, pagehide, beforeunload. */
 function flushAll(reason){
+  let wroteSomething=false;
   try{
     // Synchronous localStorage writes as the hard-kill backstop (window.storage/IDB may not finish).
-    if(typeof dirty!=='undefined' && dirty && coreHydrated){ lsSet(KEYS.core, JSON.stringify(CORE)); lsSet(KEYS.core+'__v', String(Date.now())); }
-    if(typeof wkDirty!=='undefined' && wkDirty && wkLoaded){ lsSet(KEYS.overload, JSON.stringify(WK)); lsSet(KEYS.overload+'__v', String(Date.now())); }
-    if(typeof sgDirty!=='undefined' && sgDirty && sgLoaded){ lsSet(KEYS.surplus, JSON.stringify(SG)); lsSet(KEYS.surplus+'__v', String(Date.now())); }
-    if(typeof KG!=='undefined' && KG && typeof kgLoaded!=='undefined' && kgLoaded && kgDirtyFlag){ lsSet(KEYS.csgraph, JSON.stringify(KG)); lsSet(KEYS.csgraph+'__v', String(Date.now())); }
+    if(typeof dirty!=='undefined' && dirty && coreHydrated){ lsSet(KEYS.core, JSON.stringify(CORE)); lsSet(KEYS.core+'__v', String(Date.now())); wroteSomething=true; }
+    if(typeof wkDirty!=='undefined' && wkDirty && wkLoaded){ lsSet(KEYS.overload, JSON.stringify(WK)); lsSet(KEYS.overload+'__v', String(Date.now())); wroteSomething=true; }
+    if(typeof sgDirty!=='undefined' && sgDirty && sgLoaded){ lsSet(KEYS.surplus, JSON.stringify(SG)); lsSet(KEYS.surplus+'__v', String(Date.now())); wroteSomething=true; }
+    if(typeof KG!=='undefined' && KG && typeof kgLoaded!=='undefined' && kgLoaded && kgDirtyFlag){ lsSet(KEYS.csgraph, JSON.stringify(KG)); lsSet(KEYS.csgraph+'__v', String(Date.now())); wroteSomething=true; }
     // Also kick the full async save (may complete on soft-close); harmless if it doesn't finish.
     saveAll(true);
     try{ localStorage.setItem('meridian_last_flush', new Date().toISOString()+' ('+(reason||'')+')');
-         localStorage.setItem('meridian_local_mtime', String(Date.now())); }catch(e){}
+         if(wroteSomething) localStorage.setItem('meridian_local_mtime', String(Date.now())); }catch(e){}
   }catch(e){}
 }
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushAll('hidden'); });
