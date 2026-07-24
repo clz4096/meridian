@@ -1018,9 +1018,11 @@ function renderWorkout(keepScroll){
     const todayLog=(WK.days[td]||[]).filter(s=>s.ex===ex);
     if(isCardio(ex)){
       const last=lastSession(ex,td); const pre=last?last.sets[last.sets.length-1]:{weight:'',reps:''};
-      h+='<div class="lift"><div class="lift-h"><span class="lift-name">'+esc(ex)+'</span><span class="cue hold">cardio</span></div>';
+      h+='<div class="lift" id="lift-'+id+'"><div class="lift-h"><span class="lift-name">'+esc(ex)+'</span>'
+        +'<a href="'+exVideo(ex)+'" target="_blank" rel="noopener" class="mbtn" style="padding:4px 9px;font-size:11px;text-decoration:none;margin-left:auto;margin-right:6px">\u25b6 form</a>'
+        +'<span class="cue hold">cardio</span></div>';
       h+='<div class="setrow"><input id="w-'+id+'-c" type="number" value="'+(pre.weight||'')+'"><span style="color:var(--dim)">spd/inc \u00d7</span><input id="r-'+id+'-c" type="number" value="'+(pre.reps||'')+'"><span style="color:var(--dim)">min</span><button class="mbtn primary" data-log="'+ex+'|cardio|w-'+id+'-c|r-'+id+'-c">Log</button></div>';
-      if(todayLog.length) h+='<div class="logged">'+todayLog.map(s=>'<span class="setpill" data-del="'+td+'|'+s.id+'">'+s.weight+'\u00d7'+s.reps+' \u00d7</span>').join('')+'</div>';
+      h+='<div class="logged" id="logged-'+id+'">'+todayLog.map(s=>'<span class="setpill" data-del="'+td+'|'+s.id+'">'+s.weight+'\u00d7'+s.reps+' \u00d7</span>').join('')+'</div>';
       h+='</div>'; return;
     }
     const plan=buildPlan(ex,td);
@@ -1472,9 +1474,9 @@ function renderWeight(){
    +'<button class="mbtn" id="preset-cu">+ Cook Unity · 900 / 40g</button>'
    +'</div></div>';
   // add meal (manual)
-  h+='<div class="panel mpanel"><p class="panel-t">Add meal</p><div class="mrow"><input id="m-name" placeholder="meal" style="flex:1;min-width:120px"><input id="m-cal" type="number" placeholder="kcal" style="width:80px"><input id="m-pro" type="number" placeholder="protein" style="width:90px"><button class="mbtn primary" id="m-add">Add</button></div>';
+  h+='<div class="panel mpanel"><p class="panel-t">Add meal</p><div class="mrow"><input id="meal-name" placeholder="meal" style="flex:1;min-width:120px"><input id="meal-cal" type="number" placeholder="kcal" style="width:80px"><input id="meal-pro" type="number" placeholder="protein" style="width:90px"><button class="mbtn primary" id="meal-add">Add</button></div><div id="meal-status" class="note" style="margin-top:6px"></div>';
   // AI estimate
-  h+='<div style="margin-top:10px"><p class="slabel" style="margin-bottom:6px">Or estimate from a description</p><div class="mrow"><input id="m-desc" placeholder="e.g. 2 eggs, oatmeal, banana, whole milk" style="flex:1;min-width:160px"><button class="mbtn" id="m-est">Estimate with AI</button></div><div id="m-eststatus" class="note" style="margin-top:6px"></div></div></div>';
+  h+='<div style="margin-top:10px"><p class="slabel" style="margin-bottom:6px">Or estimate from a description</p><div class="mrow"><input id="meal-desc" placeholder="e.g. 2 eggs, oatmeal, banana, whole milk" style="flex:1;min-width:160px"><button class="mbtn" id="meal-est">Estimate with AI</button></div><div id="meal-eststatus" class="note" style="margin-top:6px"></div></div></div>';
 
   paneWeight.innerHTML=h; wireWeight();
 }
@@ -1491,17 +1493,35 @@ function wireWeight(){
     const pt=prompt('Protein target (g):',SG.settings.proteinTarget||''); if(pt!==null&&pt!=='') SG.settings.proteinTarget=+pt;
     sgMarkDirty(); renderWeight();
   };
-  const addMeal=(name,cal,pro,est)=>{ if(!name) return; if(!SG.days[sgDate])SG.days[sgDate]=[]; SG.days[sgDate].push({id:Date.now()+Math.random(),name,cal:+cal||0,protein:+pro||0,est:!!est}); sgMarkDirty(); renderWeight(); };
+  const mstat=(msg,bad)=>{ const e=g('meal-status'); if(!e) return; e.style.color=bad?'var(--deficit)':'var(--ok)'; e.textContent=msg; setTimeout(()=>{ if(e) e.textContent=''; },2500); };
+  const addMeal=(name,cal,pro,est)=>{
+    const c=+cal||0, p=+pro||0;
+    name=(name||'').trim();
+    if(!name && !c && !p){ mstat('Enter a meal name, or calories/protein.',true); return; }
+    if(!name) name='Meal';                       // macros given but no label \u2014 still log it
+    if(!sgDate) sgDate=dstr();
+    if(!SG.days[sgDate]) SG.days[sgDate]=[];
+    SG.days[sgDate].push({id:Date.now()+Math.random(),name,cal:c,protein:p,est:!!est});
+    sgMarkDirty();
+    renderWeight();
+    mstat('\u2713 Added '+name+' \u00b7 '+c+' kcal \u00b7 '+p+'g');
+  };
   const tp=g('tad-plus'), tm=g('tad-minus');
   if(tp) tp.onclick=()=>{ SG.tad[sgDate]=((SG.tad[sgDate]||0)+1); sgMarkDirty(); renderWeight(); };
   if(tm) tm.onclick=()=>{ SG.tad[sgDate]=Math.max(0,(SG.tad[sgDate]||0)-1); sgMarkDirty(); renderWeight(); };
-  g('m-add').onclick=()=>addMeal(g('m-name').value.trim(), g('m-cal').value, g('m-pro').value, false);
+  const submitMeal=()=>{
+    const n=g('meal-name'), c=g('meal-cal'), p=g('meal-pro');
+    addMeal(n?n.value:'', c?c.value:'', p?p.value:'', false);
+    if(n) n.value=''; if(c) c.value=''; if(p) p.value='';
+  };
+  { const b=g('meal-add'); if(b) b.onclick=submitMeal; }
+  ['meal-name','meal-cal','meal-pro'].forEach(k=>{ const el=g(k); if(el) el.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); submitMeal(); } }); });
   { const b=g('preset-cp'); if(b) b.onclick=()=>addMeal('Core Power Elite',230,42,false); }
   { const b=g('preset-cu'); if(b) b.onclick=()=>addMeal('Cook Unity',900,40,false); }
   paneWeight.querySelectorAll('[data-delm]').forEach(el=>el.onclick=()=>{ const id=el.getAttribute('data-delm'); SG.days[sgDate]=(SG.days[sgDate]||[]).filter(m=>String(m.id)!==id); sgMarkDirty(); renderWeight(); });
-  g('m-est').onclick=async()=>{
-    const desc=g('m-desc').value.trim(); if(!desc) return;
-    const st=g('m-eststatus'); st.style.color='var(--muted)'; st.textContent='Estimating\u2026';
+  g('meal-est').onclick=async()=>{
+    const desc=g('meal-desc').value.trim(); if(!desc) return;
+    const st=g('meal-eststatus'); st.style.color='var(--muted)'; st.textContent='Estimating\u2026';
     try{
       const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
         model:'claude-sonnet-4-6',max_tokens:300,
