@@ -319,6 +319,99 @@ function cloudId(){ try{ return localStorage.getItem('meridian_pantry_id')||''; 
 function setCloudId(v){ try{ localStorage.setItem('meridian_pantry_id', v||''); }catch(e){} }
 function cloudEnabled(){ return !!cloudId(); }
 
+
+/* ================= MERGE-BASED SYNC =================
+   Timestamp "who wins" logic cannot work when both devices have real edits.
+   Instead we MERGE. The data is mostly append-only collections keyed by id,
+   which merge cleanly by union; scalars merge key-by-key with last-writer-wins.
+   Deletions carry tombstones so they propagate instead of resurrecting. */
+function tombSet(store){ const s=new Set(); Object.keys((store&&store._del)||{}).forEach(k=>s.add(String(k))); return s; }
+function tomb(store,id){ if(!store._del) store._del={}; store._del[String(id)]=Date.now(); }
+function pruneTombs(store,days){ const cut=Date.now()-(days||30)*864e5;
+  if(!store._del) return; Object.keys(store._del).forEach(k=>{ if(store._del[k]<cut) delete store._del[k]; }); }
+
+function mergeById(a,b,dead){
+  const out=new Map();
+  (a||[]).forEach(x=>{ if(x&&x.id!=null&&!dead.has(String(x.id))) out.set(String(x.id),x); });
+  (b||[]).forEach(x=>{ if(x&&x.id!=null&&!dead.has(String(x.id))) out.set(String(x.id),x); });
+  return [...out.values()];
+}
+function mergeDayMap(a,b,dead){
+  const out={}; new Set([...Object.keys(a||{}),...Object.keys(b||{})]).forEach(k=>{
+    out[k]=mergeById((a||{})[k],(b||{})[k],dead); if(!out[k].length) delete out[k];
+  });
+  return out;
+}
+function mergeScalarMap(a,b,aNewer){
+  const out={}; new Set([...Object.keys(a||{}),...Object.keys(b||{})]).forEach(k=>{
+    const av=(a||{})[k], bv=(b||{})[k];
+    out[k] = (av===undefined)?bv : (bv===undefined)?av : (aNewer?av:bv);
+  });
+  return out;
+}
+function mergeListMap(a,b){          // {date:[names]} -> union of names
+  const out={}; new Set([...Object.keys(a||{}),...Object.keys(b||{})]).forEach(k=>{
+    out[k]=[...new Set([...((a||{})[k]||[]),...((b||{})[k]||[])])];
+  });
+  return out;
+}
+function mergeWK(local,cloud,localNewer){
+  const L=local||{}, C=cloud||{};
+  const dead=new Set([...tombSet(L),...tombSet(C)]);
+  return { settings:mergeScalarMap(L.settings,C.settings,localNewer),
+           days:mergeDayMap(L.days,C.days,dead),
+           bw:mergeScalarMap(L.bw,C.bw,localNewer),
+           rpe:mergeScalarMap(L.rpe,C.rpe,localNewer),
+           done:mergeListMap(L.done,C.done),
+           sessionDone:mergeScalarMap(L.sessionDone,C.sessionDone,localNewer),
+           incr:mergeScalarMap(L.incr,C.incr,localNewer),
+           _del:Object.assign({},C._del||{},L._del||{}) };
+}
+function mergeSG(local,cloud,localNewer){
+  const L=local||{}, C=cloud||{};
+  const dead=new Set([...tombSet(L),...tombSet(C)]);
+  return { settings:mergeScalarMap(L.settings,C.settings,localNewer),
+           days:mergeDayMap(L.days,C.days,dead),
+           tad:mergeScalarMap(L.tad,C.tad,localNewer),
+           _del:Object.assign({},C._del||{},L._del||{}) };
+}
+function mergeCORE(local,cloud,localNewer){
+  const L=local||{}, C=cloud||{};
+  const dead=new Set([...tombSet(L),...tombSet(C)]);
+  return { schedule:mergeDayMap(L.schedule,C.schedule,dead),
+           entries:mergeById(L.entries,C.entries,dead),
+           _del:Object.assign({},C._del||{},L._del||{}) };
+}
+function mergeKG(local,cloud,localNewer){
+  const L=local||{}, C=cloud||{};
+  return { mastery:mergeScalarMap(L.mastery,C.mastery,localNewer),
+           srs:mergeScalarMap(L.srs,C.srs,localNewer),
+           gymDone:mergeScalarMap(L.gymDone,C.gymDone,localNewer),
+           log:mergeById(L.log,C.log,new Set()) };
+}
+function parseOr(s,f){ try{ return s?JSON.parse(s):f; }catch(e){ return f; } }
+
+// Merge a cloud payload into the live in-memory state, then persist.
+async function cloudMerge(d){
+  if(!d) return false;
+  const localNewer = (parseInt(lsGet('meridian_local_mtime')||'0',10)||0) >= (+d.syncedAt||0);
+  if(typeof CORE!=='undefined' && coreHydrated) CORE = mergeCORE(CORE, parseOr(d.core,{}), localNewer);
+  if(typeof WK!=='undefined'   && wkLoaded)     WK   = mergeWK(WK,   parseOr(d.overload,{}), localNewer);
+  if(typeof SG!=='undefined'   && sgLoaded)     SG   = mergeSG(SG,   parseOr(d.surplus,{}),  localNewer);
+  if(typeof KG!=='undefined'   && kgLoaded)     KG   = mergeKG(KG,   parseOr(d.csgraph,{}),  localNewer);
+  [WK,SG,CORE].forEach(s=>{ if(s) pruneTombs(s,30); });
+  const now=Date.now();
+  const put=async(k,v)=>{ lsSet(k,v); lsSet(k+'__v',String(now)); await IDB.set(k,v); await IDB.set(k+'__v',String(now)); };
+  if(coreHydrated) await put(KEYS.core, JSON.stringify(CORE));
+  if(wkLoaded)     await put(KEYS.overload, JSON.stringify(WK));
+  if(sgLoaded)     await put(KEYS.surplus, JSON.stringify(SG));
+  if(kgLoaded)     await put(KEYS.csgraph, JSON.stringify(KG));
+  try{ localStorage.setItem('meridian_local_mtime',String(now)); }catch(e){}
+  setBaseRev(+(d.rev)||0);
+  snapshotClean();
+  return true;
+}
+
 function baseRev(){ return parseInt(lsGet('meridian_base_rev')||'0',10)||0; }
 function setBaseRev(r){ try{ localStorage.setItem('meridian_base_rev', String(r)); }catch(e){} }
 
@@ -328,11 +421,10 @@ async function cloudPush(force){
   const id=cloudId(); if(!id) return {ok:false,err:'no id'};
   // read current cloud revision first
   let cloudRev=0, cloudAt=0;
-  try{ const cur=await cloudPull(); if(cur.ok&&cur.data){ cloudRev=+cur.data.rev||0; cloudAt=+cur.data.syncedAt||0; } }catch(e){}
-  if(!force && cloudRev > baseRev()){
-    return {ok:false, conflict:true, cloudRev, cloudAt,
-            err:'Cloud has newer changes (rev '+cloudRev+' vs your '+baseRev()+'). Pull first, then save again.'};
-  }
+  let cloudData=null;
+  try{ const cur=await cloudPull(); if(cur.ok&&cur.data){ cloudData=cur.data; cloudRev=+cur.data.rev||0; cloudAt=+cur.data.syncedAt||0; } }catch(e){}
+  // If the cloud moved on, MERGE it in first instead of rejecting the push.
+  if(cloudRev > baseRev() && cloudData){ await cloudMerge(cloudData); }
   const payload={ rev:cloudRev+1, syncedAt:Date.now(),
     core: JSON.stringify(CORE),
     overload: await rawGet(KEYS.overload),
@@ -357,24 +449,6 @@ async function cloudPull(){
   }catch(e){ return {ok:false,err:e.message}; }
 }
 // apply a pulled payload into all stores (cloud authoritative), then persist locally
-async function cloudApply(d, stamp){
-  // Use the CLOUD's own timestamp, never Date.now() — stamping a stale copy as
-  // "new" is what let old cloud data permanently overwrite good local data.
-  const now=+stamp || +(d&&d.syncedAt) || Date.now();
-  // safety snapshot so nothing is ever unrecoverable
-  try{ localStorage.setItem('meridian_prev_snapshot', JSON.stringify({
-    at:Date.now(), core:lsGet(KEYS.core), overload:lsGet(KEYS.overload),
-    surplus:lsGet(KEYS.surplus), csgraph:lsGet(KEYS.csgraph)})); }catch(e){}
-  const put=async(key,val)=>{ if(val==null) return; lsSet(key,val); lsSet(key+'__v',String(now)); await IDB.set(key,val); await IDB.set(key+'__v',String(now)); };
-  await put(KEYS.core, d.core);
-  await put(KEYS.overload, d.overload);
-  await put(KEYS.surplus, d.surplus);
-  await put(KEYS.csgraph, d.csgraph);
-  try{ localStorage.setItem('meridian_local_mtime', String(now));
-       localStorage.setItem('meridian_cloud_mtime', String(now)); }catch(e){}
-  setBaseRev(+(d&&d.rev)||0);
-}
-
 function markDirty(){
   dirty = true;
   paintSaveChip();
@@ -693,12 +767,8 @@ function renderData(){
     cmsg('Pulling\u2026'); const r=await cloudPull();
     if(!r.ok){ cmsg('Pull failed: '+r.err,true); return; }
     if(!r.data){ cmsg('Cloud is empty. Push from another device first.',true); return; }
-    const unsaved = (typeof dirty!=='undefined'&&dirty) || (typeof wkDirty!=='undefined'&&wkDirty) || (typeof sgDirty!=='undefined'&&sgDirty);
-    const lm=parseInt(lsGet('meridian_local_mtime')||'0',10)||0, cm=+r.data.syncedAt||0;
-    if(unsaved || lm>cm){
-      if(!confirm('WARNING: this device has changes the cloud does not have'+(unsaved?' (including unsaved edits)':'')+'.\n\nPulling REPLACES them with the cloud copy. A snapshot is kept (Data \u2192 Undo last cloud overwrite), but anything unsaved here will be lost.\n\nContinue?')){ cmsg('Pull cancelled.'); return; }
-    }
-    await cloudApply(r.data, +r.data.syncedAt||Date.now()); cmsg('\u2713 Pulled '+(r.at?('from '+new Date(r.at).toLocaleString()):'')+'. Reloading\u2026');
+
+    await cloudMerge(r.data); cmsg('\u2713 Pulled '+(r.at?('from '+new Date(r.at).toLocaleString()):'')+'. Reloading\u2026');
     setTimeout(()=>location.reload(),700);
   };
 
@@ -882,7 +952,7 @@ async function wkLoad(){
   const s=await rawGet(KEYS.overload);
   if(s){ try{ const st=JSON.parse(s);
     WK={settings:st.settings||{},days:st.days||{},bw:st.bw||{},rpe:st.rpe||{},
-        done:st.done||{}, sessionDone:st.sessionDone||{}, incr:st.incr||{}};   // these were being dropped
+        done:st.done||{}, sessionDone:st.sessionDone||{}, incr:st.incr||{}, _del:st._del||{}};   // these were being dropped
   }catch(e){ WK=null; } }
   // Fresh device / empty storage → seed from baked-in defaults IN MEMORY ONLY.
   // Do NOT write it back: if this was a transient empty read on a device that
@@ -1274,7 +1344,7 @@ function patchLift(ex){
   if(box){
     box.innerHTML=todayLog.map(s=>'<span class="setpill" data-del="'+td+'|'+s.id+'">'+(s.type&&s.type!=='cardio'?s.type[0].toUpperCase()+':':'')+s.weight+'\u00d7'+s.reps+' \u00d7</span>').join('');
     box.querySelectorAll('[data-del]').forEach(el=>{ el.onclick=()=>{ const [d,sid]=el.getAttribute('data-del').split('|');
-      WK.days[d]=(WK.days[d]||[]).filter(s=>String(s.id)!==sid); wkMarkDirty(); patchLift(ex); }; });
+      tomb(WK,sid); WK.days[d]=(WK.days[d]||[]).filter(s=>String(s.id)!==sid); wkMarkDirty(); patchLift(ex); }; });
   }
   // advance the ▶ current-set marker inside this card only
   const card=document.getElementById('lift-'+id);
@@ -1314,7 +1384,7 @@ function wireWorkout(){
   if(restTimer) paintRest();
   paneWorkout.querySelectorAll('[data-deload]').forEach(b=>b.onclick=()=>{ const ex=b.getAttribute('data-deload'); wkDeload[ex]=!wkDeload[ex]; renderWorkout(true); });
   paneWorkout.querySelectorAll('[data-log]').forEach(btn=>{ btn.onclick=()=>{ const [ex,type,wid,rid]=btn.getAttribute('data-log').split('|'); logSet(ex,type,+g(wid).value,+g(rid).value); startRest(ex,type); }; });
-  paneWorkout.querySelectorAll('[data-del]').forEach(el=>{ el.onclick=()=>{ const [d,id]=el.getAttribute('data-del').split('|'); WK.days[d]=(WK.days[d]||[]).filter(s=>String(s.id)!==id); wkMarkDirty(); renderWorkout(true); }; });
+  paneWorkout.querySelectorAll('[data-del]').forEach(el=>{ el.onclick=()=>{ const [d,id]=el.getAttribute('data-del').split('|'); tomb(WK,id); WK.days[d]=(WK.days[d]||[]).filter(s=>String(s.id)!==id); wkMarkDirty(); renderWorkout(true); }; });
   const cl=g('c-log'); if(cl) cl.onclick=()=>{ logSet(g('c-ex').value.trim(), g('c-type').value, +g('c-w').value, +g('c-r').value); };
 }
 
@@ -1730,7 +1800,7 @@ let sgLoaded=false, sgDirty=false, sgDate=null;
 
 function sgMarkDirty(){ sgDirty=true; paintSaveChip(); }
 async function sgLoad(){ const s=await rawGet(KEYS.surplus);
-  if(s){ try{ const st=JSON.parse(s); SG={settings:st.settings||{},days:st.days||{},tad:st.tad||{}}; }catch(e){ SG={settings:{},days:{},tad:{}}; } }
+  if(s){ try{ const st=JSON.parse(s); SG={settings:st.settings||{},days:st.days||{},tad:st.tad||{},_del:st._del||{}}; }catch(e){ SG={settings:{},days:{},tad:{}}; } }
   // Fresh device → bake in your real bulk targets so the header is correct immediately.
   const DEF={current:120,goal:147,maintenance:2200,surplus:500,proteinTarget:147};
   if(!SG.settings || Object.keys(SG.settings).length===0) SG.settings={...DEF};
@@ -1843,7 +1913,7 @@ function wireWeight(){
   ['meal-name','meal-cal','meal-pro'].forEach(k=>{ const el=g(k); if(el) el.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); submitMeal(); } }); });
   { const b=g('preset-cp'); if(b) b.onclick=()=>addMeal('Core Power Elite',230,42,false); }
   { const b=g('preset-cu'); if(b) b.onclick=()=>addMeal('Cook Unity',900,40,false); }
-  paneWeight.querySelectorAll('[data-delm]').forEach(el=>el.onclick=()=>{ const id=el.getAttribute('data-delm'); SG.days[sgDate]=(SG.days[sgDate]||[]).filter(m=>String(m.id)!==id); sgMarkDirty(); renderWeight(); });
+  paneWeight.querySelectorAll('[data-delm]').forEach(el=>el.onclick=()=>{ const id=el.getAttribute('data-delm'); tomb(SG,id); SG.days[sgDate]=(SG.days[sgDate]||[]).filter(m=>String(m.id)!==id); sgMarkDirty(); renderWeight(); });
   g('meal-est').onclick=async()=>{
     const desc=g('meal-desc').value.trim(); if(!desc) return;
     const st=g('meal-eststatus'); st.style.color='var(--muted)'; st.textContent='Estimating\u2026';
@@ -1879,26 +1949,29 @@ document.querySelectorAll('#tabbar button').forEach(b=>{
 });
 
 /* ================= BOOT ================= */
-let pendingPush=false;
+let pendingPush=false, pendingCloud=null;
 (async function init(){
   // If cloud is configured, pull first so this device shows the latest across devices.
   if(cloudEnabled()){
     try{
       const r=await cloudPull();
-      const localM = parseInt(lsGet('meridian_local_mtime')||'0',10)||0;
-      const cloudM = r.ok && r.data ? (+r.data.syncedAt||0) : 0;
-      const hasLocal = !!lsGet(KEYS.overload) || !!lsGet(KEYS.core);
-      if(r.ok && r.data && (!hasLocal || cloudM > localM)){
-        await cloudApply(r.data, cloudM);            // cloud is newer (or device is empty) \u2014 safe
-      } else if(hasLocal && localM > cloudM && cloudEnabled()){
-        pendingPush = true;                          // LOCAL is newer \u2014 push it up instead
-      }
+      if(r.ok && r.data){ pendingCloud = r.data; }   // merged after all stores load
     }catch(e){}
   }
   await loadCore();
   paintSaveChip();
   renderToday();
   document.getElementById('pane-study').classList.add('on'); renderStudy();
+  // ensure every store is loaded, then merge the cloud copy into all of them
+  if(pendingCloud){
+    try{ if(typeof wkLoad==='function') await wkLoad(); }catch(e){}
+    try{ if(typeof sgLoad==='function') await sgLoad(); }catch(e){}
+    try{ if(typeof kgLoad==='function') await kgLoad(); }catch(e){}
+    await cloudMerge(pendingCloud);
+    pendingCloud=null;
+    try{ renderToday(); renderStudy(); }catch(e){}
+    if(cloudEnabled()) pendingPush=true;   // publish the merged result
+  }
   await persistenceSelfTest();
   if(pendingPush){ try{ const r=await cloudPush(); if(r.ok) localStorage.setItem('meridian_cloud_mtime',String(r.at)); }catch(e){} }   // harness: verify storage actually persists across sessions
   // live clock refresh on Today (pause while typing)
@@ -1929,7 +2002,17 @@ function flushAll(reason){
          if(wroteSomething) localStorage.setItem('meridian_local_mtime', String(Date.now())); }catch(e){}
   }catch(e){}
 }
-document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushAll('hidden'); });
+document.addEventListener('visibilitychange',async()=>{
+  if(document.visibilityState==='hidden'){ flushAll('hidden'); return; }
+  // returning to the app: pull + merge so the other device's changes show up
+  if(cloudEnabled() && !anyDirty()){
+    try{ const r=await cloudPull(); if(r.ok&&r.data&&(+r.data.rev||0)>baseRev()){ await cloudMerge(r.data);
+      try{ renderToday(); renderStudy();
+        if(document.getElementById('pane-workout').classList.contains('on')) renderWorkout();
+        if(document.getElementById('pane-weight').classList.contains('on')) renderWeight();
+      }catch(e){} } }catch(e){}
+  }
+});
 window.addEventListener('pagehide',()=>flushAll('pagehide'));
 window.addEventListener('beforeunload',()=>flushAll('beforeunload'));
 
