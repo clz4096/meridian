@@ -350,26 +350,43 @@ async function commit(silent){
 // Explicit, awaited save of EVERY store. This is the button the user presses.
 async function saveAll(silent){
   const c=document.getElementById('savechip'), t=document.getElementById('savetxt');
-  if(c){ c.className='savefab saving'; t.textContent='Saving\u2026'; }
-  let ok=true;
-  try{
-    if(coreHydrated && dirty){ ok = (await rawSet(KEYS.core, JSON.stringify(CORE))) && ok; dirty=false; }
-    if(typeof wkLoaded!=='undefined' && wkLoaded && typeof wkDirty!=='undefined' && wkDirty){ ok=(await rawSet(KEYS.overload, JSON.stringify(WK)))&&ok; wkDirty=false; }
-    if(typeof sgLoaded!=='undefined' && sgLoaded && typeof sgDirty!=='undefined' && sgDirty){ ok=(await rawSet(KEYS.surplus, JSON.stringify(SG)))&&ok; sgDirty=false; }
-    if(typeof kgLoaded!=='undefined' && kgLoaded && typeof KG!=='undefined' && KG){ ok=(await rawSet(KEYS.csgraph, JSON.stringify(KG)))&&ok; if(typeof kgDirtyFlag!=='undefined') kgDirtyFlag=false; }
-  }catch(e){ ok=false; }
+  if(c){ c.className='savefab saving'; if(t) t.textContent='Saving\u2026'; }
+
+  // Each store saves INDEPENDENTLY and is VERIFIED by reading it back.
+  // (Previously all four shared one try/catch, so one failure silently
+  //  skipped every store after it — which is how workout data was lost.)
+  const jobs=[
+    {name:'schedule', key:KEYS.core,     ready:()=>coreHydrated,                            dirtyFn:()=>dirty,     clear:()=>{dirty=false;},        data:()=>JSON.stringify(CORE)},
+    {name:'workout',  key:KEYS.overload, ready:()=>(typeof wkLoaded!=='undefined'&&wkLoaded), dirtyFn:()=>(typeof wkDirty!=='undefined'&&wkDirty), clear:()=>{wkDirty=false;}, data:()=>JSON.stringify(WK)},
+    {name:'meals',    key:KEYS.surplus,  ready:()=>(typeof sgLoaded!=='undefined'&&sgLoaded), dirtyFn:()=>(typeof sgDirty!=='undefined'&&sgDirty), clear:()=>{sgDirty=false;}, data:()=>JSON.stringify(SG)},
+    {name:'knowledge',key:KEYS.csgraph,  ready:()=>(typeof kgLoaded!=='undefined'&&kgLoaded), dirtyFn:()=>true,     clear:()=>{ if(typeof kgDirtyFlag!=='undefined') kgDirtyFlag=false; }, data:()=>JSON.stringify(KG)}
+  ];
+  const failed=[], saved=[];
+  for(const j of jobs){
+    let ready=false; try{ ready=!!j.ready(); }catch(e){ ready=false; }
+    if(!ready) continue;
+    let isDirty=false; try{ isDirty=!!j.dirtyFn(); }catch(e){ isDirty=false; }
+    if(!isDirty) continue;
+    try{
+      const payload=j.data();
+      await rawSet(j.key, payload);
+      const back=await rawGet(j.key);           // VERIFY the write actually landed
+      if(back===payload){ j.clear(); saved.push(j.name); }
+      else { failed.push(j.name+' (verify)'); }
+    }catch(e){ failed.push(j.name+' ('+(e&&e.message?e.message:'error')+')'); }
+  }
+  const ok = failed.length===0;
   paintSaveChip();
+  if(!ok && c){ c.className='savefab dirty'; if(t) t.textContent='Save failed: '+failed.join(', '); console.error('Meridian save failures:',failed); }
   if(ok && !silent) flashSaved();
-  if(!ok && c){ c.className='savefab dirty'; t.textContent='Save failed \u2014 retry'; }
-  // push to cloud backend if configured (fire-and-forget; UI already saved locally)
-  if(ok){ try{ localStorage.setItem('meridian_local_mtime', String(Date.now())); }catch(e){} }
-  // AWAIT the push. Fire-and-forget meant swiping the app away could kill it mid-flight,
-  // leaving the cloud stale — which the next boot would then pull back over good local data.
-  if(ok && cloudEnabled()){
-    const c=document.getElementById('savechip'), t=document.getElementById('savetxt');
+  if(saved.length) try{ localStorage.setItem('meridian_local_mtime', String(Date.now())); }catch(e){}
+
+  // Cloud push is AWAITED so swiping the app away cannot kill it mid-flight.
+  if(ok && cloudEnabled() && saved.length){
     if(t) t.textContent='Syncing\u2026';
-    const r=await cloudPush();
-    if(!r.ok && t){ t.textContent='Saved locally \u00b7 cloud sync failed'; }
+    let r={ok:false,err:'unknown'};
+    try{ r=await cloudPush(); }catch(e){ r={ok:false,err:e.message}; }
+    if(!r.ok){ if(t) t.textContent='Saved locally \u00b7 cloud sync failed'; }
     else { try{ localStorage.setItem('meridian_cloud_mtime', String(r.at||Date.now())); }catch(e){} paintSaveChip(); }
   }
   return ok;
