@@ -307,8 +307,14 @@ async function cloudPull(){
   }catch(e){ return {ok:false,err:e.message}; }
 }
 // apply a pulled payload into all stores (cloud authoritative), then persist locally
-async function cloudApply(d){
-  const now=Date.now();
+async function cloudApply(d, stamp){
+  // Use the CLOUD's own timestamp, never Date.now() — stamping a stale copy as
+  // "new" is what let old cloud data permanently overwrite good local data.
+  const now=+stamp || +(d&&d.syncedAt) || Date.now();
+  // safety snapshot so nothing is ever unrecoverable
+  try{ localStorage.setItem('meridian_prev_snapshot', JSON.stringify({
+    at:Date.now(), core:lsGet(KEYS.core), overload:lsGet(KEYS.overload),
+    surplus:lsGet(KEYS.surplus), csgraph:lsGet(KEYS.csgraph)})); }catch(e){}
   const put=async(key,val)=>{ if(val==null) return; lsSet(key,val); lsSet(key+'__v',String(now)); await IDB.set(key,val); await IDB.set(key+'__v',String(now)); };
   await put(KEYS.core, d.core);
   await put(KEYS.overload, d.overload);
@@ -356,7 +362,16 @@ async function saveAll(silent){
   if(ok && !silent) flashSaved();
   if(!ok && c){ c.className='savefab dirty'; t.textContent='Save failed \u2014 retry'; }
   // push to cloud backend if configured (fire-and-forget; UI already saved locally)
-  if(ok && cloudEnabled()){ cloudPush().then(r=>{ if(!r.ok) console.warn('cloud push failed:',r.err); }); }
+  if(ok){ try{ localStorage.setItem('meridian_local_mtime', String(Date.now())); }catch(e){} }
+  // AWAIT the push. Fire-and-forget meant swiping the app away could kill it mid-flight,
+  // leaving the cloud stale — which the next boot would then pull back over good local data.
+  if(ok && cloudEnabled()){
+    const c=document.getElementById('savechip'), t=document.getElementById('savetxt');
+    if(t) t.textContent='Syncing\u2026';
+    const r=await cloudPush();
+    if(!r.ok && t){ t.textContent='Saved locally \u00b7 cloud sync failed'; }
+    else { try{ localStorage.setItem('meridian_cloud_mtime', String(r.at||Date.now())); }catch(e){} paintSaveChip(); }
+  }
   return ok;
 }
 function flashSaved(){
@@ -522,6 +537,9 @@ function renderData(){
     + '<div class="mrow" style="margin-top:8px"><button class="mbtn" id="d-test">Test connection</button><button class="mbtn" id="d-push">\u2601\u2191 Push now</button><button class="mbtn" id="d-pull">\u2601\u2193 Pull now</button></div>'
     + '<div id="d-cloudmsg" class="note" style="margin-top:6px">'+(cloudEnabled()?'Cloud sync is ON.':'Cloud sync is OFF \u2014 add a Pantry ID to enable.')+'</div>'
     + '<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>'
+    + '<div class="mrow" style="margin-top:8px"><button class="mbtn" id="d-restore-snap">\u21ba Undo last cloud overwrite</button></div>'
+    + '<div class="note" style="margin-top:6px">If a sync ever replaced newer local data, this restores the snapshot taken immediately before it.</div>'
+    + '<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>'
     + '<p class="panel-t">Manual backup (always reliable)</p>'
     + '<div class="note" style="margin-bottom:10px">Fallback if the sandbox blocks network calls. Export on one device, paste + import on another.</div>'
     + '<div class="mrow"><button class="mbtn primary" id="d-exp">Export everything</button>'
@@ -539,6 +557,17 @@ function renderData(){
   const msg=(m,bad)=>{ const e=document.getElementById('d-msg'); e.style.color=bad?'var(--deficit)':'var(--ok)'; e.textContent=m; setTimeout(()=>{if(e)e.textContent='';},4000); };
   const cmsg=(m,bad)=>{ const e=document.getElementById('d-cloudmsg'); if(!e)return; e.style.color=bad?'var(--deficit)':'var(--teal)'; e.textContent=m; };
 
+  { const rb=document.getElementById('d-restore-snap'); if(rb) rb.onclick=async()=>{
+      const raw=lsGet('meridian_prev_snapshot');
+      if(!raw){ cmsg('No snapshot found on this device.',true); return; }
+      let s; try{ s=JSON.parse(raw); }catch(e){ cmsg('Snapshot unreadable.',true); return; }
+      if(!confirm('Restore the snapshot taken '+new Date(s.at).toLocaleString()+'?\n\nThis replaces current data on this device.')) return;
+      const now=Date.now();
+      const put=async(k,v)=>{ if(v==null) return; lsSet(k,v); lsSet(k+'__v',String(now)); await IDB.set(k,v); await IDB.set(k+'__v',String(now)); };
+      await put(KEYS.core,s.core); await put(KEYS.overload,s.overload); await put(KEYS.surplus,s.surplus); await put(KEYS.csgraph,s.csgraph);
+      try{ localStorage.setItem('meridian_local_mtime',String(now)); }catch(e){}
+      cmsg('\u2713 Restored. Reloading\u2026'); setTimeout(()=>location.reload(),700);
+    }; }
   document.getElementById('d-pantry-save').onclick=()=>{
     const v=(document.getElementById('d-pantry').value||'').trim();
     setCloudId(v);
@@ -1505,16 +1534,28 @@ document.querySelectorAll('#tabbar button').forEach(b=>{
 });
 
 /* ================= BOOT ================= */
+let pendingPush=false;
 (async function init(){
   // If cloud is configured, pull first so this device shows the latest across devices.
   if(cloudEnabled()){
-    try{ const r=await cloudPull(); if(r.ok && r.data){ await cloudApply(r.data); } }catch(e){}
+    try{
+      const r=await cloudPull();
+      const localM = parseInt(lsGet('meridian_local_mtime')||'0',10)||0;
+      const cloudM = r.ok && r.data ? (+r.data.syncedAt||0) : 0;
+      const hasLocal = !!lsGet(KEYS.overload) || !!lsGet(KEYS.core);
+      if(r.ok && r.data && (!hasLocal || cloudM > localM)){
+        await cloudApply(r.data, cloudM);            // cloud is newer (or device is empty) \u2014 safe
+      } else if(hasLocal && localM > cloudM && cloudEnabled()){
+        pendingPush = true;                          // LOCAL is newer \u2014 push it up instead
+      }
+    }catch(e){}
   }
   await loadCore();
   paintSaveChip();
   renderToday();
   document.getElementById('pane-study').classList.add('on'); renderStudy();
-  await persistenceSelfTest();   // harness: verify storage actually persists across sessions
+  await persistenceSelfTest();
+  if(pendingPush){ try{ const r=await cloudPush(); if(r.ok) localStorage.setItem('meridian_cloud_mtime',String(r.at)); }catch(e){} }   // harness: verify storage actually persists across sessions
   // live clock refresh on Today (pause while typing)
   setInterval(()=>{
     const p=document.getElementById('pane-today');
@@ -1538,7 +1579,8 @@ function flushAll(reason){
     if(typeof KG!=='undefined' && KG && typeof kgLoaded!=='undefined' && kgLoaded && kgDirtyFlag){ lsSet(KEYS.csgraph, JSON.stringify(KG)); lsSet(KEYS.csgraph+'__v', String(Date.now())); }
     // Also kick the full async save (may complete on soft-close); harmless if it doesn't finish.
     saveAll(true);
-    try{ localStorage.setItem('meridian_last_flush', new Date().toISOString()+' ('+(reason||'')+')'); }catch(e){}
+    try{ localStorage.setItem('meridian_last_flush', new Date().toISOString()+' ('+(reason||'')+')');
+         localStorage.setItem('meridian_local_mtime', String(Date.now())); }catch(e){}
   }catch(e){}
 }
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushAll('hidden'); });
