@@ -1,8 +1,9 @@
-const CACHE='meridian-v5';   // bump to invalidate old cached app shell
+const CACHE='meridian-v6';   // bump to invalidate old cached app shell
 const ASSETS=['./','./index.html','./manifest.webmanifest'];
 self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())); });
 self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); });
 self.addEventListener('fetch',e=>{
+  if(e.request.method!=='GET') return;   // never intercept writes (Pantry POSTs)
   const url=new URL(e.request.url);
   if(url.hostname.includes('getpantry.cloud')||url.hostname.includes('anthropic.com')) return; // never cache sync/API
   // questions bank: network-first so new questions appear, cache as offline fallback

@@ -31,6 +31,9 @@ body{padding-bottom:env(safe-area-inset-bottom)}
   background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
 .lift.exdone{opacity:.55}
 .lift.exdone .lift-name{text-decoration:line-through}
+.discardfab{position:fixed;right:14px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:50;border:1px solid var(--line);
+  background:var(--panel);color:var(--muted);border-radius:24px;padding:12px 16px;font-family:var(--mono);font-size:12px;cursor:pointer;
+  box-shadow:0 6px 20px rgba(0,0,0,.45)}
 .savefab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));z-index:50;display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:13px;border:none;border-radius:24px;padding:12px 22px;cursor:pointer;user-select:none;background:var(--panel2,#1a1c22);color:var(--muted);box-shadow:0 6px 20px rgba(0,0,0,.45);transition:background .15s,color .15s}
 .savefab .dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
 .savefab.dirty{background:var(--fuel);color:#0e0f13;font-weight:600}
@@ -125,6 +128,7 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 .lift-target{font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:3px}
 .setrow{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
 .setrow input{width:66px;text-align:center}
+.setrow.done{opacity:.85;padding:6px 0}
 .setrow.cur{background:var(--tealSoft);border-radius:8px;padding:4px 6px;margin-left:-6px}
 .lastline{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:6px}
 .logged{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
@@ -190,6 +194,7 @@ body{padding-bottom:env(safe-area-inset-bottom)}
   <div class="bar" style="margin-top:5px;height:5px"><div id="restfill" style="width:0%"></div></div></div>
   <button class="mbtn" id="rest-stop" style="margin-left:10px">Done</button>
 </div>
+<button class="discardfab" id="discardfab" style="display:none">↺ Discard</button>
 <button class="savefab" id="savechip"><span class="dot"></span><span id="savetxt">All changes saved</span></button>
 <div class="savedflash" id="savedflash">Saved \u2713</div>
 
@@ -270,6 +275,38 @@ async function rawSet(key,val){
 let CORE = { schedule:{}, entries:[] };
 let dirty = false;
 let saveTimer = null;
+// Snapshot of the last known-clean (saved or freshly loaded) state, for Discard.
+let cleanState={core:null,overload:null,surplus:null,csgraph:null};
+function snapshotClean(){
+  try{
+    if(typeof coreHydrated!=='undefined'&&coreHydrated) cleanState.core=JSON.stringify(CORE);
+    if(typeof wkLoaded!=='undefined'&&wkLoaded)         cleanState.overload=JSON.stringify(WK);
+    if(typeof sgLoaded!=='undefined'&&sgLoaded)         cleanState.surplus=JSON.stringify(SG);
+    if(typeof kgLoaded!=='undefined'&&kgLoaded)         cleanState.csgraph=JSON.stringify(KG);
+  }catch(e){}
+}
+function discardChanges(){
+  try{
+    if(cleanState.core)     CORE=JSON.parse(cleanState.core);
+    if(cleanState.overload) WK=JSON.parse(cleanState.overload);
+    if(cleanState.surplus)  SG=JSON.parse(cleanState.surplus);
+    if(cleanState.csgraph)  KG=JSON.parse(cleanState.csgraph);
+  }catch(e){ return false; }
+  dirty=false;
+  if(typeof wkDirty!=='undefined') wkDirty=false;
+  if(typeof sgDirty!=='undefined') sgDirty=false;
+  if(typeof kgDirtyFlag!=='undefined') kgDirtyFlag=false;
+  if(typeof stopRest==='function') stopRest(true);
+  paintSaveChip();
+  // repaint whichever panes are live
+  try{
+    if(document.getElementById('pane-today').classList.contains('on')){ renderToday(); renderStudy(); }
+    if(document.getElementById('pane-workout').classList.contains('on')) renderWorkout();
+    if(document.getElementById('pane-weight').classList.contains('on')) renderWeight();
+    if(document.getElementById('pane-knowledge').classList.contains('on')) renderKnowledge();
+  }catch(e){}
+  return true;
+}
 
 /* ================= CLOUD BACKEND (Pantry REST store) =================
    A real cross-device backend: a free hosted JSON store reached over HTTP.
@@ -353,15 +390,11 @@ function anyDirty(){
 }
 function paintSaveChip(){
   const c=document.getElementById('savechip'), t=document.getElementById('savetxt');
+  const d=document.getElementById('discardfab');
+  if(d) d.style.display = anyDirty()? 'block':'none';
   if(!c) return;
   if(anyDirty()){ c.className='savefab dirty'; t.textContent='Unsaved \u2014 tap to Save'; }
   else { c.className='savefab'; t.textContent='All changes saved'; }
-}
-async function commit(silent){
-  if(!coreHydrated) return;
-  const ok = await rawSet(KEYS.core, JSON.stringify(CORE));
-  dirty = false;
-  return ok;
 }
 // Explicit, awaited save of EVERY store. This is the button the user presses.
 async function saveAll(silent){
@@ -375,7 +408,7 @@ async function saveAll(silent){
     {name:'schedule', key:KEYS.core,     ready:()=>coreHydrated,                            dirtyFn:()=>dirty,     clear:()=>{dirty=false;},        data:()=>JSON.stringify(CORE)},
     {name:'workout',  key:KEYS.overload, ready:()=>(typeof wkLoaded!=='undefined'&&wkLoaded), dirtyFn:()=>(typeof wkDirty!=='undefined'&&wkDirty), clear:()=>{wkDirty=false;}, data:()=>JSON.stringify(WK)},
     {name:'meals',    key:KEYS.surplus,  ready:()=>(typeof sgLoaded!=='undefined'&&sgLoaded), dirtyFn:()=>(typeof sgDirty!=='undefined'&&sgDirty), clear:()=>{sgDirty=false;}, data:()=>JSON.stringify(SG)},
-    {name:'knowledge',key:KEYS.csgraph,  ready:()=>(typeof kgLoaded!=='undefined'&&kgLoaded), dirtyFn:()=>true,     clear:()=>{ if(typeof kgDirtyFlag!=='undefined') kgDirtyFlag=false; }, data:()=>JSON.stringify(KG)}
+    {name:'knowledge',key:KEYS.csgraph,  ready:()=>(typeof kgLoaded!=='undefined'&&kgLoaded), dirtyFn:()=>(typeof kgDirtyFlag!=='undefined'&&kgDirtyFlag), clear:()=>{ kgDirtyFlag=false; }, data:()=>JSON.stringify(KG)}
   ];
   const failed=[], saved=[];
   for(const j of jobs){
@@ -395,7 +428,8 @@ async function saveAll(silent){
   paintSaveChip();
   if(!ok && c){ c.className='savefab dirty'; if(t) t.textContent='Save failed: '+failed.join(', '); console.error('Meridian save failures:',failed); }
   if(ok && !silent) flashSaved();
-  if(saved.length) try{ localStorage.setItem('meridian_local_mtime', String(Date.now())); }catch(e){}
+  if(saved.length){ try{ localStorage.setItem('meridian_local_mtime', String(Date.now())); }catch(e){} }
+  if(ok) snapshotClean();
 
   // Cloud push is AWAITED so swiping the app away cannot kill it mid-flight.
   if(ok && cloudEnabled() && saved.length){
@@ -418,6 +452,11 @@ function flashSaved(){
   if(f){ f.classList.add('show'); setTimeout(()=>f.classList.remove('show'),1200); }
 }
 document.getElementById('savechip').addEventListener('click',()=>saveAll(false));
+document.getElementById('discardfab').addEventListener('click',()=>{
+  if(!anyDirty()) return;
+  if(!confirm('Discard all unsaved changes and return to the last saved state?')) return;
+  if(discardChanges()) flashSaved();
+});
 
 async function loadCore(){
   const s = await rawGet(KEYS.core);
@@ -425,12 +464,16 @@ async function loadCore(){
   if(!CORE.schedule) CORE.schedule={};
   if(!CORE.entries)  CORE.entries=[];
   if(!Object.keys(CORE.schedule).length) CORE.schedule = seedSchedule();
-  coreHydrated=true;
+  coreHydrated=true; snapshotClean();
 }
 let coreHydrated=false;
 
 /* ---- helpers ---- */
-function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+let _uidSeq=0;
+// Date.now()+Math.random() collides: at ~1.78e12 the double mantissa leaves only
+// ~4k distinct fractions per millisecond. Counter guarantees in-session uniqueness.
+function uid(){ _uidSeq=(_uidSeq+1)%1000000;
+  return Date.now().toString(36)+'-'+_uidSeq.toString(36)+'-'+Math.random().toString(36).slice(2,8); }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function dstr(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function toMin(hm){ const p=hm.split(':'); return +p[0]*60 + +p[1]; }
@@ -831,11 +874,10 @@ function wireStudy(){
 const paneWorkout = document.getElementById('pane-workout');
 let WK = { settings:{}, days:{}, bw:{}, rpe:{} };
 const DEFAULT_WK = {"v":1,"settings":{"bwCurrent":120,"bwGoal":150,"benchGoal":150,"benchStart":125,"volLow":10,"volHigh":20},"days":{"2026-07-03":[{"id":1783114348370.892,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":5},{"id":1783114594538.7588,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":6},{"id":1783114911812.9878,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":125,"reps":6},{"id":1783115173675.021,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":115,"reps":6},{"id":1783115390881.0293,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":100,"reps":10},{"id":1783115587837.8508,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"warm","weight":25,"reps":10},{"id":1783115745322.4102,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"top","weight":42.5,"reps":7},{"id":1783115908162.8042,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":10},{"id":1783116091606.8875,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":10},{"id":1783116334268.0269,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1783116627332.8625,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":30,"reps":8},{"id":1783117235363.9458,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":25,"reps":10},{"id":1783117263334.1274,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":25,"reps":10},{"id":1783117349962.735,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":25,"reps":10},{"id":1783117550198.3257,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":42.5,"reps":8},{"id":1783117947681.3662,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":10},{"id":1783118136302.101,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":10},{"id":1783118923005.7573,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":2.5,"reps":10},{"id":1783118939197.8682,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":3},{"id":1783119171086.2573,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":4.5,"reps":1},{"id":1783119181672.8499,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":3},{"id":1783119471459.1504,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":2.3,"reps":1},{"id":1783119784370.0764,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":125,"reps":8},{"id":1783120150083.9946,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":205,"reps":7},{"id":1783120474174.7617,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":185,"reps":8},{"id":1783120728270.4648,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":165,"reps":9},{"id":1783120862439.6416,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":85,"reps":8},{"id":1783121140796.782,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":145,"reps":8},{"id":1783121373362.0222,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":125,"reps":10},{"id":1783121769523.4617,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":105,"reps":10},{"id":1783121776223.5176,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":60,"reps":8},{"id":1783122067610.072,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":100,"reps":9},{"id":1783122436492.4165,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":90,"reps":8},{"id":1783122543350.485,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":60,"reps":8},{"id":1783126070393.514,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":100,"reps":8}],"2026-07-05":[{"id":1783290099229.6572,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":15},{"id":1783290187315.6565,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":125,"reps":8},{"id":1783290645564.99,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":205,"reps":8},{"id":1783290696256.5947,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":185,"reps":8},{"id":1783291010025.3394,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":165,"reps":8},{"id":1783291161274.1597,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":65,"reps":8},{"id":1783291410325.245,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":105,"reps":8},{"id":1783291686003.9468,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":95,"reps":9},{"id":1783291874533.943,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":70,"reps":10},{"id":1783291958258.9392,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":115,"reps":10},{"id":1783292321949.7744,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":100,"reps":10},{"id":1783292510570.6582,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":105,"reps":8},{"id":1783292934159.412,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":165,"reps":7},{"id":1783293282252.7732,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":145,"reps":8},{"id":1783293474002.769,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":125,"reps":8},{"id":1783293717329.548,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":10},{"id":1783294014763.4053,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":8},{"id":1783294317084.0747,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":130,"reps":5},{"id":1783294557663.2612,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":115,"reps":6},{"id":1783294750061.3638,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":105,"reps":6},{"id":1783295060819.3228,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":32,"reps":10},{"id":1783295079354.9368,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"warm","weight":25,"reps":10},{"id":1783295225692.3108,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"top","weight":42.5,"reps":8},{"id":1783295288159.2263,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":45,"reps":8},{"id":1783295427561.6392,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":7},{"id":1783295493004.9739,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":8},{"id":1783295671534.475,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":8},{"id":1783295836723.1592,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":8},{"id":1783295959115.7842,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1783296189405.3086,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":35,"reps":5},{"id":1783296404350.82,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":7},{"id":1783296413114.0571,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":0},{"id":1783296563191.1726,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":60,"reps":8},{"id":1783296769643.7302,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":105,"reps":8},{"id":1783296976603.7876,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":90,"reps":8}],"2026-07-07":[{"id":1783459455754.13,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"warm","weight":27,"reps":10},{"id":1783459707730.6304,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"top","weight":45,"reps":6},{"id":1783459913055.2712,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":7},{"id":1783460175464.4858,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":10},{"id":1783460220224.0178,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1783460477247.1377,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":10},{"id":1783460615474.4214,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":6},{"id":1783460964932.775,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":130,"reps":5},{"id":1783461214418.3088,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":115,"reps":6},{"id":1783461519657.7144,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":105,"reps":6},{"id":1783461726054.4675,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":30,"reps":10},{"id":1783461989777.5547,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":47.5,"reps":10},{"id":1783462303801.5076,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":45,"reps":8},{"id":1783462548416.0408,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":8},{"id":1783462728109.652,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":35,"reps":5},{"id":1783463006257.7485,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":8},{"id":1783463234743.4014,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":8},{"id":1783466753754.8357,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":2.5,"reps":10},{"id":1783466761022.3586,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":10},{"id":1783466767391.0637,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":4.5,"reps":1},{"id":1783466774476.8066,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":5},{"id":1783466780361.6934,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":4.5,"reps":1},{"id":1783466789411.2764,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":2.5,"reps":10},{"id":1783466871023.9807,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":130,"reps":8},{"id":1783467202217.9807,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":215,"reps":6},{"id":1783467441419.4612,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":195,"reps":6},{"id":1783467659889.4822,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":170,"reps":7},{"id":1783467973006.472,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":100,"reps":8},{"id":1783468226657.299,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":165,"reps":8},{"id":1783468464628.1785,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":145,"reps":8},{"id":1783468807852.6045,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":65,"reps":8},{"id":1783469047251.8457,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":115,"reps":8},{"id":1783469229953.1482,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":100,"reps":10},{"id":1783469594494.61,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":90,"reps":8},{"id":1783469660852.884,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":70,"reps":8},{"id":1783469849467.2683,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":125,"reps":8},{"id":1783470157105.2761,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":110,"reps":10},{"id":1783470160787.3271,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":95,"reps":10}],"2026-07-09":[{"id":1783616381566.664,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":10},{"id":1783616444544.367,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":6},{"id":1783616895093.2463,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":130,"reps":6},{"id":1783617223951.9548,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":115,"reps":6},{"id":1783617621425.4229,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":105,"reps":9},{"id":1783617864997.3923,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"warm","weight":27.5,"reps":10},{"id":1783617958967.289,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":32.5,"reps":10},{"id":1783618215775.898,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"top","weight":45,"reps":8},{"id":1783618435168.7957,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":50,"reps":10},{"id":1783618802717.018,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":45,"reps":10},{"id":1783619226408.4888,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":10},{"id":1783619232365.6816,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":35,"reps":10},{"id":1783619306792.9468,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":10},{"id":1783619760154.2695,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1783620000033.411,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":35,"reps":6},{"id":1783620211812.9583,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":9},{"id":1783620504025.466,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":7},{"id":1783623300162.9849,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":20},{"id":1783623418026.5688,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":130,"reps":8},{"id":1783623750511.9385,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":215,"reps":7},{"id":1783623972852.473,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":195,"reps":7},{"id":1783624302196.289,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":170,"reps":8},{"id":1783624437402.2705,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":70,"reps":8},{"id":1783624674430.039,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":115,"reps":8},{"id":1783624953041.1096,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":105,"reps":8},{"id":1783625458041.9973,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":105,"reps":8},{"id":1783625660359.7083,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":185,"reps":6},{"id":1783625832022.9106,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":165,"reps":8},{"id":1783626125646.76,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":75,"reps":8},{"id":1783626273580.6858,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":120,"reps":8},{"id":1783626488411.003,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":110,"reps":10},{"id":1783626712277.5623,"ex":"Hip Abduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":95,"reps":10},{"id":1783626791330.3904,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":80,"reps":10},{"id":1783626948096.1846,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":130,"reps":10},{"id":1783627174624.3643,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":115,"reps":10},{"id":1783627250262.1199,"ex":"Hip Adduction","muscle":"hips","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":105,"reps":10}],"2026-07-10":[{"id":1783699398478.2954,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":10},{"id":1783699554897.6628,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":5},{"id":1783699946064.5828,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":115,"reps":3},{"id":1783700299555.724,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":135,"reps":5},{"id":1783700769664.1335,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":120,"reps":8},{"id":1783701170842.9087,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":110,"reps":10},{"id":1783701330005.447,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"warm","weight":30,"reps":10},{"id":1783701424207.6274,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":32.5,"reps":10},{"id":1783701731670.9028,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"top","weight":47.5,"reps":6},{"id":1783701826896.254,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":52.5,"reps":8},{"id":1783701963628.917,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":45,"reps":6},{"id":1783702027304.5046,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":45,"reps":9},{"id":1783702152475.457,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1783702295192.8958,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":10},{"id":1783702420169.9172,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":35,"reps":3}],"2026-07-12":[{"id":1783901734332.1687,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":0},{"id":1783901842555.6626,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":6},{"id":1783902210775.7776,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":115,"reps":5},{"id":1783902539169.158,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":135,"reps":4},{"id":1783902992387.1912,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":125,"reps":5},{"id":1783903282965.2527,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":115,"reps":9},{"id":1783903458493.173,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1783903688041.7222,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":30,"reps":8},{"id":1783903859761.1997,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":25,"reps":10},{"id":1783906249131.1191,"ex":"Treadmill","muscle":"cardio","group":"Life Time \u2014 Back / Legs / Cardio","type":"cardio","weight":3.5,"reps":20},{"id":1783906291177.6191,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":130,"reps":8},{"id":1783906526543.5383,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":215,"reps":8},{"id":1783906717652.2104,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":195,"reps":7},{"id":1783906946144.377,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":170,"reps":10}],"2026-07-14":[{"id":1784073246126.8574,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":0},{"id":1784073250380.7808,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":5},{"id":1784073671010.0586,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":115,"reps":5},{"id":1784073674895.5735,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":135,"reps":5},{"id":1784073987169.825,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":125,"reps":8},{"id":1784074365181.356,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":115,"reps":8},{"id":1784074469420.256,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1784074634816.084,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":30,"reps":8},{"id":1784074896957.2727,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":8},{"id":1784075066477.7668,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"warm","weight":30,"reps":10},{"id":1784075071588.8054,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":35,"reps":10},{"id":1784075204274.556,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"top","weight":47.5,"reps":5},{"id":1784075274223.9275,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":55,"reps":6},{"id":1784075306122.7961,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":30,"reps":8},{"id":1784075454651.4062,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":45,"reps":6},{"id":1784075591909.9744,"ex":"Tricep Pushdown (Rope)","muscle":"triceps","group":"Apartment \u2014 Upper","type":"back","weight":40,"reps":8},{"id":1784075673486.911,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":50,"reps":7},{"id":1784075827933.9458,"ex":"Bicep Curl (Pulley)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"back","weight":45,"reps":8},{"id":1784076068471.5552,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":75,"reps":10},{"id":1784076262184.4402,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":125,"reps":6},{"id":1784076464834.3933,"ex":"Lat Pulldown","muscle":"back","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":115,"reps":6},{"id":1784078053006.2344,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":135,"reps":8},{"id":1784078067690.1655,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":215,"reps":6},{"id":1784078306376.5598,"ex":"Calf Raise (Machine)","muscle":"calves","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":195,"reps":7},{"id":1784078605066.9897,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"warm","weight":110,"reps":10},{"id":1784078749933.9097,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"top","weight":185,"reps":6},{"id":1784078877966.06,"ex":"Leg Extension","muscle":"quads","group":"Life Time \u2014 Back / Legs / Cardio","type":"back","weight":165,"reps":8}],"2026-07-17":[{"id":1784332652549.0823,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":45,"reps":4},{"id":1784332657266.7502,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":95,"reps":5},{"id":1784332866716.266,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"warm","weight":115,"reps":5},{"id":1784333068325.3455,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"top","weight":135,"reps":5},{"id":1784333485558.4587,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":120,"reps":8},{"id":1784333836668.3662,"ex":"Bench Press","muscle":"chest","group":"Apartment \u2014 Upper","type":"back","weight":110,"reps":9},{"id":1784333991129.3826,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"warm","weight":20,"reps":10},{"id":1784334220053.7488,"ex":"Bicep Curl (Dumbbell)","muscle":"biceps","group":"Apartment \u2014 Upper","type":"top","weight":30,"reps":6}],"2026-07-22":[{"id":1785000001.1,"ex":"Leg Press","muscle":"quads","group":"Life Time \u2014 Lower","type":"warm","weight":80,"reps":10},{"id":1785000002.1,"ex":"Leg Press","muscle":"quads","group":"Life Time \u2014 Lower","type":"top","weight":140,"reps":8},{"id":1785000003.1,"ex":"Leg Press","muscle":"quads","group":"Life Time \u2014 Lower","type":"back","weight":120,"reps":8},{"id":1785000004.1,"ex":"Leg Press","muscle":"quads","group":"Life Time \u2014 Lower","type":"back","weight":100,"reps":10}],"2026-07-23":[{"id":1785100001.1,"ex":"Hammer Curl (Dumbbell)","muscle":"biceps","group":"Building gym \u2014 Upper","type":"warm","weight":10,"reps":12},{"id":1785100002.1,"ex":"Hammer Curl (Dumbbell)","muscle":"biceps","group":"Building gym \u2014 Upper","type":"top","weight":15,"reps":10},{"id":1785100003.1,"ex":"Hammer Curl (Dumbbell)","muscle":"biceps","group":"Building gym \u2014 Upper","type":"back","weight":10,"reps":12},{"id":1785100004.1,"ex":"Wrist Curl (Dumbbell)","muscle":"forearms","group":"Building gym \u2014 Upper","type":"warm","weight":5,"reps":15},{"id":1785100005.1,"ex":"Wrist Curl (Dumbbell)","muscle":"forearms","group":"Building gym \u2014 Upper","type":"top","weight":10,"reps":15},{"id":1785100006.1,"ex":"Reverse Wrist Curl (Dumbbell)","muscle":"forearms","group":"Building gym \u2014 Upper","type":"top","weight":5,"reps":15}]},"bw":{"2026-07-03":120,"2026-07-04":120,"2026-07-05":120,"2026-07-07":121,"2026-07-12":120,"2026-07-14":120},"rpe":{}};
-let wkLoaded=false, wkDirty=false, wkTimer=null;
+let wkLoaded=false, wkDirty=false;
 const REP_HI = 8;
 
 function wkMarkDirty(){ wkDirty=true; paintSaveChip(); }
-async function wkCommit(silent){ if(!wkLoaded) return; await rawSet(KEYS.overload, JSON.stringify(WK)); wkDirty=false; if(!dirty) paintSaveChip(); if(!silent) flashSaved(); }
 async function wkLoad(){
   const s=await rawGet(KEYS.overload);
   if(s){ try{ const st=JSON.parse(s);
@@ -863,9 +905,8 @@ async function wkLoad(){
     });
   }
   if(!WK.done) WK.done={}; if(!WK.sessionDone) WK.sessionDone={}; if(!WK.incr) WK.incr={};
-  wkLoaded=true; if(!wkDate) wkDate=dstr();
+  wkLoaded=true; if(!wkDate) wkDate=dstr(); snapshotClean();
 }
-function round5(x){ return Math.round(x/5)*5; }
 function roundTo(x,step){ step=+step||5; return Math.round(x/step)*step; }
 function cssId(s){ return s.replace(/[^a-z0-9]/gi,''); }
 function daysSorted(){ return Object.keys(WK.days).sort(); }
@@ -924,7 +965,7 @@ function exOrder(ex){
   return 45;
 }
 let wkDate=null;
-let wkSplit='all', wkSplitTouched=false;
+let wkSplit='all', wkSplitTouched=false, wkSplitDate=null;
 let restTimer=null, restStart=0, restFor='', restTarget=0;
 // Evidence-based rest: heavy compounds need full ATP-PC recovery; isolation less.
 function restSecs(ex,type){
@@ -934,13 +975,31 @@ function restSecs(ex,type){
   if(type==='top')  return compound?180:120;
   return compound?120:90;                       // back-off sets
 }
-function exDone(ex){ const d=(WK.done&&WK.done[wkDate||dstr()])||[]; return d.indexOf(ex)>=0; }
+function exDone(ex){
+  const day=wkDate||dstr();
+  const d=(WK.done&&WK.done[day])||[];
+  if(d.indexOf(ex)>=0) return true;
+  // Derive from what was actually logged that day, so past sessions show complete
+  const logged=(WK.days[day]||[]).filter(s=>s.ex===ex).length;
+  if(!logged) return false;
+  if(day < dstr()) return true;                    // past day with sets = it was done
+  return logged >= plannedSetCount(ex);            // today: complete when all sets in
+}
 function toggleExDone(ex){ const k=wkDate||dstr(); if(!WK.done)WK.done={}; if(!WK.done[k])WK.done[k]=[];
-  const i=WK.done[k].indexOf(ex); if(i>=0) WK.done[k].splice(i,1); else WK.done[k].push(ex);
+  const i=WK.done[k].indexOf(ex); if(i>=0) WK.done[k].splice(i,1); else { WK.done[k].push(ex); dismissRestFor(ex); }
   wkMarkDirty(); renderWorkout(true); }
-function sessionDone(){ return !!(WK.sessionDone&&WK.sessionDone[wkDate||dstr()]); }
+function sessionDone(){
+  const day=wkDate||dstr();
+  if(WK.sessionDone&&WK.sessionDone[day]) return true;
+  const sets=(WK.days[day]||[]).length;
+  return day < dstr() && sets>0;                   // completed past sessions read as done
+}
+function loggedExercises(day){
+  const seen=[]; (WK.days[day]||[]).forEach(s=>{ if(seen.indexOf(s.ex)<0) seen.push(s.ex); });
+  return seen.sort((a,b)=>exOrder(a)-exOrder(b));
+}
 function toggleSessionDone(){ const k=wkDate||dstr(); if(!WK.sessionDone)WK.sessionDone={};
-  WK.sessionDone[k]=!WK.sessionDone[k]; wkMarkDirty(); renderWorkout(true);
+  WK.sessionDone[k]=!WK.sessionDone[k]; if(WK.sessionDone[k]) stopRest(true); wkMarkDirty(); renderWorkout(true);
   saveAll(false); }                       // completing a session always persists it
 // Estimated session length from planned sets + prescribed rest.
 function estimateSession(exs){
@@ -958,9 +1017,14 @@ function startRest(ex,type){
   if(restTimer) clearInterval(restTimer);
   restTimer=setInterval(paintRest,250); paintRest();
 }
-function stopRest(){ if(restTimer) clearInterval(restTimer); restTimer=null; restFor=''; renderWorkout(true); }
+function stopRest(silent){ if(restTimer) clearInterval(restTimer); restTimer=null; restFor='';
+  const bar=document.getElementById('restbar'); if(bar) bar.style.display='none';
+  if(!silent) renderWorkout(true); }
+// Kill the rest clock if it belongs to an exercise that just got marked done.
+function dismissRestFor(ex){ if(restFor && restFor.split('|')[0]===ex) stopRest(true); }
 function paintRest(){
-  const el=document.getElementById('restbar'); if(!el) return;
+  const el=document.getElementById('restbar');
+  if(!el){ if(restTimer){ clearInterval(restTimer); restTimer=null; } return; }
   const el2=document.getElementById('resttxt'); const el3=document.getElementById('restfill');
   const s=Math.floor((Date.now()-restStart)/1000);
   const over=s>=restTarget;
@@ -976,18 +1040,21 @@ function exSplit(ex){ const m=(exMeta(ex).muscle||'').toLowerCase();
   if(UPPER_MUSCLES.includes(m)) return 'upper';
   return 'other'; }
 // Which split is due today: alternate from the most recent session that had lifts.
-function suggestedSplit(){
-  const ds=Object.keys(WK.days).sort();
+function suggestedSplit(forDate){
+  const target=forDate||wkDate||dstr();
+  const tally=day=>{ const sets=(WK.days[day]||[]).filter(x=>x.type!=='cardio');
+    let lo=0,up=0; sets.forEach(x=>{ const sp=exSplit(x.ex); if(sp==='lower')lo++; else if(sp==='upper')up++; });
+    return (lo===0&&up===0)?null:(lo>=up?'lower':'upper'); };
+  // If the viewed date already has lifting logged, show THAT split.
+  const own=tally(target);
+  if(own) return {due:own, last:own, lastDate:target, logged:true};
+  // Otherwise alternate from the most recent session BEFORE this date.
+  const ds=Object.keys(WK.days).sort().filter(d=>d<target);
   for(let i=ds.length-1;i>=0;i--){
-    const sets=(WK.days[ds[i]]||[]).filter(x=>x.type!=='cardio');
-    if(!sets.length) continue;
-    let lo=0,up=0;
-    sets.forEach(x=>{ const sp=exSplit(x.ex); if(sp==='lower')lo++; else if(sp==='upper')up++; });
-    if(lo===0&&up===0) continue;
-    if(ds[i]===dstr()) return {due:(lo>=up?'lower':'upper'), last:(lo>=up?'lower':'upper'), lastDate:ds[i], today:true};
-    return {due:(lo>=up?'upper':'lower'), last:(lo>=up?'lower':'upper'), lastDate:ds[i], today:false};
+    const t=tally(ds[i]);
+    if(t) return {due:(t==='lower'?'upper':'lower'), last:t, lastDate:ds[i], logged:false};
   }
-  return {due:'upper', last:null, lastDate:null, today:false};
+  return {due:'upper', last:null, lastDate:null, logged:false};
 }
 let wkDeload={};   // session-only "feel weak / missed days" recalibration per exercise
 
@@ -1063,16 +1130,26 @@ function renderWorkout(keepScroll){
    +'<span style="font-family:var(--mono);font-size:12px;min-width:150px;text-align:center">'+dLabel(td)+'</span>'
    +'<button class="mbtn" id="wk-next">\u203a</button>'
    +(isToday?'':'<button class="mbtn" id="wk-today">\u2192 Today</button>')+'</div></div></div>';
-  const sug=suggestedSplit();
+  const sug=suggestedSplit(wkDate||dstr());
+  const viewDate=wkDate||dstr();
+  if(wkSplitDate!==viewDate){ wkSplitTouched=false; wkSplitDate=viewDate; }   // new date -> re-suggest
   if(!wkSplitTouched){ wkSplit=sug.due; }
   h+='<div class="panel"><div class="mrow" style="justify-content:space-between"><p class="panel-t" style="margin:0">Today\u2019s split</p>'
    +'<span class="mchip" style="background:var(--tealSoft,rgba(90,200,140,.16));color:var(--teal)">'+(sug.due==='lower'?'LOWER day':'UPPER day')+'</span></div>'
-   +'<div class="note" style="margin:6px 0 8px">'+(sug.lastDate?('Last lifting session was '+sug.last+' on '+sug.lastDate.slice(5)+' \u2014 alternate to '+sug.due+' today.'):'No history yet \u2014 start with upper.')
+   +'<div class="note" style="margin:6px 0 8px">'+(sug.logged?('You logged '+sug.last+' work on this date.'):(sug.lastDate?('Last session was '+sug.last+' on '+sug.lastDate.slice(5)+' \u2014 alternate to '+sug.due+'.'):'No history yet \u2014 start with upper.'))
    +' Cardio is shown every day.</div>'
    +'<div class="timebar">'
    +[['all','All'],['lower','Lower'],['upper','Upper']].map(s=>'<button class="'+(wkSplit===s[0]?'on':'')+'" data-split="'+s[0]+'">'+s[1]+(s[0]===sug.due?' \u2605':'')+'</button>').join('')
    +'</div><div class="note" style="margin-top:6px">'+(wkSplit==='lower'?'Quads \u00b7 calves \u00b7 hips + cardio':wkSplit==='upper'?'Chest \u00b7 back \u00b7 arms + cardio':'Every exercise')+'</div></div>';
-  const exs=allExercises().filter(e=> wkSplit==='all' || exSplit(e)===wkSplit || exSplit(e)==='both' ).sort((a,b)=>exOrder(a)-exOrder(b));
+  const isPastDay = td < dstr();
+  const dayLog = loggedExercises(td);
+  // Reviewing a past date -> show ONLY the exercises performed that day.
+  const exs = (isPastDay && dayLog.length)
+    ? dayLog
+    : allExercises().filter(e=> wkSplit==='all' || exSplit(e)===wkSplit || exSplit(e)==='both' ).sort((a,b)=>exOrder(a)-exOrder(b));
+  if(isPastDay && !dayLog.length){
+    h+='<div class="placeholder">No workout logged on '+dLabel(td)+'.</div>';
+  }
   {
     const est=estimateSession(exs);
     const doneCount=exs.filter(e=>exDone(e)).length;
@@ -1127,11 +1204,19 @@ function renderWorkout(keepScroll){
           +'<button class="mbtn'+(type==='top'?' primary':'')+'" data-log="'+ex+'|'+type+'|'+wid+'|'+rid+'">Log</button>'
           +'<button class="mbtn" style="padding:6px 9px;font-size:11px" data-rest="'+ex+'|'+type+'" title="start rest timer">\u23f1</button>'+cue+'</div>';
       }).join('');
-      h+=rowsHTML(plan.warms,'warm','Warmup');
-      h+=rowsHTML([plan.top],'top','Top set');
-      h+=rowsHTML(plan.backs,'back','Back-off');
+      if(isPastDay && todayLog.length){
+        // historical: what was actually performed
+        h+=todayLog.map(s=>'<div class="setrow done"><span style="min-width:70px;color:var(--dim);font-family:var(--mono);font-size:11px">'
+          +(s.type==='warm'?'Warmup':s.type==='top'?'Top set':s.type==='back'?'Back-off':'Set')+'</span>'
+          +'<span style="font-family:var(--mono);font-size:15px">'+s.weight+' \u00d7 '+s.reps+'</span>'
+          +'<span class="rm" data-del="'+td+'|'+s.id+'" style="margin-left:auto">\u00d7</span></div>').join('');
+      } else {
+        h+=rowsHTML(plan.warms,'warm','Warmup');
+        h+=rowsHTML([plan.top],'top','Top set');
+        h+=rowsHTML(plan.backs,'back','Back-off');
+      }
     }
-    h+='<div class="logged" id="logged-'+id+'">'+todayLog.map(s=>'<span class="setpill" data-del="'+td+'|'+s.id+'">'+(s.type&&s.type!=='cardio'?s.type[0].toUpperCase()+':':'')+s.weight+'\u00d7'+s.reps+' \u00d7</span>').join('')+'</div>';
+    h+='<div class="logged" id="logged-'+id+'">'+((isPastDay&&todayLog.length)?'':todayLog.map(s=>'<span class="setpill" data-del="'+td+'|'+s.id+'">'+(s.type&&s.type!=='cardio'?s.type[0].toUpperCase()+':':'')+s.weight+'\u00d7'+s.reps+' \u00d7</span>').join(''))+'</div>';
     h+='</div>';
   });
   const exList=exs.map(e=>'<option value="'+esc(e)+'">').join('');
@@ -1148,7 +1233,7 @@ function logSet(ex,type,w,reps){
   if(!ex||!w||!reps) return;
   const td=wkDate||dstr(); if(!WK.days[td]) WK.days[td]=[];
   const m=exMeta(ex);
-  WK.days[td].push({id:Date.now()+Math.random(), ex, muscle:m.muscle, group:m.group, type, weight:w, reps});
+  WK.days[td].push({id:uid(), ex, muscle:m.muscle, group:m.group, type, weight:w, reps});
   wkMarkDirty();
   autoCompleteChecks(ex);
   patchLift(ex);          // update ONLY this card — nothing on the page moves
@@ -1166,7 +1251,7 @@ function autoCompleteChecks(ex){
   const logged=(WK.days[td]||[]).filter(s=>s.ex===ex).length;
   if(!WK.done) WK.done={}; if(!WK.done[td]) WK.done[td]=[];
   if(logged>=plannedSetCount(ex) && WK.done[td].indexOf(ex)<0){
-    WK.done[td].push(ex); wkMarkDirty();
+    WK.done[td].push(ex); wkMarkDirty(); dismissRestFor(ex);
     const el=document.querySelector('[data-exdone="'+ex.replace(/"/g,'')+'"]');
     if(el){ el.textContent='\u2713'; const card=document.getElementById('lift-'+cssId(ex)); if(card) card.classList.add('exdone'); }
   }
@@ -1175,7 +1260,7 @@ function autoCompleteChecks(ex){
   const allDone = exs.length>0 && exs.every(e=>(WK.done[td]||[]).indexOf(e)>=0);
   if(allDone && !(WK.sessionDone&&WK.sessionDone[td])){
     if(!WK.sessionDone) WK.sessionDone={};
-    WK.sessionDone[td]=true; wkMarkDirty();
+    WK.sessionDone[td]=true; wkMarkDirty(); stopRest(true);
     renderWorkout(true);
     saveAll(false);                        // auto-save on session completion
   }
@@ -1212,9 +1297,9 @@ function wireWorkout(){
   const g=id=>document.getElementById(id);
   g('bw-add').onclick=()=>{ const v=+g('bw-in').value; if(!v) return; WK.bw[wkDate||dstr()]=v; if(!WK.settings.bwCurrent) WK.settings.bwCurrent=v; wkMarkDirty(); renderWorkout(true); };
   paneWorkout.querySelectorAll('[data-split]').forEach(b=>b.onclick=()=>{ wkSplit=b.getAttribute('data-split'); wkSplitTouched=true; renderWorkout(); });
-  { const p=g('wk-prev'); if(p) p.onclick=()=>{ wkDate=shift(wkDate||dstr(),-1); renderWorkout(); }; }
-  { const n=g('wk-next'); if(n) n.onclick=()=>{ wkDate=shift(wkDate||dstr(),1); renderWorkout(); }; }
-  { const t=g('wk-today'); if(t) t.onclick=()=>{ wkDate=dstr(); renderWorkout(); }; }
+  { const p=g('wk-prev'); if(p) p.onclick=()=>{ wkDate=shift(wkDate||dstr(),-1); wkSplitTouched=false; renderWorkout(); }; }
+  { const n=g('wk-next'); if(n) n.onclick=()=>{ wkDate=shift(wkDate||dstr(),1); wkSplitTouched=false; renderWorkout(); }; }
+  { const t=g('wk-today'); if(t) t.onclick=()=>{ wkDate=dstr(); wkSplitTouched=false; renderWorkout(); }; }
   { const b=g('wk-sessdone'); if(b) b.onclick=()=>toggleSessionDone(); }
   paneWorkout.querySelectorAll('[data-incr]').forEach(b=>b.onclick=()=>{
     const ex=b.getAttribute('data-incr');
@@ -1225,7 +1310,7 @@ function wireWorkout(){
   });
   paneWorkout.querySelectorAll('[data-exdone]').forEach(el=>el.onclick=()=>toggleExDone(el.getAttribute('data-exdone')));
   paneWorkout.querySelectorAll('[data-rest]').forEach(b=>b.onclick=()=>{ const [ex,type]=b.getAttribute('data-rest').split('|'); startRest(ex,type); });
-  { const rs=document.getElementById('rest-stop'); if(rs) rs.onclick=()=>{ const bar=document.getElementById('restbar'); if(bar) bar.style.display='none'; stopRest(); }; }
+  { const rs=document.getElementById('rest-stop'); if(rs) rs.onclick=()=>stopRest(true); }
   if(restTimer) paintRest();
   paneWorkout.querySelectorAll('[data-deload]').forEach(b=>b.onclick=()=>{ const ex=b.getAttribute('data-deload'); wkDeload[ex]=!wkDeload[ex]; renderWorkout(true); });
   paneWorkout.querySelectorAll('[data-log]').forEach(btn=>{ btn.onclick=()=>{ const [ex,type,wid,rid]=btn.getAttribute('data-log').split('|'); logSet(ex,type,+g(wid).value,+g(rid).value); startRest(ex,type); }; });
@@ -1299,19 +1384,151 @@ const KG_TOPICS = [
 ];
 
 const ytS=q=>'https://www.youtube.com/results?search_query='+encodeURIComponent(q);
-const KG_PLAYLIST='https://www.youtube.com/watch?v=sQqniayndb4&list=PLMrJAkhIeNNR3sNYvfgiKgcStwuPSts9V';
 // Gym-session study: videos to watch + readings to do (phone-friendly, passive).
 const KG_GYM={
-  algorithms:{videos:[['Recursion (playlist)','https://www.youtube.com/watch?v=44TwrxjfIfo&list=PLDV1Zeh2NRsCmu1lb9grUcljeYJtmgmYc'],['Dynamic programming (playlist)','https://www.youtube.com/watch?v=_tur2nPkIKo&list=PLDV1Zeh2NRsAsbafOroUBnNV8fhZa7P4u'],['Tree algorithms (playlist)','https://www.youtube.com/watch?v=1XC3p2zBK34&list=PLDV1Zeh2NRsDfGc8rbQ0_58oEZQVtvoIc'],['Graph theory (playlist)','https://youtube.com/playlist?list=PLDV1Zeh2NRsDGO4--qE8yH72HFL1Km93P']],reading:[['clrs','\u00a722.2\u201322.4 BFS, DFS, topological sort'],['clrs','Ch.24 shortest paths (Dijkstra)'],['clrs','Ch.21 disjoint sets'],['clrs','Ch.15 dynamic programming'],['cses','CSES Handbook \u2014 \u00a76 greedy, \u00a77 DP, \u00a711\u201316 graphs']]},
-  probstats:{videos:[['Bayes theorem (3B1B)','https://www.youtube.com/results?search_query=3blue1brown+bayes+theorem'],['Central limit theorem','https://www.youtube.com/results?search_query=central+limit+theorem+explained'],['Expected value & variance','https://www.youtube.com/results?search_query=expected+value+variance+explained']],reading:[['mathcs','MIT 6.042J \u2014 probability & expectation chapters']]},
-  gpu:{videos:[['Stanford CS149 Lec 7 \u2014 GPU & CUDA','https://www.youtube.com/watch?v=qQTDF0CBoxE'],['CS149 Lec 10 \u2014 DNNs on GPUs','https://www.youtube.com/watch?v=qbKtU0X6-WU'],['How GPUs work','https://www.youtube.com/results?search_query=how+gpu+works+architecture+explained']],reading:[['pmpp','PMPP Ch.4\u20135 \u2014 scheduling, memory, tiling'],['cornell','Cornell CVW \u2014 GPU roadmaps']]},
-  graph:{videos:[['Graph theory (full playlist)','https://youtube.com/playlist?list=PLDV1Zeh2NRsDGO4--qE8yH72HFL1Km93P'],['Tree algorithms (playlist)','https://www.youtube.com/watch?v=1XC3p2zBK34&list=PLDV1Zeh2NRsDfGc8rbQ0_58oEZQVtvoIc']],reading:[['clrs','Ch.20 elementary graph algorithms'],['clrs','Ch.22\u201323 MST & shortest paths']]},
-  concurrency:{videos:[['C++ memory model',ytS('C++ memory model acquire release explained')],['Lock-free programming',ytS('lock free programming C++ introduction')],['False sharing',ytS('false sharing cache line C++')],['Mutex vs atomic',ytS('mutex vs atomic C++ when to use')]],reading:[['cia','Ch.5 memory model & atomics'],['cia','Ch.7 lock-free data structures'],['tanenbaum','\u00a76 deadlocks']]},
-  comparch:{videos:[['CPU caches explained',ytS('CPU cache explained memory hierarchy')],['Pipelining & hazards',ytS('CPU pipeline hazards explained')],['Branch prediction',ytS('branch prediction explained')],['Virtual memory & TLB',ytS('virtual memory paging TLB explained')]],reading:[['csapp','Ch.6 memory hierarchy & caches'],['csapp','Ch.9 virtual memory'],['cod','Ch.4 the processor (pipelining)'],['cpuland','rings, syscalls, execution']]},
-  cpp:{videos:[['RAII explained',ytS('RAII C++ explained')],['Move semantics',ytS('C++ move semantics explained')],['Smart pointers',ytS('unique_ptr shared_ptr weak_ptr explained')],['vtables & virtual',ytS('C++ vtable virtual function how it works')]],reading:[['coreg','R.1, R.20\u2013R.24 resources & smart pointers'],['coreg','C.20\u2013C.21 rule of zero/five'],['baremetal','compile-time polymorphism, no-heap C++']]},
-  distributed:{videos:[['CAP theorem',ytS('CAP theorem explained')],['Raft consensus',ytS('Raft consensus algorithm visualized')],['Consistent hashing',ytS('consistent hashing explained')],['Vector clocks',ytS('lamport vector clocks explained')]],reading:[['cia','concurrency foundations'],['unp','IPC & message semantics (Stevens Vol.2)']]},
-  linux:{videos:[['fork/exec model',ytS('linux fork exec explained')],['epoll vs select',ytS('epoll vs select poll explained')],['File descriptors',ytS('linux file descriptors explained')],['Processes & signals',ytS('linux processes signals explained')]],reading:[['tlpi','Ch.24 process creation'],['tlpi','\u00a75.4 file descriptors & open files'],['tlpi','Ch.63 epoll & I/O models']]}
+  algorithms:{concepts:[
+      ['How recursion actually works (call stack)', ytS('how recursion works call stack visualization explained')],
+      ['Why dynamic programming works (overlapping subproblems)', ytS('dynamic programming explained intuition overlapping subproblems optimal substructure')],
+      ['Big-O explained from first principles', ytS('big o notation explained intuition asymptotic analysis')],
+      ['What a hash table really is', ytS('hash table explained internals collisions load factor')]
+    ],practice:[
+      ['Recursion \u2014 problem walkthroughs (playlist)','https://www.youtube.com/watch?v=44TwrxjfIfo&list=PLDV1Zeh2NRsCmu1lb9grUcljeYJtmgmYc'],
+      ['Dynamic programming \u2014 problem walkthroughs (playlist)','https://www.youtube.com/watch?v=_tur2nPkIKo&list=PLDV1Zeh2NRsAsbafOroUBnNV8fhZa7P4u'],
+      ['Tree algorithms (playlist)','https://www.youtube.com/watch?v=1XC3p2zBK34&list=PLDV1Zeh2NRsDfGc8rbQ0_58oEZQVtvoIc']
+    ],reading:[['clrs','\u00a722.2\u201322.4 BFS, DFS, topological sort'],['clrs','Ch.15 dynamic programming'],['cses','CSES Handbook \u2014 \u00a76 greedy, \u00a77 DP'],['skiena','Ch.8 dynamic programming']]},
+
+  graph:{concepts:[
+      ['What is a graph? (theory, not code)', ytS('graph theory introduction explained vertices edges concepts')],
+      ['Why BFS finds shortest paths', ytS('why BFS finds shortest path unweighted intuition proof')],
+      ['Dijkstra: the intuition behind the greedy choice', ytS('dijkstra algorithm intuition why greedy works explained')],
+      ['What makes a problem a graph problem', ytS('modeling problems as graphs how to recognize')]
+    ],practice:[
+      ['Graph theory \u2014 full playlist (WilliamFiset)','https://youtube.com/playlist?list=PLDV1Zeh2NRsDGO4--qE8yH72HFL1Km93P'],
+      ['Tree algorithms (playlist)','https://www.youtube.com/watch?v=1XC3p2zBK34&list=PLDV1Zeh2NRsDfGc8rbQ0_58oEZQVtvoIc']
+    ],reading:[['clrs','Ch.20 elementary graph algorithms'],['clrs','Ch.22\u201323 MST & shortest paths'],['cses','\u00a711\u201316 graph algorithms']]},
+
+  concurrency:{concepts:[
+      ['The C++ memory model, explained', ytS('C++ memory model explained acquire release sequential consistency concepts')],
+      ['Why concurrency is hard (races, reordering)', ytS('why concurrency is hard data races memory reordering explained')],
+      ['What a cache line has to do with threads (false sharing)', ytS('false sharing cache coherence explained why slow')],
+      ['Lock-free programming: the ideas', ytS('lock free programming concepts explained CAS ABA')]
+    ],practice:[
+      ['Implementing atomics and lock-free structures', ytS('implement lock free queue C++ tutorial')],
+      ['std::thread and synchronization walkthrough', ytS('C++ std thread mutex condition variable tutorial')]
+    ],reading:[['cia','Ch.5 memory model & atomics'],['cia','Ch.7 lock-free data structures'],['tanenbaum','\u00a76 deadlocks']]},
+
+  comparch:{concepts:[
+      ['How a CPU actually executes code', ytS('how CPU works fetch decode execute explained')],
+      ['Why caches exist (memory hierarchy)', ytS('cpu cache explained why memory hierarchy exists locality')],
+      ['Pipelining and why branches hurt', ytS('cpu pipeline branch prediction explained concepts')],
+      ['Virtual memory, paging and the TLB', ytS('virtual memory paging TLB explained concepts')]
+    ],practice:[
+      ['Stanford CS149 \u2014 GPU & CUDA (Lec 7)','https://www.youtube.com/watch?v=qQTDF0CBoxE'],
+      ['Assembly / godbolt walkthroughs', ytS('compiler explorer godbolt assembly walkthrough tutorial')]
+    ],reading:[['csapp','Ch.6 memory hierarchy & caches'],['csapp','Ch.9 virtual memory'],['cod','Ch.4 the processor'],['cpuland','rings, syscalls, execution']]},
+
+  cpp:{concepts:[
+      ['Move semantics \u2014 the idea, not the syntax', ytS('C++ move semantics explained concept why it exists')],
+      ['RAII and why C++ has no finally', ytS('RAII explained C++ concept resource management')],
+      ['What the compiler does with templates', ytS('C++ templates explained how compiler instantiation works')],
+      ['Object layout, vtables and virtual dispatch', ytS('C++ vtable object layout explained how virtual works')]
+    ],practice:[
+      ['Modern C++ feature walkthroughs', ytS('modern C++17 C++20 features tutorial')],
+      ['Smart pointer usage patterns', ytS('unique_ptr shared_ptr tutorial examples')]
+    ],reading:[['coreg','R.1, R.20\u2013R.24 resources & smart pointers'],['coreg','C.20\u2013C.21 rule of zero/five'],['baremetal','compile-time polymorphism, no-heap C++']]},
+
+  distributed:{concepts:[
+      ['Why distributed systems are hard', ytS('why distributed systems are hard partial failure explained')],
+      ['CAP theorem \u2014 what it really says', ytS('CAP theorem explained misconceptions')],
+      ['Consensus and why quorums work', ytS('raft consensus explained quorum intuition visualization')],
+      ['Consistency models compared', ytS('consistency models explained eventual strong linearizability')]
+    ],practice:[
+      ['Building a replicated store', ytS('build distributed key value store tutorial raft')],
+      ['System design walkthroughs', ytS('distributed system design interview walkthrough')]
+    ],reading:[['ddia','Ch.5 replication, Ch.9 consistency & consensus'],['cia','concurrency foundations'],['unp','IPC & message semantics']]},
+
+  linux:{concepts:[
+      ['What an operating system actually does', ytS('what does an operating system do kernel explained concepts')],
+      ['Processes, threads and the scheduler', ytS('linux process thread scheduler explained concepts')],
+      ['How syscalls cross into the kernel', ytS('linux system call explained user kernel space')],
+      ['File descriptors and everything-is-a-file', ytS('linux file descriptor explained concept everything is a file')]
+    ],practice:[
+      ['epoll and async I/O in practice', ytS('epoll tutorial linux nonblocking io example')],
+      ['strace / perf debugging walkthroughs', ytS('strace perf linux debugging tutorial')]
+    ],reading:[['tlpi','Ch.24 process creation'],['tlpi','\u00a75.4 file descriptors'],['tlpi','Ch.63 epoll & I/O models'],['ostep','virtualization, concurrency, persistence']]},
+
+  probstats:{concepts:[
+      ['Bayes theorem \u2014 visual intuition', ytS('3blue1brown bayes theorem visual intuition')],
+      ['What variance and expectation really mean', ytS('expected value variance explained intuition')],
+      ['Central limit theorem explained', ytS('central limit theorem explained intuition visualization')],
+      ['Linear regression from first principles', ytS('linear regression least squares explained intuition geometry')]
+    ],practice:[
+      ['Probability puzzle walkthroughs', ytS('quant interview probability puzzles solutions walkthrough')],
+      ['Deriving OLS and ridge by hand', ytS('derive ordinary least squares ridge regression closed form')]
+    ],reading:[['mathcs','MIT 6.042J \u2014 probability & expectation']]},
+
+  gpu:{concepts:[
+      ['How a GPU differs from a CPU', ytS('gpu vs cpu architecture explained why parallel')],
+      ['What makes GPU code fast or slow (memory)', ytS('gpu memory coalescing bandwidth bound explained')],
+      ['The roofline model explained', ytS('roofline model explained arithmetic intensity')],
+      ['Why LLM inference is memory bound', ytS('llm inference memory bandwidth bound explained kv cache')]
+    ],practice:[
+      ['Stanford CS149 Lec 7 \u2014 GPU & CUDA','https://www.youtube.com/watch?v=qQTDF0CBoxE'],
+      ['Stanford CS149 Lec 10 \u2014 DNNs on GPUs','https://www.youtube.com/watch?v=qbKtU0X6-WU'],
+      ['Writing your first CUDA kernels', ytS('cuda programming tutorial first kernel')]
+    ],reading:[['pmpp','PMPP Ch.4\u20135 \u2014 scheduling, memory, tiling'],['cornell','Cornell CVW \u2014 GPU roadmaps']]},
+
+  mlfund:{concepts:[
+      ['What a neural network actually is', 'https://www.youtube.com/playlist?list=PLZHQObOWTQDNU6R1_67000Dx_ZCJB-3pi'],
+      ['Backpropagation, visually', ytS('3blue1brown backpropagation calculus explained')],
+      ['What attention is doing (concept)', ytS('attention mechanism transformer explained intuition visual')],
+      ['Why transformers replaced RNNs', ytS('transformers explained why attention replaced rnn concept')]
+    ],practice:[
+      ['Karpathy \u2014 build micrograd from scratch','https://www.youtube.com/watch?v=VMj-3S1tku0'],
+      ['Karpathy \u2014 build GPT from scratch','https://www.youtube.com/watch?v=kCc8FmEb1nY'],
+      ['Karpathy \u2014 build the GPT tokenizer','https://www.youtube.com/watch?v=zduSFxRajkE']
+    ],reading:[['micrograd','Zero to Hero series'],['cs231n','backprop notes'],['attention','Attention Is All You Need \u00a73.2']]},
+
+  databases:{concepts:[
+      ['How a database actually stores data', ytS('how database storage engine works explained b-tree lsm')],
+      ['What indexes really are', ytS('database index explained how it works b+ tree')],
+      ['Transactions and isolation levels explained', ytS('database transaction isolation levels explained concepts')],
+      ['Query planning: how the optimizer thinks', ytS('database query optimizer explained execution plan')]
+    ],practice:[['Reading EXPLAIN output', ytS('explain analyze postgres tutorial slow query')]],
+    reading:[['dbsys','Readings in Database Systems'],['ddia','Ch.3 storage & retrieval']]},
+
+  networking:{concepts:[
+      ['How the internet actually works', ytS('how the internet works packets routing explained')],
+      ['TCP explained (handshake, reliability)', ytS('tcp explained handshake congestion control concepts')],
+      ['What TLS does and why', ytS('tls handshake explained concepts encryption certificates')],
+      ['Latency vs bandwidth \u2014 the difference', ytS('latency vs bandwidth explained networking')]
+    ],practice:[['Socket programming walkthrough', ytS('socket programming tutorial tcp server c++')]],
+    reading:[['kurose','Ch.3 transport layer'],['unp','Stevens UNP \u2014 sockets & multicast']]},
+
+  compilers:{concepts:[
+      ['How compilers work, end to end', ytS('how compilers work explained phases overview')],
+      ['Parsing explained (grammars, ASTs)', ytS('parsing explained grammar abstract syntax tree concepts')],
+      ['What an IR is and why SSA matters', ytS('compiler intermediate representation SSA explained')],
+      ['How ML compilers map graphs to hardware', ytS('mlir xla tvm ml compiler explained overview')]
+    ],practice:[['Writing an interpreter walkthrough', ytS('crafting interpreters tutorial build interpreter')]],
+    reading:[['crafting','Crafting Interpreters \u2014 scanning, parsing, VM']]},
+
+  sysdesign:{concepts:[
+      ['How to approach a system design problem', ytS('system design interview approach framework explained')],
+      ['Scaling: load balancing, caching, sharding', ytS('system design scaling load balancing caching sharding explained')],
+      ['How a limit order book works', ytS('limit order book matching engine explained how it works')],
+      ['Reliability patterns (circuit breaker, backpressure)', ytS('circuit breaker backpressure load shedding explained')]
+    ],practice:[['System design mock walkthroughs', ytS('system design interview mock walkthrough')]],
+    reading:[['sysdesign','System Design Primer']]},
+
+  behavioral:{concepts:[
+      ['What interviewers actually assess behaviorally', ytS('behavioral interview what interviewers look for engineering')],
+      ['STAR method explained', ytS('STAR method behavioral interview explained')]
+    ],practice:[['Answer walkthroughs with critique', ytS('behavioral interview answers examples software engineer critique')]],
+    reading:[['star','STAR structure']]}
 };
+
+
 
 /* Each item: {id, mins:5|15|30|60, prompt, src:{book,ref}, video?, reveal?, flow:'flip'|'full'} */
 let KG_ITEMS = {};        // loaded from questions/*.json (content lives in the repo, not in this file)
@@ -1343,7 +1560,7 @@ async function loadQuestionBank(){
 
 let kgDirtyFlag=false;
 function kgMarkDirty(){ kgDirtyFlag=true; paintSaveChip(); }
-async function kgLoad(){ await loadQuestionBank(); const s=await rawGet(KEYS.csgraph); if(s){ try{ const p=JSON.parse(s); if(p&&p.mastery){ KG=p; } }catch(e){} } if(!KG.mastery)KG.mastery={}; if(!KG.srs)KG.srs={}; if(!KG.log)KG.log=[]; if(!KG.gymDone)KG.gymDone={}; kgLoaded=true; }
+async function kgLoad(){ await loadQuestionBank(); const s=await rawGet(KEYS.csgraph); if(s){ try{ const p=JSON.parse(s); if(p&&p.mastery){ KG=p; } }catch(e){} } if(!KG.mastery)KG.mastery={}; if(!KG.srs)KG.srs={}; if(!KG.log)KG.log=[]; if(!KG.gymDone)KG.gymDone={}; kgLoaded=true; snapshotClean(); }
 
 /* ---- spaced repetition (SM-2 style, driven by the 1..5 self-rating) ---- */
 function addDaysISO(n){ return shift(dstr(), n); }
@@ -1408,9 +1625,15 @@ function renderKnowledge(){
   // GYM MODE: videos + readings, phone-friendly
   if(kgGym && KG_GYM[kgTopic]){
     const gm=KG_GYM[kgTopic];
-    h+='<div class="panel"><p class="panel-t">Watch \u2014 videos for the gym</p>'
-      + gm.videos.map((v,i)=>{const k=kgTopic+'|v|'+i;const done=!!KG.gymDone[k];return '<div class="goalrow"><span class="chk" data-gymdone="'+k+'" style="width:20px;height:20px">'+(done?'\u2713':'')+'</span><span style="flex:1'+(done?';opacity:.5;text-decoration:line-through':'')+'">'+esc(v[0])+'</span><a href="'+v[1]+'" target="_blank" rel="noopener" style="color:var(--teal)">open \u2197</a></div>';}).join('')
-      + '</div>';
+    const vids=[].concat((gm.concepts||[]).map(v=>['concept',v]),(gm.practice||[]).map(v=>['practice',v]),(gm.videos||[]).map(v=>['',v]));
+    h+='<div class="panel"><p class="panel-t">Understand \u2014 what these ideas actually are</p>'
+      + vids.filter(x=>x[0]!=='practice').map((x,i)=>{const v=x[1];const k=kgTopic+'|c|'+i;const done=!!KG.gymDone[k];
+          return '<div class="goalrow"><span class="chk" data-gymdone="'+k+'" style="width:20px;height:20px">'+(done?'\u2713':'')+'</span><span style="flex:1'+(done?';opacity:.5;text-decoration:line-through':'')+'">'+esc(v[0])+'</span><a href="'+v[1]+'" target="_blank" rel="noopener" style="color:var(--teal)">open \u2197</a></div>';}).join('')
+      + '</div>'
+      + ((gm.practice&&gm.practice.length)?('<div class="panel"><p class="panel-t">Apply \u2014 worked problems &amp; implementation</p>'
+        + gm.practice.map((v,i)=>{const k=kgTopic+'|p|'+i;const done=!!KG.gymDone[k];
+          return '<div class="goalrow"><span class="chk" data-gymdone="'+k+'" style="width:20px;height:20px">'+(done?'\u2713':'')+'</span><span style="flex:1'+(done?';opacity:.5;text-decoration:line-through':'')+'">'+esc(v[0])+'</span><a href="'+v[1]+'" target="_blank" rel="noopener" style="color:var(--teal)">open \u2197</a></div>';}).join('')
+        + '</div>'):'');
     h+='<div class="panel"><p class="panel-t">Read \u2014 sections for this topic</p>'
       + gm.reading.map((r,i)=>{const b=KG_BOOKS[r[0]];const k=kgTopic+'|r|'+i;const done=!!KG.gymDone[k];return '<div class="goalrow"><span class="chk" data-gymdone="'+k+'" style="width:20px;height:20px">'+(done?'\u2713':'')+'</span><span style="flex:1'+(done?';opacity:.5;text-decoration:line-through':'')+'">'+esc(r[1])+'</span>'+(b?'<a href="'+b.u+'" target="_blank" rel="noopener" style="color:var(--teal)">'+esc(b.t.split(' \u2014 ')[0])+' \u2197</a>':'')+'</div>';}).join('')
       + '</div>';
@@ -1503,10 +1726,9 @@ function wireKnowledge(){
    AI meal estimator via Anthropic API (claude-sonnet-4-6). */
 const paneWeight = document.getElementById('pane-weight');
 let SG = { settings:{}, days:{}, tad:{} };
-let sgLoaded=false, sgDirty=false, sgTimer=null, sgDate=null;
+let sgLoaded=false, sgDirty=false, sgDate=null;
 
 function sgMarkDirty(){ sgDirty=true; paintSaveChip(); }
-async function sgCommit(silent){ if(!sgLoaded) return; await rawSet(KEYS.surplus, JSON.stringify(SG)); sgDirty=false; if(!dirty) paintSaveChip(); if(!silent) flashSaved(); }
 async function sgLoad(){ const s=await rawGet(KEYS.surplus);
   if(s){ try{ const st=JSON.parse(s); SG={settings:st.settings||{},days:st.days||{},tad:st.tad||{}}; }catch(e){ SG={settings:{},days:{},tad:{}}; } }
   // Fresh device → bake in your real bulk targets so the header is correct immediately.
@@ -1517,7 +1739,7 @@ async function sgLoad(){ const s=await rawGet(KEYS.surplus);
   if(!SG.settings.proteinTarget) SG.settings.proteinTarget=DEF.proteinTarget;
   if(!SG.settings.current) SG.settings.current=DEF.current;
   if(!SG.settings.goal) SG.settings.goal=DEF.goal;
-  sgLoaded=true; if(!SG.tad) SG.tad={}; if(!sgDate) sgDate=dstr();
+  sgLoaded=true; if(!SG.tad) SG.tad={}; if(!sgDate) sgDate=dstr(); snapshotClean();
 }
 function dayMeals(d){ return SG.days[d]||[]; }
 function sumCal(d){ return dayMeals(d).reduce((a,x)=>a+(+x.cal||0),0); }
@@ -1604,7 +1826,7 @@ function wireWeight(){
     if(!name) name='Meal';                       // macros given but no label \u2014 still log it
     if(!sgDate) sgDate=dstr();
     if(!SG.days[sgDate]) SG.days[sgDate]=[];
-    SG.days[sgDate].push({id:Date.now()+Math.random(),name,cal:c,protein:p,est:!!est});
+    SG.days[sgDate].push({id:uid(),name,cal:c,protein:p,est:!!est});
     sgMarkDirty();
     renderWeight();
     mstat('\u2713 Added '+name+' \u00b7 '+c+' kcal \u00b7 '+p+'g');
