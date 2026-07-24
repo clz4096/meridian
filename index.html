@@ -392,8 +392,17 @@ function mergeKG(local,cloud,localNewer){
 function parseOr(s,f){ try{ return s?JSON.parse(s):f; }catch(e){ return f; } }
 
 // Merge a cloud payload into the live in-memory state, then persist.
+async function ensureAllLoaded(){
+  // A store that was never opened has loaded=false, and merge would SKIP it —
+  // silently dropping the other device's data. Force-load everything first.
+  try{ if(typeof coreHydrated!=='undefined' && !coreHydrated && typeof loadCore==='function') await loadCore(); }catch(e){}
+  try{ if(typeof wkLoaded!=='undefined'   && !wkLoaded   && typeof wkLoad==='function')   await wkLoad(); }catch(e){}
+  try{ if(typeof sgLoaded!=='undefined'   && !sgLoaded   && typeof sgLoad==='function')   await sgLoad(); }catch(e){}
+  try{ if(typeof kgLoaded!=='undefined'   && !kgLoaded   && typeof kgLoad==='function')   await kgLoad(); }catch(e){}
+}
 async function cloudMerge(d){
   if(!d) return false;
+  await ensureAllLoaded();
   const localNewer = (parseInt(lsGet('meridian_local_mtime')||'0',10)||0) >= (+d.syncedAt||0);
   if(typeof CORE!=='undefined' && coreHydrated) CORE = mergeCORE(CORE, parseOr(d.core,{}), localNewer);
   if(typeof WK!=='undefined'   && wkLoaded)     WK   = mergeWK(WK,   parseOr(d.overload,{}), localNewer);
@@ -419,6 +428,7 @@ function setBaseRev(r){ try{ localStorage.setItem('meridian_base_rev', String(r)
 // on since we last pulled. force=true is only used by an explicit user override.
 async function cloudPush(force){
   const id=cloudId(); if(!id) return {ok:false,err:'no id'};
+  await ensureAllLoaded();
   // read current cloud revision first
   let cloudRev=0, cloudAt=0;
   let cloudData=null;
@@ -768,7 +778,11 @@ function renderData(){
     if(!r.ok){ cmsg('Pull failed: '+r.err,true); return; }
     if(!r.data){ cmsg('Cloud is empty. Push from another device first.',true); return; }
 
-    await cloudMerge(r.data); cmsg('\u2713 Pulled '+(r.at?('from '+new Date(r.at).toLocaleString()):'')+'. Reloading\u2026');
+    try{
+      const okm=await cloudMerge(r.data);
+      if(!okm){ cmsg('Pull returned no usable data.',true); return; }
+    }catch(e){ cmsg('Pull failed while merging: '+(e&&e.message?e.message:e),true); console.error('cloudMerge error',e); return; }
+    cmsg('\u2713 Pulled '+(r.at?('from '+new Date(r.at).toLocaleString()):'')+'. Reloading\u2026');
     setTimeout(()=>location.reload(),700);
   };
 
@@ -2006,7 +2020,7 @@ document.addEventListener('visibilitychange',async()=>{
   if(document.visibilityState==='hidden'){ flushAll('hidden'); return; }
   // returning to the app: pull + merge so the other device's changes show up
   if(cloudEnabled() && !anyDirty()){
-    try{ const r=await cloudPull(); if(r.ok&&r.data&&(+r.data.rev||0)>baseRev()){ await cloudMerge(r.data);
+    try{ const r=await cloudPull(); if(r.ok&&r.data&&(+r.data.rev||0)>baseRev()){ try{ await cloudMerge(r.data); }catch(e){ console.error('auto-merge failed',e); }
       try{ renderToday(); renderStudy();
         if(document.getElementById('pane-workout').classList.contains('on')) renderWorkout();
         if(document.getElementById('pane-weight').classList.contains('on')) renderWeight();
