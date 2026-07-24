@@ -32,11 +32,12 @@ global.setInterval=()=>0; global.clearInterval=()=>{};
 global.alert=()=>{}; global.confirm=()=>true; global.prompt=()=>null;
 
 // --- fake Pantry ---
-let CLOUD=null, netUp=true, calls={GET:0,POST:0};
+let CLOUD=null, netUp=true, rateLimit=false, calls={GET:0,POST:0};
 global.fetch=async(url,opts)=>{
   if(!netUp) throw new Error('Failed to fetch');
   if(String(url).includes('questions/')) return {ok:true,json:async()=>({version:1,topics:{}})};
   if(String(url).includes('getpantry')){
+    if(rateLimit) return {ok:false,status:429,json:async()=>({})};
     if(opts&&opts.method==='POST'){ calls.POST++; CLOUD=JSON.parse(opts.body); return {ok:true,status:200,json:async()=>({})}; }
     calls.GET++;
     if(!CLOUD) return {ok:false,status:400,json:async()=>({})};
@@ -79,40 +80,40 @@ if(ctx){
     console.log('\n=== C. Pull returns what was pushed ===');
     let p=await ctx.cloudPull();
     t('pull ok', p.ok, true);
-    t('pull has surplus', typeof p.data.surplus, 'string');
-    t('pulled meal present', JSON.parse(p.data.surplus).days[D].length, 1);
+    t('pull has surplus', typeof p.data.surplus, 'object');
+    t('pulled meal present', p.data.surplus.days[D].length, 1);
 
     console.log('\n=== D. Identical push is a no-op (no data noise) ===');
     const postsBefore=calls.POST;
-    let r2=await ctx.cloudPush();
+    let r2=await ctx.cloudPush(true);   // force past the throttle
     t('second push ok', r2.ok, true);
     t('identical data => noop', r2.noop, true);
     t('no network write issued', calls.POST, postsBefore);
 
     console.log('\n=== D2. Changed data pushes for real ===');
     ctx.SG.days[D].push({id:ctx.uid(),name:'m2',cal:200,protein:20});
-    let r2b=await ctx.cloudPush();
+    let r2b=await ctx.cloudPush(true);
     t('changed data pushes', r2b.ok && !r2b.noop, true);
     t('rev advanced', r2b.rev>r1.rev, true);
     t('network write happened', calls.POST>postsBefore, true);
-    t('cloud has both meals', JSON.parse(CLOUD.surplus).days[D].length, 2);
+    t('cloud has both meals', CLOUD.surplus.days[D].length, 2);
 
     console.log('\n=== E. Merge a foreign cloud payload ===');
     const foreign=JSON.parse(JSON.stringify(CLOUD));
-    const fs2=JSON.parse(foreign.surplus); fs2.days[D].push({id:'other-1',name:'from-other',cal:200,protein:20});
-    foreign.surplus=JSON.stringify(fs2); foreign.rev=99; foreign.syncedAt=Date.now()+1000;
+    foreign.surplus.days[D].push({id:'other-1',name:'from-other',cal:200,protein:20}); foreign.rev=99; foreign.syncedAt=Date.now()+1000;
     await ctx.cloudMerge(foreign);
     t('merged foreign meal', ctx.SG.days[D].map(m=>m.name).sort(), ['from-other','m1','m2']);
     t('baseRev adopted', ctx.baseRev(), 99);
 
     console.log('\n=== F. Push after merge still works ===');
-    let r3=await ctx.cloudPush();
+    let r3=await ctx.cloudPush(true);
     t('push after merge ok', r3.ok, true);
-    t('cloud has all meals', JSON.parse(CLOUD.surplus).days[D].length, 3);
+    t('cloud has all meals', CLOUD.surplus.days[D].length, 3);
 
     console.log('\n=== G. Network failure surfaces a real reason ===');
     netUp=false;
-    let r4=await ctx.cloudPush();
+    ctx.SG.days[D].push({id:ctx.uid(),name:'offline-meal',cal:1,protein:1});   // real change to send
+    let r4=await ctx.cloudPush(true);
     t('push reports failure', r4.ok, false);
     t('failure has a reason', typeof r4.err==='string' && r4.err.length>0, true);
     console.log('        reason: '+r4.err);
@@ -121,9 +122,25 @@ if(ctx){
     console.log('        reason: '+p2.err);
     netUp=true;
 
-    console.log('\n=== H. Recovers after network returns ===');
-    let r5=await ctx.cloudPush();
-    t('push recovers', r5.ok, true);
+    console.log('\n=== G2. Throttle prevents hammering ===');
+    let rt=await ctx.cloudPush();          // unforced, immediately after a push
+    t('unforced rapid push is throttled', !!rt.throttled, true);
+    console.log('        '+rt.err);
+
+    console.log('\n=== G3. HTTP 429 triggers backoff, not a crash ===');
+    rateLimit=true;
+    let r429=await ctx.cloudPush(true);
+    t('429 reported as rateLimited', !!r429.rateLimited, true);
+    console.log('        '+r429.err);
+    rateLimit=false;
+
+    console.log('\n=== H. Recovers after rate limit / network returns ===');
+    const pr=await ctx.cloudPull();          // successful read clears the backoff
+    t('pull works again', pr.ok, true);
+    ctx.SG.days[D].push({id:ctx.uid(),name:'m3',cal:1,protein:1});
+    let r5=await ctx.cloudPush(true);
+    t('push recovers after backoff cleared', r5.ok, true);
+    t('recovered push was a real write', !r5.noop, true);
 
     console.log('\n----------------------------------------');
     console.log('PASSED: '+pass+'   FAILED: '+fail+'   (GET '+calls.GET+', POST '+calls.POST+')');

@@ -274,7 +274,7 @@ async function rawSet(key,val){
 // ---- CORE (this app's own store): { schedule:{date:[tasks]}, entries:[] } ----
 let CORE = { schedule:{}, entries:[] };
 let dirty = false;
-let saveTimer = null;
+let saveTimer = null, cloudRetryTimer=null;
 // Snapshot of the last known-clean (saved or freshly loaded) state, for Discard.
 let cleanState={core:null,overload:null,surplus:null,csgraph:null};
 function snapshotClean(){
@@ -389,7 +389,11 @@ function mergeKG(local,cloud,localNewer){
            gymDone:mergeScalarMap(L.gymDone,C.gymDone,localNewer),
            log:mergeById(L.log,C.log,new Set()) };
 }
-function parseOr(s,f){ try{ return s?JSON.parse(s):f; }catch(e){ return f; } }
+function parseOr(s,f){
+  if(s==null) return f;
+  if(typeof s==='object') return s;          // new format: nested object
+  try{ return JSON.parse(s); }catch(e){ return f; }   // legacy: stringified
+}
 
 // Merge a cloud payload into the live in-memory state, then persist.
 async function ensureAllLoaded(){
@@ -428,32 +432,53 @@ function setBaseRev(r){ try{ localStorage.setItem('meridian_base_rev', String(r)
 
 // Push with optimistic concurrency: refuse to overwrite if the cloud has moved
 // on since we last pulled. force=true is only used by an explicit user override.
+const MIN_PUSH_GAP=4000;      // Pantry is a free tier — do not hammer it
+let lastPushAt=0, pushBackoffUntil=0;
 async function cloudPush(force){
   const id=cloudId(); if(!id) return {ok:false,err:'no id'};
+  const now=Date.now();
+  if(now < pushBackoffUntil){
+    return {ok:false, rateLimited:true,
+            err:'rate limited by Pantry — retrying automatically in '+Math.ceil((pushBackoffUntil-now)/1000)+'s'};
+  }
+  if(!force && now-lastPushAt < MIN_PUSH_GAP){
+    return {ok:false, throttled:true, err:'too soon since last sync (waiting '+Math.ceil((MIN_PUSH_GAP-(now-lastPushAt))/1000)+'s)'};
+  }
   await ensureAllLoaded();
   // read current cloud revision first
-  let cloudRev=0, cloudAt=0;
-  let cloudData=null;
-  try{ const cur=await cloudPull(); if(cur.ok&&cur.data){ cloudData=cur.data; cloudRev=+cur.data.rev||0; cloudAt=+cur.data.syncedAt||0; } }catch(e){}
+  // Only spend a GET when we might be behind (or have never synced).
+  let cloudRev=baseRev(), cloudAt=0, cloudData=null;
+  const needCheck = force || baseRev()===0 || (Date.now()-(parseInt(lsGet('meridian_checked_at')||'0',10)||0) > 60000);
+  if(needCheck){
+    try{ const cur=await cloudPull();
+      if(cur.ok&&cur.data){ cloudData=cur.data; cloudRev=+cur.data.rev||0; cloudAt=+cur.data.syncedAt||0;
+        try{ localStorage.setItem('meridian_checked_at',String(Date.now())); }catch(e){} }
+      else if(cur.rateLimited){ pushBackoffUntil=Date.now()+30000; return {ok:false,rateLimited:true,err:cur.err}; }
+    }catch(e){}
+  }
   // If the cloud moved on, MERGE it in first instead of rejecting the push.
   if(cloudRev > baseRev() && cloudData){ await cloudMerge(cloudData); }
   // Serialize the IN-MEMORY state. Reading storage here shipped null for any
   // store that was loaded but not yet written — which uploaded empty data.
-  const body={ core:JSON.stringify(CORE), overload:JSON.stringify(WK),
-               surplus:JSON.stringify(SG), csgraph:JSON.stringify(KG) };
-  // Skip the network entirely if nothing actually changed (keeps rev history quiet).
-  const fingerprint = body.core.length+':'+body.overload.length+':'+body.surplus.length+':'+body.csgraph.length
-                    + '|' + hashStr(body.core+body.overload+body.surplus+body.csgraph);
-  if(!force && fingerprint===lsGet('meridian_last_fp') && cloudRev>0){
+  const body={ core:CORE, overload:WK, surplus:SG, csgraph:KG };
+  const flat=JSON.stringify(body);
+  const fingerprint = flat.length+'|'+hashStr(flat);
+  const lastWrite=parseInt(lsGet('meridian_last_write')||'0',10)||0;
+  const ttlRefreshDue = Date.now()-lastWrite > 6*864e5;   // keep the basket alive
+  if(fingerprint===lsGet('meridian_last_fp') && cloudRev>0 && !ttlRefreshDue){
     return {ok:true, noop:true, rev:cloudRev, at:cloudAt};
   }
   const payload=Object.assign({rev:cloudRev+1, syncedAt:Date.now()}, body);
   try{
     const r=await fetch(PANTRY_BASE+'/'+encodeURIComponent(id)+'/basket/'+BASKET,{
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    if(r.status===429){ pushBackoffUntil=Date.now()+30000;
+      return {ok:false,rateLimited:true,err:'Pantry rate limit (HTTP 429) — backing off 30s'}; }
+    if(r.status===413){ return {ok:false,err:'payload too large for Pantry ('+(flat.length/1024).toFixed(0)+'KB)'}; }
     if(!r.ok) return {ok:false,err:'HTTP '+r.status+' from Pantry'};
+    lastPushAt=Date.now();
     setBaseRev(payload.rev);
-    try{ localStorage.setItem('meridian_last_fp', fingerprint); }catch(e){}
+    try{ localStorage.setItem('meridian_last_fp', fingerprint); localStorage.setItem('meridian_last_write', String(Date.now())); }catch(e){}
     return {ok:true,at:payload.syncedAt,rev:payload.rev};
   }catch(e){ return {ok:false,err:(e&&e.message)||'network error'}; }
 }
@@ -461,7 +486,9 @@ async function cloudPull(){
   const id=cloudId(); if(!id) return {ok:false,err:'no id'};
   try{
     const r=await fetch(PANTRY_BASE+'/'+encodeURIComponent(id)+'/basket/'+BASKET);
+    if(r.status===429) return {ok:false,rateLimited:true,err:'Pantry rate limit (HTTP 429) on read'};
     if(!r.ok) return {ok:false,err:'HTTP '+r.status};
+    pushBackoffUntil=0;      // a successful read means the rate limit has lifted
     const d=await r.json();
     return {ok:true,data:d,at:d.syncedAt};
   }catch(e){ return {ok:false,err:e.message}; }
@@ -529,6 +556,11 @@ async function saveAll(silent){
     let r={ok:false,err:'unknown'};
     try{ r=await cloudPush(); }catch(e){ r={ok:false,err:(e&&e.message)||'network error'}; }
     if(r.ok && r.noop){ if(t) t.textContent='All changes saved \u00b7 cloud already in sync'; }
+    else if(!r.ok && (r.throttled||r.rateLimited)){
+      if(t) t.textContent='Saved \u00b7 cloud sync queued ('+r.err+')';
+      clearTimeout(cloudRetryTimer);
+      cloudRetryTimer=setTimeout(()=>{ cloudPush().then(rr=>{ if(rr.ok&&!rr.noop){ paintSaveChip(); const tt=document.getElementById('savetxt'); if(tt) tt.textContent='All changes saved \u00b7 synced'; } }); }, 5000);
+    }
     else if(!r.ok){
       if(r.conflict){
         if(t) t.textContent='Saved locally \u00b7 CLOUD CONFLICT \u2014 pull first';
@@ -750,8 +782,15 @@ function renderData(){
       }
       let lw='local workout days: ?';
       try{ const w=JSON.parse(lsGet(KEYS.overload)||'{}'); lw='local workout days: '+Object.keys(w.days||{}).length; }catch(e){}
+      let sizeInfo='';
+      try{ const flat=JSON.stringify({core:CORE,overload:WK,surplus:SG,csgraph:KG});
+           sizeInfo='payload size: '+(flat.length/1024).toFixed(1)+'KB'; }catch(e){}
+      let full='';
+      try{ const pr=await fetch(PANTRY_BASE+'/'+encodeURIComponent(cloudId()));
+           if(pr.ok){ const pd=await pr.json(); if(pd&&pd.percentFull!=null) full='pantry storage used: '+pd.percentFull+'%'; } }catch(e){}
       out.textContent=
         'cloud: '+cloudOk+'\n'+
+        sizeInfo+(full?('\n'+full):'')+'\n'+
         'local saved:  '+(lm?new Date(lm).toLocaleString():'never')+'\n'+
         'cloud saved:  '+(cm?new Date(cm).toLocaleString():'never')+'\n'+
         (cm>lm?'\u2192 cloud is NEWER (boot will pull)':lm>cm?'\u2192 local is NEWER (boot will push)':'\u2192 in sync')+'\n'+
