@@ -790,7 +790,10 @@ function wkMarkDirty(){ wkDirty=true; paintSaveChip(); }
 async function wkCommit(silent){ if(!wkLoaded) return; await rawSet(KEYS.overload, JSON.stringify(WK)); wkDirty=false; if(!dirty) paintSaveChip(); if(!silent) flashSaved(); }
 async function wkLoad(){
   const s=await rawGet(KEYS.overload);
-  if(s){ try{ const st=JSON.parse(s); WK={settings:st.settings||{},days:st.days||{},bw:st.bw||{},rpe:st.rpe||{}}; }catch(e){ WK=null; } }
+  if(s){ try{ const st=JSON.parse(s);
+    WK={settings:st.settings||{},days:st.days||{},bw:st.bw||{},rpe:st.rpe||{},
+        done:st.done||{}, sessionDone:st.sessionDone||{}, incr:st.incr||{}};   // these were being dropped
+  }catch(e){ WK=null; } }
   // Fresh device / empty storage → seed from baked-in defaults IN MEMORY ONLY.
   // Do NOT write it back: if this was a transient empty read on a device that
   // actually has data, writing would destroy that data. Persist only when the
@@ -798,6 +801,7 @@ async function wkLoad(){
   if(!s || !WK || !WK.days || Object.keys(WK.days).length===0){
     WK = JSON.parse(JSON.stringify(DEFAULT_WK));
     if(!WK.settings) WK.settings={}; if(!WK.days) WK.days={}; if(!WK.bw) WK.bw={}; if(!WK.rpe) WK.rpe={};
+    if(!WK.done) WK.done={}; if(!WK.sessionDone) WK.sessionDone={}; if(!WK.incr) WK.incr={};
   } else {
     // Stored data wins, but MERGE IN any exercise the baked defaults know about
     // that this device has never seen (e.g. newly added lifts like Leg Press).
@@ -810,6 +814,7 @@ async function wkLoad(){
       });
     });
   }
+  if(!WK.done) WK.done={}; if(!WK.sessionDone) WK.sessionDone={}; if(!WK.incr) WK.incr={};
   wkLoaded=true; if(!wkDate) wkDate=dstr();
 }
 function round5(x){ return Math.round(x/5)*5; }
@@ -887,7 +892,8 @@ function toggleExDone(ex){ const k=wkDate||dstr(); if(!WK.done)WK.done={}; if(!W
   wkMarkDirty(); renderWorkout(true); }
 function sessionDone(){ return !!(WK.sessionDone&&WK.sessionDone[wkDate||dstr()]); }
 function toggleSessionDone(){ const k=wkDate||dstr(); if(!WK.sessionDone)WK.sessionDone={};
-  WK.sessionDone[k]=!WK.sessionDone[k]; wkMarkDirty(); renderWorkout(true); }
+  WK.sessionDone[k]=!WK.sessionDone[k]; wkMarkDirty(); renderWorkout(true);
+  saveAll(false); }                       // completing a session always persists it
 // Estimated session length from planned sets + prescribed rest.
 function estimateSession(exs){
   let secs=0, sets=0;
@@ -1035,7 +1041,10 @@ function renderWorkout(keepScroll){
     const todayLog=(WK.days[td]||[]).filter(s=>s.ex===ex);
     if(isCardio(ex)){
       const last=lastSession(ex,td); const pre=last?last.sets[last.sets.length-1]:{weight:'',reps:''};
-      h+='<div class="lift" id="lift-'+id+'"><div class="lift-h"><span class="lift-name">'+esc(ex)+'</span>'
+      const cdone=exDone(ex);
+      h+='<div class="lift'+(cdone?' exdone':'')+'" id="lift-'+id+'"><div class="lift-h">'
+        +'<span class="chk" data-exdone="'+ex+'" style="width:22px;height:22px;margin-right:8px">'+(cdone?'\u2713':'')+'</span>'
+        +'<span class="lift-name">'+esc(ex)+'</span>'
         +'<a href="'+exVideo(ex)+'" target="_blank" rel="noopener" class="mbtn" style="padding:4px 9px;font-size:11px;text-decoration:none;margin-left:auto;margin-right:6px">\u25b6 form</a>'
         +'<span class="cue hold">cardio</span></div>';
       h+='<div class="setrow"><input id="w-'+id+'-c" type="number" value="'+(pre.weight||'')+'"><span style="color:var(--dim)">spd/inc \u00d7</span><input id="r-'+id+'-c" type="number" value="'+(pre.reps||'')+'"><span style="color:var(--dim)">min</span><button class="mbtn primary" data-log="'+ex+'|cardio|w-'+id+'-c|r-'+id+'-c">Log</button></div>';
@@ -1093,7 +1102,36 @@ function logSet(ex,type,w,reps){
   const m=exMeta(ex);
   WK.days[td].push({id:Date.now()+Math.random(), ex, muscle:m.muscle, group:m.group, type, weight:w, reps});
   wkMarkDirty();
+  autoCompleteChecks(ex);
   patchLift(ex);          // update ONLY this card — nothing on the page moves
+}
+// When every prescribed set for an exercise is logged, tick it done automatically.
+// When every exercise on today's split is done, mark the session complete and SAVE.
+function plannedSetCount(ex){
+  if(isCardio(ex)) return 1;
+  const p=buildPlan(ex, wkDate||dstr());
+  if(!p||p.cardio) return 1;
+  return (p.warms?p.warms.length:0) + 1 + (p.backs?p.backs.length:0);
+}
+function autoCompleteChecks(ex){
+  const td=wkDate||dstr();
+  const logged=(WK.days[td]||[]).filter(s=>s.ex===ex).length;
+  if(!WK.done) WK.done={}; if(!WK.done[td]) WK.done[td]=[];
+  if(logged>=plannedSetCount(ex) && WK.done[td].indexOf(ex)<0){
+    WK.done[td].push(ex); wkMarkDirty();
+    const el=document.querySelector('[data-exdone="'+ex.replace(/"/g,'')+'"]');
+    if(el){ el.textContent='\u2713'; const card=document.getElementById('lift-'+cssId(ex)); if(card) card.classList.add('exdone'); }
+  }
+  // all exercises on this split complete -> auto-complete the session and save
+  const exs=allExercises().filter(e=> wkSplit==='all' || exSplit(e)===wkSplit || exSplit(e)==='both');
+  const allDone = exs.length>0 && exs.every(e=>(WK.done[td]||[]).indexOf(e)>=0);
+  if(allDone && !(WK.sessionDone&&WK.sessionDone[td])){
+    if(!WK.sessionDone) WK.sessionDone={};
+    WK.sessionDone[td]=true; wkMarkDirty();
+    renderWorkout(true);
+    saveAll(false);                        // auto-save on session completion
+  }
+  updateSessionCounter();
 }
 // Patch a single exercise card in place: logged pills + current-set marker + session counter.
 function patchLift(ex){
