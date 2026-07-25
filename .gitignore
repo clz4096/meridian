@@ -1,0 +1,5 @@
+.DS_Store
+node_modules/
+meridian-ts/dist/
+*.bak
+*.prewire
