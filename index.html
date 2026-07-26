@@ -1266,7 +1266,7 @@ const paneData = document.getElementById('pane-data');
 function ensureDataView(){
   if (dataView) return dataView;
   dataView = MC.mountDataView(paneData, {
-    saveB2Keys(keyId, appKey){
+    savePantryId(keyId, appKey){
       try{ localStorage.setItem('meridian_b2_key_id', keyId); localStorage.setItem('meridian_b2_app_key', appKey); }catch(e){}
       dmsg(keyId ? 'Saved. Cloud sync is ON — tap Test connection.' : 'Cleared. Cloud sync is OFF.');
     },
