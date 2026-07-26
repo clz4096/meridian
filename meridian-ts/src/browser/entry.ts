@@ -195,6 +195,11 @@ export function createSync(config: SyncSetup): SyncEngine {
     sanitize: (key, data, now) => sanitizeStore(key, data, now),
     minPushGap: 4000,
     rateLimitBackoff: 30_000,
+  }, {
+    core: config.read('core'),
+    overload: config.read('overload'),
+    surplus: config.read('surplus'),
+    csgraph: config.read('csgraph'),
   });
   return engine;
 }

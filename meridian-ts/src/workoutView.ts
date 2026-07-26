@@ -39,6 +39,7 @@ export interface WorkoutActions {
   toggleDeload(exercise: string): void;
   editIncrement(exercise: string): void;
   startRest(exercise: string, type: SetType): void;
+  undoLastSet(exercise: string): void;
   changeDate(date: string): void;
   changeSplit(split: Split | 'all'): void;
   logBodyweight(value: number): void;
@@ -183,7 +184,8 @@ function renderPlanRow(
     return (
       `<div class="setrow logged-line">` +
       `<span class="setlabel">✓ ${label}</span>` +
-      `<span class="setval">${esc(performed.weight)} × ${esc(performed.reps)}</span></div>`
+      `<span class="setval">${esc(performed.weight)} × ${esc(performed.reps)}</span>` +
+      `<span class="rm" data-act="undo-set" data-ex="${attr(exercise)}" style="margin-left:auto;cursor:pointer;color:var(--dim);font-size:16px" title="Undo this set">↩</span></div>`
     );
   }
   if (state === 'upcoming') {
@@ -370,6 +372,9 @@ export class WorkoutViewController {
       }
       case 'rest':
         this.actions.startRest(ex, (target.dataset.type ?? 'top') as SetType);
+        break;
+      case 'undo-set':
+        this.actions.undoLastSet(ex);
         break;
       case 'del-set':
         this.actions.deleteSet(target.dataset.date ?? '', target.dataset.id ?? '');

@@ -18,7 +18,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
-const HTML = path.resolve(ROOT, '../site/index.html');
+const HTML = path.resolve(ROOT, '../index.html');
 const ENTRY = path.resolve(ROOT, 'src/browser/entry.ts');
 
 const START = '<!-- MERIDIAN:CORE:START -->';
@@ -35,7 +35,7 @@ const result = await build({
   bundle: true,
   minify: true,
   format: 'iife',
-  target: ['es2020'],   // iOS 14+ Safari supports ES2020 natively
+  target: ['es2022'],
   platform: 'browser',
   write: false,
   legalComments: 'none',
