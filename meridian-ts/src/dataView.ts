@@ -30,7 +30,7 @@ export interface DataViewModel {
 }
 
 export interface DataActions {
-  savePantryId(id: string): void;
+  savePantryId(keyId: string, appKey: string): void;
   testConnection(): void;
   push(): void;
   pull(): void;
@@ -49,9 +49,9 @@ export function renderDataHTML(vm: DataViewModel): string {
   const c = m.counts;
   return (
     `<div class="panel mpanel"><p class="panel-t">☁ Cloud backend (sync across devices)</p>` +
-    `<div class="note" style="margin-bottom:10px">One-time setup: get a Pantry ID at <b>getpantry.cloud</b>, paste it below. ` +
+    `<div class="note" style="margin-bottom:10px">One-time setup: create a <b>Backblaze B2</b> bucket, generate an Application Key, paste both below. ` +
     `Every save then syncs, and each device pulls the latest on open. The ID stays on this device only.</div>` +
-    `<div class="mrow"><input id="d-pantry" placeholder="Paste Pantry ID here" style="flex:1;min-width:180px" value="${esc(s.pantryId)}">` +
+    `<div class="mrow"><input id="d-pantry" placeholder="Key ID" style="flex:1;min-width:120px" value="${esc(s.pantryId)}"><input id="d-pantry-appkey" type="password" placeholder="Application Key" style="flex:1;min-width:180px">` +
     `<button class="mbtn primary" data-act="save-id">Save ID</button></div>` +
     `<div class="mrow" style="margin-top:8px"><button class="mbtn" data-act="test">Test connection</button>` +
     `<button class="mbtn" data-act="push">☁↑ Push now</button>` +
@@ -117,7 +117,7 @@ export class DataViewController {
     const ds = (e.target as unknown as { dataset?: Record<string, string> } | null)?.dataset;
     if (!ds?.act) return;
     switch (ds.act) {
-      case 'save-id': this.actions.savePantryId(this.readValue('d-pantry').trim()); break;
+      case 'save-id': this.actions.savePantryId(this.readValue('d-pantry').trim(), this.readValue('d-pantry-appkey').trim()); break;
       case 'test': this.actions.testConnection(); break;
       case 'push': this.actions.push(); break;
       case 'pull': this.actions.pull(); break;

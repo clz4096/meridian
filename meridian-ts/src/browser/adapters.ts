@@ -180,6 +180,115 @@ export class PantryCloudProvider implements CloudProvider {
   }
 }
 
+/* ================================================================== */
+/* Cloud: Backblaze B2 (Native API)                                    */
+/* ================================================================== */
+
+const B2_API_BASE = 'https://api.backblazeb2.com/b2api/v2';
+
+/**
+ * Backblaze B2 CloudProvider using the Native API with Basic Auth.
+ *
+ * No AWS Signature V4 needed — just Base64(keyId:applicationKey).
+ * CORS must be enabled on the bucket for the download URL.
+ */
+export class BackblazeCloudProvider implements CloudProvider {
+  constructor(
+    private readonly getCredentials: () => { keyId: string; applicationKey: string } | null,
+    private readonly bucketName = 'meridian-sync',
+    private readonly fileName = 'state.json',
+  ) {}
+
+  private authHeader(): string | null {
+    const creds = this.getCredentials();
+    if (!creds) return null;
+    return `Basic ${btoa(`${creds.keyId}:${creds.applicationKey}`)}`;
+  }
+
+  private downloadUrl(): string {
+    // B2 download URL pattern: https://f<account>.<region>.backblazeb2.com/file/<bucket>/<file>
+    // We get this from the bucket's Upload/Download page
+    return `https://f005.backblazeb2.com/file/${this.bucketName}/${this.fileName}`;
+  }
+
+  async read(): Promise<CloudReadResult> {
+    const auth = this.authHeader();
+    if (!auth) return { ok: false, kind: 'not-found', message: 'no Backblaze key configured' };
+    try {
+      const res = await fetch(this.downloadUrl(), {
+        headers: { 'Authorization': auth },
+      });
+      if (res.status === 404) return { ok: true }; // no data yet
+      if (res.status === 429) return { ok: false, kind: 'rate-limited', message: 'B2 rate limit (429)' };
+      if (!res.ok) return { ok: false, kind: classify(res.status), message: `HTTP ${res.status} from B2` };
+      const body = (await res.json()) as Record<string, unknown>;
+      if (!body || typeof body !== 'object') return { ok: true };
+      return { ok: true, payload: body as CloudPayload };
+    } catch (e) {
+      return { ok: false, kind: 'offline', message: (e as Error)?.message || 'network error' };
+    }
+  }
+
+  async write(payload: CloudPayload): Promise<CloudWriteResult> {
+    const auth = this.authHeader();
+    if (!auth) return { ok: false, kind: 'not-found', message: 'no Backblaze key configured' };
+
+    // Step 1: Get upload URL
+    try {
+      const urlRes = await fetch(`${B2_API_BASE}/b2_get_upload_url`, {
+        method: 'POST',
+        headers: { 'Authorization': auth },
+        body: JSON.stringify({ bucketId: await this.getBucketId(auth) }),
+      });
+      if (!urlRes.ok) {
+        return { ok: false, kind: classify(urlRes.status), message: `B2 upload URL: HTTP ${urlRes.status}` };
+      }
+      const { uploadUrl, uploadAuthToken } = (await urlRes.json()) as {
+        uploadUrl: string;
+        uploadAuthToken: string;
+      };
+
+      // Step 2: Upload the file
+      const body = JSON.stringify(payload);
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': uploadAuthToken,
+          'Content-Type': 'application/json',
+          'X-Bz-File-Name': this.fileName,
+          'X-Bz-Content-Sha1': 'do_not_verify',
+        },
+        body,
+      });
+      if (uploadRes.status === 429) {
+        return { ok: false, kind: 'rate-limited', message: 'B2 rate limit (429)' };
+      }
+      if (!uploadRes.ok) {
+        return { ok: false, kind: classify(uploadRes.status), message: `B2 upload: HTTP ${uploadRes.status}` };
+      }
+      return { ok: true, rev: payload.rev };
+    } catch (e) {
+      return { ok: false, kind: 'offline', message: (e as Error)?.message || 'network error' };
+    }
+  }
+
+  private bucketIdCache: string | null = null;
+  private async getBucketId(auth: string): Promise<string> {
+    if (this.bucketIdCache) return this.bucketIdCache;
+    const res = await fetch(`${B2_API_BASE}/b2_list_buckets`, {
+      method: 'POST',
+      headers: { 'Authorization': auth },
+      body: JSON.stringify({ accountId: 'me' }),
+    });
+    if (!res.ok) throw new Error(`B2 list buckets: HTTP ${res.status}`);
+    const data = (await res.json()) as { buckets: Array<{ bucketName: string; bucketId: string }> };
+    const bucket = data.buckets.find((b) => b.bucketName === this.bucketName);
+    if (!bucket) throw new Error(`Bucket "${this.bucketName}" not found`);
+    this.bucketIdCache = bucket.bucketId;
+    return bucket.bucketId;
+  }
+}
+
 /** Accept both the nested-object format and the legacy stringified one. */
 function coercePayload(body: Record<string, unknown>): CloudPayload {
   const parse = (v: unknown): Record<string, unknown> => {
