@@ -206,11 +206,16 @@ export class SupabaseCloudProvider implements CloudProvider {
    * JWT; hitting it with only `apikey` returns 400, which the old read() then
    * laundered into "empty bucket" — so cross-device pull silently no-oped.
    * The public path serves a public bucket with no auth at all.
+   *
+   * The `?t=` cache-buster is load-bearing: the public path is fronted by a CDN
+   * whose edge cache ignores `cache: 'no-store'` (that only governs the browser).
+   * Without a unique query per request, a pull reads a stale state.json and
+   * silently misses another device's writes — the exact cross-device symptom.
    */
   private readUrl(): string | null {
     const base = this.baseUrl();
     if (!base) return null;
-    return `${base}/storage/v1/object/public/${this.bucketName}/${this.fileName}`;
+    return `${base}/storage/v1/object/public/${this.bucketName}/${this.fileName}?t=${Date.now()}`;
   }
 
   /** Writes use the authenticated object path (upsert). */
