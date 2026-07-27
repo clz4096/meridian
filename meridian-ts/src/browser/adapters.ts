@@ -202,7 +202,6 @@ export class SupabaseCloudProvider implements CloudProvider {
     if (!creds) return null;
     return {
       'apikey': creds.anonKey,
-      'Authorization': `Bearer ${creds.anonKey}`,
     };
   }
 
