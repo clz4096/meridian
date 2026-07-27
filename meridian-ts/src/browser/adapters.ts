@@ -191,11 +191,15 @@ export class SupabaseCloudProvider implements CloudProvider {
     private readonly fileName = 'state.json',
   ) {}
 
-  private objectUrl(): string {
+  private objectUrl(): string | null {
     const creds = this.getCredentials();
-    if (!creds) return '';
-    return `${creds.projectUrl}/storage/v1/object/${this.bucketName}/${this.fileName}`;
-  }
+    if (!creds) return null;
+    // Ensure the URL has https:// prefix
+    const base = creds.projectUrl.startsWith('http') 
+      ? creds.projectUrl 
+      : `https://${creds.projectUrl}`;
+    return `${base}/storage/v1/object/${this.bucketName}/${this.fileName}`;
+}
 
   private authHeaders(): Record<string, string> | null {
     const creds = this.getCredentials();
