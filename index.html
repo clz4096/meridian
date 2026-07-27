@@ -890,7 +890,16 @@ MC.sync.create({
 
 async function saveAll(silent){ return MC.sync.save(); }
 async function cloudPush(force){ return MC.sync.push(force); }
-async function cloudPull(){ const ok = await MC.sync.pull(); return { ok, applied: ok }; }
+async function cloudPull(){ 
+  const applied = await MC.sync.pull();
+  if (applied) {
+    try { localStorage.setItem(KEYS.core, JSON.stringify(CORE)); } catch(e) {}
+    try { localStorage.setItem(KEYS.overload, JSON.stringify(WK)); } catch(e) {}
+    try { localStorage.setItem(KEYS.surplus, JSON.stringify(SG)); } catch(e) {}
+    try { localStorage.setItem(KEYS.csgraph, JSON.stringify(KG)); } catch(e) {}
+  }
+  return { ok: true, applied }; 
+}
 async function cloudMerge(){ return MC.sync.pull(); }
 function baseRev(){ return MC.sync.baseRev(); }
 function tomb(store, id){ store._del = MC.addTombstone(store._del, id, Date.now()); }
