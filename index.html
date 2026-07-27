@@ -870,6 +870,8 @@ MC.sync.create({
     if (key === 'overload') WK   = data;
     if (key === 'surplus')  SG   = data;
     if (key === 'csgraph')  KG   = data;
+    // Persist to localStorage so reloads retain pulled data
+    try { localStorage.setItem(KEYS[key], JSON.stringify(data)); } catch(e) {}
   },
   onStatus: (r) => {
     const t = document.getElementById('savetxt');
