@@ -46,7 +46,7 @@ import {
   KnowledgeViewController, renderKnowledgeHTML, formatReveal, MASTERY_COLOUR, MASTERY_TEXT,
   type KnowledgeActions, type KnowledgeViewModel,
 } from '../knowledgeView.js';
-import { BrowserStorageAdapter, BackblazeCloudProvider, systemClock } from './adapters.js';
+import { BrowserStorageAdapter, SupabaseCloudProvider, systemClock } from './adapters.js';
 import { SyncEngine, type SaveResult, type StoreKey } from '../SyncEngine.js';
 import { mergeStore, sanitizeStore } from '../mergeStores.js';
 
@@ -188,13 +188,13 @@ export function createSync(config: SyncSetup): SyncEngine {
   setup = config;
   engine = new SyncEngine({
     storage: new BrowserStorageAdapter(STORAGE_KEYS),
-    cloud: new BackblazeCloudProvider(() => {
-      try {
-        const kid = localStorage.getItem('meridian_b2_key_id');
-        const ak = localStorage.getItem('meridian_b2_app_key');
-        return kid && ak ? { keyId: kid, applicationKey: ak } : null;
-      } catch { return null; }
-    }),
+    cloud: new SupabaseCloudProvider(() => {
+  try {
+    const url = localStorage.getItem('meridian_supabase_url');
+    const key = localStorage.getItem('meridian_supabase_key');
+    return url && key ? { projectUrl: url, anonKey: key } : null;
+  } catch { return null; }
+}),
     clock: systemClock,
     merge: (local, remote, key, localWins) => mergeStore(key, local, remote, localWins),
     sanitize: (key, data, now) => sanitizeStore(key, data, now),
