@@ -191,34 +191,57 @@ export class SupabaseCloudProvider implements CloudProvider {
     private readonly fileName = 'state.json',
   ) {}
 
-  private objectUrl(): string | null {
+  private baseUrl(): string | null {
     const creds = this.getCredentials();
     if (!creds) return null;
     // Ensure the URL has https:// prefix
-    const base = creds.projectUrl.startsWith('http') 
-      ? creds.projectUrl 
+    return creds.projectUrl.startsWith('http')
+      ? creds.projectUrl
       : `https://${creds.projectUrl}`;
+  }
+
+  /**
+   * Reads go through the PUBLIC object path. The bare `/object/<bucket>/<file>`
+   * endpoint is the *authenticated* one and needs an `Authorization: Bearer`
+   * JWT; hitting it with only `apikey` returns 400, which the old read() then
+   * laundered into "empty bucket" — so cross-device pull silently no-oped.
+   * The public path serves a public bucket with no auth at all.
+   */
+  private readUrl(): string | null {
+    const base = this.baseUrl();
+    if (!base) return null;
+    return `${base}/storage/v1/object/public/${this.bucketName}/${this.fileName}`;
+  }
+
+  /** Writes use the authenticated object path (upsert). */
+  private writeUrl(): string | null {
+    const base = this.baseUrl();
+    if (!base) return null;
     return `${base}/storage/v1/object/${this.bucketName}/${this.fileName}`;
-}
+  }
 
   private authHeaders(): Record<string, string> | null {
     const creds = this.getCredentials();
     if (!creds) return null;
+    // Bearer is required by the authenticated write path; harmless on reads.
     return {
       'apikey': creds.anonKey,
+      'Authorization': `Bearer ${creds.anonKey}`,
     };
   }
 
   async read(): Promise<CloudReadResult> {
     const headers = this.authHeaders();
-    const url = this.objectUrl();
+    const url = this.readUrl();
     if (!headers || !url) return { ok: false, kind: 'not-found', message: 'no Supabase credentials configured' };
     try {
-      const res = await fetch(url, { headers });
-      if (res.status === 404 || res.status === 400) {
-        // 400 with "Object not found" = empty bucket, which is fine
-        return { ok: true };
-      }
+      // no-store: public Storage objects sit behind a CDN, so without this a
+      // pull can read a stale state.json and silently miss another device's writes.
+      const res = await fetch(url, { headers, cache: 'no-store' });
+      // ONLY 404 means the object genuinely does not exist yet (first-ever sync).
+      // A 400 here is a real error (bad path / auth / bucket) and must NOT be
+      // masked as "empty", or the engine concludes the cloud is empty and no-ops.
+      if (res.status === 404) return { ok: true };
       if (res.status === 429) return { ok: false, kind: 'rate-limited', message: 'Supabase rate limit (429)' };
       if (!res.ok) return { ok: false, kind: classify(res.status), message: `HTTP ${res.status} from Supabase` };
       const body = (await res.json()) as Record<string, unknown>;
@@ -231,7 +254,7 @@ export class SupabaseCloudProvider implements CloudProvider {
 
   async write(payload: CloudPayload): Promise<CloudWriteResult> {
     const headers = this.authHeaders();
-    const url = this.objectUrl();
+    const url = this.writeUrl();
     if (!headers || !url) return { ok: false, kind: 'not-found', message: 'no Supabase credentials configured' };
     try {
       const res = await fetch(url, {
