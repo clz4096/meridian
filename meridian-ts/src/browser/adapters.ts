@@ -236,7 +236,7 @@ export class SupabaseCloudProvider implements CloudProvider {
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
+        headers: { ...headers, 'Content-Type': 'application/json', 'x-upsert': 'true' },
         body: JSON.stringify(payload),
       });
       if (res.status === 429) return { ok: false, kind: 'rate-limited', message: 'Supabase rate limit (429)' };
