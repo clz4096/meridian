@@ -1385,6 +1385,17 @@ document.querySelectorAll('#tabbar button').forEach(b=>{
   paintSaveChip();
   document.getElementById('pane-knowledge').classList.add('on');
   renderKnowledge();
+  // Pull from cloud in background after UI is ready
+  if (cloudEnabled()) {
+    setTimeout(async () => {
+      try {
+        const applied = await MC.sync.pull();
+        if (applied) {
+          renderKnowledge();
+        }
+      } catch (e) { /* offline — fine */ }
+    }, 2000);
+  }
 })();
 
 /* ============ DURABILITY: flush every dirty store on exit/background ============
