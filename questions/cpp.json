@@ -96,7 +96,8 @@
   "prompt": "Explain struct padding and alignment. Why can reordering fields shrink a struct, and how does this interact with cache lines?",
   "src": {
    "book": "csapp",
-   "ref": "CSAPP \u00a73.9 (data alignment); C++ Core Guidelines on layout"
+   "ref": "CSAPP \u00a73.9 (data alignment); C++ Core Guidelines on layout",
+   "page": 293
   },
   "reveal": "The compiler inserts padding so each field sits at an address that is a multiple of its size (alignment), which the hardware requires or strongly prefers. A small field followed by a larger one forces padding; ordering fields largest-to-smallest minimizes the holes, shrinking the struct. Smaller, well-packed structs fit more per 64-byte cache line, so traversals pull in more useful data per fetch \u2014 layout is a cache decision.",
   "tags": [

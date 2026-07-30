@@ -6,7 +6,8 @@
   "prompt": "Why is a cache line typically 64 bytes, not 1 byte? State the principle it exploits.",
   "src": {
    "book": "csapp",
-   "ref": "\u00a76.2\u20136.4 The memory hierarchy & cache memories"
+   "ref": "\u00a76.2\u20136.4 The memory hierarchy & cache memories",
+   "page": 632
   },
   "reveal": "Spatial locality: programs tend to access data near data they just used. Fetching a 64-byte line amortizes the fixed cost of a memory access across neighbors you\u2019ll likely need next, so sequential access gets many hits per miss. A 1-byte line would waste that latency on every element.",
   "tags": [
@@ -21,7 +22,8 @@
   "prompt": "In one sentence: what does instruction pipelining buy you, and what is the hazard that stalls it?",
   "src": {
    "book": "cod",
-   "ref": "Ch.4 The Processor (pipelining)"
+   "ref": "Ch.4 The Processor (pipelining)",
+   "page": 325
   },
   "reveal": "Pipelining overlaps the stages (fetch/decode/execute/mem/writeback) of consecutive instructions so throughput approaches one instruction per cycle. Hazards stall it: data hazards (an instruction needs a result not yet ready), control hazards (branches whose direction isn\u2019t known yet), and structural hazards (two instructions want the same unit).",
   "tags": [
@@ -36,7 +38,8 @@
   "prompt": "Explain branch prediction and why a mispredict is expensive. How does this connect to the classic \"sorted array is faster to process\" result?",
   "src": {
    "book": "hp",
-   "ref": "Ch.3 Instruction-Level Parallelism & its exploitation"
+   "ref": "Ch.3 Instruction-Level Parallelism & its exploitation",
+   "page": 200
   },
   "reveal": "The CPU guesses a branch\u2019s direction and speculatively executes down that path to keep the pipeline full. A mispredict means flushing all speculated work and refetching \u2014 tens of cycles lost. Processing a sorted array is faster because the data-dependent branch (e.g. if x < threshold) becomes highly predictable (long runs of the same outcome), so the predictor is almost always right; on shuffled data it mispredicts constantly.",
   "tags": [
@@ -51,7 +54,8 @@
   "prompt": "Walk through what happens on a memory access from virtual address to data, including the TLB and a page fault. Why does the TLB exist?",
   "src": {
    "book": "csapp",
-   "ref": "Ch.9 Virtual Memory (\u00a79.6 address translation)"
+   "ref": "Ch.9 Virtual Memory (\u00a79.6 address translation)",
+   "page": 838
   },
   "reveal": "The CPU issues a virtual address. The MMU splits it into a page number + offset and must translate the page number to a physical frame via the page table \u2014 but walking the page table is itself memory accesses. The TLB caches recent translations, so a TLB hit gives the frame in ~1 cycle. On a TLB miss the MMU walks the page table; if the page isn\u2019t resident, a page fault traps to the OS, which loads the page from disk, updates the table, and restarts the instruction. The TLB exists because without it every memory access would cost several extra accesses just to translate.",
   "tags": [
@@ -66,7 +70,8 @@
   "prompt": "Why is RISC-V\u2019s load/store architecture significant? Contrast with a memory-operand (CISC) design and say why it matters for pipelining.",
   "src": {
    "book": "cod",
-   "ref": "Ch.2 Instructions: Language of the Computer (RISC-V)"
+   "ref": "Ch.2 Instructions: Language of the Computer (RISC-V)",
+   "page": 101
   },
   "reveal": "In a load/store ISA, arithmetic instructions operate only on registers; memory is touched solely by explicit load/store instructions. This keeps instructions fixed-length and single-purpose, which makes decoding and pipelining regular \u2014 every instruction takes a predictable path through the stages. CISC instructions that can read memory operands directly have variable latency and complexity, complicating the pipeline. RISC-V\u2019s regularity is also why it\u2019s attractive for custom accelerators (e.g. Tenstorrent\u2019s baby cores).",
   "tags": [
@@ -96,7 +101,8 @@
   "prompt": "What problem does out-of-order execution solve, and what guarantees must it preserve? Name the structure that lets results retire in order.",
   "src": {
    "book": "hp",
-   "ref": "Ch.3 ILP (Tomasulo, reorder buffer)"
+   "ref": "Ch.3 ILP (Tomasulo, reorder buffer)",
+   "page": 200
   },
   "reveal": "A single slow instruction (e.g. a cache-missing load) would stall everything behind it in program order. OOO execution runs later independent instructions while the slow one waits, extracting instruction-level parallelism. It must preserve the illusion of sequential execution: results are computed out of order but committed (retired) in program order via a reorder buffer (ROB), and register renaming removes false dependencies. This keeps exceptions precise and memory visible in program order.",
   "tags": [
@@ -111,7 +117,8 @@
   "prompt": "Explain cache coherence and the MESI states. What does a write to a shared line actually trigger?",
   "src": {
    "book": "hp",
-   "ref": "\u00a76.4 / H&P Ch.5 (coherence)"
+   "ref": "\u00a76.4 / H&P Ch.5 (coherence)",
+   "page": 400
   },
   "reveal": "Coherence guarantees all cores see a consistent view of memory despite private caches. MESI labels each cache line: Modified (dirty, this core has the only copy), Exclusive (clean, only copy), Shared (clean, other cores may have it), Invalid (unusable). Writing to a SHARED line requires broadcasting an invalidate to every other core holding it, waiting for acknowledgement, then transitioning to Modified. That round trip is why a contended atomic costs far more than an uncontended one, and it is the exact mechanism behind false sharing.",
   "tags": [
@@ -126,7 +133,8 @@
   "prompt": "State the rough latency of L1, L2, L3, DRAM, SSD, and network in cycles or nanoseconds. Why should you memorize these?",
   "src": {
    "book": "csapp",
-   "ref": "\u00a76.1 Storage technologies"
+   "ref": "\u00a76.1 Storage technologies",
+   "page": 609
   },
   "reveal": "Roughly: L1 ~1 ns (~4 cycles), L2 ~4 ns, L3 ~15\u201340 ns, DRAM ~80\u2013100 ns, NVMe SSD ~100 \u00b5s, same-datacenter network round trip ~0.5 ms. Memorize them because they set the ORDER OF MAGNITUDE of every design decision: DRAM is ~100\u00d7 slower than L1, so an algorithm with poor locality can be 10\u2013100\u00d7 slower than its big-O suggests. Optimization is mostly about moving work up this hierarchy.",
   "tags": [
@@ -141,7 +149,8 @@
   "prompt": "What is SIMD and what prevents the compiler from auto-vectorizing a loop?",
   "src": {
    "book": "hp",
-   "ref": "H&P Ch.4 Data-level parallelism"
+   "ref": "H&P Ch.4 Data-level parallelism",
+   "page": 314
   },
   "reveal": "SIMD applies one instruction to multiple data elements in a wide register (AVX2 = 256 bits = 8 floats, AVX-512 = 16). Auto-vectorization is blocked by: loop-carried DEPENDENCIES (each iteration needs the previous result), possible ALIASING between pointers (the compiler cannot prove writes to one array do not affect another \u2014 fix with __restrict), unpredictable branches inside the loop, non-contiguous or unaligned access, function calls that cannot be inlined, and trip counts unknown at compile time. Checking the compiler\u2019s vectorization report (or godbolt) is the practical way to find out which one bit you.",
   "tags": [
@@ -156,7 +165,8 @@
   "prompt": "What is simultaneous multithreading (hyperthreading), when does it help, and when should you disable it?",
   "src": {
    "book": "hp",
-   "ref": "H&P Ch.3 / thread-level parallelism"
+   "ref": "H&P Ch.3 / thread-level parallelism",
+   "page": 200
   },
   "reveal": "SMT exposes one physical core as two logical cores sharing execution units, caches, and TLB. It helps throughput-oriented, memory-bound workloads: when one thread stalls on a cache miss, the other uses the idle execution units \u2014 often 20\u201330% more throughput. It HURTS latency-critical work because the two siblings compete for L1/L2 and the branch predictor, so worst-case latency and jitter increase. HFT shops routinely disable it and pin one thread per physical core, trading throughput for predictability.",
   "tags": [
@@ -171,7 +181,8 @@
   "prompt": "What is NUMA and what practical mistake does it punish?",
   "src": {
    "book": "hp",
-   "ref": "H&P Ch.5 (multiprocessor memory)"
+   "ref": "H&P Ch.5 (multiprocessor memory)",
+   "page": 400
   },
   "reveal": "On a NUMA system each socket has its own local memory; accessing another socket\u2019s memory goes over an interconnect and costs roughly 1.5\u20132\u00d7 the latency with lower bandwidth. The punishing mistake is allocating memory on one socket and then running the thread that uses it on another \u2014 easy to do accidentally, since Linux allocates on FIRST TOUCH, not at malloc. Fixes: touch (initialize) memory from the thread that will use it, pin threads with taskset/numactl, and keep per-socket data structures rather than one shared global.",
   "tags": [
@@ -186,7 +197,8 @@
   "prompt": "What is hardware prefetching, which access patterns does it recognize, and how do you help it?",
   "src": {
    "book": "csapp",
-   "ref": "\u00a76.5 Writing cache-friendly code"
+   "ref": "\u00a76.5 Writing cache-friendly code",
+   "page": 661
   },
   "reveal": "The prefetcher detects regular access patterns and fetches lines before you request them, hiding DRAM latency. It reliably recognizes sequential forward/backward streams and constant-stride access; it does NOT handle pointer chasing (linked lists, trees) or random access, because the next address is not predictable. Help it by traversing contiguous memory in order (array-of-structs vs struct-of-arrays matters), keeping strides small and constant, and processing data in the order it is laid out. For the unavoidable pointer-chasing case, software prefetch intrinsics (__builtin_prefetch) can help if you can compute the address far enough ahead.",
   "tags": [
@@ -201,7 +213,8 @@
   "prompt": "What is branchless programming, give an example, and state when it is actually slower.",
   "src": {
    "book": "csapp",
-   "ref": "\u00a75 Optimizing program performance / branch prediction"
+   "ref": "\u00a75 Optimizing program performance / branch prediction",
+   "page": 523
   },
   "reveal": "Branchless code replaces an unpredictable branch with arithmetic or a conditional move, so there is no mispredict to pay for. Example: max = a > b ? a : b compiles to a cmov; a summation that skips negatives can be written as sum += x & -(x > 0). It wins when the branch is genuinely UNPREDICTABLE (roughly 50/50 random data), where a mispredict costs 15\u201320 cycles. It LOSES when the branch is highly predictable \u2014 the predictor makes it nearly free, while the branchless version always executes both sides\u2019 work. Measure; do not assume.",
   "tags": [
@@ -216,7 +229,8 @@
   "prompt": "What are huge pages, and what problem do they solve?",
   "src": {
    "book": "csapp",
-   "ref": "\u00a79.6 Address translation"
+   "ref": "\u00a79.6 Address translation",
+   "page": 838
   },
   "reveal": "A standard page is 4 KB, so a large working set needs many page-table entries and the TLB (which caches translations) starts missing \u2014 each miss costs a page-table walk. Huge pages (2 MB or 1 GB) cover far more memory per TLB entry, cutting TLB misses dramatically for large contiguous data sets. This matters for databases, JVMs, and large in-memory structures. The cost is coarser granularity: more internal fragmentation and slower page faults, and transparent huge pages can introduce latency spikes from defragmentation, which is why latency-sensitive systems often use explicit hugepages instead.",
   "tags": [
@@ -246,7 +260,8 @@
   "prompt": "What is a store buffer, and how does it produce reordering that surprises programmers?",
   "src": {
    "book": "hp",
-   "ref": "H&P Ch.5 / memory consistency"
+   "ref": "H&P Ch.5 / memory consistency",
+   "page": 400
   },
   "reveal": "A store buffer queues writes so the core need not wait for the cache line to arrive \u2014 essential for performance. The consequence is STORE-LOAD reordering: a later load can complete before an earlier store becomes globally visible, because the store is still sitting in the buffer. This is why the classic Dekker pattern fails on x86 \u2014 both threads write their own flag then read the other\u2019s, and both can read zero. x86 is otherwise strongly ordered (no store-store or load-load reordering), so this is the ONE reordering it permits; a memory fence (mfence, or a seq_cst atomic) drains the buffer and prevents it.",
   "tags": [
@@ -291,7 +306,8 @@
   "prompt": "You have a struct with a bool, a pointer, and an int, in that order. What is its size on x86-64, and how do you shrink it?",
   "src": {
    "book": "csapp",
-   "ref": "\u00a73.9 Data alignment"
+   "ref": "\u00a73.9 Data alignment",
+   "page": 293
   },
   "reveal": "Declared as {bool; void*; int;}: the bool takes 1 byte, then 7 bytes of padding so the 8-byte pointer is properly aligned, then 8 for the pointer, then 4 for the int, then 4 trailing bytes so the whole struct aligns to 8 \u2014 total 24 bytes. Reordering largest-to-smallest {void*; int; bool;} gives 8 + 4 + 1 + 3 trailing = 16 bytes, a 33% reduction. This matters because smaller structs fit more per 64-byte cache line, so array traversals pull in more useful data per fetch.",
   "tags": [
@@ -306,7 +322,8 @@
   "prompt": "What does superscalar mean, and what is the difference between latency and throughput of an instruction?",
   "src": {
    "book": "hp",
-   "ref": "H&P Ch.3 ILP"
+   "ref": "H&P Ch.3 ILP",
+   "page": 200
   },
   "reveal": "Superscalar means the core can ISSUE multiple instructions per cycle to different execution ports (a modern x86 core issues 4\u20136). Latency is how many cycles before the RESULT is available; throughput (reciprocal throughput) is how often you can START a new one. A multiply might have 4-cycle latency but 1-per-cycle throughput \u2014 so a chain of dependent multiplies runs at 1 per 4 cycles, while independent multiplies run at 1 per cycle. This is why breaking dependency chains (e.g. using several accumulators in a reduction loop) can give a 3\u20134\u00d7 speedup with identical instruction counts.",
   "tags": [
@@ -321,7 +338,8 @@
   "prompt": "Why is iterating a 2D array row-by-row much faster than column-by-column in C++?",
   "src": {
    "book": "csapp",
-   "ref": "\u00a76.5 Cache-friendly code"
+   "ref": "\u00a76.5 Cache-friendly code",
+   "page": 661
   },
   "reveal": "C and C++ store 2D arrays in ROW-MAJOR order, so elements of a row are contiguous in memory. Row-wise traversal walks sequential addresses \u2014 each cache line fetch delivers ~16 useful ints, and the hardware prefetcher recognizes the stream. Column-wise traversal jumps by the row width each step, so every access touches a new cache line and most of each fetched line is discarded; for a large matrix this can be an order of magnitude slower despite identical instruction counts. Same total work, entirely different memory behavior.",
   "tags": [

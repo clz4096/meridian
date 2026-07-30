@@ -6,7 +6,8 @@
   "prompt": "After fork(), how do parent and child differ in return value and memory, and is memory actually copied?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.24 Process Creation"
+   "ref": "Ch.24 Process Creation",
+   "page": 557
   },
   "reveal": "fork() returns the child PID to the parent and 0 to the child (\u22121 on failure). The child gets a copy of the parent\u2019s address space, but modern kernels use copy-on-write: pages are shared read-only and only duplicated when either side writes, so the copy is lazy, not upfront.",
   "tags": [
@@ -21,7 +22,8 @@
   "prompt": "Explain the three-level file-descriptor model: the per-process fd table, the open file table, and the inode table. Why does this structure make dup() and fork() behave the way they do?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.5 \u00a75.4 Relationship between file descriptors and open files"
+   "ref": "Ch.5 \u00a75.4 Relationship between file descriptors and open files",
+   "page": 138
   },
   "reveal": "A file descriptor indexes the per-process fd table; each entry points to an open file description (system-wide) holding the offset and status flags; that points to the inode. dup() and fork() copy the fd entry but SHARE the open file description \u2014 so duplicated/inherited fds share a file offset (a write through one advances the other), whereas two independent open() calls to the same file get separate offsets.",
   "tags": [
@@ -36,7 +38,8 @@
   "prompt": "You must handle 10k concurrent sockets. Why do select()/poll() scale poorly, and what does epoll change? Contrast level- vs edge-triggered.",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.63 Alternative I/O Models (epoll)"
+   "ref": "Ch.63 Alternative I/O Models (epoll)",
+   "page": 1369
   },
   "reveal": "select()/poll() are O(n): every call re-passes and re-scans the entire fd set, so cost grows with total connections even if few are active. epoll keeps the interest set in the kernel and returns only ready fds \u2014 O(ready), not O(total). Level-triggered fires while data remains (simpler, poll-like); edge-triggered fires once on a readiness transition, so you must drain the fd fully (loop until EAGAIN) or you lose events \u2014 faster but easier to get wrong.",
   "tags": [
@@ -51,7 +54,8 @@
   "prompt": "Walk through fork() and exec(). What does copy-on-write do, and what does fork return?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.24 Process creation; Ch.27 Program execution"
+   "ref": "Ch.24 Process creation; Ch.27 Program execution",
+   "page": 557
   },
   "reveal": "fork() creates a near-identical child process, returning the child\u2019s PID in the parent and 0 in the child (\u22121 on failure) \u2014 that return value is how the two branches distinguish themselves. Copy-on-write means the address space is not actually duplicated: both share the same physical pages marked read-only, and only when one WRITES does the kernel copy that page. exec() then replaces the process image entirely with a new program, keeping the PID and open file descriptors (which is exactly how shells set up redirection: fork, rearrange fds in the child, then exec).",
   "tags": [
@@ -66,7 +70,8 @@
   "prompt": "What is a file descriptor, and what actually happens to descriptors across fork and exec?",
   "src": {
    "book": "tlpi",
-   "ref": "\u00a75.4 File descriptors and open files"
+   "ref": "\u00a75.4 File descriptors and open files",
+   "page": 138
   },
   "reveal": "A file descriptor is a small integer index into the process\u2019s descriptor table; each entry points to an open file description (holding the offset and status flags), which in turn points to an inode. Across fork, the child gets a COPY of the descriptor table pointing at the SAME open file descriptions \u2014 so parent and child share the file offset, which is why interleaved writes behave surprisingly. Across exec, descriptors survive by default, which is how pipes and redirection work; set FD_CLOEXEC (or open with O_CLOEXEC) on anything the new program should not inherit.",
   "tags": [
@@ -81,7 +86,8 @@
   "prompt": "How does a shell implement `a | b`? Describe the syscall sequence.",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.44 Pipes and FIFOs"
+   "ref": "Ch.44 Pipes and FIFOs",
+   "page": 933
   },
   "reveal": "Call pipe() to get a read end and a write end. fork() twice. In the first child: dup2(writeEnd, STDOUT_FILENO) so its stdout becomes the pipe, close both original pipe fds, then exec a. In the second child: dup2(readEnd, STDIN_FILENO), close the originals, exec b. The parent closes BOTH ends \u2014 critical, because the reader only sees EOF when every write end in every process is closed; a forgotten open write end is the classic reason a pipeline hangs forever.",
   "tags": [
@@ -96,7 +102,8 @@
   "prompt": "What is a signal, and what makes writing a signal handler dangerous?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.20\u201322 Signals"
+   "ref": "Ch.20\u201322 Signals",
+   "page": 431
   },
   "reveal": "A signal is an asynchronous notification delivered to a process (SIGINT, SIGTERM, SIGSEGV, SIGCHLD). A handler can interrupt the program at ALMOST ANY instruction, so it may run in the middle of a malloc or a printf and re-enter non-reentrant code, corrupting internal state or deadlocking. Only ASYNC-SIGNAL-SAFE functions may be called (write is safe, printf and malloc are not). The standard safe pattern is to set a volatile sig_atomic_t flag (or write a byte to a self-pipe / eventfd) and do the real work in the main loop.",
   "tags": [
@@ -111,7 +118,8 @@
   "prompt": "Contrast select, poll, and epoll. What makes epoll scale, and what is edge- vs level-triggered?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.63 Alternative I/O models"
+   "ref": "Ch.63 Alternative I/O models",
+   "page": 1369
   },
   "reveal": "select and poll require passing the ENTIRE descriptor set on every call and the kernel scans all of it \u2014 O(n) per call, and select is additionally capped at FD_SETSIZE. epoll registers interest ONCE in a kernel data structure and returns only the ready descriptors \u2014 O(ready), which is what makes 100k connections viable. LEVEL-triggered reports readiness as long as data remains (forgiving, poll-like semantics). EDGE-triggered reports only on a state CHANGE, so you must drain the socket until EAGAIN or you will hang waiting for an event that never repeats \u2014 faster, but the classic source of subtle bugs.",
   "tags": [
@@ -126,7 +134,8 @@
   "prompt": "What does mmap do, and when is it better or worse than read/write?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.49 Memory mappings"
+   "ref": "Ch.49 Memory mappings",
+   "page": 1061
   },
   "reveal": "mmap maps a file (or anonymous memory) into the process address space, so accessing memory triggers demand paging instead of explicit syscalls. Better when: random access to a large file (no syscall per access), sharing memory between processes, or avoiding a copy from kernel to user buffers. Worse when: sequential streaming (read with a large buffer is comparable and simpler), files smaller than a page (overhead dominates), or when you need precise error handling \u2014 an I/O error surfaces as SIGBUS at access time rather than a return code. It also makes page-fault latency unpredictable, which matters for latency-critical paths.",
   "tags": [
@@ -141,7 +150,8 @@
   "prompt": "A process shows high VIRT but low RSS. Explain the difference between virtual size, RSS, and shared memory.",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.6 Processes / \u00a749 memory mappings"
+   "ref": "Ch.6 Processes / \u00a749 memory mappings",
+   "page": 157
   },
   "reveal": "VIRT (virtual size) is the total address space the process has RESERVED, including memory never touched, file mappings, and shared libraries \u2014 it costs page-table entries, not RAM. RSS (resident set size) is the physical RAM actually backing those pages right now, including shared pages. Because RSS counts shared libraries and shared memory in EVERY process that maps them, summing RSS across processes double-counts and can exceed total RAM. PSS (proportional set size) divides shared pages among sharers and is the honest per-process number.",
   "tags": [
@@ -156,7 +166,8 @@
   "prompt": "What is memory overcommit and the OOM killer? Why can malloc succeed and the write still crash?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.7/49 (memory allocation)"
+   "ref": "Ch.7/49 (memory allocation)",
+   "page": 183
   },
   "reveal": "Linux by default OVERCOMMITS: it grants virtual address space without reserving physical pages, betting that most programs do not touch everything they allocate. So malloc succeeds by adjusting the mapping, but physical pages are only assigned on FIRST TOUCH \u2014 if RAM is exhausted at that moment, the kernel invokes the OOM killer, which selects a victim by oom_score (roughly, memory footprint adjusted by oom_score_adj) and kills it. That is why a write to freshly allocated memory can die even though malloc returned non-null. Tune via /proc/sys/vm/overcommit_memory, or pre-touch and mlock memory in latency-critical processes.",
   "tags": [
@@ -171,7 +182,8 @@
   "prompt": "What is /proc, and name five things you would actually read from it while debugging.",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.12 System and process information"
+   "ref": "Ch.12 System and process information",
+   "page": 267
   },
   "reveal": "/proc is a virtual filesystem exposing kernel and process state as files \u2014 no disk behind it. Practical reads: /proc/<pid>/status (memory, threads, context-switch counts), /proc/<pid>/maps (address-space layout, useful for a segfault address), /proc/<pid>/fd/ (which files and sockets are open \u2014 finds descriptor leaks), /proc/<pid>/stack or /proc/<pid>/wchan (where a hung process is blocked in the kernel), /proc/meminfo and /proc/interrupts for system-wide pressure and interrupt distribution.",
   "tags": [
@@ -231,7 +243,8 @@
   "prompt": "What is CPU affinity and why do latency-critical systems pin threads? What else gets tuned alongside it?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.35 Process priorities and scheduling"
+   "ref": "Ch.35 Process priorities and scheduling",
+   "page": 777
   },
   "reveal": "Affinity binds a thread to specific cores (sched_setaffinity / taskset) so the scheduler cannot migrate it. Migration is expensive: the thread arrives on a new core with cold L1/L2 and a cold branch predictor, causing latency spikes. Pinning keeps the working set hot. Alongside it, latency-critical systems typically use isolcpus or cgroup cpusets to keep OTHER work off those cores, move device interrupts (IRQ affinity) to housekeeping cores, disable hyperthreading on the isolated cores, and set the CPU governor to performance so frequency does not drop during idle gaps.",
   "tags": [
@@ -246,7 +259,8 @@
   "prompt": "Static vs dynamic linking: what is the runtime cost of dynamic linking, and is it only at startup?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.41\u201342 Shared libraries"
+   "ref": "Ch.41\u201342 Shared libraries",
+   "page": 877
   },
   "reveal": "Dynamic linking resolves symbols at load time (or lazily on first call via the PLT), so startup pays for relocation and symbol lookup across every shared object. It is NOT only at startup: every call into a shared library goes through the PLT/GOT indirection, so it cannot be inlined across the boundary, and lazy binding means the first call to each function does a resolver round trip. Static linking eliminates both, enables cross-module inlining and LTO, and gives more predictable latency \u2014 which is why HFT binaries are often statically linked, accepting the larger binary and loss of shared-library updates.",
   "tags": [
@@ -261,7 +275,8 @@
   "prompt": "Which command shows you: open file descriptors of a process, listening sockets, and per-CPU interrupt counts?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.12 / system tooling"
+   "ref": "Ch.12 / system tooling",
+   "page": 267
   },
   "reveal": "Open descriptors: ls -l /proc/<pid>/fd or lsof -p <pid>. Listening sockets: ss -ltnp (modern replacement for netstat -ltnp), which shows the process owning each port. Per-CPU interrupt counts: cat /proc/interrupts \u2014 useful for checking whether NIC interrupts are landing on the cores you intended, or all piling onto CPU0.",
   "tags": [

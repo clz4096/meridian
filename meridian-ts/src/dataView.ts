@@ -39,7 +39,6 @@ export interface DataActions {
   copyToClipboard(): void;
   importSingle(store: string, text: string): void;
   restoreSnapshot(): void;
-  saveModelKey(key: string, model: string): void;
   showDiagnostics(): void;
 }
 
@@ -62,13 +61,11 @@ export function renderDataHTML(vm: DataViewModel): string {
     `${esc(s.lastMessage || (s.cloudConfigured ? 'Cloud sync is ON.' : 'Cloud sync is OFF — add a Pantry ID to enable.'))}</div>` +
 
     `<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>` +
-    `<p class="panel-t">\u2699 Model \u2014 meal estimation</p>` +
-    `<div class="note" style="margin-bottom:10px">Uses an <b>open-weights</b> model (Llama 3.3 70B) through OpenRouter\u2019s free tier. ` +
-    `Get a key at <b>openrouter.ai/keys</b>. The key is stored on this device only \u2014 never exported, never synced.</div>` +
-    `<div class="mrow"><input id="d-osskey" type="password" placeholder="${vm.model.configured ? vm.model.keyPreview : 'OpenRouter API key'}" style="flex:1;min-width:180px">` +
-    `<button class="mbtn primary" data-act="save-model">Save</button></div>` +
-    `<div class="mrow" style="margin-top:8px"><input id="d-ossmodel" placeholder="model id" value="${esc(vm.model.model)}" style="flex:1;min-width:200px"></div>` +
-    `<div class="note" style="margin-top:6px">${vm.model.configured ? '\u2713 key stored \u00b7 ' + esc(vm.model.model.split('/').pop() ?? '') : 'No key \u2014 estimation disabled'}</div>` +
+    `<p class="panel-t">\u2699 AI \u2014 meal estimation, answers &amp; grading</p>` +
+    `<div class="note" style="margin-bottom:10px">Meal macro estimates and the Knowledge tab\u2019s AI answer/grade run on <b>${esc(vm.model.model)}</b> through OpenRouter, ` +
+    `proxied by a Supabase Edge Function. The OpenRouter key lives in the function\u2019s secrets \u2014 never on this device, never exported or synced. ` +
+    `To enable: deploy the <b>openrouter-proxy</b> function and set its <b>OPENROUTER_API_KEY</b> secret.</div>` +
+    `<div class="note" style="margin-top:6px">${vm.model.configured ? '\u2713 Cloud proxy configured \u2014 AI features ready.' : 'Set up a cloud backend above first \u2014 AI runs through it.'}</div>` +
 
     `<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>` +
     `<p class="panel-t">Storage</p><div class="statgrid">` +
@@ -129,7 +126,6 @@ export class DataViewController {
         this.actions.importSingle(this.readValue('d-single-key'), this.readValue('d-single-io'));
         break;
       case 'restore-snap': this.actions.restoreSnapshot(); break;
-      case 'save-model': this.actions.saveModelKey(this.readValue('d-osskey').trim(), this.readValue('d-ossmodel').trim()); break;
       default: break;
     }
   }

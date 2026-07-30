@@ -14,7 +14,7 @@ export interface KnowledgeItem {
   reveal: string;
   mins: number;
   flow: 'flip' | 'full';
-  src: { book: string; ref: string };
+  src: { book: string; ref: string; page?: number; title?: string; url?: string };
   tags?: string[];
 }
 export interface KnowledgeTopic { id: string; name: string; books: string[] }
@@ -48,6 +48,8 @@ export interface KnowledgeActions {
   rate(id: string, score: Mastery): void;
   queueForReview(id: string): void;
   gradeWithAI(id: string): void;
+  /** Generate an AI answer to the question (Opus), shown in the note area. */
+  answerWithAI(id: string): void;
 }
 
 export const MASTERY_COLOUR: Record<number, string> = {
@@ -93,6 +95,18 @@ function renderTabs(vm: KnowledgeViewModel): string {
   );
 }
 
+/**
+ * Source line: section ref + book title, linked to the book. When the book is a
+ * direct PDF and the exact page is known, deep-link to it via the `#page=N`
+ * viewer anchor; otherwise link to the book URL. No URL → plain text (unchanged).
+ */
+function qsrcHTML(src: KnowledgeItem['src']): string {
+  const label = src.title ? `${src.ref} — ${src.title}` : src.ref;
+  if (!src.url) return `<div class="qsrc">${esc(label)}</div>`;
+  const href = /\.pdf$/i.test(src.url) && src.page ? `${src.url}#page=${src.page}` : src.url;
+  return `<div class="qsrc"><a href="${esc(href)}" target="_blank" rel="noopener">${esc(label)} ↗</a></div>`;
+}
+
 function renderCard(it: KnowledgeItem, vm: KnowledgeViewModel): string {
   const m = vm.mastery[it.id] ?? 0;
   const full = it.flow !== 'flip';
@@ -104,12 +118,13 @@ function renderCard(it: KnowledgeItem, vm: KnowledgeViewModel): string {
       ? `<span class="masterbadge" style="background:${MASTERY_COLOUR[m]}22;color:${MASTERY_COLOUR[m]}">${MASTERY_TEXT[m]}</span>`
       : '') +
     `</div><div class="qprompt">${esc(it.prompt)}</div>` +
-    `<div class="qsrc">${esc(it.src.ref)}</div>`;
+    qsrcHTML(it.src);
   if (full) {
     c += `<textarea class="ans dictxt" id="ans-${esc(it.id)}" style="min-height:80px;margin-top:8px" placeholder="Write your answer here, then reveal to compare — active recall beats just reading."></textarea>`;
   }
   c +=
     `<div class="qactions"><button class="mbtn" data-act="reveal" data-id="${esc(it.id)}">${full ? 'Reveal model answer' : 'Show answer'}</button>` +
+    `<button class="mbtn" data-act="ai-answer" data-id="${esc(it.id)}">AI answer</button>` +
     (full ? `<button class="mbtn" data-act="ai-grade" data-id="${esc(it.id)}">AI grade my answer</button>` : '') +
     `</div><div id="ai-${esc(it.id)}" class="note" style="margin-top:6px"></div>` +
     `<div class="reveal${open ? ' on' : ''}" id="rv-${esc(it.id)}">${formatReveal(it.reveal)}` +
@@ -216,6 +231,7 @@ export class KnowledgeViewController {
       case 'rate': this.actions.rate(id, (Number(ds.score) || 1) as Mastery); break;
       case 'queue': this.actions.queueForReview(id); break;
       case 'ai-grade': this.actions.gradeWithAI(id); break;
+      case 'ai-answer': this.actions.answerWithAI(id); break;
       default: break;
     }
   }
