@@ -3,4 +3,4 @@ node_modules/
 meridian-ts/dist/
 *.bak
 *.prewire
-.DS_Store
+.claude/settings.local.json

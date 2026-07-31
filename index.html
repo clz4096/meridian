@@ -346,17 +346,14 @@ async function rawSet(key,val){
 // ---- CORE (this app's own store): { schedule:{date:[tasks]}, entries:[] } ----
 let CORE = { schedule:{}, entries:[] };
 let dirty = false;
-let saveTimer = null, cloudRetryTimer=null;
+let saveTimer = null;
 // Snapshot of the last known-clean (saved or freshly loaded) state, for Discard.
-let cleanState={core:null,overload:null,surplus:null,csgraph:null};
 
 /* ================= CLOUD BACKEND (Pantry REST store) =================
    A real cross-device backend: a free hosted JSON store reached over HTTP.
    Setup once: get a Pantry ID at getpantry.cloud, paste it in Data > Cloud.
    Model: cloud is the source of truth. Save -> push. Load -> pull.
    The Pantry ID lives only in localStorage (never synced, never in exports). */
-const PANTRY_BASE='https://getpantry.cloud/apiv1/pantry';
-const BASKET='meridian';
 function cloudEnabled(){ 
   try{ return !!(localStorage.getItem('meridian_supabase_url') && localStorage.getItem('meridian_supabase_key')); }catch(e){ return false; } 
 }
@@ -373,8 +370,6 @@ function cloudEnabled(){
 
 // Push with optimistic concurrency: refuse to overwrite if the cloud has moved
 // on since we last pulled. force=true is only used by an explicit user override.
-const MIN_PUSH_GAP=4000;      // Pantry is a free tier — do not hammer it
-let lastPushAt=0, pushBackoffUntil=0;
 // apply a pulled payload into all stores (cloud authoritative), then persist locally
 function markDirty(){
   dirty = true;
@@ -408,9 +403,8 @@ async function loadCore(){
   if(s){ try{ CORE = JSON.parse(s); }catch(e){ CORE={schedule:{},entries:[]}; } }
   if(!CORE.schedule) CORE.schedule={};
   if(!CORE.entries)  CORE.entries=[];
-  snapshotClean();
+  
 }
-let coreHydrated=false;
 
 /* ---- helpers ---- */
 let _uidSeq=0;
@@ -420,9 +414,6 @@ function uid(){ _uidSeq=(_uidSeq+1)%1000000;
   return Date.now().toString(36)+'-'+_uidSeq.toString(36)+'-'+Math.random().toString(36).slice(2,8); }
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function dstr(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function toMin(hm){ const p=hm.split(':'); return +p[0]*60 + +p[1]; }
-function fromMin(m){ m=((m%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
-function h12(hm){ const p=hm.split(':'); let H=+p[0]; const m=p[1]; const ap=H<12?'AM':'PM'; let h=H%12; if(h===0)h=12; return h+':'+m+' '+ap; }
 function dLabel(ds){ const p=ds.split('-'); const dt=new Date(+p[0],+p[1]-1,+p[2]); const wd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()]; const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.getMonth()]; return (ds===dstr()?'Today \u00b7 ':'')+wd+', '+mo+' '+dt.getDate(); }
 function shift(ds,n){ const p=ds.split('-'); const d=new Date(+p[0],+p[1]-1,+p[2]); d.setDate(d.getDate()+n); return dstr(d); }
 
@@ -471,44 +462,23 @@ async function wkLoad(){
     });
   }
   if(!WK.done) WK.done={}; if(!WK.sessionDone) WK.sessionDone={}; if(!WK.incr) WK.incr={};
-  wkLoaded=true; if(!wkDate) wkDate=dstr(); snapshotClean();
+  wkLoaded=true; if(!wkDate) wkDate=dstr(); 
 }
 function cssId(s){ return s.replace(/[^a-z0-9]/gi,''); }
 function daysSorted(){ return Object.keys(WK.days).sort(); }
-function topOf(sets){ return sets.find(s=>s.type==='top')||null; }
 function exSessions(ex){ return daysSorted().filter(d=>(WK.days[d]||[]).some(s=>s.ex===ex)); }
-function lastSession(ex,before){ const ds=exSessions(ex).filter(d=>d<before); if(!ds.length) return null; const d=ds[ds.length-1]; return {date:d,sets:(WK.days[d]||[]).filter(s=>s.ex===ex)}; }
 function exMeta(ex){ const ds=exSessions(ex); for(let i=ds.length-1;i>=0;i--){ const s=(WK.days[ds[i]]||[]).find(x=>x.ex===ex); if(s) return {muscle:s.muscle||'',group:s.group||''}; } return {muscle:'',group:''}; }
-function isCardio(ex){ const m=exMeta(ex).muscle; return m==='cardio' || (WK.days[daysSorted().slice(-1)[0]]||[]).some(s=>s.ex===ex&&s.type==='cardio'); }
 
 // build the prescribed plan for an exercise (targets pre-filled in boxes)
-function allExercises(){ const m={}; daysSorted().forEach(d=>{ (WK.days[d]||[]).forEach(s=>{ if(!m[s.ex]||d>m[s.ex]) m[s.ex]=d; }); }); return Object.keys(m).sort((a,b)=> m[b]<m[a]?-1:1); }
 function currentBW(){ const ds=Object.keys(WK.bw||{}).sort(); return ds.length? WK.bw[ds[ds.length-1]] : (WK.settings.bwCurrent||null); }
-function latestTop(ex){ const ds=exSessions(ex); for(let i=ds.length-1;i>=0;i--){ const t=(WK.days[ds[i]]||[]).find(s=>s.ex===ex&&s.type==='top'); if(t) return +t.weight; } return null; }
-function firstTop(ex){ const ds=exSessions(ex); for(let i=0;i<ds.length;i++){ const t=(WK.days[ds[i]]||[]).find(s=>s.ex===ex&&s.type==='top'); if(t) return +t.weight; } return null; }
-function weeklySets(){ let n=0; const cut=shift(dstr(),-7); Object.keys(WK.days).forEach(d=>{ if(d>cut) (WK.days[d]||[]).forEach(s=>{ if(s.type==='top'||s.type==='back') n++; }); }); return n; }
-function bwTrend(){ const ds=Object.keys(WK.bw||{}).sort(); if(ds.length<2) return null; return (+WK.bw[ds[ds.length-1]]) - (+WK.bw[ds[0]]); }
 const yt=q=>'https://www.youtube.com/results?search_query='+encodeURIComponent(q+' proper form technique');
 const EX_VIDEO = window.MeridianCore.data.exVideo;
 function exVideo(ex){ return EX_VIDEO[ex] || yt(ex); }
 // Session order: heavy compounds first (freshest), isolation next, grip last, cardio after lifting.
-const EX_ORDER={
- 'Bench Press':10,'Leg Press':10,            // primary compounds
- 'Lat Pulldown':20,                          // secondary compound
- 'Leg Extension':30,'Hip Abduction':34,'Hip Adduction':36,
- 'Tricep Pushdown (Rope)':40,
- 'Bicep Curl (Dumbbell)':50,'Bicep Curl (Pulley)':52,'Hammer Curl (Dumbbell)':54,
- 'Calf Raise (Machine)':60,
- 'Wrist Curl (Dumbbell)':80,'Reverse Wrist Curl (Dumbbell)':82,   // grip LAST
- 'Treadmill':90                              // cardio after lifting
-};
 let wkDate=null;
 let wkSplit='all', wkSplitTouched=false, wkSplitDate=null;
 let restTimer=null, restStart=0, restFor='', restTarget=0;
 // Evidence-based rest: heavy compounds need full ATP-PC recovery; isolation less.
-function toggleExDone(ex){ const k=wkDate||dstr(); if(!WK.done)WK.done={}; if(!WK.done[k])WK.done[k]=[];
-  const i=WK.done[k].indexOf(ex); if(i>=0) WK.done[k].splice(i,1); else { WK.done[k].push(ex); dismissRestFor(ex); }
-  wkMarkDirty(); renderWorkout(true); }
 function toggleSessionDone(){ const k=wkDate||dstr(); if(!WK.sessionDone)WK.sessionDone={};
   WK.sessionDone[k]=!WK.sessionDone[k]; if(WK.sessionDone[k]) stopRest(true); wkMarkDirty(); renderWorkout(true);
   saveAll(false); }                       // completing a session always persists it
@@ -541,8 +511,6 @@ function paintRest(){
   if(el2) el2.textContent=(over?'\u2713 Rested ':'Rest ')+fmtClock(s)+' / '+fmtClock(restTarget)+' \u00b7 '+restFor.split('|')[0];
   if(el3){ el3.style.width=Math.min(100,Math.round(100*s/restTarget))+'%'; el3.style.background=over?'var(--ok)':'var(--fuel)'; }
 }   // 'all' | 'lower' | 'upper'
-const LOWER_MUSCLES=['quads','hamstrings','glutes','calves','hips','cardio'];
-const UPPER_MUSCLES=['chest','back','biceps','triceps','shoulders','forearms'];
 // Which split is due today: alternate from the most recent session that had lifts.
 let wkDeload={};   // session-only "feel weak / missed days" recalibration per exercise
 
@@ -568,7 +536,6 @@ function allTargetItems(){ let out=[]; Object.keys(KG_ITEMS).forEach(t=>{ (KG_IT
 const KG_BOOKS = window.MeridianCore.data.books;
 const KG_TOPICS = window.MeridianCore.data.topics;
 
-const ytS=q=>'https://www.youtube.com/results?search_query='+encodeURIComponent(q);
 // Gym-session study: videos to watch + readings to do (phone-friendly, passive).
 const KG_GYM = window.MeridianCore.data.gym;
 
@@ -604,22 +571,13 @@ async function loadQuestionBank(){
 
 let kgDirtyFlag=false;
 function kgMarkDirty(){ kgDirtyFlag=true; dirty=true; paintSaveChip(); }
-async function kgLoad(){ await loadQuestionBank(); const s=await rawGet(KEYS.csgraph); if(s){ try{ const p=JSON.parse(s); if(p&&p.mastery){ KG=p; } }catch(e){} } if(!KG.mastery)KG.mastery={}; if(!KG.srs)KG.srs={}; if(!KG.log)KG.log=[]; if(!KG.gymDone)KG.gymDone={}; kgLoaded=true; snapshotClean(); }
+async function kgLoad(){ await loadQuestionBank(); const s=await rawGet(KEYS.csgraph); if(s){ try{ const p=JSON.parse(s); if(p&&p.mastery){ KG=p; } }catch(e){} } if(!KG.mastery)KG.mastery={}; if(!KG.srs)KG.srs={}; if(!KG.log)KG.log=[]; if(!KG.gymDone)KG.gymDone={}; kgLoaded=true;  }
 
 /* ---- spaced repetition (SM-2 style, driven by the 1..5 self-rating) ---- */
 function allKGItems(){ const out=[]; Object.keys(KG_ITEMS).forEach(tp=>{ (KG_ITEMS[tp]||[]).forEach(it=>out.push(Object.assign({topic:tp},it))); }); return out; }
-function srsOf(id){ return (KG.srs&&KG.srs[id])||null; }
-function dueCount(){ return dueItems().length; }
 
-function bookRef(bk,ref){ const b=KG_BOOKS[bk]; if(!b) return esc(ref||''); return '<a href="'+b.u+'" target="_blank" rel="noopener">'+esc(b.t.split(' \u2014 ')[0])+'</a> \u00b7 '+esc(ref); }
 
 // Lead sentence bolded, rest as body — makes reveals scannable instead of a wall of text.
-function fmtReveal(txt){
-  if(!txt) return '';
-  const m=String(txt).match(/^(.*?[.!?])(\s+)([\s\S]*)$/);
-  if(!m) return '<b>'+esc(txt)+'</b>';
-  return '<b style="color:var(--text)">'+esc(m[1])+'</b><div style="margin-top:7px">'+esc(m[3])+'</div>';
-}
 
 
 /* ================= WEIGHT GAIN (Surplus) — real data model =================
@@ -641,7 +599,7 @@ async function sgLoad(){ const s=await rawGet(KEYS.surplus);
   if(!SG.settings.proteinTarget) SG.settings.proteinTarget=DEF.proteinTarget;
   if(!SG.settings.current) SG.settings.current=DEF.current;
   if(!SG.settings.goal) SG.settings.goal=DEF.goal;
-  sgLoaded=true; if(!SG.tad) SG.tad={}; if(!sgDate) sgDate=dstr(); snapshotClean();
+  sgLoaded=true; if(!SG.tad) SG.tad={}; if(!sgDate) sgDate=dstr(); 
 }
 function dayMeals(d){ return SG.days[d]||[]; }
 function sumCal(d){ return dayMeals(d).reduce((a,x)=>a+(+x.cal||0),0); }
@@ -658,7 +616,6 @@ function sumPro(d){ return dayMeals(d).reduce((a,x)=>a+(+x.protein||0),0); }
 const MC = window.MeridianCore;
 
 MC.sync.create({
-  getPantryId: () => cloudId(),
   read: (key) => ({ core: CORE, overload: WK, surplus: SG, csgraph: KG })[key] || {},
   write: (key, data) => {
     if (key === 'core')     CORE = data;
@@ -684,18 +641,6 @@ MC.sync.create({
 });
 
 async function saveAll(silent){ return MC.sync.save(); }
-async function cloudPush(force){ return MC.sync.push(force); }
-async function cloudPull(){ 
-  const applied = await MC.sync.pull();
-  if (applied) {
-    try { localStorage.setItem(KEYS.core, JSON.stringify(CORE)); } catch(e) {}
-    try { localStorage.setItem(KEYS.overload, JSON.stringify(WK)); } catch(e) {}
-    try { localStorage.setItem(KEYS.surplus, JSON.stringify(SG)); } catch(e) {}
-    try { localStorage.setItem(KEYS.csgraph, JSON.stringify(KG)); } catch(e) {}
-  }
-  return { ok: true, applied }; 
-}
-async function cloudMerge(){ return MC.sync.pull(); }
 function baseRev(){ return MC.sync.baseRev(); }
 function tomb(store, id){ store._del = MC.addTombstone(store._del, id, Date.now()); }
 
@@ -906,7 +851,6 @@ async function discardChanges(){
 }
 
 /* ---- Knowledge: SRS + mastery derived by the proven core ---- */
-function allItemIds(){ return allKGItems().map(x=>x.id); }
 /** Cards due on or before today, most overdue first. */
 function dueItems(){
   const byId = {}; allKGItems().forEach(it=>{ byId[it.id]=it; });
@@ -919,16 +863,11 @@ function schedule(id, rating){
   KG.srs[id] = next;
   return next;
 }
-function masterLabel(m){ return MC.MASTERY_LABEL ? (MC.MASTERY_LABEL[m] || 'new') : (['','shaky','learning','learning','solid','mastered'][m] || 'new'); }
 
 /* ---- Save lifecycle: delegated to the SyncEngine ---- */
 function anyDirty(){ return MC.sync.anyDirty() || dirty || wkDirty || sgDirty || (typeof kgDirtyFlag!=='undefined' && kgDirtyFlag); }
 
 /** Snapshot for the Discard button. The engine owns persistence; this is UI-level undo. */
-let cleanSnapshot = null;
-function snapshotClean(){
-  try{ cleanSnapshot = JSON.stringify({ core:CORE, overload:WK, surplus:SG, csgraph:KG }); }catch(e){}
-}
 
 /** Backgrounding: hand everything to the engine. It writes synchronously first. */
 function flushAll(reason){
