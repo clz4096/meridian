@@ -1,5 +1,7 @@
 # Wiring the SyncEngine into index.html
 
+> **Status (2026-07-31):** the app now syncs through **Supabase Storage** (`SupabaseCloudProvider`, reading `meridian_supabase_url` / `meridian_supabase_key`), **not** Pantry — the `getPantryId` / `PantryCloudProvider` references below are historical. The wiring is complete; see [`../docs/cleanup-audit.md`](../docs/cleanup-audit.md) for the current architecture. (Code lives in `meridian-ts/`.)
+
 The build injects `window.MeridianCore` **before** the legacy script, so
 `MeridianCore.sync` is available by the time the legacy code runs.
 

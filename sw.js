@@ -1,11 +1,11 @@
-const CACHE='meridian-v10';   // bump to invalidate old cached app shell
+const CACHE='meridian-v11';   // bump to invalidate old cached app shell
 const ASSETS=['./','./index.html','./manifest.webmanifest'];
 self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())); });
 self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); });
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET') return;   // never intercept writes (Pantry POSTs)
   const url=new URL(e.request.url);
-  if(url.hostname.includes('getpantry.cloud')||url.hostname.includes('anthropic.com')) return; // never cache sync/API
+  if(url.hostname.includes('supabase.co')||url.hostname.includes('getpantry.cloud')) return; // never cache sync/AI (Supabase proxy + storage)
   // questions bank: network-first so new questions appear, cache as offline fallback
   if(url.pathname.includes('/questions/')){
     e.respondWith(fetch(e.request).then(resp=>{ if(resp.ok){ const cp=resp.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); } return resp; }).catch(()=>caches.match(e.request)));

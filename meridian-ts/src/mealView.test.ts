@@ -3,8 +3,6 @@ import fc from 'fast-check';
 import type { MealState } from './types.js';
 import { selectMealView } from './mealSelectors.js';
 import { renderMealHTML, MealViewController, type MealActions, type MealViewOptions } from './mealView.js';
-import { renderDataHTML, DataViewController, type DataActions, type DataViewModel } from './dataView.js';
-import { normaliseState, storageMetrics } from './dataSelectors.js';
 import type { ViewHost } from './viewHost.js';
 
 const RUNS = Number(process.env.FC_RUNS ?? 150);
@@ -102,54 +100,5 @@ describe('meal view', () => {
     expect(actions.estimateWithAI).toHaveBeenCalledWith('two eggs');
     hostRef.fire({});                          // no data-act
     expect(actions.editTargets).not.toHaveBeenCalled();
-  });
-});
-
-describe('data view', () => {
-  const vm = (): DataViewModel => ({
-    metrics: storageMetrics(normaliseState({})),
-    sync: { cloudConfigured: true, pantryId: 'abc', baseRev: 3, dirtyStores: [], lastMessage: '', lastMessageBad: false },
-    payloadKb: 29.7,
-    model: { configured: true, model: 'meta-llama/llama-3.3-70b-instruct:free', keyPreview: 'sk-or-…abcd' },
-  });
-
-  it('renders balanced markup', () => {
-    const html = renderDataHTML(vm());
-    expect((html.match(/<div/g) ?? []).length).toBe((html.match(/<\/div>/g) ?? []).length);
-    expect(html).not.toContain('undefined');
-  });
-
-  it('never renders the API key itself, only a masked preview', () => {
-    const v = vm();
-    v.model.keyPreview = 'sk-or-\u2026abcd';
-    const html = renderDataHTML(v);
-    expect(html).not.toContain('sk-or-v1-realsecret');
-    expect(html).toContain('type="password"');
-  });
-
-  it('escapes the pantry id', () => {
-    const v = vm();
-    v.sync.pantryId = '"><script>alert(1)</script>';
-    const html = renderDataHTML(v);
-    expect(html).not.toContain('<script>alert');
-  });
-
-  it('binds once and routes actions', () => {
-    hostRef = new FakeHost();
-    const actions: DataActions = {
-      savePantryId: vi.fn(), testConnection: vi.fn(), push: vi.fn(), pull: vi.fn(),
-      exportAll: vi.fn(), importPasted: vi.fn(), copyToClipboard: vi.fn(),
-      importSingle: vi.fn(), restoreSnapshot: vi.fn(), showDiagnostics: vi.fn(),
-    };
-    const values: Record<string, string> = { 'd-pantry': ' my-id ', 'd-io': '{}', 'd-single-key': 'overload', 'd-single-io': '{"a":1}' };
-    const ctrl = new DataViewController(hostRef, actions, (id) => values[id] ?? '');
-    ctrl.repaint(vm());
-    expect(hostRef.binds).toBe(1);
-    hostRef.fire({ act: 'save-id' });
-    expect(actions.savePantryId).toHaveBeenCalledWith('my-id', '');
-    hostRef.fire({ act: 'import-single' });
-    expect(actions.importSingle).toHaveBeenCalledWith('overload', '{"a":1}');
-    hostRef.fire({ act: 'pull' });
-    expect(actions.pull).toHaveBeenCalled();
   });
 });

@@ -1,5 +1,7 @@
 # Wiring the typed core into index.html
 
+> **Status (2026-07-31):** the legacy→typed migration this doc describes is **complete** (cleanup-audit Phases 0–4). `index.html` is now a thin shell over the compiled core plus ~42 KB of DOM glue, and all four views (workout · meal · data · knowledge) ship. This file remains as a historical record of the strangler-fig wiring; for the current module map see [`../docs/cleanup-audit.md`](../docs/cleanup-audit.md). (The code lives in `meridian-ts/`, not `ts/`.)
+
 The build injects `window.MeridianCore` **before** the legacy inline script, so
 everything below is available by the time the legacy code runs.
 
