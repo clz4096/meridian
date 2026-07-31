@@ -39,6 +39,8 @@ import {
   type KnowledgeActions, type KnowledgeViewModel,
 } from '../knowledgeView.js';
 import { BrowserStorageAdapter, SupabaseCloudProvider, systemClock } from './adapters.js';
+import { aiCall, estimateMacros } from './ai.js';
+import { fetchQuestionBank } from './questionBank.js';
 import { SyncEngine, type SaveResult, type StoreKey } from '../SyncEngine.js';
 import { mergeStore, sanitizeStore } from '../mergeStores.js';
 
@@ -259,6 +261,13 @@ const sync = {
 const api = {
   // static build-time content (seed workout, book registry, gym/topics/targets, exercise videos)
   data: DATA,
+
+  // AI service (meal estimation, Knowledge answer/grade) via the OpenRouter proxy
+  aiCall, estimateMacros,
+
+  // question-bank loader (fetch + offline cache)
+  fetchQuestionBank,
+
   mountWorkoutView,
   selectWorkoutView,
   // pure helpers the legacy code still needs while it is being strangled
