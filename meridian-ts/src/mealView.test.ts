@@ -139,22 +139,17 @@ describe('data view', () => {
     const actions: DataActions = {
       savePantryId: vi.fn(), testConnection: vi.fn(), push: vi.fn(), pull: vi.fn(),
       exportAll: vi.fn(), importPasted: vi.fn(), copyToClipboard: vi.fn(),
-      importSingle: vi.fn(), restoreSnapshot: vi.fn(), showDiagnostics: vi.fn(), saveModelKey: vi.fn(),
+      importSingle: vi.fn(), restoreSnapshot: vi.fn(), showDiagnostics: vi.fn(),
     };
     const values: Record<string, string> = { 'd-pantry': ' my-id ', 'd-io': '{}', 'd-single-key': 'overload', 'd-single-io': '{"a":1}' };
     const ctrl = new DataViewController(hostRef, actions, (id) => values[id] ?? '');
     ctrl.repaint(vm());
     expect(hostRef.binds).toBe(1);
     hostRef.fire({ act: 'save-id' });
-    expect(actions.savePantryId).toHaveBeenCalledWith('my-id');
+    expect(actions.savePantryId).toHaveBeenCalledWith('my-id', '');
     hostRef.fire({ act: 'import-single' });
     expect(actions.importSingle).toHaveBeenCalledWith('overload', '{"a":1}');
     hostRef.fire({ act: 'pull' });
     expect(actions.pull).toHaveBeenCalled();
-
-    values['d-osskey'] = ' sk-or-test ';
-    values['d-ossmodel'] = 'mistralai/mistral-7b-instruct:free';
-    hostRef.fire({ act: 'save-model' });
-    expect(actions.saveModelKey).toHaveBeenCalledWith('sk-or-test', 'mistralai/mistral-7b-instruct:free');
   });
 });

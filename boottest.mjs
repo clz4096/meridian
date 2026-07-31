@@ -1,6 +1,6 @@
 /** Boots the entire index.html in a fake DOM and exercises every tab. */
 import fs from 'node:fs';
-const html = fs.readFileSync('site/index.html', 'utf8');
+const html = fs.readFileSync('../index.html', 'utf8');
 const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]).filter(s => s.trim());
 
 const els = new Map();

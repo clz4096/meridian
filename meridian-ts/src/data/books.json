@@ -1,0 +1,130 @@
+{
+ "dbsys": {
+  "t": "Readings in Database Systems (the Red Book)",
+  "u": "http://www.redbook.io/"
+ },
+ "crafting": {
+  "t": "Crafting Interpreters — Nystrom",
+  "u": "https://craftinginterpreters.com/"
+ },
+ "kurose": {
+  "t": "Computer Networking: A Top-Down Approach",
+  "u": "https://gaia.cs.umass.edu/kurose_ross/index.php"
+ },
+ "sysdesign": {
+  "t": "System design — LOB, matching engine, pipelines",
+  "u": "https://github.com/donnemartin/system-design-primer"
+ },
+ "star": {
+  "t": "Behavioral prep — STAR method",
+  "u": "https://www.themuse.com/advice/star-interview-method"
+ },
+ "micrograd": {
+  "t": "Karpathy — Neural Networks: Zero to Hero",
+  "u": "https://karpathy.ai/zero-to-hero.html"
+ },
+ "cs231n": {
+  "t": "Stanford CS231n — Backpropagation notes",
+  "u": "https://cs231n.github.io/optimization-2/"
+ },
+ "attention": {
+  "t": "Attention Is All You Need (Vaswani et al.)",
+  "u": "https://arxiv.org/abs/1706.03762"
+ },
+ "roofline": {
+  "t": "Roofline model / Making DL Go Brrrr",
+  "u": "https://horace.io/brrr_intro.html"
+ },
+ "brrr": {
+  "t": "Horace He — Making Deep Learning Go Brrrr",
+  "u": "https://horace.io/brrr_intro.html"
+ },
+ "scaling": {
+  "t": "How to Scale Your Model (JAX team)",
+  "u": "https://jax-ml.github.io/scaling-book/"
+ },
+ "3b1b": {
+  "t": "3Blue1Brown — Neural Networks",
+  "u": "https://www.youtube.com/playlist?list=PLZHQObOWTQDNU6R1_67000Dx_ZCJB-3pi"
+ },
+ "cses": {
+  "t": "Competitive Programmer’s Handbook (CSES) — Laaksonen",
+  "u": "https://cses.fi/book/book.pdf"
+ },
+ "skiena": {
+  "t": "The Algorithm Design Manual — Skiena",
+  "u": "https://sureshcseit.wordpress.com/wp-content/uploads/2021/04/skienathealgorithmdesignmanual.pdf"
+ },
+ "ddia": {
+  "t": "Designing Data-Intensive Applications — Kleppmann",
+  "u": "https://dataintensive.net/"
+ },
+ "ostep": {
+  "t": "Operating Systems: Three Easy Pieces",
+  "u": "https://pages.cs.wisc.edu/~remzi/OSTEP/"
+ },
+ "mathcs": {
+  "t": "Mathematics for Computer Science — MIT 6.042J",
+  "u": "https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-fall-2010/"
+ },
+ "pmpp": {
+  "t": "Programming Massively Parallel Processors (PMPP)",
+  "u": "https://www.elsevier.com/books/programming-massively-parallel-processors/hwu/978-0-323-91231-0"
+ },
+ "clrs": {
+  "t": "CLRS — Introduction to Algorithms",
+  "u": "https://www.cs.mcgill.ca/~akroit/math/compsci/Cormen%20Introduction%20to%20Algorithms.pdf"
+ },
+ "csapp": {
+  "t": "CSAPP — Computer Systems: A Programmer’s Perspective",
+  "u": "https://www.cs.sfu.ca/~ashriram/Courses/CS295/assets/books/CSAPP_2016.pdf"
+ },
+ "tanenbaum": {
+  "t": "Tanenbaum — Modern Operating Systems",
+  "u": "https://www.dc16iupat.org/wp-content/uploads/2020/04/Modern.Operating.Systems.2nd.Ed_.by_.Tanenbaum-not-scanned-1-1.pdf"
+ },
+ "cia": {
+  "t": "Anthony Williams — C++ Concurrency in Action, 2nd ed.",
+  "u": "https://beefnoodles.cc/assets/book/C++%20Concurrency%20in%20Action.pdf"
+ },
+ "hp": {
+  "t": "Hennessy & Patterson — Computer Architecture: A Quantitative Approach",
+  "u": "https://acs.pub.ro/~cpop/SMPA/Computer%20Architecture,%20Sixth%20Edition_%20A%20Quantitative%20Approach%20(%20PDFDrive%20).pdf"
+ },
+ "cod": {
+  "t": "Patterson & Hennessy — Computer Organization and Design",
+  "u": "https://nsec.sjtu.edu.cn/data/MK.Computer.Organization.and.Design.4th.Edition.Oct.2011.pdf"
+ },
+ "unp": {
+  "t": "Stevens — UNIX Network Programming, Vol. 2 (IPC)",
+  "u": "http://library.bagrintsev.me/Net/W.%20Richard%20Stevens%20-%20Unix%20Network%20Programming%20Vol2.pdf"
+ },
+ "cornell": {
+  "t": "Cornell Virtual Workshop — Roadmaps (parallel, GPU/CUDA)",
+  "u": "https://cvw.cac.cornell.edu/roadmaps"
+ },
+ "hwint": {
+  "t": "hardware-interview.com — study",
+  "u": "https://www.hardware-interview.com/study"
+ },
+ "baremetal": {
+  "t": "Alexey Robenko — Practical Guide to Bare-metal C++",
+  "u": "https://arobenko.github.io/bare_metal_cpp/"
+ },
+ "cpuland": {
+  "t": "cpu.land — Putting the You in CPU",
+  "u": "https://cpu.land/"
+ },
+ "coreg": {
+  "t": "C++ Core Guidelines",
+  "u": "https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines"
+ },
+ "tlpi": {
+  "t": "Michael Kerrisk — The Linux Programming Interface",
+  "u": "https://broman.dev/download/The%20Linux%20Programming%20Interface.pdf"
+ },
+ "playlist": {
+  "t": "YouTube — core CS playlist",
+  "u": "https://www.youtube.com/watch?v=sQqniayndb4&list=PLMrJAkhIeNNR3sNYvfgiKgcStwuPSts9V"
+ }
+}

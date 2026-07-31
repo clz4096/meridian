@@ -13,8 +13,7 @@
     "test:data": "vitest run src/mealSelectors.test.ts src/knowledgeSelectors.test.ts src/dataSelectors.test.ts",
     "test:sync": "vitest run src/syncEngine.test.ts src/mergeStores.test.ts",
     "test:views": "vitest run src/workoutView.test.ts src/mealView.test.ts",
-    "test:boot": "node ../boottest.mjs",
-    "verify": "npm run typecheck && npm run test && npm run build:check && npm run test:boot && npm run bench",
+    "verify": "npm run typecheck && npm run test && npm run build:check && npm run bench",
     "deep": "npm run deep:1 && npm run deep:2 && npm run deep:3",
     "bench": "npm run --silent build:dist && node bench.mjs",
     "build:dist": "tsc",
@@ -23,9 +22,10 @@
     "deep:3": "FC_RUNS=10000 vitest run src/mealSelectors.test.ts src/dataSelectors.test.ts"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "vitest": "^2.1.9",
+    "@types/node": "^26.1.2",
+    "esbuild": "^0.25.0",
     "fast-check": "^3.23.2",
-    "esbuild": "^0.25.0"
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
   }
 }

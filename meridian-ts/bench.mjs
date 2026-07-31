@@ -12,8 +12,7 @@ import * as K from './dist/knowledgeSelectors.js';
 import * as D from './dist/dataSelectors.js';
 import * as G from './dist/mergeStores.js';
 
-const html = fs.readFileSync('../site/index.html', 'utf8');
-const WK = JSON.parse(html.match(/const DEFAULT_WK = (\{.*?\});\n/s)[1]);
+const WK = JSON.parse(fs.readFileSync('src/data/defaultWorkout.json', 'utf8'));
 Object.assign(WK, { done: WK.done ?? {}, sessionDone: WK.sessionDone ?? {}, incr: WK.incr ?? {}, _del: WK._del ?? {} });
 const SG = { settings: { maintenance: 2200, surplus: 500, proteinTarget: 147 },
   days: { '2026-07-25': Array.from({ length: 10 }, (_, i) => ({ id: 'm'+i, name: 'Meal '+i, cal: 300, protein: 25 })) },

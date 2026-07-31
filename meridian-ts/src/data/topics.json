@@ -1,0 +1,138 @@
+[
+ {
+  "id": "algorithms",
+  "name": "Algorithms / LC",
+  "books": [
+   "clrs",
+   "cses",
+   "skiena"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "concurrency",
+  "name": "Concurrency / Parallel / Async",
+  "books": [
+   "cia",
+   "tanenbaum",
+   "cornell"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "graph",
+  "name": "Graph Theory",
+  "books": [
+   "clrs",
+   "cses"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "probstats",
+  "name": "Prob & Stats",
+  "books": [
+   "mathcs"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "comparch",
+  "name": "Comp Arch / Assembly / RISC-V",
+  "books": [
+   "csapp",
+   "hp",
+   "cod",
+   "cpuland"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "cpp",
+  "name": "C++",
+  "books": [
+   "coreg",
+   "baremetal",
+   "hwint"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "sysdesign",
+  "name": "System Design",
+  "books": [
+   "sysdesign"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "databases",
+  "name": "Databases",
+  "books": [
+   "dbsys"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "networking",
+  "name": "Networking",
+  "books": [
+   "kurose",
+   "unp"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "compilers",
+  "name": "Compilers",
+  "books": [
+   "crafting"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "behavioral",
+  "name": "Behavioral",
+  "books": [
+   "star"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "mlfund",
+  "name": "ML Fundamentals",
+  "books": [
+   "micrograd",
+   "cs231n",
+   "attention",
+   "roofline"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "gpu",
+  "name": "GPUs / TPUs",
+  "books": [
+   "cornell",
+   "pmpp"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "distributed",
+  "name": "Distributed Systems",
+  "books": [
+   "unp",
+   "cia"
+  ],
+  "seeded": true
+ },
+ {
+  "id": "linux",
+  "name": "Linux / Systems Programming",
+  "books": [
+   "tlpi"
+  ],
+  "seeded": true
+ }
+]

@@ -1,8 +1,7 @@
 // Parity: pure selectors vs the shipped app, on the real workout dataset.
 import * as S from './dist/workoutSelectors.js';
 import fs from 'fs';
-const html = fs.readFileSync('../site/index.html','utf8');
-const WK = JSON.parse(html.match(/const DEFAULT_WK = (\{.*?\});\n/s)[1]);
+const WK = JSON.parse(fs.readFileSync('src/data/defaultWorkout.json', 'utf8'));
 WK.done ??= {}; WK.sessionDone ??= {}; WK.incr ??= {}; WK.bw ??= {}; WK.rpe ??= {};
 const TODAY='2026-07-25';
 let pass=0,fail=0;
@@ -72,7 +71,7 @@ t('no localStorage', /localStorage/.test(src), false);
 console.log('\n=== Determinism (same input -> same output) ===');
 const a=S.selectWorkoutView(WK,TODAY,TODAY), b=S.selectWorkoutView(WK,TODAY,TODAY);
 t('view model deterministic', JSON.stringify(a)===JSON.stringify(b), true);
-t('input not mutated', JSON.parse(html.match(/const DEFAULT_WK = (\{.*?\});\n/s)[1]).days['2026-07-22'].length, WK.days['2026-07-22'].length);
+t('input not mutated', JSON.parse(fs.readFileSync('src/data/defaultWorkout.json', 'utf8')).days['2026-07-22'].length, WK.days['2026-07-22'].length);
 t('view has plans for every exercise', a.exercises.every(e=>e in a.plans), true);
 t('estimate is finite', Number.isFinite(a.estimate.minutes)&&a.estimate.minutes>0, true);
 console.log('  view: '+a.exercises.length+' exercises, split='+a.split+', ~'+a.estimate.minutes+'min, '+a.estimate.workingSets+' sets');

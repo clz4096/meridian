@@ -152,7 +152,7 @@ export class PantryCloudProvider implements CloudProvider {
       if (!res.ok) return { ok: false, kind: classify(res.status), message: `HTTP ${res.status} from Pantry` };
       const body = (await res.json()) as Record<string, unknown>;
       if (!body || typeof body !== 'object') return { ok: true };
-      return { ok: true, payload: coercePayload(body) };
+      return { ok: true, payload: body as unknown as CloudPayload };
     } catch (e) {
       return { ok: false, kind: 'offline', message: (e as Error)?.message || 'network error' };
     }
@@ -251,7 +251,7 @@ export class SupabaseCloudProvider implements CloudProvider {
       if (!res.ok) return { ok: false, kind: classify(res.status), message: `HTTP ${res.status} from Supabase` };
       const body = (await res.json()) as Record<string, unknown>;
       if (!body || typeof body !== 'object') return { ok: true };
-      return { ok: true, payload: body as CloudPayload };
+      return { ok: true, payload: body as unknown as CloudPayload };
     } catch (e) {
       return { ok: false, kind: 'offline', message: (e as Error)?.message || 'network error' };
     }

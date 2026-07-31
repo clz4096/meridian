@@ -179,6 +179,7 @@ function makeController() {
     logSet: vi.fn(), deleteSet: vi.fn(), toggleExerciseDone: vi.fn(),
     toggleSessionDone: vi.fn(), toggleDeload: vi.fn(), editIncrement: vi.fn(),
     startRest: vi.fn(), changeDate: vi.fn(), changeSplit: vi.fn(), logBodyweight: vi.fn(),
+    undoLastSet: vi.fn(),
   };
   const ctrl = new WorkoutViewController(hostRef, actions, () => 100);
   return { ctrl, host: hostRef, actions };

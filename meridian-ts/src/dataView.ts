@@ -50,7 +50,7 @@ export function renderDataHTML(vm: DataViewModel): string {
     `<div class="panel mpanel"><p class="panel-t">☁ Cloud backend (sync across devices)</p>` +
     `<div class="note" style="margin-bottom:10px">One-time setup: create a <b>Supabase</b> project, create a public bucket, paste your Project URL and anon key below. ` +
     `Every save then syncs, and each device pulls the latest on open. The ID stays on this device only.</div>` +
-    `<input id="d-pantry" placeholder="Project URL" style="flex:1;min-width:200px" value="${esc(s.pantryId)}"><input id="d-pantry-appkey" type="password" placeholder="Anon Key" style="flex:1;min-width:180px">` +
+    `<div class="mrow"><input id="d-pantry" placeholder="Project URL" style="flex:1;min-width:200px" value="${esc(s.pantryId)}"><input id="d-pantry-appkey" type="password" placeholder="Anon Key" style="flex:1;min-width:180px">` +
     `<button class="mbtn primary" data-act="save-id">Save ID</button></div>` +
     `<div class="mrow" style="margin-top:8px"><button class="mbtn" data-act="test">Test connection</button>` +
     `<button class="mbtn" data-act="push">☁↑ Push now</button>` +

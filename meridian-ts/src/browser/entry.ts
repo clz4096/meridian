@@ -27,6 +27,7 @@ import {
 } from '../workoutSelectors.js';
 import { selectMealView, dayTotals, macroConsistency, resolveTargets, supplementView, averageCalories } from '../mealSelectors.js';
 import { selectStudyView, schedule, dueCards, MASTERY_LABEL, isDue, normaliseEntry, daysBetween, studyStreak, DEFAULT_SRS } from '../knowledgeSelectors.js';
+import { DATA } from '../data/index.js';
 import {
   exportBundle, importBundle, serialise, normaliseState, storageMetrics,
   workoutCsv, mealCsv, toCsv, csvCell, roundTrip, canonicalise, BUNDLE_VERSION,
@@ -265,6 +266,8 @@ const sync = {
 
 /* Global surface consumed by the remaining legacy inline script. */
 const api = {
+  // static build-time content (seed workout, book registry, gym/topics/targets, exercise videos)
+  data: DATA,
   mountWorkoutView,
   selectWorkoutView,
   // pure helpers the legacy code still needs while it is being strangled

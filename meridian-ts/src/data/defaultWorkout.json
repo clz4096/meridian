@@ -1,0 +1,2004 @@
+{
+ "v": 1,
+ "settings": {
+  "bwCurrent": 120,
+  "bwGoal": 150,
+  "benchGoal": 150,
+  "benchStart": 125,
+  "volLow": 10,
+  "volHigh": 20
+ },
+ "days": {
+  "2026-07-03": [
+   {
+    "id": 1783114348370.892,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 45,
+    "reps": 5
+   },
+   {
+    "id": 1783114594538.7588,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 95,
+    "reps": 6
+   },
+   {
+    "id": 1783114911812.9878,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 125,
+    "reps": 6
+   },
+   {
+    "id": 1783115173675.021,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 115,
+    "reps": 6
+   },
+   {
+    "id": 1783115390881.0293,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 100,
+    "reps": 10
+   },
+   {
+    "id": 1783115587837.8508,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 25,
+    "reps": 10
+   },
+   {
+    "id": 1783115745322.4102,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 42.5,
+    "reps": 7
+   },
+   {
+    "id": 1783115908162.8042,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 35,
+    "reps": 10
+   },
+   {
+    "id": 1783116091606.8875,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 35,
+    "reps": 10
+   },
+   {
+    "id": 1783116334268.0269,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 20,
+    "reps": 10
+   },
+   {
+    "id": 1783116627332.8625,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 30,
+    "reps": 8
+   },
+   {
+    "id": 1783117235363.9458,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 25,
+    "reps": 10
+   },
+   {
+    "id": 1783117263334.1274,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 25,
+    "reps": 10
+   },
+   {
+    "id": 1783117349962.735,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 25,
+    "reps": 10
+   },
+   {
+    "id": 1783117550198.3257,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 42.5,
+    "reps": 8
+   },
+   {
+    "id": 1783117947681.3662,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 40,
+    "reps": 10
+   },
+   {
+    "id": 1783118136302.101,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 35,
+    "reps": 10
+   },
+   {
+    "id": 1783118923005.7573,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 2.5,
+    "reps": 10
+   },
+   {
+    "id": 1783118939197.8682,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 3.5,
+    "reps": 3
+   },
+   {
+    "id": 1783119171086.2573,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 4.5,
+    "reps": 1
+   },
+   {
+    "id": 1783119181672.8499,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 3.5,
+    "reps": 3
+   },
+   {
+    "id": 1783119471459.1504,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 2.3,
+    "reps": 1
+   },
+   {
+    "id": 1783119784370.0764,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 125,
+    "reps": 8
+   },
+   {
+    "id": 1783120150083.9946,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 205,
+    "reps": 7
+   },
+   {
+    "id": 1783120474174.7617,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 185,
+    "reps": 8
+   },
+   {
+    "id": 1783120728270.4648,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 165,
+    "reps": 9
+   },
+   {
+    "id": 1783120862439.6416,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 85,
+    "reps": 8
+   },
+   {
+    "id": 1783121140796.782,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 145,
+    "reps": 8
+   },
+   {
+    "id": 1783121373362.0222,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 125,
+    "reps": 10
+   },
+   {
+    "id": 1783121769523.4617,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 105,
+    "reps": 10
+   },
+   {
+    "id": 1783121776223.5176,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 60,
+    "reps": 8
+   },
+   {
+    "id": 1783122067610.072,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 100,
+    "reps": 9
+   },
+   {
+    "id": 1783122436492.4165,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 90,
+    "reps": 8
+   },
+   {
+    "id": 1783122543350.485,
+    "ex": "Hip Adduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 60,
+    "reps": 8
+   },
+   {
+    "id": 1783126070393.514,
+    "ex": "Hip Adduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 100,
+    "reps": 8
+   }
+  ],
+  "2026-07-05": [
+   {
+    "id": 1783290099229.6572,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 3.5,
+    "reps": 15
+   },
+   {
+    "id": 1783290187315.6565,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 125,
+    "reps": 8
+   },
+   {
+    "id": 1783290645564.99,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 205,
+    "reps": 8
+   },
+   {
+    "id": 1783290696256.5947,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 185,
+    "reps": 8
+   },
+   {
+    "id": 1783291010025.3394,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 165,
+    "reps": 8
+   },
+   {
+    "id": 1783291161274.1597,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 65,
+    "reps": 8
+   },
+   {
+    "id": 1783291410325.245,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 105,
+    "reps": 8
+   },
+   {
+    "id": 1783291686003.9468,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 95,
+    "reps": 9
+   },
+   {
+    "id": 1783291874533.943,
+    "ex": "Hip Adduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 70,
+    "reps": 10
+   },
+   {
+    "id": 1783291958258.9392,
+    "ex": "Hip Adduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 115,
+    "reps": 10
+   },
+   {
+    "id": 1783292321949.7744,
+    "ex": "Hip Adduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 100,
+    "reps": 10
+   },
+   {
+    "id": 1783292510570.6582,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 105,
+    "reps": 8
+   },
+   {
+    "id": 1783292934159.412,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 165,
+    "reps": 7
+   },
+   {
+    "id": 1783293282252.7732,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 145,
+    "reps": 8
+   },
+   {
+    "id": 1783293474002.769,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 125,
+    "reps": 8
+   },
+   {
+    "id": 1783293717329.548,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 45,
+    "reps": 10
+   },
+   {
+    "id": 1783294014763.4053,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 95,
+    "reps": 8
+   },
+   {
+    "id": 1783294317084.0747,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 130,
+    "reps": 5
+   },
+   {
+    "id": 1783294557663.2612,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 115,
+    "reps": 6
+   },
+   {
+    "id": 1783294750061.3638,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 105,
+    "reps": 6
+   },
+   {
+    "id": 1783295060819.3228,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 32,
+    "reps": 10
+   },
+   {
+    "id": 1783295079354.9368,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 25,
+    "reps": 10
+   },
+   {
+    "id": 1783295225692.3108,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 42.5,
+    "reps": 8
+   },
+   {
+    "id": 1783295288159.2263,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 45,
+    "reps": 8
+   },
+   {
+    "id": 1783295427561.6392,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 40,
+    "reps": 7
+   },
+   {
+    "id": 1783295493004.9739,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 40,
+    "reps": 8
+   },
+   {
+    "id": 1783295671534.475,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 35,
+    "reps": 8
+   },
+   {
+    "id": 1783295836723.1592,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 35,
+    "reps": 8
+   },
+   {
+    "id": 1783295959115.7842,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 20,
+    "reps": 10
+   },
+   {
+    "id": 1783296189405.3086,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 35,
+    "reps": 5
+   },
+   {
+    "id": 1783296404350.82,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 30,
+    "reps": 7
+   },
+   {
+    "id": 1783296413114.0571,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 30,
+    "reps": 0
+   },
+   {
+    "id": 1783296563191.1726,
+    "ex": "Lat Pulldown",
+    "muscle": "back",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 60,
+    "reps": 8
+   },
+   {
+    "id": 1783296769643.7302,
+    "ex": "Lat Pulldown",
+    "muscle": "back",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 105,
+    "reps": 8
+   },
+   {
+    "id": 1783296976603.7876,
+    "ex": "Lat Pulldown",
+    "muscle": "back",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 90,
+    "reps": 8
+   }
+  ],
+  "2026-07-07": [
+   {
+    "id": 1783459455754.13,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 27,
+    "reps": 10
+   },
+   {
+    "id": 1783459707730.6304,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 45,
+    "reps": 6
+   },
+   {
+    "id": 1783459913055.2712,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 40,
+    "reps": 7
+   },
+   {
+    "id": 1783460175464.4858,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 35,
+    "reps": 10
+   },
+   {
+    "id": 1783460220224.0178,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 20,
+    "reps": 10
+   },
+   {
+    "id": 1783460477247.1377,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 45,
+    "reps": 10
+   },
+   {
+    "id": 1783460615474.4214,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 95,
+    "reps": 6
+   },
+   {
+    "id": 1783460964932.775,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 130,
+    "reps": 5
+   },
+   {
+    "id": 1783461214418.3088,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 115,
+    "reps": 6
+   },
+   {
+    "id": 1783461519657.7144,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 105,
+    "reps": 6
+   },
+   {
+    "id": 1783461726054.4675,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 30,
+    "reps": 10
+   },
+   {
+    "id": 1783461989777.5547,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 47.5,
+    "reps": 10
+   },
+   {
+    "id": 1783462303801.5076,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 45,
+    "reps": 8
+   },
+   {
+    "id": 1783462548416.0408,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 40,
+    "reps": 8
+   },
+   {
+    "id": 1783462728109.652,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 35,
+    "reps": 5
+   },
+   {
+    "id": 1783463006257.7485,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 30,
+    "reps": 8
+   },
+   {
+    "id": 1783463234743.4014,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 30,
+    "reps": 8
+   },
+   {
+    "id": 1783466753754.8357,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 2.5,
+    "reps": 10
+   },
+   {
+    "id": 1783466761022.3586,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 3.5,
+    "reps": 10
+   },
+   {
+    "id": 1783466767391.0637,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 4.5,
+    "reps": 1
+   },
+   {
+    "id": 1783466774476.8066,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 3.5,
+    "reps": 5
+   },
+   {
+    "id": 1783466780361.6934,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 4.5,
+    "reps": 1
+   },
+   {
+    "id": 1783466789411.2764,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 2.5,
+    "reps": 10
+   },
+   {
+    "id": 1783466871023.9807,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 130,
+    "reps": 8
+   },
+   {
+    "id": 1783467202217.9807,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 215,
+    "reps": 6
+   },
+   {
+    "id": 1783467441419.4612,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 195,
+    "reps": 6
+   },
+   {
+    "id": 1783467659889.4822,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 170,
+    "reps": 7
+   },
+   {
+    "id": 1783467973006.472,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 100,
+    "reps": 8
+   },
+   {
+    "id": 1783468226657.299,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 165,
+    "reps": 8
+   },
+   {
+    "id": 1783468464628.1785,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 145,
+    "reps": 8
+   },
+   {
+    "id": 1783468807852.6045,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 65,
+    "reps": 8
+   },
+   {
+    "id": 1783469047251.8457,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 115,
+    "reps": 8
+   },
+   {
+    "id": 1783469229953.1482,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 100,
+    "reps": 10
+   },
+   {
+    "id": 1783469594494.61,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 90,
+    "reps": 8
+   },
+   {
+    "id": 1783469660852.884,
+    "ex": "Hip Adduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 70,
+    "reps": 8
+   },
+   {
+    "id": 1783469849467.2683,
+    "ex": "Hip Adduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 125,
+    "reps": 8
+   },
+   {
+    "id": 1783470157105.2761,
+    "ex": "Hip Adduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 110,
+    "reps": 10
+   },
+   {
+    "id": 1783470160787.3271,
+    "ex": "Hip Adduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 95,
+    "reps": 10
+   }
+  ],
+  "2026-07-09": [
+   {
+    "id": 1783616381566.664,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 45,
+    "reps": 10
+   },
+   {
+    "id": 1783616444544.367,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 95,
+    "reps": 6
+   },
+   {
+    "id": 1783616895093.2463,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 130,
+    "reps": 6
+   },
+   {
+    "id": 1783617223951.9548,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 115,
+    "reps": 6
+   },
+   {
+    "id": 1783617621425.4229,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 105,
+    "reps": 9
+   },
+   {
+    "id": 1783617864997.3923,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 27.5,
+    "reps": 10
+   },
+   {
+    "id": 1783617958967.289,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 32.5,
+    "reps": 10
+   },
+   {
+    "id": 1783618215775.898,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 45,
+    "reps": 8
+   },
+   {
+    "id": 1783618435168.7957,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 50,
+    "reps": 10
+   },
+   {
+    "id": 1783618802717.018,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 45,
+    "reps": 10
+   },
+   {
+    "id": 1783619226408.4888,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 40,
+    "reps": 10
+   },
+   {
+    "id": 1783619232365.6816,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 35,
+    "reps": 10
+   },
+   {
+    "id": 1783619306792.9468,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 40,
+    "reps": 10
+   },
+   {
+    "id": 1783619760154.2695,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 20,
+    "reps": 10
+   },
+   {
+    "id": 1783620000033.411,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 35,
+    "reps": 6
+   },
+   {
+    "id": 1783620211812.9583,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 30,
+    "reps": 9
+   },
+   {
+    "id": 1783620504025.466,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 30,
+    "reps": 7
+   },
+   {
+    "id": 1783623300162.9849,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 3.5,
+    "reps": 20
+   },
+   {
+    "id": 1783623418026.5688,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 130,
+    "reps": 8
+   },
+   {
+    "id": 1783623750511.9385,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 215,
+    "reps": 7
+   },
+   {
+    "id": 1783623972852.473,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 195,
+    "reps": 7
+   },
+   {
+    "id": 1783624302196.289,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 170,
+    "reps": 8
+   },
+   {
+    "id": 1783624437402.2705,
+    "ex": "Lat Pulldown",
+    "muscle": "back",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 70,
+    "reps": 8
+   },
+   {
+    "id": 1783624674430.039,
+    "ex": "Lat Pulldown",
+    "muscle": "back",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 115,
+    "reps": 8
+   },
+   {
+    "id": 1783624953041.1096,
+    "ex": "Lat Pulldown",
+    "muscle": "back",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 105,
+    "reps": 8
+   },
+   {
+    "id": 1783625458041.9973,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 105,
+    "reps": 8
+   },
+   {
+    "id": 1783625660359.7083,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 185,
+    "reps": 6
+   },
+   {
+    "id": 1783625832022.9106,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 165,
+    "reps": 8
+   },
+   {
+    "id": 1783626125646.76,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 75,
+    "reps": 8
+   },
+   {
+    "id": 1783626273580.6858,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 120,
+    "reps": 8
+   },
+   {
+    "id": 1783626488411.003,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 110,
+    "reps": 10
+   },
+   {
+    "id": 1783626712277.5623,
+    "ex": "Hip Abduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 95,
+    "reps": 10
+   },
+   {
+    "id": 1783626791330.3904,
+    "ex": "Hip Adduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 80,
+    "reps": 10
+   },
+   {
+    "id": 1783626948096.1846,
+    "ex": "Hip Adduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 130,
+    "reps": 10
+   },
+   {
+    "id": 1783627174624.3643,
+    "ex": "Hip Adduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 115,
+    "reps": 10
+   },
+   {
+    "id": 1783627250262.1199,
+    "ex": "Hip Adduction",
+    "muscle": "hips",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 105,
+    "reps": 10
+   }
+  ],
+  "2026-07-10": [
+   {
+    "id": 1783699398478.2954,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 45,
+    "reps": 10
+   },
+   {
+    "id": 1783699554897.6628,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 95,
+    "reps": 5
+   },
+   {
+    "id": 1783699946064.5828,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 115,
+    "reps": 3
+   },
+   {
+    "id": 1783700299555.724,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 135,
+    "reps": 5
+   },
+   {
+    "id": 1783700769664.1335,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 120,
+    "reps": 8
+   },
+   {
+    "id": 1783701170842.9087,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 110,
+    "reps": 10
+   },
+   {
+    "id": 1783701330005.447,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 30,
+    "reps": 10
+   },
+   {
+    "id": 1783701424207.6274,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 32.5,
+    "reps": 10
+   },
+   {
+    "id": 1783701731670.9028,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 47.5,
+    "reps": 6
+   },
+   {
+    "id": 1783701826896.254,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 52.5,
+    "reps": 8
+   },
+   {
+    "id": 1783701963628.917,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 45,
+    "reps": 6
+   },
+   {
+    "id": 1783702027304.5046,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 45,
+    "reps": 9
+   },
+   {
+    "id": 1783702152475.457,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 20,
+    "reps": 10
+   },
+   {
+    "id": 1783702295192.8958,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 40,
+    "reps": 10
+   },
+   {
+    "id": 1783702420169.9172,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 35,
+    "reps": 3
+   }
+  ],
+  "2026-07-12": [
+   {
+    "id": 1783901734332.1687,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 45,
+    "reps": 0
+   },
+   {
+    "id": 1783901842555.6626,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 95,
+    "reps": 6
+   },
+   {
+    "id": 1783902210775.7776,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 115,
+    "reps": 5
+   },
+   {
+    "id": 1783902539169.158,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 135,
+    "reps": 4
+   },
+   {
+    "id": 1783902992387.1912,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 125,
+    "reps": 5
+   },
+   {
+    "id": 1783903282965.2527,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 115,
+    "reps": 9
+   },
+   {
+    "id": 1783903458493.173,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 20,
+    "reps": 10
+   },
+   {
+    "id": 1783903688041.7222,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 30,
+    "reps": 8
+   },
+   {
+    "id": 1783903859761.1997,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 25,
+    "reps": 10
+   },
+   {
+    "id": 1783906249131.1191,
+    "ex": "Treadmill",
+    "muscle": "cardio",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "cardio",
+    "weight": 3.5,
+    "reps": 20
+   },
+   {
+    "id": 1783906291177.6191,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 130,
+    "reps": 8
+   },
+   {
+    "id": 1783906526543.5383,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 215,
+    "reps": 8
+   },
+   {
+    "id": 1783906717652.2104,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 195,
+    "reps": 7
+   },
+   {
+    "id": 1783906946144.377,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 170,
+    "reps": 10
+   }
+  ],
+  "2026-07-14": [
+   {
+    "id": 1784073246126.8574,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 45,
+    "reps": 0
+   },
+   {
+    "id": 1784073250380.7808,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 95,
+    "reps": 5
+   },
+   {
+    "id": 1784073671010.0586,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 115,
+    "reps": 5
+   },
+   {
+    "id": 1784073674895.5735,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 135,
+    "reps": 5
+   },
+   {
+    "id": 1784073987169.825,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 125,
+    "reps": 8
+   },
+   {
+    "id": 1784074365181.356,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 115,
+    "reps": 8
+   },
+   {
+    "id": 1784074469420.256,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 20,
+    "reps": 10
+   },
+   {
+    "id": 1784074634816.084,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 30,
+    "reps": 8
+   },
+   {
+    "id": 1784074896957.2727,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 30,
+    "reps": 8
+   },
+   {
+    "id": 1784075066477.7668,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 30,
+    "reps": 10
+   },
+   {
+    "id": 1784075071588.8054,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 35,
+    "reps": 10
+   },
+   {
+    "id": 1784075204274.556,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 47.5,
+    "reps": 5
+   },
+   {
+    "id": 1784075274223.9275,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 55,
+    "reps": 6
+   },
+   {
+    "id": 1784075306122.7961,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 30,
+    "reps": 8
+   },
+   {
+    "id": 1784075454651.4062,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 45,
+    "reps": 6
+   },
+   {
+    "id": 1784075591909.9744,
+    "ex": "Tricep Pushdown (Rope)",
+    "muscle": "triceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 40,
+    "reps": 8
+   },
+   {
+    "id": 1784075673486.911,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 50,
+    "reps": 7
+   },
+   {
+    "id": 1784075827933.9458,
+    "ex": "Bicep Curl (Pulley)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 45,
+    "reps": 8
+   },
+   {
+    "id": 1784076068471.5552,
+    "ex": "Lat Pulldown",
+    "muscle": "back",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 75,
+    "reps": 10
+   },
+   {
+    "id": 1784076262184.4402,
+    "ex": "Lat Pulldown",
+    "muscle": "back",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 125,
+    "reps": 6
+   },
+   {
+    "id": 1784076464834.3933,
+    "ex": "Lat Pulldown",
+    "muscle": "back",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 115,
+    "reps": 6
+   },
+   {
+    "id": 1784078053006.2344,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 135,
+    "reps": 8
+   },
+   {
+    "id": 1784078067690.1655,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 215,
+    "reps": 6
+   },
+   {
+    "id": 1784078306376.5598,
+    "ex": "Calf Raise (Machine)",
+    "muscle": "calves",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 195,
+    "reps": 7
+   },
+   {
+    "id": 1784078605066.9897,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "warm",
+    "weight": 110,
+    "reps": 10
+   },
+   {
+    "id": 1784078749933.9097,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "top",
+    "weight": 185,
+    "reps": 6
+   },
+   {
+    "id": 1784078877966.06,
+    "ex": "Leg Extension",
+    "muscle": "quads",
+    "group": "Life Time — Back / Legs / Cardio",
+    "type": "back",
+    "weight": 165,
+    "reps": 8
+   }
+  ],
+  "2026-07-17": [
+   {
+    "id": 1784332652549.0823,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 45,
+    "reps": 4
+   },
+   {
+    "id": 1784332657266.7502,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 95,
+    "reps": 5
+   },
+   {
+    "id": 1784332866716.266,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 115,
+    "reps": 5
+   },
+   {
+    "id": 1784333068325.3455,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 135,
+    "reps": 5
+   },
+   {
+    "id": 1784333485558.4587,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 120,
+    "reps": 8
+   },
+   {
+    "id": 1784333836668.3662,
+    "ex": "Bench Press",
+    "muscle": "chest",
+    "group": "Apartment — Upper",
+    "type": "back",
+    "weight": 110,
+    "reps": 9
+   },
+   {
+    "id": 1784333991129.3826,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "warm",
+    "weight": 20,
+    "reps": 10
+   },
+   {
+    "id": 1784334220053.7488,
+    "ex": "Bicep Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Apartment — Upper",
+    "type": "top",
+    "weight": 30,
+    "reps": 6
+   }
+  ],
+  "2026-07-22": [
+   {
+    "id": 1785000001.1,
+    "ex": "Leg Press",
+    "muscle": "quads",
+    "group": "Life Time — Lower",
+    "type": "warm",
+    "weight": 80,
+    "reps": 10
+   },
+   {
+    "id": 1785000002.1,
+    "ex": "Leg Press",
+    "muscle": "quads",
+    "group": "Life Time — Lower",
+    "type": "top",
+    "weight": 140,
+    "reps": 8
+   },
+   {
+    "id": 1785000003.1,
+    "ex": "Leg Press",
+    "muscle": "quads",
+    "group": "Life Time — Lower",
+    "type": "back",
+    "weight": 120,
+    "reps": 8
+   },
+   {
+    "id": 1785000004.1,
+    "ex": "Leg Press",
+    "muscle": "quads",
+    "group": "Life Time — Lower",
+    "type": "back",
+    "weight": 100,
+    "reps": 10
+   }
+  ],
+  "2026-07-23": [
+   {
+    "id": 1785100001.1,
+    "ex": "Hammer Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Building gym — Upper",
+    "type": "warm",
+    "weight": 10,
+    "reps": 12
+   },
+   {
+    "id": 1785100002.1,
+    "ex": "Hammer Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Building gym — Upper",
+    "type": "top",
+    "weight": 15,
+    "reps": 10
+   },
+   {
+    "id": 1785100003.1,
+    "ex": "Hammer Curl (Dumbbell)",
+    "muscle": "biceps",
+    "group": "Building gym — Upper",
+    "type": "back",
+    "weight": 10,
+    "reps": 12
+   },
+   {
+    "id": 1785100004.1,
+    "ex": "Wrist Curl (Dumbbell)",
+    "muscle": "forearms",
+    "group": "Building gym — Upper",
+    "type": "warm",
+    "weight": 5,
+    "reps": 15
+   },
+   {
+    "id": 1785100005.1,
+    "ex": "Wrist Curl (Dumbbell)",
+    "muscle": "forearms",
+    "group": "Building gym — Upper",
+    "type": "top",
+    "weight": 10,
+    "reps": 15
+   },
+   {
+    "id": 1785100006.1,
+    "ex": "Reverse Wrist Curl (Dumbbell)",
+    "muscle": "forearms",
+    "group": "Building gym — Upper",
+    "type": "top",
+    "weight": 5,
+    "reps": 15
+   }
+  ]
+ },
+ "bw": {
+  "2026-07-03": 120,
+  "2026-07-04": 120,
+  "2026-07-05": 120,
+  "2026-07-07": 121,
+  "2026-07-12": 120,
+  "2026-07-14": 120
+ },
+ "rpe": {}
+}
