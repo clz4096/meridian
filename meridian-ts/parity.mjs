@@ -1,5 +1,6 @@
 // Parity: pure selectors vs the shipped app, on the real workout dataset.
 import * as S from './dist/workoutSelectors.js';
+import * as U from './dist/util.js';
 import fs from 'fs';
 const WK = JSON.parse(fs.readFileSync('src/data/defaultWorkout.json', 'utf8'));
 WK.done ??= {}; WK.sessionDone ??= {}; WK.incr ??= {}; WK.bw ??= {}; WK.rpe ??= {};
@@ -35,20 +36,20 @@ t('session complete on past day', S.isSessionComplete(WK,'2026-07-22',TODAY), tr
 t('empty future day not complete', S.isSessionComplete(WK,'2026-12-01',TODAY), false);
 
 console.log('\n=== BUG FIXES ===');
-t('sameId bridges number/string', S.sameId(1783105876112.5422,'1783105876112.5422'), true);
+t('sameId bridges number/string', U.sameId(1783105876112.5422,'1783105876112.5422'), true);
 t('strict === would have failed', 1783105876112.5422==='1783105876112.5422', false);
-t('toNum rejects garbage', S.toNum('abc',-1), -1);
+t('toNum rejects garbage', U.toNum('abc',-1), -1);
 t('old +x||0 silently zeroed', (+'abc')||0, 0);
-t('isUnparseableNumber flags it', S.isUnparseableNumber('abc'), true);
-t('toNum handles empty', S.toNum('',7), 7);
+t('isUnparseableNumber flags it', U.isUnparseableNumber('abc'), true);
+t('toNum handles empty', U.toNum('',7), 7);
 
 const now=Date.now(), day=86400000;
 const many={}; for(let i=0;i<1200;i++) many['id'+i]=now-i*1000;
 const oldOnes={a:now-40*day, b:now-1*day};
-t('age prune drops stale', Object.keys(S.pruneTombstones(oldOnes,now)), ['b']);
-t('count cap bounds growth', Object.keys(S.pruneTombstones(many,now)).length, 500);
-t('cap keeps newest', S.pruneTombstones(many,now)['id0']!==undefined, true);
-t('undefined safe', S.pruneTombstones(undefined,now), {});
+t('age prune drops stale', Object.keys(U.pruneTombstones(oldOnes,now)), ['b']);
+t('count cap bounds growth', Object.keys(U.pruneTombstones(many,now)).length, 500);
+t('cap keeps newest', U.pruneTombstones(many,now)['id0']!==undefined, true);
+t('undefined safe', U.pruneTombstones(undefined,now), {});
 
 console.log('\n=== Tombstones exclude deleted rows everywhere ===');
 const first=WK.days['2026-07-22'][0];

@@ -11,7 +11,7 @@
  */
 
 import type { CoreState, KnowledgeState, MealState, WorkoutState } from './types.js';
-import { toNum } from './workoutSelectors.js';
+import { toNum } from './util.js';
 
 export const BUNDLE_VERSION = 2 as const;
 

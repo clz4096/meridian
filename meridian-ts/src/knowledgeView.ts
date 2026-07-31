@@ -5,8 +5,8 @@
  * delegation + focus-preserving repaint contract as Workout, Meal and Data.
  */
 import type { Mastery } from './types.js';
-import type { ViewHost } from './workoutView.js';
-import { esc } from './workoutView.js';
+import { esc } from './html.js';
+import { BaseViewController, type ViewHost } from './viewHost.js';
 
 export interface KnowledgeItem {
   id: string;
@@ -209,17 +209,14 @@ export function renderKnowledgeHTML(vm: KnowledgeViewModel): string {
   return h;
 }
 
-export class KnowledgeViewController {
-  private lastHTML = '';
-  constructor(private readonly host: ViewHost, private readonly actions: KnowledgeActions) {
-    this.host.container.addEventListener('click', (e) => this.onClick(e));
+export class KnowledgeViewController extends BaseViewController {
+  constructor(host: ViewHost, private readonly actions: KnowledgeActions) {
+    super(host);
   }
 
-  private onClick(e: Event): void {
-    const ds = (e.target as unknown as { dataset?: Record<string, string> } | null)?.dataset;
-    if (!ds?.act) return;
+  protected onAction(act: string, ds: Record<string, string>): void {
     const id = ds.id ?? '';
-    switch (ds.act) {
+    switch (act) {
       case 'topic': this.actions.selectTopic(id); break;
       case 'time': this.actions.setTimeFilter(id); break;
       case 'target': this.actions.setTarget(id); break;
@@ -237,17 +234,6 @@ export class KnowledgeViewController {
   }
 
   repaint(vm: KnowledgeViewModel): boolean {
-    const html = renderKnowledgeHTML(vm);
-    if (html === this.lastHTML) return false;
-    const focusId = this.host.getActiveElementId();
-    const caret = this.host.getSelectionStart();
-    const scroll = this.host.getScrollY();
-    const typed = this.host.captureInputValues();
-    this.host.container.innerHTML = html;
-    this.lastHTML = html;
-    this.host.restoreInputValues(typed);
-    if (focusId) this.host.restoreFocus(focusId, caret);
-    this.host.setScrollY(scroll);
-    return true;
+    return this.paint(renderKnowledgeHTML(vm));
   }
 }

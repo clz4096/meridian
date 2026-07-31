@@ -3,8 +3,8 @@
  * All derivation now comes from `dataSelectors` and the SyncEngine.
  */
 import type { StorageMetrics } from './dataSelectors.js';
-import type { ViewHost } from './workoutView.js';
-import { esc } from './workoutView.js';
+import { esc } from './html.js';
+import { BaseViewController, type ViewHost } from './viewHost.js';
 
 export interface SyncStatus {
   cloudConfigured: boolean;
@@ -100,20 +100,17 @@ export function renderDataHTML(vm: DataViewModel): string {
   );
 }
 
-export class DataViewController {
-  private lastHTML = '';
+export class DataViewController extends BaseViewController {
   constructor(
-    private readonly host: ViewHost,
+    host: ViewHost,
     private readonly actions: DataActions,
     private readonly readValue: (id: string) => string,
   ) {
-    this.host.container.addEventListener('click', (e) => this.onClick(e));
+    super(host);
   }
 
-  private onClick(e: Event): void {
-    const ds = (e.target as unknown as { dataset?: Record<string, string> } | null)?.dataset;
-    if (!ds?.act) return;
-    switch (ds.act) {
+  protected onAction(act: string, _ds: Record<string, string>): void {
+    switch (act) {
       case 'save-id': this.actions.savePantryId(this.readValue('d-pantry').trim(), this.readValue('d-pantry-appkey').trim()); break;
       case 'test': this.actions.testConnection(); break;
       case 'push': this.actions.push(); break;
@@ -131,15 +128,6 @@ export class DataViewController {
   }
 
   repaint(vm: DataViewModel): boolean {
-    const html = renderDataHTML(vm);
-    if (html === this.lastHTML) return false;
-    const focusId = this.host.getActiveElementId();
-    const caret = this.host.getSelectionStart();
-    const typed = this.host.captureInputValues();
-    this.host.container.innerHTML = html;
-    this.lastHTML = html;
-    this.host.restoreInputValues(typed);
-    if (focusId) this.host.restoreFocus(focusId, caret);
-    return true;
+    return this.paint(renderDataHTML(vm));
   }
 }

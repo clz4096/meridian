@@ -13,7 +13,7 @@
  * listener) and restore only those.
  */
 
-import type { ViewHost } from '../workoutView.js';
+import type { ViewHost } from '../viewHost.js';
 
 export class DomViewHost implements ViewHost {
   /** Ids of inputs the user has edited since the last repaint. */

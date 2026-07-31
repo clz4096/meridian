@@ -12,11 +12,9 @@
 
 import {
   DEFAULT_CONFIG,
-  type EntityId,
   type ExercisePlan,
   type ExerciseTrend,
   type Muscle,
-  type Numeric,
   type PrescribedSet,
   type ProgressionConfig,
   type SessionEstimate,
@@ -24,41 +22,15 @@ import {
   type SetType,
   type Split,
   type SplitSuggestion,
-  type Tombstones,
   type WorkoutSet,
   type WorkoutState,
   type WorkoutViewModel,
 } from './types.js';
+import { shiftDate, toId, toNum, tombstoneIds } from './util.js';
 
 /* ================================================================== */
 /* Coercion helpers — the audit found `+x || 0` silently zeroing typos */
 /* ================================================================== */
-
-/** Normalise any id to its string form. Legacy rows stored numbers. */
-export function toId(value: unknown): EntityId {
-  return String(value ?? '') as EntityId;
-}
-
-/** Structural id equality that survives the number→string migration. */
-export function sameId(a: unknown, b: unknown): boolean {
-  return toId(a) === toId(b);
-}
-
-/**
- * Parse a numeric field without the silent-zero trap.
- * Returns `fallback` for null/undefined/empty/NaN rather than pretending it is 0.
- */
-export function toNum(value: Numeric | null | undefined, fallback = 0): number {
-  if (value === null || value === undefined || value === '') return fallback;
-  const n = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-/** True when the value cannot be read as a number — lets the UI warn instead of logging 0. */
-export function isUnparseableNumber(value: Numeric | null | undefined): boolean {
-  if (value === null || value === undefined || value === '') return false;
-  return !Number.isFinite(typeof value === 'number' ? value : Number(value));
-}
 
 /** Round to an arbitrary step (plate or stack increment), never to a hardcoded 5. */
 export function roundTo(value: number, step: number): number {
@@ -76,50 +48,6 @@ export function roundTo(value: number, step: number): number {
 export function roundDownTo(value: number, step: number): number {
   const s = step > 0 ? step : DEFAULT_CONFIG.defaultIncrement;
   return Math.floor(value / s) * s;
-}
-
-/* ================================================================== */
-/* Tombstones — audit: unbounded growth when a device never syncs       */
-/* ================================================================== */
-
-/**
- * Bound tombstone growth by BOTH age and count.
- *
- * The original pruned by age only, and only inside `cloudMerge`, so a device
- * that never synced accumulated deletions forever. Count-capping keeps the
- * payload bounded even if the clock is wrong or the device is offline for
- * months; the newest entries are the ones that still matter for convergence.
- */
-export function pruneTombstones(
-  tombs: Tombstones | undefined,
-  now: number,
-  config: ProgressionConfig = DEFAULT_CONFIG,
-): Tombstones {
-  if (!tombs) return {};
-  const maxAge = config.tombstoneMaxAgeDays * 86_400_000;
-  const fresh = Object.entries(tombs).filter(([, at]) => {
-    const t = toNum(at, 0);
-    // Future-dated entries indicate clock skew; keep them rather than drop data.
-    return t > now - maxAge;
-  });
-  fresh.sort((a, b) => toNum(b[1], 0) - toNum(a[1], 0));
-  // Object.fromEntries is safe for a '__proto__' key (it uses defineProperty),
-  // unlike `out[k] = v` on an object literal, which silently discards it.
-  return Object.fromEntries(fresh.slice(0, config.tombstoneMaxCount));
-}
-
-/** Ids removed on this device, as a set of normalised strings. */
-export function tombstoneIds(state: Pick<WorkoutState, '_del'>): Set<string> {
-  return new Set(Object.keys(state._del ?? {}).map((k) => toId(k)));
-}
-
-/** Record a deletion. Returns a new map; never mutates the input. */
-export function addTombstone(
-  tombs: Tombstones | undefined,
-  id: unknown,
-  now: number,
-): Tombstones {
-  return { ...(tombs ?? {}), [toId(id)]: now };
 }
 
 /* ================================================================== */
@@ -678,13 +606,6 @@ export function bodyweightTrend(state: WorkoutState): number | null {
 /* ================================================================== */
 
 /** Shift an ISO date by whole days. UTC-based so it is DST-independent. */
-export function shiftDate(date: string, days: number): string {
-  const [y, m, d] = date.split('-').map((p) => Number(p));
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() + days);
-  return dt.toISOString().slice(0, 10);
-}
-
 /* ================================================================== */
 /* The view model — everything renderWorkout needs, as plain data      */
 /* ================================================================== */

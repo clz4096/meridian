@@ -8,7 +8,7 @@
  */
 
 import type { KnowledgeState, Mastery, SrsEntry } from './types.js';
-import { shiftDate, toNum } from './workoutSelectors.js';
+import { shiftDate, toNum } from './util.js';
 
 export interface SrsConfig {
   /** rating at or below which the card lapses */

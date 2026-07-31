@@ -7,7 +7,7 @@
  */
 
 import type { CoreState, LogEntry, ScheduleItem } from './types.js';
-import { shiftDate, toId, toNum } from './workoutSelectors.js';
+import { shiftDate, toId, toNum, tombstoneIds } from './util.js';
 
 export interface ScheduleBlock extends ScheduleItem {
   /** true when `nowMinutes` falls inside [start, end) */
@@ -51,7 +51,7 @@ export function parseClock(value: string | undefined): number | null {
 }
 
 export function scheduleFor(state: CoreState, date: string): ScheduleItem[] {
-  const dead = new Set(Object.keys(state._del ?? {}).map((k) => toId(k)));
+  const dead = tombstoneIds(state);
   return (state.schedule?.[date] ?? []).filter((b) => b && !dead.has(toId(b.id)));
 }
 
@@ -79,7 +79,7 @@ export function scheduleBlocks(
 }
 
 export function entriesOn(state: CoreState, date: string): LogEntry[] {
-  const dead = new Set(Object.keys(state._del ?? {}).map((k) => toId(k)));
+  const dead = tombstoneIds(state);
   return (state.entries ?? []).filter((e) => e && e.date === date && !dead.has(toId(e.id)));
 }
 

@@ -5,7 +5,7 @@ import {
   averageCalories, caloriesFromMacros, dayTotals, KCAL_PER_G, loggedDates,
   macroConsistency, mealsOn, resolveTargets, selectMealView, supplementView,
 } from './mealSelectors.js';
-import { shiftDate } from './workoutSelectors.js';
+import { shiftDate } from './util.js';
 
 const RUNS = Number(process.env.FC_RUNS ?? 150);
 const opts = { numRuns: RUNS } as const;

@@ -13,7 +13,7 @@
  */
 
 import type { IsoDate, Meal, MealSettings, MealState, Numeric } from './types.js';
-import { shiftDate, toId, toNum, isUnparseableNumber } from './workoutSelectors.js';
+import { shiftDate, toId, toNum, isUnparseableNumber, tombstoneIds } from './util.js';
 
 /** Energy density in kcal per gram. */
 export const KCAL_PER_G = { protein: 4, carb: 4, fat: 9, alcohol: 7 } as const;
@@ -91,7 +91,7 @@ export const DEFAULT_MEAL_CONFIG: MealConfig = {
 /* ================================================================== */
 
 function deadIds(state: MealState): Set<string> {
-  return new Set(Object.keys(state._del ?? {}).map((k) => toId(k)));
+  return tombstoneIds(state);
 }
 
 /** Meals logged on a date, tombstoned rows excluded. Never returns undefined. */

@@ -5,7 +5,7 @@ import {
   entriesOn, entryStreak, parseClock, scheduleBlocks, scheduleFor,
   selectTodayView, streamTotals,
 } from './coreSelectors.js';
-import { shiftDate } from './workoutSelectors.js';
+import { shiftDate } from './util.js';
 
 const RUNS = Number(process.env.FC_RUNS ?? 150);
 const opts = { numRuns: RUNS } as const;

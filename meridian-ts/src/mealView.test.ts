@@ -5,7 +5,7 @@ import { selectMealView } from './mealSelectors.js';
 import { renderMealHTML, MealViewController, type MealActions, type MealViewOptions } from './mealView.js';
 import { renderDataHTML, DataViewController, type DataActions, type DataViewModel } from './dataView.js';
 import { normaliseState, storageMetrics } from './dataSelectors.js';
-import type { ViewHost } from './workoutView.js';
+import type { ViewHost } from './viewHost.js';
 
 const RUNS = Number(process.env.FC_RUNS ?? 150);
 

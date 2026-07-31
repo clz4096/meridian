@@ -9,7 +9,7 @@
 import type {
   CoreState, KnowledgeState, MealState, Millis, Tombstones, WorkoutState,
 } from './types.js';
-import { pruneTombstones, toId, toNum } from './workoutSelectors.js';
+import { pruneTombstones, toId, toNum } from './util.js';
 import { DEFAULT_CONFIG } from './types.js';
 
 export type StoreKey = 'core' | 'overload' | 'surplus' | 'csgraph';

@@ -17,22 +17,18 @@ import {
   type WorkoutState,
 } from './types.js';
 import {
-  addTombstone,
   allExercises,
   buildPlan,
   exerciseSplit,
   inferIncrement,
   isSessionComplete,
-  pruneTombstones,
   restSeconds,
   selectWorkoutView,
-  shiftDate,
   splitOfDate,
   suggestSplit,
-  sameId,
-  toNum,
   weeklyWorkingSets,
 } from './workoutSelectors.js';
+import { addTombstone, pruneTombstones, sameId, shiftDate, toNum } from './util.js';
 
 const RUNS = Number(process.env.FC_RUNS ?? 150);
 const opts = { numRuns: RUNS } as const;

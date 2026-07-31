@@ -3,8 +3,8 @@
  * `MealViewModel`, plus a controller that binds once via event delegation.
  */
 import type { MealViewModel } from './mealSelectors.js';
-import type { ViewHost } from './workoutView.js';
-import { esc } from './workoutView.js';
+import { esc } from './html.js';
+import { BaseViewController, type ViewHost } from './viewHost.js';
 
 export interface MealActions {
   addMeal(name: string, cal: number, protein: number): void;
@@ -105,21 +105,18 @@ export function renderMealHTML(vm: MealViewModel, o: MealViewOptions): string {
   return h;
 }
 
-export class MealViewController {
-  private lastHTML = '';
+export class MealViewController extends BaseViewController {
   constructor(
-    private readonly host: ViewHost,
+    host: ViewHost,
     private readonly actions: MealActions,
     private readonly readValue: (id: string) => string,
     private readonly options: MealViewOptions,
   ) {
-    this.host.container.addEventListener('click', (e) => this.onClick(e));
+    super(host);
   }
 
-  private onClick(e: Event): void {
-    const ds = (e.target as unknown as { dataset?: Record<string, string> } | null)?.dataset;
-    if (!ds?.act) return;
-    switch (ds.act) {
+  protected onAction(act: string, ds: Record<string, string>): void {
+    switch (act) {
       case 'add-meal':
         this.actions.addMeal(
           this.readValue('meal-name'),
@@ -144,17 +141,6 @@ export class MealViewController {
   }
 
   repaint(vm: MealViewModel): boolean {
-    const html = renderMealHTML(vm, this.options);
-    if (html === this.lastHTML) return false;
-    const focusId = this.host.getActiveElementId();
-    const caret = this.host.getSelectionStart();
-    const scroll = this.host.getScrollY();
-    const typed = this.host.captureInputValues();
-    this.host.container.innerHTML = html;
-    this.lastHTML = html;
-    this.host.restoreInputValues(typed);
-    if (focusId) this.host.restoreFocus(focusId, caret);
-    this.host.setScrollY(scroll);
-    return true;
+    return this.paint(renderMealHTML(vm, this.options));
   }
 }

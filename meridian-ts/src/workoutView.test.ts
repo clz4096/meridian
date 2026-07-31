@@ -8,14 +8,14 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import fc from 'fast-check';
-import { selectWorkoutView, shiftDate } from './workoutSelectors.js';
+import { selectWorkoutView } from './workoutSelectors.js';
+import { shiftDate } from './util.js';
 import type { WorkoutSet, WorkoutState, WorkoutViewModel } from './types.js';
+import { domId, esc } from './html.js';
+import type { ViewHost } from './viewHost.js';
 import {
-  domId,
-  esc,
   renderWorkoutHTML,
   WorkoutViewController,
-  type ViewHost,
   type WorkoutActions,
   type WorkoutViewOptions,
 } from './workoutView.js';

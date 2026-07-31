@@ -14,17 +14,8 @@ import {
   type Split,
   type WorkoutState,
 } from '../types.js';
-import {
-  addTombstone,
-  inferIncrement,
-  isCardio,
-  pruneTombstones,
-  restSeconds,
-  sameId,
-  selectWorkoutView,
-  shiftDate,
-  toNum,
-} from '../workoutSelectors.js';
+import { inferIncrement, isCardio, restSeconds, selectWorkoutView } from '../workoutSelectors.js';
+import { addTombstone, pruneTombstones, sameId, shiftDate, toNum } from '../util.js';
 import { selectMealView, dayTotals, macroConsistency, resolveTargets, supplementView, averageCalories } from '../mealSelectors.js';
 import { selectStudyView, schedule, dueCards, MASTERY_LABEL, isDue, normaliseEntry, daysBetween, studyStreak, DEFAULT_SRS } from '../knowledgeSelectors.js';
 import { DATA } from '../data/index.js';

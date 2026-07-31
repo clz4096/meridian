@@ -11,6 +11,7 @@ import * as M from './dist/mealSelectors.js';
 import * as K from './dist/knowledgeSelectors.js';
 import * as D from './dist/dataSelectors.js';
 import * as G from './dist/mergeStores.js';
+import * as U from './dist/util.js';
 
 const WK = JSON.parse(fs.readFileSync('src/data/defaultWorkout.json', 'utf8'));
 Object.assign(WK, { done: WK.done ?? {}, sessionDone: WK.sessionDone ?? {}, incr: WK.incr ?? {}, _del: WK._del ?? {} });
@@ -45,7 +46,7 @@ bench('SRS schedule transition', () => K.schedule({ due:'2026-01-01', ivl:10, ea
 bench('normaliseState + metrics', () => D.storageMetrics(D.normaliseState(state)), 200);
 bench('roundTrip (export + import)', () => D.roundTrip(D.normaliseState(state)), 100);
 bench('mergeStore (full workout)', () => G.mergeStore('overload', WK, WK, true), 300);
-bench('pruneTombstones (1200)', () => S.pruneTombstones(Object.fromEntries(Array.from({length:1200},(_,i)=>['t'+i, Date.now()-i*1000])), Date.now()), 300);
+bench('pruneTombstones (1200)', () => U.pruneTombstones(Object.fromEntries(Array.from({length:1200},(_,i)=>['t'+i, Date.now()-i*1000])), Date.now()), 300);
 
 console.log(`\n  worst case: ${worst.toFixed(3)} ms  (budget ${BUDGET} ms — ${(BUDGET/worst).toFixed(0)}x headroom)`);
 console.log(failed ? `\n✗ ${failed} operation(s) over budget\n` : '\n✓ all operations within one 60fps frame\n');

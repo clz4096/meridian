@@ -5,7 +5,7 @@ import {
   formatReveal, KnowledgeViewController, MASTERY_TEXT, renderKnowledgeHTML,
   type KnowledgeActions, type KnowledgeItem, type KnowledgeViewModel,
 } from './knowledgeView.js';
-import type { ViewHost } from './workoutView.js';
+import type { ViewHost } from './viewHost.js';
 
 const RUNS = Number(process.env.FC_RUNS ?? 150);
 

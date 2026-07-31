@@ -25,6 +25,8 @@ import type {
   WorkoutSet,
   WorkoutViewModel,
 } from './types.js';
+import { esc, domId } from './html.js';
+import { BaseViewController, type ViewHost } from './viewHost.js';
 
 /* ================================================================== */
 /* Ports — everything the view needs from the outside world           */
@@ -65,23 +67,9 @@ export interface WorkoutViewOptions {
 /* HTML helpers — pure                                                 */
 /* ================================================================== */
 
-const ESCAPES: Record<string, string> = {
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-};
-
-/** Escape text for interpolation into markup. Exercise names are user data. */
-export function esc(value: unknown): string {
-  return String(value ?? '').replace(/[&<>"']/g, (c) => ESCAPES[c] ?? c);
-}
-
 /** Escape for use inside a data-* attribute value. */
 function attr(value: unknown): string {
   return esc(value);
-}
-
-/** Stable DOM-safe id derived from an exercise name. */
-export function domId(exercise: string): string {
-  return exercise.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
 }
 
 /* ================================================================== */
@@ -316,27 +304,6 @@ export function renderWorkoutHTML(vm: WorkoutViewModel, o: WorkoutViewOptions): 
 /* DOM binding — delegation + focus-preserving repaint                 */
 /* ================================================================== */
 
-/** Minimal DOM surface, so the controller can be tested without a browser. */
-export interface ViewHost {
-  container: {
-    innerHTML: string;
-    addEventListener(type: string, handler: (e: Event) => void): void;
-    querySelector(sel: string): { value?: string } | null;
-  };
-  getActiveElementId(): string | null;
-  getSelectionStart(): number | null;
-  restoreFocus(id: string, caret: number | null): void;
-  getScrollY(): number;
-  setScrollY(y: number): void;
-  /** Values the user typed but has not logged, keyed by input id. */
-  captureInputValues(): Record<string, string>;
-  restoreInputValues(values: Record<string, string>): void;
-}
-
-interface DelegatedTarget {
-  dataset: Record<string, string | undefined>;
-}
-
 /**
  * Owns the workout tab's DOM.
  *
@@ -344,40 +311,32 @@ interface DelegatedTarget {
  * swaps `innerHTML` wholesale — safe because delegation survives the swap and
  * focus/caret/scroll/uncommitted-input state is preserved around it.
  */
-export class WorkoutViewController {
-  private lastHTML = '';
-
+export class WorkoutViewController extends BaseViewController {
   constructor(
-    private readonly host: ViewHost,
+    host: ViewHost,
     private readonly actions: WorkoutActions,
     private readonly readInput: (id: string) => number,
   ) {
-    // One listener for clicks, for the lifetime of the app.
-    this.host.container.addEventListener('click', (e) => this.onClick(e));
+    super(host);
   }
 
-  private onClick(e: Event): void {
-    const target = (e.target as unknown as DelegatedTarget | null);
-    if (!target?.dataset) return;
-    const act = target.dataset.act;
-    if (!act) return;
-    const ex = target.dataset.ex ?? '';
-
+  protected onAction(act: string, ds: Record<string, string>): void {
+    const ex = ds.ex ?? '';
     switch (act) {
       case 'log': {
-        const type = (target.dataset.type ?? 'top') as SetType;
-        this.actions.logSet(ex, type, this.readInput(target.dataset.w ?? ''), this.readInput(target.dataset.r ?? ''));
+        const type = (ds.type ?? 'top') as SetType;
+        this.actions.logSet(ex, type, this.readInput(ds.w ?? ''), this.readInput(ds.r ?? ''));
         this.actions.startRest(ex, type);
         break;
       }
       case 'rest':
-        this.actions.startRest(ex, (target.dataset.type ?? 'top') as SetType);
+        this.actions.startRest(ex, (ds.type ?? 'top') as SetType);
         break;
       case 'undo-set':
         this.actions.undoLastSet(ex);
         break;
       case 'del-set':
-        this.actions.deleteSet(target.dataset.date ?? '', target.dataset.id ?? '');
+        this.actions.deleteSet(ds.date ?? '', ds.id ?? '');
         break;
       case 'ex-done':
         this.actions.toggleExerciseDone(ex);
@@ -392,7 +351,7 @@ export class WorkoutViewController {
         this.actions.editIncrement(ex);
         break;
       case 'split':
-        this.actions.changeSplit((target.dataset.split ?? 'all') as Split | 'all');
+        this.actions.changeSplit((ds.split ?? 'all') as Split | 'all');
         break;
       case 'date-prev':
         this.actions.changeDate('prev');
@@ -411,28 +370,8 @@ export class WorkoutViewController {
     }
   }
 
-  /**
-   * Repaint from a view model.
-   *
-   * Skips the DOM write entirely when the markup is unchanged, which is what
-   * makes a full repaint cheaper than the old surgical `patchLift` path.
-   */
   repaint(vm: WorkoutViewModel, options: WorkoutViewOptions): boolean {
-    const html = renderWorkoutHTML(vm, options);
-    if (html === this.lastHTML) return false;
-
-    const focusId = this.host.getActiveElementId();
-    const caret = this.host.getSelectionStart();
-    const scroll = this.host.getScrollY();
-    const typed = this.host.captureInputValues();
-
-    this.host.container.innerHTML = html;
-    this.lastHTML = html;
-
-    this.host.restoreInputValues(typed);
-    if (focusId) this.host.restoreFocus(focusId, caret);
-    this.host.setScrollY(scroll);
-    return true;
+    return this.paint(renderWorkoutHTML(vm, options));
   }
 }
 
