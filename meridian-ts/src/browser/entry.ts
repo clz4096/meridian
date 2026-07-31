@@ -41,6 +41,7 @@ import {
 import { BrowserStorageAdapter, SupabaseCloudProvider, systemClock } from './adapters.js';
 import { aiCall, estimateMacros } from './ai.js';
 import { fetchQuestionBank } from './questionBank.js';
+import { storeGet } from './store.js';
 import { SyncEngine, type SaveResult, type StoreKey } from '../SyncEngine.js';
 import { mergeStore, sanitizeStore } from '../mergeStores.js';
 
@@ -267,6 +268,9 @@ const api = {
 
   // question-bank loader (fetch + offline cache)
   fetchQuestionBank,
+
+  // durable local read store (3-backend, newest-wins) for the boot loaders
+  storeGet,
 
   mountWorkoutView,
   selectWorkoutView,
