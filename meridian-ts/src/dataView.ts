@@ -47,6 +47,7 @@ export function renderDataHTML(vm: DataViewModel): string {
   const m = vm.metrics;
   const c = m.counts;
   return (
+    `<div class="secbar"><button class="backbtn" data-act="to-hub">‹ Back</button></div><div class="eyebrow">Data</div>` +
     `<div class="panel mpanel"><p class="panel-t">☁ Cloud backend (sync across devices)</p>` +
     `<div class="note" style="margin-bottom:10px">One-time setup: create a <b>Supabase</b> project, create a public bucket, paste your Project URL and anon key below. ` +
     `Every save then syncs, and each device pulls the latest on open. The ID stays on this device only.</div>` +

@@ -69,6 +69,8 @@ export interface AppController {
   renderHub(): void;
   /** Open one section from the hub (shows its pane, renders it, pushes history). */
   openSection(tab: 'workout' | 'meal' | 'knowledge' | 'data'): void;
+  /** Reveal/hide the chart scale + range controls on the current section. */
+  toggleControls(): void;
   /** Browser/OS back: Detail→Progress, else Section→Hub. Returns true if handled. */
   handleBack(): boolean;
 }
@@ -121,7 +123,18 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       .join('') +
     '</div>';
   const progControls = (): string => `<div class="seg-row">${scaleToggle()}${periodToggle()}</div>`;
-  const progHeader = (): string => `<div class="prog-h"><span class="panel-t">Progress</span>${progControls()}</div>`;
+  // The scale/range toggles are tucked behind a small chip showing the active range;
+  // tapping it reveals the full controls, keeping the screen calm by default.
+  let controlsOpen = false;
+  const progHeader = (): string => {
+    const pl = SEG.find(([p]) => p === progPeriod)?.[1] ?? 'W';
+    return (
+      `<div class="ctrl-row">` +
+      (controlsOpen ? progControls() : '') +
+      `<button class="ctrl-toggle${controlsOpen ? ' on' : ''}" data-act="toggle-controls" aria-label="Chart scale and range">${controlsOpen ? '⌃' : `${esc(pl)} ⌄`}</button>` +
+      `</div>`
+    );
+  };
 
   // Charts lead each tab; the logging content collapses under this toggle. Per-tab
   // open state persists across repaints (resets on reload). Default collapsed.
@@ -136,8 +149,9 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   const viewLogCta = (label: string): string =>
     `<button class="cta-log" data-act="toggle-log">${esc(label)}<span class="cta-arrow">→</span></button>`;
 
-  // Every section's Progress screen opens with a Back control returning to the hub.
-  const backBar = (): string => `<div class="secbar"><button class="backbtn" data-act="to-hub">‹ Back</button></div>`;
+  // Every section opens with a Back pill (to the hub) and an eyebrow naming the area.
+  const sectionHead = (name: string): string =>
+    `<div class="secbar"><button class="backbtn" data-act="to-hub">‹ Back</button></div><div class="eyebrow">${esc(name)}</div>`;
 
   // Graphs show one at a time in a horizontal swipe carousel (with page dots) so they
   // don't stack down the page. `key` keeps each carousel's scroll position across repaints.
@@ -149,11 +163,16 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   };
 
   // Shared hero-stat primitive: one big number leads each tab (WHOOP/Oura score-first).
-  const heroStat = (label: string, value: string, unit: string, delta?: { text: string; dir: 'up' | 'down' | '' }): string =>
-    `<div class="hero"><div><div class="hero-k">${esc(label)}</div>` +
-    `<div class="hero-v">${esc(value)}<span class="hero-u"> ${esc(unit)}</span></div></div>` +
-    (delta ? `<div class="hero-d ${delta.dir}">${esc(delta.text)}</div>` : '') +
-    '</div>';
+  // One-liner hero (WHOOP/Oura score-first): a big number, then the unit + metric name
+  // inline in muted ink, e.g. "72% mastery", "120 lb bodyweight", "1,644 kcal today".
+  const heroStat = (label: string, value: string, unit: string, delta?: { text: string; dir: 'up' | 'down' | '' }): string => {
+    const tail = unit === '%' ? `% ${label.toLowerCase()}` : ` ${unit} ${label.toLowerCase()}`;
+    return (
+      `<div class="hero"><div class="hero-v">${esc(value)}<span class="hero-u">${esc(tail)}</span></div>` +
+      (delta ? `<div class="hero-d ${delta.dir}">${esc(delta.text)}</div>` : '') +
+      '</div>'
+    );
+  };
 
   function workoutCharts(): string {
     const W = wk();
@@ -175,7 +194,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         ? heroStat('Bodyweight', String(cur), 'lb', dToGoal != null ? { text: `${dToGoal > 0 ? '+' : ''}${dToGoal} to goal`, dir: dToGoal > 0 ? 'up' : dToGoal < 0 ? 'down' : '' } : undefined)
         : '';
     return (
-      backBar() +
+      sectionHead('Workout') +
       '<div class="prog">' +
       hero +
       progHeader() +
@@ -215,7 +234,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     const todayCal = (G.days?.[today] ?? []).reduce((a: number, m: Any) => a + (+m.cal || 0), 0);
     const calDelta = calT ? todayCal - calT : null;
     const hero = heroStat(
-      'Today · calories',
+      'today',
       String(todayCal),
       'kcal',
       todayCal === 0
@@ -225,7 +244,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
           : undefined,
     );
     return (
-      backBar() +
+      sectionHead('Meals') +
       '<div class="prog">' +
       hero +
       progHeader() +
@@ -260,7 +279,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     const masteryPct = attempted ? Math.round((100 * mastered) / attempted) : 0;
     const hero = heroStat('Mastery', String(masteryPct), '%', streak > 0 ? { text: `🔥 ${streak}-day streak`, dir: '' } : undefined);
     return (
-      backBar() +
+      sectionHead('Knowledge') +
       '<div class="prog">' +
       hero +
       progHeader() +
@@ -1139,6 +1158,13 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     ctx.pushState?.();
   }
 
+  function toggleControls(): void {
+    controlsOpen = !controlsOpen;
+    if (currentTab === 'workout') renderWorkout();
+    else if (currentTab === 'knowledge') renderKnowledge();
+    else if (currentTab === 'meal') renderWeight();
+  }
+
   function handleBack(): boolean {
     if (currentTab === 'workout' && wkLogOpen) {
       wkLogOpen = false;
@@ -1162,5 +1188,5 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     return false;
   }
 
-  return { renderWorkout, renderKnowledge, renderWeight, renderData, renderAll, renderHub, openSection, handleBack };
+  return { renderWorkout, renderKnowledge, renderWeight, renderData, renderAll, renderHub, openSection, toggleControls, handleBack };
 }

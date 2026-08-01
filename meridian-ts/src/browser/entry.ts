@@ -434,6 +434,8 @@ export function mountApp(host: AppHost): void {
     const act = el.dataset.act;
     if (act === 'to-hub') {
       app.renderHub();
+    } else if (act === 'toggle-controls') {
+      app.toggleControls();
     } else if (act === 'open-knowledge' || act === 'open-workout' || act === 'open-meal' || act === 'open-data') {
       window.scrollTo(0, 0);
       app.openSection(act.slice(5) as 'knowledge' | 'workout' | 'meal' | 'data');
