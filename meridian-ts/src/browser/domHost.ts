@@ -68,6 +68,9 @@ export class DomViewHost implements ViewHost {
   }
 
   setScrollY(y: number): void {
+    // Skip the scroll when we're already there. A redundant scrollTo during an
+    // innerHTML repaint re-anchors iOS's fixed-position bars, which reads as a jump.
+    if (this.scroller.scrollY === y) return;
     this.scroller.scrollTo(0, y);
   }
 

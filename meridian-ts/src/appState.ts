@@ -121,8 +121,10 @@ export function createAppState(deps: AppStateDeps): AppState {
   /** Faithful port of the legacy onStatus switch: chip messaging + dirty reset. */
   function onStatus(r: SaveResult): void {
     dirtyLocal = false;
+    let clean = true;
     if (!r.localOk) {
       paintChip('Save failed: ' + r.localFailed.join(', '), true);
+      clean = false;
     } else if (r.cloud === 'synced') {
       paintChip('All changes saved');
     } else if (r.cloud === 'noop') {
@@ -131,9 +133,13 @@ export function createAppState(deps: AppStateDeps): AppState {
       paintChip('Saved · cloud sync queued');
     } else if (r.cloud === 'failed') {
       paintChip('Saved here only — cloud: ' + ((r.cloudError && r.cloudError.message) || 'failed'), true);
+      clean = false;
     } else {
       paintChip('All changes saved');
     }
+    // The pill now hides on a clean save, so confirm the save with the transient flash.
+    // A failure keeps the pill visible instead (no flash).
+    if (clean) deps.host.flashSaved();
   }
 
   function armAutosave(): void {

@@ -187,7 +187,11 @@ export class DomAppHost implements AppHost {
     const discard = this.doc.getElementById('discardfab');
     if (discard) discard.style.display = state.dirty ? 'block' : 'none';
     if (!chip) return;
-    if (state.dirty || state.failed) {
+    const show = state.dirty || (state.failed ?? false);
+    // Only present the affordance when there's something to act on: unsaved changes or a
+    // save failure. A clean "saved" state hides the pill — the transient flash confirms saves.
+    chip.style.display = show ? 'flex' : 'none';
+    if (show) {
       chip.className = 'savefab dirty';
       if (txt) txt.textContent = state.text ?? 'Unsaved — tap to Save';
     } else {

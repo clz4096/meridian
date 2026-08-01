@@ -429,6 +429,9 @@ export function mountApp(host: AppHost): void {
 
   /* --- tab routing --- */
   host.onTabChange((tab) => {
+    // Open each tab at the top. Swapping a tab's content while the page is scrolled is
+    // what makes iOS re-anchor the fixed bottom bar (the "jump"); resetting first avoids it.
+    window.scrollTo(0, 0);
     host.showTab(tab);
     if (tab === 'workout') app.renderWorkout();
     else if (tab === 'knowledge') app.renderKnowledge();
