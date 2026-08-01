@@ -307,9 +307,11 @@ export function renderWorkoutHTML(vm: WorkoutViewModel, o: WorkoutViewOptions): 
     html += `<div class="placeholder">No workout logged on ${esc(o.dateLabel(vm.date))}.</div>`;
   }
   html += vm.exercises.map((ex) => renderExerciseCard(vm, o, ex)).join('');
-  // Charts (with the collapse toggle) lead; the logging content shows only when expanded.
-  return (o.charts ?? '') + (o.logOpen ? html : '');
+  // Two screens: Progress (charts + CTA) by default, Detail (back + logging) once drilled in.
+  return o.logOpen ? BACK_BTN + html : (o.charts ?? '');
 }
+
+const BACK_BTN = '<button class="backbtn" data-act="toggle-log">← Progress</button>';
 
 /* ================================================================== */
 /* DOM binding — delegation + focus-preserving repaint                 */

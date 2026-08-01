@@ -19,6 +19,9 @@ export interface ViewHost {
   /** Values the user typed but has not logged, keyed by input id. */
   captureInputValues(): Record<string, string>;
   restoreInputValues(values: Record<string, string>): void;
+  /** Horizontal scroll of `[data-keepx]` rows (e.g. the lift picker), so a repaint doesn't snap them back. */
+  captureScrollX?(): Record<string, number>;
+  restoreScrollX?(values: Record<string, number>): void;
 }
 
 /**
@@ -48,9 +51,11 @@ export abstract class BaseViewController {
     const caret = this.host.getSelectionStart();
     const scroll = this.host.getScrollY();
     const typed = this.host.captureInputValues();
+    const scrollX = this.host.captureScrollX?.() ?? {};
     this.host.container.innerHTML = html;
     this.lastHTML = html;
     this.host.restoreInputValues(typed);
+    this.host.restoreScrollX?.(scrollX);
     if (focusId) this.host.restoreFocus(focusId, caret);
     this.host.setScrollY(scroll);
     return true;

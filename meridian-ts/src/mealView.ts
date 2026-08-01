@@ -107,8 +107,8 @@ export function renderMealHTML(vm: MealViewModel, o: MealViewOptions, charts = '
     `<div class="mrow"><input id="meal-desc" placeholder="e.g. 2 eggs, oatmeal, banana" style="flex:1;min-width:160px">` +
     `<button class="mbtn" data-act="estimate">Estimate with AI</button></div>` +
     `<div id="meal-eststatus" class="note" style="margin-top:6px"></div></div></div>`;
-  // Charts (with the collapse toggle) lead; the logging content shows only when expanded.
-  return charts + (logOpen ? h : '');
+  // Two screens: Progress (charts + CTA) by default, Detail (back + logging) once drilled in.
+  return logOpen ? '<button class="backbtn" data-act="toggle-log">← Progress</button>' + h : charts;
 }
 
 export class MealViewController extends BaseViewController {

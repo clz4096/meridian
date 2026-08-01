@@ -94,7 +94,7 @@ function buildOptions(
   }
   const toGoal =
     bodyweight.current !== null && bodyweight.goal !== null
-      ? bodyweight.goal - bodyweight.current
+      ? Math.round((bodyweight.goal - bodyweight.current) * 10) / 10
       : null;
   return {
     restSeconds: rest,

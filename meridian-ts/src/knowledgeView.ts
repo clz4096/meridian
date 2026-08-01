@@ -146,9 +146,11 @@ function renderCard(it: KnowledgeItem, vm: KnowledgeViewModel): string {
   return c;
 }
 
-/** Charts (with the collapse toggle) lead; the topic tabs + questions show only when expanded. */
+/** Two screens: Progress (charts + CTA) by default, Detail (back + questions) once drilled in. */
 export function renderKnowledgeHTML(vm: KnowledgeViewModel): string {
-  return (vm.charts ?? '') + (vm.logOpen ? renderKnowledgeBody(vm) : '');
+  return vm.logOpen
+    ? '<button class="backbtn" data-act="toggle-log">← Progress</button>' + renderKnowledgeBody(vm)
+    : (vm.charts ?? '');
 }
 
 function renderKnowledgeBody(vm: KnowledgeViewModel): string {

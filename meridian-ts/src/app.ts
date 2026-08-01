@@ -119,8 +119,16 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   let wkLogOpen = false;
   let sgLogOpen = false;
   let kgLogOpen = false;
-  const logToggle = (open: boolean, label: string): string =>
-    `<button class="logtoggle" data-act="toggle-log">${open ? '▾' : '▸'} ${esc(label)}</button>`;
+  // Progress-screen CTA that drills into the detail (logging) screen; back is a `.backbtn` in the view.
+  const viewLogCta = (label: string): string =>
+    `<button class="cta-log" data-act="toggle-log">${esc(label)}<span class="cta-arrow">→</span></button>`;
+
+  // Shared hero-stat primitive: one big number leads each tab (WHOOP/Oura score-first).
+  const heroStat = (label: string, value: string, unit: string, delta?: { text: string; dir: 'up' | 'down' | '' }): string =>
+    `<div class="hero"><div><div class="hero-k">${esc(label)}</div>` +
+    `<div class="hero-v">${esc(value)}<span class="hero-u"> ${esc(unit)}</span></div></div>` +
+    (delta ? `<div class="hero-d ${delta.dir}">${esc(delta.text)}</div>` : '') +
+    '</div>';
 
   function workoutCharts(): string {
     const W = wk();
@@ -128,14 +136,22 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     if (!lifts.includes(progLift)) progLift = lifts[0] ?? '';
     const goal = bodyweightGoal(W);
     const liftBar = lifts.length
-      ? '<div class="prog-lift">' +
+      ? '<div class="prog-lift" data-keepx="lift">' +
         lifts
           .map((l: string) => `<button class="${l === progLift ? 'on' : ''}" data-act="chart-lift" data-lift="${esc(l)}">${esc(l)}</button>`)
           .join('') +
         '</div>'
       : '';
+    const cur = currentBW();
+    const goalW = bodyweightGoal(W);
+    const dToGoal = cur != null && goalW != null ? Math.round((goalW - Number(cur)) * 10) / 10 : null;
+    const hero =
+      cur != null
+        ? heroStat('Bodyweight', String(cur), 'lb', dToGoal != null ? { text: `${dToGoal > 0 ? '+' : ''}${dToGoal} to goal`, dir: dToGoal > 0 ? 'up' : dToGoal < 0 ? 'down' : '' } : undefined)
+        : '';
     return (
       '<div class="prog">' +
+      hero +
       progHeader() +
       chart({
         kind: 'line',
@@ -159,7 +175,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       chart({ kind: 'bar', title: 'Volume · working sets', points: volumeSeries(W, progPeriod), summary: 'sum', color: 'var(--fuel)' }) +
       chart({ kind: 'bar', title: 'Tonnage', points: tonnageSeries(W, progPeriod), unit: 'lb', summary: 'sum', color: 'var(--teal)' }) +
       '</div>' +
-      logToggle(wkLogOpen, "Today's workout")
+      viewLogCta('View workout log')
     );
   }
 
@@ -167,8 +183,22 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     const G = sg();
     const calT = calorieTarget(G);
     const proT = proteinTarget(G);
+    const today = dstr();
+    const todayCal = (G.days?.[today] ?? []).reduce((a: number, m: Any) => a + (+m.cal || 0), 0);
+    const calDelta = calT ? todayCal - calT : null;
+    const hero = heroStat(
+      'Today · calories',
+      String(todayCal),
+      'kcal',
+      todayCal === 0
+        ? { text: 'not logged yet', dir: '' }
+        : calDelta != null
+          ? { text: `${calDelta >= 0 ? '+' : ''}${calDelta} vs target`, dir: calDelta >= 0 ? 'up' : 'down' }
+          : undefined,
+    );
     return (
       '<div class="prog">' +
+      hero +
       progHeader() +
       chart({
         kind: 'line',
@@ -186,7 +216,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         color: 'var(--protein)',
       }) +
       '</div>' +
-      logToggle(sgLogOpen, 'Log meals')
+      viewLogCta('View meal log')
     );
   }
 
@@ -194,16 +224,20 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     const K = kg();
     const C = core();
     const streak = currentStreak(K, dstr());
-    const streakNote = streak > 0 ? `<span class="note">🔥 ${streak}-day streak</span>` : '';
+    const attempted = Object.keys(K.mastery ?? {}).length;
+    const mastered = Object.values(K.mastery ?? {}).filter((r: Any) => Number(r) >= 4).length;
+    const masteryPct = attempted ? Math.round((100 * mastered) / attempted) : 0;
+    const hero = heroStat('Mastery', String(masteryPct), '%', streak > 0 ? { text: `🔥 ${streak}-day streak`, dir: '' } : undefined);
     return (
       '<div class="prog">' +
-      `<div class="prog-h"><div class="prog-hl"><span class="panel-t">Progress</span>${streakNote}</div>${progControls()}</div>` +
+      hero +
+      progHeader() +
       chart({ kind: 'bar', title: 'XP earned', points: xpSeries(C, progPeriod, 'kg'), summary: 'sum', color: 'var(--fuel)' }) +
       chart({ kind: 'bar', title: 'Questions solved', points: questionsSolvedSeries(K, progPeriod), summary: 'sum', color: 'var(--teal)' }) +
       chart({ kind: 'line', title: 'Mastery %', points: masterySeries(K, progPeriod), unit: '%', color: 'var(--ok)' }) +
       chart({ kind: 'bar', title: 'Study days', points: studyDaysSeries(K, progPeriod), summary: 'sum', color: 'var(--protein)' }) +
       '</div>' +
-      logToggle(kgLogOpen, 'Questions & study')
+      viewLogCta('View questions & study')
     );
   }
 

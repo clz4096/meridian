@@ -88,6 +88,22 @@ export class DomViewHost implements ViewHost {
     }
   }
 
+  /** Snapshot the horizontal scroll of `[data-keepx]` rows before a repaint. */
+  captureScrollX(): Record<string, number> {
+    const out: Record<string, number> = {};
+    this.el.querySelectorAll<HTMLElement>('[data-keepx]').forEach((e) => {
+      if (e.dataset.keepx) out[e.dataset.keepx] = e.scrollLeft;
+    });
+    return out;
+  }
+
+  restoreScrollX(values: Record<string, number>): void {
+    this.el.querySelectorAll<HTMLElement>('[data-keepx]').forEach((e) => {
+      const k = e.dataset.keepx;
+      if (k && values[k] != null) e.scrollLeft = values[k];
+    });
+  }
+
   /** Call after a set is logged so its box reverts to the fresh prescription. */
   clearUserEdits(prefix?: string): void {
     if (!prefix) {

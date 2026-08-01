@@ -105,6 +105,8 @@ export function chart(opts: ChartOpts): string {
   const xLine = (i: number) => (n === 1 ? PAD_L + PLOT_W / 2 : PAD_L + (PLOT_W * i) / (n - 1));
 
   const marks: string[] = [];
+  let defs = '';
+  const gid = 'g-' + title.replace(/[^a-z0-9]+/gi, '').toLowerCase().slice(0, 24);
 
   // reference (goal/target) line
   if (opts.reference) {
@@ -118,10 +120,19 @@ export function chart(opts: ChartOpts): string {
   }
 
   if (kind === 'line') {
-    const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${xLine(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
-    marks.push(`<path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
-    // end marker on the latest point
-    marks.push(`<circle cx="${xLine(n - 1).toFixed(1)}" cy="${y(vals[n - 1]).toFixed(1)}" r="3" fill="${color}"/>`);
+    const pts = points.map((p, i) => `${xLine(i).toFixed(1)},${y(p.value).toFixed(1)}`);
+    const line = 'M' + pts.join(' L');
+    const baseY = (PAD_T + PLOT_H).toFixed(1);
+    // gradient area fill under the line — the "alive" depth (fades to nothing at the baseline)
+    defs =
+      `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">` +
+      `<stop offset="0" stop-color="${color}" stop-opacity="0.22"/>` +
+      `<stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>`;
+    const area = `${line} L${xLine(n - 1).toFixed(1)},${baseY} L${xLine(0).toFixed(1)},${baseY} Z`;
+    marks.push(`<path d="${area}" fill="url(#${gid})" stroke="none"/>`);
+    marks.push(`<path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
+    // end marker on the latest point, ringed so it reads as the "current" value
+    marks.push(`<circle cx="${xLine(n - 1).toFixed(1)}" cy="${y(vals[n - 1]).toFixed(1)}" r="3.2" fill="${color}" stroke="var(--surface-1)" stroke-width="1.5"/>`);
   } else {
     const slot = PLOT_W / n;
     const bw = Math.max(1, slot - 2); // 2px surface gap between bars
@@ -158,6 +169,7 @@ export function chart(opts: ChartOpts): string {
     `<figcaption class="chart-h"><span class="chart-t">${esc(title)}</span>` +
     `<span class="chart-v" style="color:${color}">${esc(fmt(headline))}${unit}</span></figcaption>` +
     `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">` +
+    defs +
     grid +
     marks.join('') +
     xLabels +
