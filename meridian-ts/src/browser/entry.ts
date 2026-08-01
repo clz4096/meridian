@@ -146,8 +146,8 @@ export function mountMealView(container: HTMLElement, actions: MealActions, opti
     return el?.value ?? '';
   }, options);
   return {
-    repaint(state: Parameters<typeof selectMealView>[0], date: string, today: string, charts = '', logOpen = false) {
-      return ctrl.repaint(selectMealView(state, date, today), charts, logOpen);
+    repaint(state: Parameters<typeof selectMealView>[0], date: string, today: string, charts = '', logOpen = false, extrasOpen = false) {
+      return ctrl.repaint(selectMealView(state, date, today), charts, logOpen, extrasOpen);
     },
     host,
   };
@@ -436,6 +436,8 @@ export function mountApp(host: AppHost): void {
       app.renderHub();
     } else if (act === 'toggle-controls') {
       app.toggleControls();
+    } else if (act === 'meal-extras') {
+      app.toggleMealExtras();
     } else if (act === 'open-knowledge' || act === 'open-workout' || act === 'open-meal' || act === 'open-data') {
       window.scrollTo(0, 0);
       app.openSection(act.slice(5) as 'knowledge' | 'workout' | 'meal' | 'data');

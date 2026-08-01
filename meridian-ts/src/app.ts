@@ -73,6 +73,8 @@ export interface AppController {
   openSection(tab: 'workout' | 'meal' | 'knowledge' | 'data'): void;
   /** Reveal/hide the chart scale + range controls on the current section. */
   toggleControls(): void;
+  /** Reveal/hide the meal log's tucked targets + supplement (⚙). */
+  toggleMealExtras(): void;
   /** Browser/OS back: Detail→Progress, else Section→Hub. Returns true if handled. */
   handleBack(): boolean;
 }
@@ -142,6 +144,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   // open state persists across repaints (resets on reload). Default collapsed.
   let wkExtrasOpen = false; // workout is single-screen; this toggles the tucked session options (bodyweight/date/split)
   let sgLogOpen = false;
+  let sgExtrasOpen = false; // meal log: reveals the tucked targets + supplement (⚙)
   let kgLogOpen = false;
   // Which tab is on screen, so the back button knows whose Detail→Progress to flip.
   let currentTab: 'workout' | 'meal' | 'knowledge' | 'data' = 'knowledge';
@@ -913,7 +916,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       return;
     }
     if (!sgDate) sgDate = dstr();
-    ensureMealView().repaint(sg(), sgDate, dstr(), mealCharts(), sgLogOpen);
+    ensureMealView().repaint(sg(), sgDate, dstr(), mealCharts(), sgLogOpen, sgExtrasOpen);
   }
 
   /* ================= DATA ================= */
@@ -1188,6 +1191,11 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     else if (currentTab === 'meal') renderWeight();
   }
 
+  function toggleMealExtras(): void {
+    sgExtrasOpen = !sgExtrasOpen;
+    renderWeight();
+  }
+
   function handleBack(): boolean {
     // Workout is a single screen (no Detail), so back always goes Section→Hub.
     if (currentTab === 'meal' && sgLogOpen) {
@@ -1207,5 +1215,5 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     return false;
   }
 
-  return { renderWorkout, renderKnowledge, renderWeight, renderData, renderAll, discarded, renderHub, openSection, toggleControls, handleBack };
+  return { renderWorkout, renderKnowledge, renderWeight, renderData, renderAll, discarded, renderHub, openSection, toggleControls, toggleMealExtras, handleBack };
 }

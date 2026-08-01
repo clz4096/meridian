@@ -28,87 +28,85 @@ export interface MealViewOptions {
   presets: readonly MealPreset[];
 }
 
-function bar(pct: number, colour: string): string {
-  return `<div class="bar"><div style="width:${pct}%;background:${colour}"></div></div>`;
+function macroBar(label: string, value: string, target: string, pct: number, colour: string, hit: boolean): string {
+  return (
+    `<div class="macro"><div class="macro-t"><span class="macro-l">${label}</span>` +
+    `<span class="macro-v">${value} <small>/ ${target}${hit ? ' ✓' : ''}</small></span></div>` +
+    `<div class="macro-track"><div class="macro-fill" style="width:${Math.min(100, Math.max(0, Math.round(pct)))}%;background:${colour}"></div></div></div>`
+  );
 }
 
-export function renderMealHTML(vm: MealViewModel, o: MealViewOptions, charts = '', logOpen = false): string {
+/**
+ * Meals stays charts-first (Progress screen = the passed `charts`). This renders the
+ * streamlined LOG screen once drilled in: today's macros → add-a-meal → today's list,
+ * with targets + the supplement tucked behind the ⚙ (`extrasOpen`).
+ */
+export function renderMealHTML(vm: MealViewModel, o: MealViewOptions, charts = '', logOpen = false, extrasOpen = false): string {
+  if (!logOpen) return charts;
   const t = vm.targets;
-  let h =
-    `<div class="panel"><p class="panel-t">Bulk target</p><div class="statgrid">` +
-    `<div class="stat"><div class="v">${t.current ?? '—'}</div><div class="k">current lb</div></div>` +
-    `<div class="stat"><div class="v" style="color:var(--teal)">${t.goal ?? '—'}</div><div class="k">goal lb</div></div>` +
-    `<div class="stat"><div class="v">${t.dailyCalories}</div><div class="k">daily kcal</div></div>` +
-    `<div class="stat"><div class="v" style="color:var(--protein)">${t.proteinTarget}g</div><div class="k">protein</div></div>` +
-    `</div><div class="mrow" style="margin-top:10px"><button class="mbtn" data-act="targets">Edit targets</button></div></div>`;
+  const calLeft = t.dailyCalories - vm.totals.calories;
+  const s = vm.supplement;
 
-  h +=
-    `<div class="panel"><div class="mrow" style="justify-content:space-between">` +
-    `<p class="panel-t" style="margin:0">Intake</p><div class="mrow">` +
-    `<button class="mbtn" data-act="date-prev">‹</button>` +
-    `<span style="font-family:var(--mono);font-size:12px;min-width:150px;text-align:center">${esc(o.dateLabel(vm.date))}</span>` +
-    `<button class="mbtn" data-act="date-next">›</button>` +
+  const extras = extrasOpen
+    ? `<div class="meal-extras">` +
+      `<div class="panel"><p class="panel-t">Targets</p><div class="statgrid">` +
+      `<div class="stat"><div class="v">${t.current ?? '—'}</div><div class="k">current lb</div></div>` +
+      `<div class="stat"><div class="v" style="color:var(--teal)">${t.goal ?? '—'}</div><div class="k">goal lb</div></div>` +
+      `<div class="stat"><div class="v">${t.dailyCalories}</div><div class="k">daily kcal</div></div>` +
+      `<div class="stat"><div class="v" style="color:var(--protein)">${t.proteinTarget}g</div><div class="k">protein</div></div>` +
+      `</div><div class="mrow" style="margin-top:10px"><button class="mbtn" data-act="targets">Edit targets</button></div></div>` +
+      `<div class="panel"><div class="mrow" style="justify-content:space-between">` +
+      `<p class="panel-t" style="margin:0">Tadalafil</p><div class="mrow">` +
+      `<button class="mbtn" data-act="supp" data-delta="-1">−</button>` +
+      `<span style="font-family:var(--mono);font-size:20px;min-width:44px;text-align:center">${s.todayCount}×9mg</span>` +
+      `<button class="mbtn" data-act="supp" data-delta="1">+</button></div></div>` +
+      `<div class="note">${s.trailingCount} doses in the last ${s.windowDays} days${s.steadyState ? ' · steady state' : ''}</div></div>` +
+      `</div>`
+    : '';
+
+  return (
+    `<button class="backbtn" data-act="toggle-log">‹ Progress</button>` +
+    `<div class="log-h"><div class="datenav">` +
+    `<button class="mbtn" data-act="date-prev" aria-label="Previous day">‹</button>` +
+    `<span class="dlabel">${esc(o.dateLabel(vm.date))}</span>` +
+    `<button class="mbtn" data-act="date-next" aria-label="Next day">›</button>` +
     (vm.isToday ? '' : `<button class="mbtn" data-act="date-today">→ Today</button>`) +
-    `</div></div>` +
-    `<div class="slabel">Calories ${vm.totals.calories} / ${t.dailyCalories}</div>${bar(vm.calorieProgress, 'var(--fuel)')}` +
-    `<div class="slabel">Protein ${vm.totals.protein}g / ${t.proteinTarget}g</div>${bar(vm.proteinProgress, 'var(--protein)')}` +
-    `<div class="note" style="margin-top:6px">${vm.totals.surplus >= 0 ? '+' + vm.totals.surplus : vm.totals.surplus} vs maintenance` +
-    `${vm.totals.calories >= t.dailyCalories ? ' · target hit ✓' : ''}</div>`;
-
-  if (vm.issues.length > 0) {
-    h +=
-      `<div class="note" style="margin-top:8px;color:var(--deficit)">⚠ ${vm.issues.length} entr${vm.issues.length === 1 ? 'y needs' : 'ies need'} checking:<br>` +
-      vm.issues.map((i) => `· ${esc(i.name || i.mealId)} — ${esc(i.detail)}`).join('<br>') +
-      `</div>`;
-  }
-
-  h +=
-    `<div style="margin-top:10px">` +
+    `</div><button class="ex-opts${extrasOpen ? ' on' : ''}" data-act="meal-extras" aria-label="Targets and supplement">⚙</button></div>` +
+    `<div class="hero"><div class="hero-v" style="color:var(--fuel)">${vm.totals.calories}<span class="hero-u"> / ${t.dailyCalories} kcal</span></div>` +
+    `<div class="hero-d ${vm.totals.calories >= t.dailyCalories ? 'up' : ''}">${calLeft >= 0 ? calLeft + ' left' : Math.abs(calLeft) + ' over'}</div></div>` +
+    `<div class="macros">` +
+    macroBar('Calories', String(vm.totals.calories), `${t.dailyCalories} kcal`, vm.calorieProgress, 'var(--fuel)', vm.totals.calories >= t.dailyCalories) +
+    macroBar('Protein', `${vm.totals.protein}g`, `${t.proteinTarget}g`, vm.proteinProgress, 'var(--protein)', vm.totals.protein >= t.proteinTarget) +
+    `</div>` +
+    (vm.issues.length
+      ? `<div class="note" style="margin-top:10px;color:var(--deficit)">⚠ ${vm.issues.length} entr${vm.issues.length === 1 ? 'y needs' : 'ies need'} checking</div>`
+      : '') +
+    extras +
+    `<div class="sec-h">Add a meal</div>` +
+    `<div class="addcard">` +
+    (o.presets.length
+      ? `<div class="mchips">` +
+        o.presets.map((p, i) => `<button class="mchip" data-act="preset" data-i="${i}">${esc(p.name)}<span class="k">${esc(p.cal)} · ${esc(p.protein)}g</span></button>`).join('') +
+        `</div>`
+      : '') +
+    `<div class="addrow"><input id="meal-name" class="minp name" placeholder="Meal"><input id="meal-cal" class="minp num" type="number" inputmode="numeric" placeholder="kcal"><input id="meal-pro" class="minp num" type="number" inputmode="numeric" placeholder="prot"><button class="madd" data-act="add-meal">Add</button></div>` +
+    `<div class="airow"><input id="meal-desc" class="minp" placeholder="or describe it — “2 eggs, oatmeal, banana”"><button class="maibtn" data-act="estimate">✦ AI</button></div>` +
+    `<div id="meal-status" class="note" style="margin-top:6px"></div><div id="meal-eststatus" class="note"></div>` +
+    `</div>` +
+    `<div class="sec-h">Today · ${vm.meals.length} meal${vm.meals.length === 1 ? '' : 's'}</div>` +
+    `<div class="meallist">` +
     (vm.meals.length
       ? vm.meals
           .map(
             (m) =>
-              `<div class="sentry"><span style="flex:1">${esc(m.name)}` +
-              (m.est ? ' <span class="mchip" style="background:var(--panel2);color:var(--teal)">est</span>' : '') +
-              `</span><span style="font-family:var(--mono);color:var(--muted);font-size:12px">${esc(m.cal)} kcal · ${esc(m.protein)}g</span>` +
-              `<span class="rm" data-act="del-meal" data-id="${esc(m.id)}">×</span></div>`,
+              `<div class="mealrow"><span class="mealnm">${esc(m.name)}${m.est ? ' <span class="mealest">est</span>' : ''}</span>` +
+              `<span class="mealmac">${esc(m.cal)} kcal · ${esc(m.protein)}g</span>` +
+              `<span class="mealrm" data-act="del-meal" data-id="${esc(m.id)}" title="Remove">×</span></div>`,
           )
           .join('')
-      : '<div class="empty">No meals logged.</div>') +
-    `</div></div>`;
-
-  const s = vm.supplement;
-  h +=
-    `<div class="panel"><div class="mrow" style="justify-content:space-between">` +
-    `<p class="panel-t" style="margin:0">Tadalafil</p><div class="mrow">` +
-    `<button class="mbtn" data-act="supp" data-delta="-1">−</button>` +
-    `<span style="font-family:var(--mono);font-size:20px;min-width:44px;text-align:center">${s.todayCount}×9mg</span>` +
-    `<button class="mbtn" data-act="supp" data-delta="1">+</button></div></div>` +
-    `<div class="note">${s.trailingCount} doses in the last ${s.windowDays} days${s.steadyState ? ' · steady state' : ''}</div></div>`;
-
-  h +=
-    `<div class="panel mpanel"><p class="panel-t">Quick add</p><div class="mrow" style="flex-wrap:wrap;gap:8px">` +
-    o.presets
-      .map(
-        (p, i) =>
-          `<button class="mbtn" data-act="preset" data-i="${i}">+ ${esc(p.label)}</button>`,
-      )
-      .join('') +
-    `</div></div>`;
-
-  h +=
-    `<div class="panel mpanel"><p class="panel-t">Add meal</p><div class="mrow">` +
-    `<input id="meal-name" placeholder="meal" style="flex:1;min-width:120px">` +
-    `<input id="meal-cal" type="number" placeholder="kcal" style="width:80px">` +
-    `<input id="meal-pro" type="number" placeholder="protein" style="width:90px">` +
-    `<button class="mbtn primary" data-act="add-meal">Add</button></div>` +
-    `<div id="meal-status" class="note" style="margin-top:6px"></div>` +
-    `<div style="margin-top:10px"><p class="slabel" style="margin-bottom:6px">Or estimate from a description</p>` +
-    `<div class="mrow"><input id="meal-desc" placeholder="e.g. 2 eggs, oatmeal, banana" style="flex:1;min-width:160px">` +
-    `<button class="mbtn" data-act="estimate">Estimate with AI</button></div>` +
-    `<div id="meal-eststatus" class="note" style="margin-top:6px"></div></div></div>`;
-  // Two screens: Progress (charts + CTA) by default, Detail (back + logging) once drilled in.
-  return logOpen ? '<button class="backbtn" data-act="toggle-log">← Progress</button>' + h : charts;
+      : `<div class="empty">No meals logged yet.</div>`) +
+    `</div>`
+  );
 }
 
 export class MealViewController extends BaseViewController {
@@ -149,7 +147,7 @@ export class MealViewController extends BaseViewController {
     }
   }
 
-  repaint(vm: MealViewModel, charts = '', logOpen = false): boolean {
-    return this.paint(renderMealHTML(vm, this.options, charts, logOpen));
+  repaint(vm: MealViewModel, charts = '', logOpen = false, extrasOpen = false): boolean {
+    return this.paint(renderMealHTML(vm, this.options, charts, logOpen, extrasOpen));
   }
 }
