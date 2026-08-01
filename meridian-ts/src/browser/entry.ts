@@ -444,6 +444,16 @@ export function mountApp(host: AppHost): void {
       if (car instanceof HTMLElement && car.classList.contains('carousel')) {
         car.scrollTo({ left: (Number(el.dataset.i) || 0) * car.clientWidth, behavior: 'smooth' });
       }
+    } else if (act === 'discard') {
+      // Discard now lives in the ⚙ session options / Data tab, not a floating fab.
+      if (appState.anyDirty() && host.confirm('Discard all unsaved changes and return to the last saved state?')) {
+        void appState.discard().then((ok) => {
+          if (ok) {
+            app.discarded();
+            host.flashSaved();
+          }
+        });
+      }
     }
   });
   // Keep each carousel's page dots in sync as it scrolls. `scroll` doesn't bubble and
@@ -478,16 +488,6 @@ export function mountApp(host: AppHost): void {
 
   /* --- save chip + discard (cancel unsaved changes) --- */
   host.onSave(() => void appState.save());
-  host.onDiscard(() => {
-    if (!appState.anyDirty()) return;
-    if (!host.confirm('Discard all unsaved changes and return to the last saved state?')) return;
-    void appState.discard().then((ok) => {
-      if (ok) {
-        app.discarded(); // stop the rest timer + repaint the reverted state
-        host.flashSaved();
-      }
-    });
-  });
 
   /* --- window lifecycle: flush on background, opportunistic pull on foreground, ⌘S save --- */
   host.onLifecycle('hide', () => appState.flush('hidden'));

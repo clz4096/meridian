@@ -52,17 +52,17 @@ class DomRestBar implements RestBarHost {
   paint(label: string, elapsedSec: number, targetSec: number, over: boolean): void {
     const el = this.doc.getElementById('restbar');
     if (!el) return;
-    const txt = this.doc.getElementById('resttxt');
+    el.style.display = 'block';
+    el.classList.toggle('over', over);
+    const remaining = Math.max(0, targetSec - elapsedSec);
+    const time = this.doc.getElementById('resttime');
+    if (time) time.textContent = over ? 'Ready' : fmtClock(remaining);
+    const l = this.doc.getElementById('restl');
+    if (l) l.textContent = over ? 'Rest complete' : 'Rest';
+    const e = this.doc.getElementById('reste');
+    if (e) e.textContent = label;
     const fill = this.doc.getElementById('restfill');
-    el.style.display = 'flex';
-    if (txt) {
-      txt.textContent =
-        (over ? '✓ Rested ' : 'Rest ') + fmtClock(elapsedSec) + ' / ' + fmtClock(targetSec) + ' · ' + label;
-    }
-    if (fill) {
-      fill.style.width = Math.min(100, Math.round((100 * elapsedSec) / targetSec)) + '%';
-      fill.style.background = over ? 'var(--ok)' : 'var(--fuel)';
-    }
+    if (fill && !over) fill.style.width = Math.min(100, Math.round((100 * elapsedSec) / targetSec)) + '%';
   }
 
   hide(): void {
@@ -197,19 +197,17 @@ export class DomAppHost implements AppHost {
   paintSaveChip(state: SaveChipState): void {
     const chip = this.doc.getElementById('savechip');
     const txt = this.doc.getElementById('savetxt');
-    const discard = this.doc.getElementById('discardfab');
-    if (discard) discard.style.display = state.dirty ? 'block' : 'none';
     if (!chip) return;
-    const show = state.dirty || (state.failed ?? false);
-    // Only present the affordance when there's something to act on: unsaved changes or a
-    // save failure. A clean "saved" state hides the pill — the transient flash confirms saves.
-    chip.style.display = show ? 'flex' : 'none';
-    if (show) {
-      chip.className = 'savefab dirty';
-      if (txt) txt.textContent = state.text ?? 'Unsaved — tap to Save';
+    // Quiet, always-present status (autosave does the work; tap to force a sync).
+    if (state.failed) {
+      chip.className = 'savestat failed';
+      if (txt) txt.textContent = 'Save failed';
+    } else if (state.dirty) {
+      chip.className = 'savestat dirty';
+      if (txt) txt.textContent = 'Saving…';
     } else {
-      chip.className = 'savefab';
-      if (txt) txt.textContent = state.text ?? 'All changes saved';
+      chip.className = 'savestat';
+      if (txt) txt.textContent = 'Saved';
     }
   }
 

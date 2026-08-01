@@ -78,6 +78,10 @@ export function renderDataHTML(vm: DataViewModel): string {
     `${s.dirtyStores.length ? ' · unsynced: ' + esc(s.dirtyStores.join(', ')) : ' · all synced'}</div>` +
 
     `<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>` +
+    `<div class="mrow"><button class="mbtn" data-act="discard">↺ Discard unsaved changes</button></div>` +
+    `<div class="note" style="margin-top:6px">Revert edits made since the last save, back to the last saved state.${s.dirtyStores.length ? '' : ' Nothing unsaved right now.'}</div>` +
+
+    `<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>` +
     `<div class="mrow"><button class="mbtn" data-act="restore-snap">↺ Undo last cloud overwrite</button></div>` +
     `<div class="note" style="margin-top:6px">If a sync ever replaced newer local data, this restores the snapshot taken immediately before it.</div>` +
 

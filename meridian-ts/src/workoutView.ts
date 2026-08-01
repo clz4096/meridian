@@ -325,7 +325,8 @@ export function renderWorkoutHTML(vm: WorkoutViewModel, o: WorkoutViewOptions): 
     `<span class="exhead-r"><span class="exhead-m">${status}</span>` +
     `<button class="ex-opts${o.logOpen ? ' on' : ''}" data-act="toggle-log" aria-label="Session options">⚙</button></span></div>`;
   const extras = o.logOpen
-    ? `<div class="wk-extras">${renderBodyweight(o)}${renderDateNav(vm, o)}${renderSplitPanel(vm)}${renderSessionSummary(vm)}</div>`
+    ? `<div class="wk-extras">${renderBodyweight(o)}${renderDateNav(vm, o)}${renderSplitPanel(vm)}${renderSessionSummary(vm)}` +
+      `<button class="mbtn wk-discard" data-act="discard">↺ Discard unsaved changes</button></div>`
     : '';
   let list = '';
   if (vm.isPast && vm.exercises.length === 0) {
