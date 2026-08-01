@@ -44,8 +44,8 @@ body{padding-bottom:env(safe-area-inset-bottom)}
    default black backdrop. On the landing the strip is the void; the graph sits above it. */
 body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(env(safe-area-inset-bottom) + 1px);background:var(--panel);z-index:39;pointer-events:none}
 body.pre-enter::after{background:var(--void)}
-.appwrap{max-width:820px;margin:0 auto;padding:0 14px 90px}
-.brandrow{display:flex;align-items:center;justify-content:space-between;padding:16px 2px 8px;position:sticky;top:0;background:linear-gradient(var(--bg),var(--bg) 70%,transparent);z-index:20}
+.appwrap{max-width:820px;margin:0 auto;padding:0 14px 90px;min-height:100vh;min-height:100dvh}
+.brandrow{display:flex;align-items:center;justify-content:space-between;padding:calc(16px + env(safe-area-inset-top)) 2px 8px;position:sticky;top:0;background:linear-gradient(var(--bg),var(--bg) 70%,transparent);z-index:20}
 .brand{font-weight:600;font-size:18px;letter-spacing:.02em}
 .brand b{color:var(--teal)}
 /* save status chip */
