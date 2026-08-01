@@ -54,6 +54,8 @@ export interface AppCtx {
   cloudEnabled(): boolean;
   setInterval(fn: () => void, ms: number): number;
   clearInterval(handle: number): void;
+  /** Push a history entry when drilling into a Detail screen, so browser/OS back returns to Progress. */
+  pushState?(): void;
 }
 
 export interface AppController {
@@ -62,6 +64,8 @@ export interface AppController {
   renderWeight(): void;
   renderData(): void;
   renderAll(): void;
+  /** Browser/OS back: if the active tab is on its Detail screen, return it to Progress. Returns true if handled. */
+  handleBack(): boolean;
 }
 
 export function createApp(host: AppHost, ctx: AppCtx): AppController {
@@ -119,6 +123,8 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   let wkLogOpen = false;
   let sgLogOpen = false;
   let kgLogOpen = false;
+  // Which tab is on screen, so the back button knows whose Detail→Progress to flip.
+  let currentTab: 'workout' | 'meal' | 'knowledge' | 'data' = 'knowledge';
   // Progress-screen CTA that drills into the detail (logging) screen; back is a `.backbtn` in the view.
   const viewLogCta = (label: string): string =>
     `<button class="cta-log" data-act="toggle-log">${esc(label)}<span class="cta-arrow">→</span></button>`;
@@ -257,6 +263,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   let wkSplit = 'all';
   let wkSplitTouched = false;
   const wkDeload: Record<string, boolean> = {};
+  const collapsedEx = new Set<string>(); // exercises whose dropdown is flipped from its default
 
   const yt = (q: string): string =>
     'https://www.youtube.com/results?search_query=' + encodeURIComponent(q + ' proper form technique');
@@ -411,6 +418,12 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         },
         toggleLog() {
           wkLogOpen = !wkLogOpen;
+          if (wkLogOpen) ctx.pushState?.();
+          renderWorkout();
+        },
+        toggleExercise(ex: string) {
+          if (collapsedEx.has(ex)) collapsedEx.delete(ex);
+          else collapsedEx.add(ex);
           renderWorkout();
         },
       },
@@ -419,6 +432,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   }
 
   function renderWorkout(): void {
+    currentTab = 'workout';
     if (!wkLoaded) {
       host.pane('workout').innerHTML = '<div class="empty">Loading…</div>';
       void wkLoad().then(() => renderWorkout());
@@ -434,6 +448,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       { current: currentBW(), goal: +W.settings.bwGoal || null },
       workoutCharts(),
       wkLogOpen,
+      [...collapsedEx],
     );
   }
 
@@ -635,6 +650,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       },
       toggleLog() {
         kgLogOpen = !kgLogOpen;
+        if (kgLogOpen) ctx.pushState?.();
         renderKnowledge();
       },
     });
@@ -642,6 +658,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   }
 
   function renderKnowledge(): void {
+    currentTab = 'knowledge';
     if (!kgLoaded) {
       host.pane('knowledge').innerHTML = '<div class="empty">Loading…</div>';
       void kgLoad().then(renderKnowledge);
@@ -825,6 +842,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         },
         toggleLog() {
           sgLogOpen = !sgLogOpen;
+          if (sgLogOpen) ctx.pushState?.();
           renderWeight();
         },
       },
@@ -840,6 +858,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   }
 
   function renderWeight(): void {
+    currentTab = 'meal';
     if (!sgLoaded) {
       host.pane('meal').innerHTML = '<div class="empty">Loading…</div>';
       void sgLoad().then(renderWeight);
@@ -992,6 +1011,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   }
 
   function renderData(): void {
+    currentTab = 'data';
     const state = MC.normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg() });
     ensureDataView().repaint({
       metrics: MC.storageMetrics(state),
@@ -1040,5 +1060,24 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     }
   }
 
-  return { renderWorkout, renderKnowledge, renderWeight, renderData, renderAll };
+  function handleBack(): boolean {
+    if (currentTab === 'workout' && wkLogOpen) {
+      wkLogOpen = false;
+      renderWorkout();
+      return true;
+    }
+    if (currentTab === 'meal' && sgLogOpen) {
+      sgLogOpen = false;
+      renderWeight();
+      return true;
+    }
+    if (currentTab === 'knowledge' && kgLogOpen) {
+      kgLogOpen = false;
+      renderKnowledge();
+      return true;
+    }
+    return false;
+  }
+
+  return { renderWorkout, renderKnowledge, renderWeight, renderData, renderAll, handleBack };
 }

@@ -36,7 +36,15 @@ export abstract class BaseViewController {
 
   constructor(protected readonly host: ViewHost) {
     this.host.container.addEventListener('click', (e) => {
-      const ds = (e.target as unknown as { dataset?: Record<string, string> } | null)?.dataset;
+      // Route to the nearest ancestor carrying data-act, so clicks on an icon or
+      // label inside a control still fire (and a header can be tappable as a whole).
+      // Falls back to the target itself when closest() isn't available.
+      const t = e.target as {
+        closest?: (s: string) => { dataset?: Record<string, string> } | null;
+        dataset?: Record<string, string>;
+      } | null;
+      const el = t?.closest?.('[data-act]') ?? (t?.dataset?.act ? t : null);
+      const ds = el?.dataset;
       if (ds?.act) this.onAction(ds.act, ds);
     });
   }

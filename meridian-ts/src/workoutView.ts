@@ -51,6 +51,8 @@ export interface WorkoutActions {
   setChartScale?(scale: string): void;
   /** Expand/collapse the logging section below the charts. */
   toggleLog?(): void;
+  /** Expand/collapse one exercise dropdown in the detail screen. */
+  toggleExercise?(exercise: string): void;
 }
 
 /** Presentation-only inputs that are not part of persisted state. */
@@ -71,6 +73,8 @@ export interface WorkoutViewOptions {
   charts?: string;
   /** Whether the logging section below the charts is expanded. */
   logOpen?: boolean;
+  /** Exercises whose dropdown state is flipped from the default (open, or closed-when-done). */
+  collapsed?: string[];
 }
 
 /* ================================================================== */
@@ -242,26 +246,30 @@ function renderExerciseCard(
   const performed = vm.performed[exercise] ?? [];
   const complete = vm.completed[exercise] === true;
   const rest = o.restSeconds[exercise];
+  // Collapsible dropdown. Default open; a completed exercise defaults closed.
+  // `o.collapsed` is the user's explicit overrides, so this XOR flips the default.
+  const collapsed = complete !== (o.collapsed?.includes(exercise) ?? false);
 
-  // A finished exercise collapses to one line. Tapping the check reopens it.
-  if (complete && !vm.isPast) {
-    const top = performed.find((s) => s.type === 'top') ?? performed[performed.length - 1];
-    return (
-      `<div class="lift exdone collapsed" id="lift-${id}"><div class="lift-h">` +
-      `<span class="chk on" data-act="ex-done" data-ex="${attr(exercise)}">✓</span>` +
-      `<span class="lift-name">${esc(exercise)}</span>` +
-      `<span class="setval dim" style="margin-left:auto">${top ? `${esc(top.weight)} × ${esc(top.reps)}` : ''} · ${performed.length} sets</span>` +
-      `</div></div>`
-    );
-  }
+  const top = performed.find((s) => s.type === 'top') ?? performed[performed.length - 1];
+  const summary = performed.length
+    ? `${top ? `${esc(top.weight)}×${esc(top.reps)}` : ''} · ${performed.length} sets`
+    : plan?.lastDate
+      ? `last ${plan.lastTopWeight}×${plan.lastTopReps}`
+      : 'new';
+
+  const header =
+    `<div class="lift${complete ? ' exdone' : ''}${collapsed ? ' collapsed' : ''}" id="lift-${id}">` +
+    `<div class="lift-h" data-act="ex-toggle" data-ex="${attr(exercise)}">` +
+    `<span class="chk${complete ? ' on' : ''}" data-act="ex-done" data-ex="${attr(exercise)}">${complete ? '✓' : ''}</span>` +
+    `<span class="lift-name">${esc(exercise)}${plan?.deload ? ' <span class="cue deload">deload</span>' : ''}</span>` +
+    `<span class="lift-sum">${summary}</span>` +
+    `<span class="lift-chev">${collapsed ? '▸' : '▾'}</span>` +
+    `</div>`;
+
+  if (collapsed) return header + `</div>`;
 
   let html =
-    `<div class="lift${complete ? ' exdone' : ''}" id="lift-${id}"><div class="lift-h">` +
-    `<span class="chk" data-act="ex-done" data-ex="${attr(exercise)}">${complete ? '✓' : ''}</span>` +
-    `<span class="lift-name">${esc(exercise)}${plan?.deload ? ' <span class="cue deload">deload</span>' : ''}</span>` +
-    // Secondary controls collapse behind one native disclosure rather than
-    // sitting on the card permanently.
-    `<details class="exmore"><summary aria-label="More options for ${attr(exercise)}">⋯</summary>` +
+    header +
     `<div class="exmore-body">` +
     `<a href="${attr(o.videoUrl(exercise))}" target="_blank" rel="noopener" class="mbtn">▶ How to</a>` +
     (plan && !plan.cardio
@@ -269,7 +277,7 @@ function renderExerciseCard(
         `<button class="mbtn" data-act="incr" data-ex="${attr(exercise)}">Stack step: ${o.increments[exercise] ?? plan.incr} lb</button>` +
         (rest ? `<div class="note">rest · warm ${rest.warm}s · top ${rest.top}s · back-off ${rest.back}s</div>` : '')
       : '') +
-    `</div></details></div>`;
+    `</div>`;
 
   if (plan?.lastDate && !vm.isPast) {
     html += `<div class="lastline">last ${plan.lastTopWeight}×${plan.lastTopReps} · ${plan.lastDate.slice(5)}</div>`;
@@ -389,6 +397,9 @@ export class WorkoutViewController extends BaseViewController {
         break;
       case 'toggle-log':
         this.actions.toggleLog?.();
+        break;
+      case 'ex-toggle':
+        this.actions.toggleExercise?.(ex);
         break;
       default:
         break;
