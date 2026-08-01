@@ -1140,11 +1140,26 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     ];
   }
 
+  function paintHub(): void {
+    const el = host.hubPane?.();
+    if (el) el.innerHTML = renderHubHTML(hubStats());
+  }
+
   function renderHub(): void {
     atHub = true;
     host.showHub?.();
-    const el = host.hubPane?.();
-    if (el) el.innerHTML = renderHubHTML(hubStats());
+    paintHub();
+    // Section stores load lazily (per-tab). On the first hub paint they may be empty,
+    // so load any that aren't yet and repaint the hub with the real numbers.
+    const pending: Array<Promise<void>> = [];
+    if (!wkLoaded) pending.push(wkLoad());
+    if (!kgLoaded) pending.push(kgLoad());
+    if (!sgLoaded) pending.push(sgLoad());
+    if (pending.length) {
+      void Promise.all(pending.map((p) => p.catch(() => undefined))).then(() => {
+        if (atHub) paintHub();
+      });
+    }
   }
 
   function openSection(tab: 'workout' | 'meal' | 'knowledge' | 'data'): void {
