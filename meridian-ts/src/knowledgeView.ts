@@ -34,8 +34,10 @@ export interface KnowledgeViewModel {
   gym: { concepts: GymLink[]; practice: GymLink[]; reading: GymLink[] } | null;
   sources: Array<{ title: string; url: string }>;
   revealed: Record<string, boolean>;
-  /** Pre-rendered progress-charts block, appended below the question list. */
+  /** Pre-rendered progress-charts block (+ the collapse toggle), shown above the questions. */
   charts?: string;
+  /** Whether the questions/study section below the charts is expanded. */
+  logOpen?: boolean;
 }
 
 export interface KnowledgeActions {
@@ -52,8 +54,11 @@ export interface KnowledgeActions {
   gradeWithAI(id: string): void;
   /** Generate an AI answer to the question (Opus), shown in the note area. */
   answerWithAI(id: string): void;
-  /** Progress-chart period control (optional — present once charts are wired). */
+  /** Progress-chart controls (optional — present once charts are wired). */
   setChartPeriod?(period: string): void;
+  setChartScale?(scale: string): void;
+  /** Expand/collapse the questions/study section below the charts. */
+  toggleLog?(): void;
 }
 
 export const MASTERY_COLOUR: Record<number, string> = {
@@ -141,7 +146,12 @@ function renderCard(it: KnowledgeItem, vm: KnowledgeViewModel): string {
   return c;
 }
 
+/** Charts (with the collapse toggle) lead; the topic tabs + questions show only when expanded. */
 export function renderKnowledgeHTML(vm: KnowledgeViewModel): string {
+  return (vm.charts ?? '') + (vm.logOpen ? renderKnowledgeBody(vm) : '');
+}
+
+function renderKnowledgeBody(vm: KnowledgeViewModel): string {
   let h = renderTabs(vm);
 
   if (vm.dueCount > 0 && vm.topicId !== '__review__' && !vm.gymMode) {
@@ -210,7 +220,7 @@ export function renderKnowledgeHTML(vm: KnowledgeViewModel): string {
     `</div>`;
 
   h += vm.items.map((it) => renderCard(it, vm)).join('');
-  return h + (vm.charts ?? '');
+  return h;
 }
 
 export class KnowledgeViewController extends BaseViewController {
@@ -234,6 +244,8 @@ export class KnowledgeViewController extends BaseViewController {
       case 'ai-grade': this.actions.gradeWithAI(id); break;
       case 'ai-answer': this.actions.answerWithAI(id); break;
       case 'chart-period': this.actions.setChartPeriod?.(ds.period ?? 'week'); break;
+      case 'chart-scale': this.actions.setChartScale?.(ds.scale ?? 'lin'); break;
+      case 'toggle-log': this.actions.toggleLog?.(); break;
       default: break;
     }
   }

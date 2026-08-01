@@ -15,7 +15,7 @@
 
 import { RestTimer } from './restTimer.js';
 import { domId, esc } from './html.js';
-import { chart } from './chart.js';
+import { chart as baseChart } from './chart.js';
 import {
   PERIOD_LABEL,
   bodyweightGoal,
@@ -85,9 +85,12 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   const EX_VIDEO = MC.data.exVideo;
 
   /* ---------------- progress charts ---------------- */
-  // One shared time-window across every tab's charts; the strength picker's lift.
+  // One shared time-window + Lin/Log scale across every tab's charts; the strength picker's lift.
   let progPeriod: Period = 'week';
   let progLift = '';
+  let logScale = false;
+  // Every chart() call inherits the global Lin/Log toggle without threading it per-call.
+  const chart = (o: Parameters<typeof baseChart>[0]): string => baseChart({ ...o, logY: logScale });
   const SEG: Array<[Period, string]> = [
     ['day', 'D'],
     ['week', 'W'],
@@ -102,7 +105,22 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         `<button class="${p === progPeriod ? 'on' : ''}" data-act="chart-period" data-period="${p}" title="${PERIOD_LABEL[p]}">${l}</button>`,
     ).join('') +
     '</div>';
-  const progHeader = (): string => `<div class="prog-h"><span class="panel-t">Progress</span>${periodToggle()}</div>`;
+  const scaleToggle = (): string =>
+    '<div class="seg">' +
+    ([['lin', 'Lin'], ['log', 'Log']] as Array<[string, string]>)
+      .map(([s, l]) => `<button class="${(s === 'log') === logScale ? 'on' : ''}" data-act="chart-scale" data-scale="${s}">${l}</button>`)
+      .join('') +
+    '</div>';
+  const progControls = (): string => `<div class="seg-row">${scaleToggle()}${periodToggle()}</div>`;
+  const progHeader = (): string => `<div class="prog-h"><span class="panel-t">Progress</span>${progControls()}</div>`;
+
+  // Charts lead each tab; the logging content collapses under this toggle. Per-tab
+  // open state persists across repaints (resets on reload). Default collapsed.
+  let wkLogOpen = false;
+  let sgLogOpen = false;
+  let kgLogOpen = false;
+  const logToggle = (open: boolean, label: string): string =>
+    `<button class="logtoggle" data-act="toggle-log">${open ? '▾' : '▸'} ${esc(label)}</button>`;
 
   function workoutCharts(): string {
     const W = wk();
@@ -140,7 +158,8 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         : '') +
       chart({ kind: 'bar', title: 'Volume · working sets', points: volumeSeries(W, progPeriod), summary: 'sum', color: 'var(--fuel)' }) +
       chart({ kind: 'bar', title: 'Tonnage', points: tonnageSeries(W, progPeriod), unit: 'lb', summary: 'sum', color: 'var(--teal)' }) +
-      '</div>'
+      '</div>' +
+      logToggle(wkLogOpen, "Today's workout")
     );
   }
 
@@ -166,7 +185,8 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         reference: proT != null ? { value: proT, label: `target ${proT}` } : null,
         color: 'var(--protein)',
       }) +
-      '</div>'
+      '</div>' +
+      logToggle(sgLogOpen, 'Log meals')
     );
   }
 
@@ -177,12 +197,13 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     const streakNote = streak > 0 ? `<span class="note">🔥 ${streak}-day streak</span>` : '';
     return (
       '<div class="prog">' +
-      `<div class="prog-h"><div class="prog-hl"><span class="panel-t">Progress</span>${streakNote}</div>${periodToggle()}</div>` +
+      `<div class="prog-h"><div class="prog-hl"><span class="panel-t">Progress</span>${streakNote}</div>${progControls()}</div>` +
       chart({ kind: 'bar', title: 'XP earned', points: xpSeries(C, progPeriod, 'kg'), summary: 'sum', color: 'var(--fuel)' }) +
       chart({ kind: 'bar', title: 'Questions solved', points: questionsSolvedSeries(K, progPeriod), summary: 'sum', color: 'var(--teal)' }) +
       chart({ kind: 'line', title: 'Mastery %', points: masterySeries(K, progPeriod), unit: '%', color: 'var(--ok)' }) +
       chart({ kind: 'bar', title: 'Study days', points: studyDaysSeries(K, progPeriod), summary: 'sum', color: 'var(--protein)' }) +
-      '</div>'
+      '</div>' +
+      logToggle(kgLogOpen, 'Questions & study')
     );
   }
 
@@ -350,6 +371,14 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
           progLift = exercise;
           renderWorkout();
         },
+        setChartScale(s: string) {
+          logScale = s === 'log';
+          renderWorkout();
+        },
+        toggleLog() {
+          wkLogOpen = !wkLogOpen;
+          renderWorkout();
+        },
       },
     });
     return wkView;
@@ -370,6 +399,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       { deload: wkDeload, split: wkSplitTouched ? wkSplit : undefined },
       { current: currentBW(), goal: +W.settings.bwGoal || null },
       workoutCharts(),
+      wkLogOpen,
     );
   }
 
@@ -565,6 +595,14 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         progPeriod = p as Period;
         renderKnowledge();
       },
+      setChartScale(s: string) {
+        logScale = s === 'log';
+        renderKnowledge();
+      },
+      toggleLog() {
+        kgLogOpen = !kgLogOpen;
+        renderKnowledge();
+      },
     });
     return kgView;
   }
@@ -633,6 +671,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         .filter(Boolean),
       revealed: kgRevealed,
       charts: knowledgeCharts(),
+      logOpen: kgLogOpen,
     });
   }
 
@@ -746,6 +785,14 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
           progPeriod = p as Period;
           renderWeight();
         },
+        setChartScale(s: string) {
+          logScale = s === 'log';
+          renderWeight();
+        },
+        toggleLog() {
+          sgLogOpen = !sgLogOpen;
+          renderWeight();
+        },
       },
       {
         dateLabel: dLabel,
@@ -765,7 +812,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       return;
     }
     if (!sgDate) sgDate = dstr();
-    ensureMealView().repaint(sg(), sgDate, dstr(), mealCharts());
+    ensureMealView().repaint(sg(), sgDate, dstr(), mealCharts(), sgLogOpen);
   }
 
   /* ================= DATA ================= */

@@ -46,6 +46,19 @@ describe('chart', () => {
     expect(html).toContain('>2500<');
   });
 
+  it('log-Y renders and marks the axis as log', () => {
+    const html = chart({ kind: 'line', title: 'Tonnage', points: pts([100, 1000, 10000]), logY: true });
+    expect(html).toContain('<path');
+    expect(html).toContain('· log');
+  });
+
+  it('log-Y on bars still draws all bars (min bar not zero-height)', () => {
+    const html = chart({ kind: 'bar', title: 'XP', points: pts([10, 100, 1000]), logY: true });
+    const heights = [...html.matchAll(/height="([\d.]+)"/g)].map((m) => Number(m[1]));
+    expect(heights.length).toBe(3);
+    expect(Math.min(...heights)).toBeGreaterThan(0); // smallest bar still visible
+  });
+
   it('escapes the title', () => {
     const html = chart({ kind: 'bar', title: '<x> & "y"', points: pts([1]) });
     expect(html).toContain('&lt;x&gt; &amp; &quot;y&quot;');

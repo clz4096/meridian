@@ -48,6 +48,9 @@ export interface WorkoutActions {
   /** Progress-chart controls (optional — present once charts are wired). */
   setChartPeriod?(period: string): void;
   setChartLift?(exercise: string): void;
+  setChartScale?(scale: string): void;
+  /** Expand/collapse the logging section below the charts. */
+  toggleLog?(): void;
 }
 
 /** Presentation-only inputs that are not part of persisted state. */
@@ -64,8 +67,10 @@ export interface WorkoutViewOptions {
   dateLabel(date: string): string;
   /** Which split is highlighted as suggested. */
   isToday: boolean;
-  /** Pre-rendered progress-charts block, appended below the workout. */
+  /** Pre-rendered progress-charts block (+ the collapse toggle), shown above the workout. */
   charts?: string;
+  /** Whether the logging section below the charts is expanded. */
+  logOpen?: boolean;
 }
 
 /* ================================================================== */
@@ -302,7 +307,8 @@ export function renderWorkoutHTML(vm: WorkoutViewModel, o: WorkoutViewOptions): 
     html += `<div class="placeholder">No workout logged on ${esc(o.dateLabel(vm.date))}.</div>`;
   }
   html += vm.exercises.map((ex) => renderExerciseCard(vm, o, ex)).join('');
-  return html + (o.charts ?? '');
+  // Charts (with the collapse toggle) lead; the logging content shows only when expanded.
+  return (o.charts ?? '') + (o.logOpen ? html : '');
 }
 
 /* ================================================================== */
@@ -375,6 +381,12 @@ export class WorkoutViewController extends BaseViewController {
         break;
       case 'chart-lift':
         this.actions.setChartLift?.(ds.lift ?? '');
+        break;
+      case 'chart-scale':
+        this.actions.setChartScale?.(ds.scale ?? 'lin');
+        break;
+      case 'toggle-log':
+        this.actions.toggleLog?.();
         break;
       default:
         break;

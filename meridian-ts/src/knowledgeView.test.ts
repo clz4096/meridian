@@ -56,6 +56,7 @@ const arbVm: fc.Arbitrary<KnowledgeViewModel> = fc.record({
   gym: fc.constant(null),
   sources: fc.array(fc.record({ title: fc.string({ maxLength: 12 }), url: fc.webUrl() }), { maxLength: 3 }),
   revealed: fc.dictionary(fc.hexaString({ minLength: 2, maxLength: 6 }), fc.boolean(), { maxKeys: 4 }),
+  logOpen: fc.constant(true), // render the questions expanded for these content assertions
 }) as fc.Arbitrary<KnowledgeViewModel>;
 
 describe('knowledge renderer', () => {
@@ -116,7 +117,7 @@ describe('knowledge controller', () => {
     items: [{ id: 'q1', prompt: 'p', reveal: 'r. rest', mins: 15, flow: 'full', src: { book: 'clrs', ref: 'Ch1' } }],
     mastery: {}, dueCount: 3, timeFilter: 'all', target: 'all',
     targets: [['all', 'All'], ['hft', 'HFT']], targetCount: 0,
-    gymMode: false, gym: null, sources: [], revealed: {},
+    gymMode: false, gym: null, sources: [], revealed: {}, logOpen: true,
   });
 
   it('binds once across many repaints and skips identical ones', () => {

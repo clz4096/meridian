@@ -38,8 +38,10 @@ describe('bucketKey / bucketLabel', () => {
     expect(bucketKey('2026-07-20', 'week')).toBe('2026-07-20'); // next week
   });
 
-  it('labels buckets for the axis', () => {
+  it('labels buckets distinctly per period (day vs week never collide)', () => {
     expect(bucketLabel('2026-07-15', 'day')).toBe('Jul 15');
+    expect(bucketLabel('2026-07-13', 'week')).toBe('Jul 13–19'); // a range, unmistakably a week
+    expect(bucketLabel('2026-07-27', 'week')).toBe('Jul 27 – Aug 2'); // across a month boundary
     expect(bucketLabel('2026-07', 'month')).toBe("Jul '26");
     expect(bucketLabel('2026-Q3', 'quarter')).toBe("Q3 '26");
     expect(bucketLabel('2026', 'year')).toBe('2026');

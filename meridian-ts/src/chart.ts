@@ -24,6 +24,8 @@ export interface ChartOpts {
   color?: string;
   /** Which number to headline (default: 'last' for line, 'sum' for bar). */
   summary?: 'last' | 'sum' | 'avg' | 'max';
+  /** Log-scale the Y axis (positive values only; the baseline drops below the min). */
+  logY?: boolean;
 }
 
 const W = 320;
@@ -76,10 +78,28 @@ export function chart(opts: ChartOpts): string {
   const headline = summarise(vals, opts.summary ?? (kind === 'bar' ? 'sum' : 'last'));
 
   const refV = opts.reference ? opts.reference.value : null;
-  let dmax = Math.max(...vals, refV ?? -Infinity);
-  let dmin = kind === 'bar' ? 0 : Math.min(...vals, refV ?? Infinity);
-  if (!(dmax > dmin)) dmax = dmin + 1;
-  const y = (v: number) => PAD_T + PLOT_H * (1 - (v - dmin) / (dmax - dmin));
+  const logY = !!opts.logY && vals.some((v) => v > 0);
+  let dmax: number;
+  let dmin: number;
+  let y: (v: number) => number;
+  if (logY) {
+    // Log scale: positive domain only; drop the baseline below the smallest bar
+    // so the shortest bar stays visible. Non-positive values clamp to the floor.
+    const pos = vals.filter((v) => v > 0);
+    const refPos = refV && refV > 0 ? refV : null;
+    dmax = Math.max(...pos, refPos ?? -Infinity);
+    dmin = Math.min(...pos, refPos ?? Infinity);
+    if (!(dmax > dmin)) dmax = dmin * 10;
+    const floor = kind === 'bar' ? dmin / 2 : dmin;
+    const lmin = Math.log(floor);
+    const lspan = Math.log(dmax) - lmin || 1;
+    y = (v: number) => PAD_T + PLOT_H * (1 - (Math.log(Math.max(v, floor)) - lmin) / lspan);
+  } else {
+    dmax = Math.max(...vals, refV ?? -Infinity);
+    dmin = kind === 'bar' ? 0 : Math.min(...vals, refV ?? Infinity);
+    if (!(dmax > dmin)) dmax = dmin + 1;
+    y = (v: number) => PAD_T + PLOT_H * (1 - (v - dmin) / (dmax - dmin));
+  }
 
   const n = points.length;
   const xLine = (i: number) => (n === 1 ? PAD_L + PLOT_W / 2 : PAD_L + (PLOT_W * i) / (n - 1));
@@ -131,7 +151,7 @@ export function chart(opts: ChartOpts): string {
   // faint top gridline + max-value tick
   const grid =
     `<line x1="${PAD_L}" y1="${PAD_T}" x2="${PAD_L + PLOT_W}" y2="${PAD_T}" stroke="var(--line)" stroke-width="1" opacity="0.5"/>` +
-    `<text x="${PAD_L}" y="${PAD_T - 3}" font-size="7" fill="var(--dim)">${esc(fmt(dmax))}</text>`;
+    `<text x="${PAD_L}" y="${PAD_T - 3}" font-size="7" fill="var(--dim)">${esc(fmt(dmax))}${logY ? ' · log' : ''}</text>`;
 
   return (
     `<figure class="chart">` +

@@ -40,6 +40,14 @@ function mondayOf(date: string): string {
   return dt.toISOString().slice(0, 10);
 }
 
+/** Shift an ISO date by `n` days (UTC-safe), as YYYY-MM-DD. */
+function addDays(date: string, n: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + n);
+  return dt.toISOString().slice(0, 10);
+}
+
 /** Sortable bucket key for a date within a period. */
 export function bucketKey(date: string, period: Period): string {
   const [y, m] = date.split('-');
@@ -57,13 +65,22 @@ export function bucketKey(date: string, period: Period): string {
   }
 }
 
-/** Short human label for a bucket key on the x-axis. */
+/** Short human label for a bucket key on the x-axis — distinct per period. */
 export function bucketLabel(key: string, period: Period): string {
   switch (period) {
-    case 'day':
-    case 'week': {
+    case 'day': {
       const [, m, d] = key.split('-');
-      return `${MON[Number(m) - 1]} ${Number(d)}`;
+      return `${MON[Number(m) - 1]} ${Number(d)}`; // e.g. "Jul 15"
+    }
+    case 'week': {
+      // A range makes a week unmistakable next to a single day: "Jul 13–19",
+      // or "Jul 27 – Aug 2" across a month boundary.
+      const [, sm, sd] = key.split('-');
+      const end = addDays(key, 6);
+      const [, em, ed] = end.split('-');
+      const sMon = MON[Number(sm) - 1];
+      const eMon = MON[Number(em) - 1];
+      return sm === em ? `${sMon} ${Number(sd)}–${Number(ed)}` : `${sMon} ${Number(sd)} – ${eMon} ${Number(ed)}`;
     }
     case 'month': {
       const [y, m] = key.split('-');

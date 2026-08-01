@@ -14,8 +14,11 @@ export interface MealActions {
   changeDate(which: 'prev' | 'next' | 'today'): void;
   editTargets(): void;
   adjustSupplement(delta: number): void;
-  /** Progress-chart period control (optional — present once charts are wired). */
+  /** Progress-chart controls (optional — present once charts are wired). */
   setChartPeriod?(period: string): void;
+  setChartScale?(scale: string): void;
+  /** Expand/collapse the logging section below the charts. */
+  toggleLog?(): void;
 }
 
 export interface MealPreset { label: string; name: string; cal: number; protein: number }
@@ -29,7 +32,7 @@ function bar(pct: number, colour: string): string {
   return `<div class="bar"><div style="width:${pct}%;background:${colour}"></div></div>`;
 }
 
-export function renderMealHTML(vm: MealViewModel, o: MealViewOptions, charts = ''): string {
+export function renderMealHTML(vm: MealViewModel, o: MealViewOptions, charts = '', logOpen = false): string {
   const t = vm.targets;
   let h =
     `<div class="panel"><p class="panel-t">Bulk target</p><div class="statgrid">` +
@@ -104,7 +107,8 @@ export function renderMealHTML(vm: MealViewModel, o: MealViewOptions, charts = '
     `<div class="mrow"><input id="meal-desc" placeholder="e.g. 2 eggs, oatmeal, banana" style="flex:1;min-width:160px">` +
     `<button class="mbtn" data-act="estimate">Estimate with AI</button></div>` +
     `<div id="meal-eststatus" class="note" style="margin-top:6px"></div></div></div>`;
-  return h + charts;
+  // Charts (with the collapse toggle) lead; the logging content shows only when expanded.
+  return charts + (logOpen ? h : '');
 }
 
 export class MealViewController extends BaseViewController {
@@ -139,11 +143,13 @@ export class MealViewController extends BaseViewController {
       case 'targets': this.actions.editTargets(); break;
       case 'supp': this.actions.adjustSupplement(Number(ds.delta) || 0); break;
       case 'chart-period': this.actions.setChartPeriod?.(ds.period ?? 'week'); break;
+      case 'chart-scale': this.actions.setChartScale?.(ds.scale ?? 'lin'); break;
+      case 'toggle-log': this.actions.toggleLog?.(); break;
       default: break;
     }
   }
 
-  repaint(vm: MealViewModel, charts = ''): boolean {
-    return this.paint(renderMealHTML(vm, this.options, charts));
+  repaint(vm: MealViewModel, charts = '', logOpen = false): boolean {
+    return this.paint(renderMealHTML(vm, this.options, charts, logOpen));
   }
 }

@@ -49,7 +49,7 @@ describe('meal view', () => {
   it('renders balanced markup and escapes meal names', () => {
     fc.assert(fc.property(arbState, (state) => {
       const vm = selectMealView(state, '2026-07-25', '2026-07-25');
-      const html = renderMealHTML(vm, mealOpts);
+      const html = renderMealHTML(vm, mealOpts, "", true);
       expect((html.match(/<div/g) ?? []).length).toBe((html.match(/<\/div>/g) ?? []).length);
       expect(html).not.toContain('undefined');
       expect(html).not.toContain('NaN');
@@ -61,7 +61,7 @@ describe('meal view', () => {
       settings: {}, tad: {}, _del: {},
       days: { '2026-07-25': [{ id: 'x', name: '<img src=x onerror=alert(1)>', cal: 100, protein: 5 } as never] },
     };
-    const html = renderMealHTML(selectMealView(state, '2026-07-25', '2026-07-25'), mealOpts);
+    const html = renderMealHTML(selectMealView(state, "2026-07-25", "2026-07-25"), mealOpts, "", true);
     expect(html).not.toContain('<img src=x');
     expect(html).toContain('&lt;img');
   });
@@ -71,7 +71,7 @@ describe('meal view', () => {
       settings: {}, tad: {}, _del: {},
       days: { '2026-07-25': [{ id: 'bad', name: 'typo', cal: 10, protein: 40 } as never] },
     };
-    const html = renderMealHTML(selectMealView(state, '2026-07-25', '2026-07-25'), mealOpts);
+    const html = renderMealHTML(selectMealView(state, "2026-07-25", "2026-07-25"), mealOpts, "", true);
     expect(html).toContain('needs checking');
   });
 
@@ -84,7 +84,7 @@ describe('meal view', () => {
     const values: Record<string, string> = { 'meal-name': 'Steak', 'meal-cal': '700', 'meal-pro': '55', 'meal-desc': 'two eggs' };
     const ctrl = new MealViewController(hostRef, actions, (id) => values[id] ?? '', mealOpts);
     const vm = selectMealView({ settings: {}, days: {}, tad: {}, _del: {} }, '2026-07-25', '2026-07-25');
-    for (let i = 0; i < 20; i++) ctrl.repaint(vm);
+    for (let i = 0; i < 20; i++) ctrl.repaint(vm, '', true);
     expect(hostRef.binds).toBe(1);
     expect(hostRef.paints).toBe(1);            // identical repaints skipped
 

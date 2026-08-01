@@ -29,6 +29,7 @@ const options: WorkoutViewOptions = {
   bodyweight: { current: 120, goal: 150, toGoal: 30 },
   dateLabel: (d) => `Label ${d}`,
   isToday: true,
+  logOpen: true, // render the logging content expanded for these content assertions
 };
 
 function stateWith(sets: WorkoutSet[], date = '2026-07-20'): WorkoutState {

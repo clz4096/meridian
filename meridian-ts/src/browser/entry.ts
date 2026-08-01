@@ -67,6 +67,7 @@ export interface WorkoutViewHandle {
     overrides?: SessionOverrides,
     bodyweight?: { current: number | null; goal: number | null },
     charts?: string,
+    logOpen?: boolean,
   ): boolean;
   /** Drop the "user typed here" flag for one exercise after logging. */
   clearEdits(exercise?: string): void;
@@ -118,10 +119,11 @@ export function mountWorkoutView(opts: MountOptions): WorkoutViewHandle {
   const controller = new WorkoutViewController(host, opts.actions, (id) => host.readNumber(id));
 
   return {
-    repaint(state, date, today, overrides = {}, bodyweight = { current: null, goal: null }, charts = '') {
+    repaint(state, date, today, overrides = {}, bodyweight = { current: null, goal: null }, charts = '', logOpen = false) {
       const vm = selectWorkoutView(state, date, today, overrides, DEFAULT_CONFIG);
       const options = buildOptions(state, date, today, opts, bodyweight, DEFAULT_CONFIG);
       options.charts = charts;
+      options.logOpen = logOpen;
       return controller.repaint(vm, options);
     },
     clearEdits(exercise?: string) {
@@ -142,8 +144,8 @@ export function mountMealView(container: HTMLElement, actions: MealActions, opti
     return el?.value ?? '';
   }, options);
   return {
-    repaint(state: Parameters<typeof selectMealView>[0], date: string, today: string, charts = '') {
-      return ctrl.repaint(selectMealView(state, date, today), charts);
+    repaint(state: Parameters<typeof selectMealView>[0], date: string, today: string, charts = '', logOpen = false) {
+      return ctrl.repaint(selectMealView(state, date, today), charts, logOpen);
     },
     host,
   };
