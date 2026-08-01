@@ -26,6 +26,8 @@ export interface ChartOpts {
   summary?: 'last' | 'sum' | 'avg' | 'max';
   /** Log-scale the Y axis (positive values only; the baseline drops below the min). */
   logY?: boolean;
+  /** Optional controls rendered inside the card, below the header (e.g. a series picker). */
+  controls?: string;
 }
 
 const W = 320;
@@ -70,6 +72,7 @@ export function chart(opts: ChartOpts): string {
     return (
       `<figure class="chart">` +
       `<figcaption class="chart-h"><span class="chart-t">${esc(title)}</span></figcaption>` +
+      (opts.controls ?? '') +
       `<div class="chart-empty">No data yet</div></figure>`
     );
   }
@@ -169,6 +172,7 @@ export function chart(opts: ChartOpts): string {
     `<figcaption class="chart-h"><span class="chart-t">${esc(title)}</span>` +
     `<span class="chart-v" style="color:${color}">${esc(fmt(headline))}${unit}</span></figcaption>` +
     `<div class="chart-sub">${esc(sub)}</div>` +
+    (opts.controls ?? '') +
     `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">` +
     defs +
     marks.join('') +

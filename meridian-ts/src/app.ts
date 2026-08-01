@@ -198,7 +198,6 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       '<div class="prog">' +
       hero +
       progHeader() +
-      liftBar +
       carousel('workout', [
         chart({
           kind: 'line',
@@ -212,10 +211,11 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         progLift
           ? chart({
               kind: 'line',
-              title: `Strength · ${progLift}`,
+              title: 'Strength',
               points: strengthSeries(W, progLift, progPeriod),
               unit: 'lb',
               color: 'var(--teal)',
+              controls: liftBar,
             })
           : '',
         chart({ kind: 'bar', title: 'Volume · working sets', points: volumeSeries(W, progPeriod), summary: 'sum', color: 'var(--fuel)' }),

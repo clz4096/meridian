@@ -22,7 +22,6 @@ import type {
   IsoDate,
   SetType,
   Split,
-  WorkoutSet,
   WorkoutViewModel,
 } from './types.js';
 import { esc, domId } from './html.js';
@@ -170,139 +169,146 @@ function renderSessionSummary(vm: WorkoutViewModel): string {
  * main lever against clutter: the old layout put two inputs and two buttons on
  * every row, so a six-exercise session rendered over a hundred tap targets.
  */
-function renderPlanRow(
+const CHEV_SVG =
+  '<svg class="ex-chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+const CHECK_SVG =
+  '<svg class="ex-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>';
+
+/** Progression cue on the top set (bump / hold / at-minimum). */
+function topCue(plan: ExercisePlan): string {
+  if (plan.atMinimum) return `<span class="rx-cue muted">at minimum load</span>`;
+  if (plan.bumped) return `<span class="rx-cue">↑ +${plan.incr} from ${plan.lastTopWeight}</span>`;
+  if (plan.deload) return '';
+  return `<span class="rx-cue muted">hold · +${plan.incr} at 8 reps</span>`;
+}
+
+function setTypeLabel(type: SetType): string {
+  return type === 'warm' ? 'Warmup' : type === 'top' ? 'Top set' : type === 'back' ? 'Back-off' : 'Set';
+}
+
+/** The primary action: the prescription + big lb/reps fields + full-size Log button. */
+function logInput(
   exercise: string,
   type: SetType,
   label: string,
   set: { weight: number; reps: number },
   index: number,
-  state: 'done' | 'current' | 'upcoming',
   cue: string,
-  performed?: WorkoutSet,
+  setNo: number,
+  setTotal: number,
 ): string {
   const id = domId(exercise);
-
-  if (state === 'done' && performed) {
-    return (
-      `<div class="setrow logged-line">` +
-      `<span class="setlabel">✓ ${label}</span>` +
-      `<span class="setval">${esc(performed.weight)} × ${esc(performed.reps)}</span>` +
-      `<span class="rm" data-act="undo-set" data-ex="${attr(exercise)}" style="margin-left:auto;cursor:pointer;color:var(--dim);font-size:16px" title="Undo this set">↩</span></div>`
-    );
-  }
-  if (state === 'upcoming') {
-    return (
-      `<div class="setrow next-line">` +
-      `<span class="setlabel">${label}</span>` +
-      `<span class="setval dim">${set.weight} × ${set.reps}</span></div>`
-    );
-  }
-
   const wid = `w-${id}-${type}${index}`;
   const rid = `r-${id}-${type}${index}`;
   return (
-    `<div class="setrow cur">` +
-    `<span class="setlabel cur">▶ ${label}</span>` +
-    `<input id="${wid}" type="number" inputmode="decimal" value="${set.weight}" aria-label="${attr(label)} weight">` +
-    `<span style="color:var(--dim)">×</span>` +
-    `<input id="${rid}" type="number" inputmode="numeric" value="${set.reps}" aria-label="${attr(label)} reps">` +
-    `<button class="mbtn primary" data-act="log" data-ex="${attr(exercise)}" data-type="${type}" data-w="${wid}" data-r="${rid}">Log</button>` +
-    `</div>` +
-    (cue ? `<div class="setcue">${cue}</div>` : '')
-  );
-}
-
-/** A set that was actually performed — shown when reviewing a past date. */
-function renderPerformedRow(date: string, set: WorkoutSet): string {
-  const label =
-    set.type === 'warm' ? 'Warmup' : set.type === 'top' ? 'Top set' : set.type === 'back' ? 'Back-off' : 'Set';
-  return (
-    `<div class="setrow done">` +
-    `<span style="min-width:70px;color:var(--dim);font-family:var(--mono);font-size:12px">${label}</span>` +
-    `<span style="font-family:var(--mono);font-size:15px">${esc(set.weight)} × ${esc(set.reps)}</span>` +
-    `<span class="rm" data-act="del-set" data-date="${attr(date)}" data-id="${attr(set.id)}" style="margin-left:auto">×</span>` +
+    `<div class="rx"><span class="rx-what">${esc(label)}${setTotal > 1 ? ` · set ${setNo} of ${setTotal}` : ''}</span>${cue}</div>` +
+    `<div class="logrow">` +
+    `<div class="field"><input class="fv" id="${wid}" type="number" inputmode="decimal" value="${set.weight}" aria-label="${attr(label)} weight (lb)"><div class="k">lb</div></div>` +
+    `<span class="times" aria-hidden="true">×</span>` +
+    `<div class="field"><input class="fv" id="${rid}" type="number" inputmode="numeric" value="${set.reps}" aria-label="${attr(label)} reps"><div class="k">reps</div></div>` +
+    `<button class="logbtn" data-act="log" data-ex="${attr(exercise)}" data-type="${type}" data-w="${wid}" data-r="${rid}">Log set</button>` +
     `</div>`
   );
 }
 
-function renderTopCue(plan: ExercisePlan): string {
-  if (plan.atMinimum) {
-    return ` <span style="color:var(--dim);font-family:var(--mono);font-size:12px">at minimum load</span>`;
-  }
-  if (plan.bumped) {
-    return ` <span style="color:var(--teal);font-family:var(--mono);font-size:12px">↑ +${plan.incr} from ${plan.lastTopWeight}</span>`;
-  }
-  if (plan.deload) return '';
-  return ` <span style="color:var(--dim);font-family:var(--mono);font-size:12px">hold · +${plan.incr} at 8 reps</span>`;
+/** One line in the session checklist: done ✓ / now ● / upcoming ·. */
+function setLine(state: 'done' | 'now' | 'up', label: string, val: string, trailing = ''): string {
+  const mark = state === 'done' ? '✓' : state === 'now' ? '●' : '·';
+  return (
+    `<div class="set ${state}">` +
+    `<span class="st" aria-hidden="true">${mark}</span><span class="nm">${esc(label)}</span><span class="vl">${val}</span>${trailing}` +
+    `</div>`
+  );
 }
 
-function renderExerciseCard(
-  vm: WorkoutViewModel,
-  o: WorkoutViewOptions,
-  exercise: string,
-): string {
+function renderExerciseCard(vm: WorkoutViewModel, o: WorkoutViewOptions, exercise: string): string {
   const id = domId(exercise);
   const plan = vm.plans[exercise] ?? null;
   const performed = vm.performed[exercise] ?? [];
   const complete = vm.completed[exercise] === true;
   const rest = o.restSeconds[exercise];
-  // Collapsible dropdown. Every exercise is collapsed by default (calm workout screen);
-  // `o.collapsed` lists the exercises the user has explicitly expanded.
+  // Every exercise is collapsed by default (calm screen); `o.collapsed` lists the expanded ones.
   const collapsed = !(o.collapsed?.includes(exercise) ?? false);
 
+  // ---- collapsed row: name + a single status, one tap target, no checkbox ----
   const top = performed.find((s) => s.type === 'top') ?? performed[performed.length - 1];
-  const summary = performed.length
-    ? `${top ? `${esc(top.weight)}×${esc(top.reps)}` : ''} · ${performed.length} sets`
-    : plan?.lastDate
-      ? `last ${plan.lastTopWeight}×${plan.lastTopReps}`
-      : 'new';
+  let sv = 'new';
+  let sl = '';
+  if (performed.length && top) {
+    sv = `${esc(top.weight)} × ${esc(top.reps)}`;
+    sl = complete ? 'done' : `${performed.length} set${performed.length > 1 ? 's' : ''}`;
+  } else if (plan && !plan.cardio) {
+    sv = `${plan.top.weight} × ${plan.top.reps}`;
+    sl = 'top set';
+  } else if (plan?.lastDate) {
+    sv = `${plan.lastTopWeight} × ${plan.lastTopReps}`;
+    sl = 'last';
+  }
 
   const header =
-    `<div class="lift${complete ? ' exdone' : ''}${collapsed ? ' collapsed' : ''}" id="lift-${id}">` +
-    `<div class="lift-h" data-act="ex-toggle" data-ex="${attr(exercise)}">` +
-    `<span class="chk${complete ? ' on' : ''}" data-act="ex-done" data-ex="${attr(exercise)}">${complete ? '✓' : ''}</span>` +
-    `<span class="lift-name">${esc(exercise)}${plan?.deload ? ' <span class="cue deload">deload</span>' : ''}</span>` +
-    `<span class="lift-sum">${summary}</span>` +
-    `<span class="lift-chev">${collapsed ? '▸' : '▾'}</span>` +
-    `</div>`;
+    `<div class="ex${complete ? ' done' : ''}${collapsed ? '' : ' open'}" id="lift-${id}">` +
+    `<button class="ex-top" data-act="ex-toggle" data-ex="${attr(exercise)}">` +
+    (complete ? CHECK_SVG : '') +
+    `<span class="ex-name">${esc(exercise)}${plan?.deload ? ' <span class="cue deload">deload</span>' : ''}</span>` +
+    `<span class="ex-status">${sv}${sl ? `<span class="lbl">${sl}</span>` : ''}</span>` +
+    CHEV_SVG +
+    `</button>`;
 
   if (collapsed) return header + `</div>`;
 
-  let html =
-    header +
-    `<div class="exmore-body">` +
-    `<a href="${attr(o.videoUrl(exercise))}" target="_blank" rel="noopener" class="mbtn">▶ How to</a>` +
-    (plan && !plan.cardio
-      ? `<button class="mbtn" data-act="deload" data-ex="${attr(exercise)}">${plan.deload ? '✓ Rebuilding' : 'Feel weak today'}</button>` +
-        `<button class="mbtn" data-act="incr" data-ex="${attr(exercise)}">Stack step: ${o.increments[exercise] ?? plan.incr} lb</button>` +
-        (rest ? `<div class="note">rest · warm ${rest.warm}s · top ${rest.top}s · back-off ${rest.back}s</div>` : '')
-      : '') +
-    `</div>`;
-
-  if (plan?.lastDate && !vm.isPast) {
-    html += `<div class="lastline">last ${plan.lastTopWeight}×${plan.lastTopReps} · ${plan.lastDate.slice(5)}</div>`;
-  }
+  // ---- expanded: action first, then the session checklist, then quiet secondaries ----
+  let b = `<div class="ex-body"><div class="ex-inner">`;
 
   if (vm.isPast && performed.length > 0) {
-    html += performed.map((s) => renderPerformedRow(vm.date, s)).join('');
+    b +=
+      `<div class="sets">` +
+      performed
+        .map((s) =>
+          setLine('done', setTypeLabel(s.type), `${esc(s.weight)} × ${esc(s.reps)}`, `<span class="undo" data-act="del-set" data-date="${attr(vm.date)}" data-id="${attr(s.id)}" title="Remove">×</span>`),
+        )
+        .join('') +
+      `</div>`;
   } else if (!plan) {
-    html += `<div class="empty" style="margin-top:6px">First time — log your sets below.</div>`;
+    b += `<div class="rx"><span class="rx-what">First time — log your sets</span></div>` + logInput(exercise, 'top', 'Set', { weight: 0, reps: 0 }, 0, '', 1, 1);
   } else if (plan.cardio) {
-    html += renderPlanRow(exercise, 'cardio', 'Cardio', plan.top, 0, performed.length === 0 ? 'current' : 'done', '', performed[0]);
+    if (performed.length === 0) b += logInput(exercise, 'cardio', 'Cardio', plan.top, 0, '', 1, 1);
+    else b += `<div class="sets">` + setLine('done', 'Cardio', `${esc(performed[0].weight)} × ${esc(performed[0].reps)}`) + `</div>`;
   } else {
-    const next = performed.length;
     const rows: Array<[SetType, string, { weight: number; reps: number }]> = [
       ...plan.warms.map((w): [SetType, string, { weight: number; reps: number }] => ['warm', 'Warmup', w]),
       ['top', 'Top set', plan.top],
-      ...plan.backs.map((b): [SetType, string, { weight: number; reps: number }] => ['back', 'Back-off', b]),
+      ...plan.backs.map((bk): [SetType, string, { weight: number; reps: number }] => ['back', 'Back-off', bk]),
     ];
-    rows.forEach(([type, label, set], i) => {
-      const state = i < next ? 'done' : i === next ? 'current' : 'upcoming';
-      const cue = type === 'top' && state === 'current' ? renderTopCue(plan) : '';
-      html += renderPlanRow(exercise, type, label, set, i, state, cue, performed[i]);
-    });
+    const next = performed.length;
+    const cur = rows[next];
+    if (cur) b += logInput(exercise, cur[0], cur[1], cur[2], next, cur[0] === 'top' ? topCue(plan) : '', next + 1, rows.length);
+    else b += `<div class="rx"><span class="rx-what all-done">✓ All sets logged</span></div>`;
+    b +=
+      `<div class="sets">` +
+      rows
+        .map(([, label, set], i) => {
+          const state = i < next ? 'done' : i === next ? 'now' : 'up';
+          const val = state === 'done' && performed[i] ? `${esc(performed[i].weight)} × ${esc(performed[i].reps)}` : `${set.weight} × ${set.reps}`;
+          const undo = state === 'done' && i === next - 1 ? `<span class="undo" data-act="undo-set" data-ex="${attr(exercise)}" title="Undo">↩</span>` : '';
+          return setLine(state, label, val, undo);
+        })
+        .join('') +
+      `</div>`;
   }
-  return html + `</div>`;
+
+  // secondary actions — one quiet line at the bottom
+  b +=
+    `<div class="more">` +
+    `<a href="${attr(o.videoUrl(exercise))}" target="_blank" rel="noopener">▶ How&nbsp;to</a>` +
+    (plan && !plan.cardio
+      ? `<button type="button" data-act="deload" data-ex="${attr(exercise)}">${plan.deload ? '✓ Rebuilding' : 'Feel weak'}</button>` +
+        `<button type="button" data-act="incr" data-ex="${attr(exercise)}">Stack&nbsp;step · ${o.increments[exercise] ?? plan.incr} lb</button>` +
+        (rest ? `<span class="more-rest">rest ${rest.warm}/${rest.top}/${rest.back}s</span>` : '')
+      : '') +
+    `<button type="button" data-act="ex-done" data-ex="${attr(exercise)}" class="more-done">${complete ? 'Reopen' : 'Mark done'}</button>` +
+    `</div>`;
+
+  return header + b + `</div></div></div>`;
 }
 
 /**
