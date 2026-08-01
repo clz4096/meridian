@@ -482,7 +482,10 @@ export function mountApp(host: AppHost): void {
     if (!appState.anyDirty()) return;
     if (!host.confirm('Discard all unsaved changes and return to the last saved state?')) return;
     void appState.discard().then((ok) => {
-      if (ok) host.flashSaved();
+      if (ok) {
+        app.discarded(); // stop the rest timer + repaint the reverted state
+        host.flashSaved();
+      }
     });
   });
 

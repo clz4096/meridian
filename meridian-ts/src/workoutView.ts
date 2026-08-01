@@ -156,7 +156,7 @@ function renderSessionSummary(vm: WorkoutViewModel): string {
     `<div class="mrow" style="justify-content:space-between"><div>` +
     `<div style="font-family:var(--mono);font-size:20px">${vm.sessionComplete ? '✓ Session complete' : `${done} / ${vm.exercises.length} done`}</div>` +
     `<div class="note">~${vm.estimate.minutes} min · ${vm.estimate.workingSets} working sets planned</div></div>` +
-    `<button class="mbtn${vm.sessionComplete ? '' : ' primary'}" data-act="session-done">${vm.sessionComplete ? 'Reopen' : 'Mark complete'}</button>` +
+    `<button class="mbtn wk-complete${vm.sessionComplete ? ' on' : ''}" data-act="session-done">${vm.sessionComplete ? 'Reopen' : 'Mark complete'}</button>` +
     `</div><div class="bar" style="margin-top:8px"><div style="width:${pct}%;background:var(--ok)"></div></div></div>`
   );
 }

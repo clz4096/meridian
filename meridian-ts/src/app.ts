@@ -65,6 +65,8 @@ export interface AppController {
   renderWeight(): void;
   renderData(): void;
   renderAll(): void;
+  /** After a discard: stop the rest timer and repaint the reverted state. */
+  discarded(): void;
   /** Render + show the hub (table of contents); the post-Enter home screen. */
   renderHub(): void;
   /** Open one section from the hub (shows its pane, renders it, pushes history). */
@@ -1106,6 +1108,13 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     }
   }
 
+  /** After discarding unsaved changes: stop any running rest timer, then repaint. */
+  function discarded(): void {
+    restTimer.stop(true);
+    renderAll();
+    if (atHub) paintHub();
+  }
+
   /* ================= HUB (table of contents) ================= */
   function hubStats(): HubStat[] {
     const today = dstr();
@@ -1198,5 +1207,5 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     return false;
   }
 
-  return { renderWorkout, renderKnowledge, renderWeight, renderData, renderAll, renderHub, openSection, toggleControls, handleBack };
+  return { renderWorkout, renderKnowledge, renderWeight, renderData, renderAll, discarded, renderHub, openSection, toggleControls, handleBack };
 }
