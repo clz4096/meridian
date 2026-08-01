@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0e0f13">
+  <meta name="theme-color" content="#070B14">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Meridian">
@@ -15,9 +15,14 @@
   /* dark elevation: higher surface = lighter (Material/dark-mode canon) */
   --bg:#0E1116; --surface-1:#171C24; --surface-2:#1E242E; --surface-3:#272E3A;
   --panel:var(--surface-1); --panel2:var(--surface-2);
+  /* canonical Meridian palette (single source of truth, mirrored in src/tokens.ts).
+     Used by the graph landing now; the rest of the app migrates to these incrementally
+     (see docs/token-migration-plan.md). --hub amber is the lone warm accent — used sparingly. */
+  --void:#070B14; --core:#BFE9FF; --hub:#F2B25C;
+  --edge:rgba(120,170,220,.18); --ring:rgba(150,200,255,.28); --faint:#5C7291;
   /* borders as hairlines; elevation carries most of the separation */
   --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
-  --text:#E7EBF2; --muted:#9AA4B4; --dim:#727D8E; --track:#232A33;
+  --text:#DCE6F2; --muted:#8FA3BE; --dim:#727D8E; --track:#232A33;
   --teal:#4FB0A5; --tealSoft:#10241d; --fuel:#E0A64B; --ok:#3BB98C; --deficit:#D8654F;
   --protein:#A78BEA; --interview:#D8654F;
   /* 8pt spacing scale */
@@ -282,6 +287,32 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .exmore-body{display:flex;flex-wrap:wrap;gap:var(--sp2);margin-top:var(--sp3)}
 .exmore-body .mbtn{text-decoration:none}
 .exmore-body .note{flex-basis:100%;margin-top:var(--sp1)}
+/* ===== graph landing (shown on every launch; Enter → dashboard) ===== */
+#landing{position:fixed;inset:0;z-index:100;background:var(--void);-webkit-tap-highlight-color:transparent;user-select:none;transition:opacity .5s var(--ease)}
+#landing.leaving{opacity:0;pointer-events:none}
+#stage{position:fixed;inset:0;touch-action:none;opacity:0;transition:opacity 1.1s ease}
+#stage.ready{opacity:1}
+#landing .overlay{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;
+  padding-top:max(24px,env(safe-area-inset-top));padding-bottom:max(24px,env(safe-area-inset-bottom));
+  padding-left:max(clamp(20px,5vw,56px),env(safe-area-inset-left));padding-right:max(clamp(20px,5vw,56px),env(safe-area-inset-right));
+  font-family:var(--mono);color:var(--text)}
+#landing .mark{font-size:clamp(15px,2.2vw,22px);letter-spacing:.5em;font-weight:600;text-transform:uppercase;opacity:.92}
+#landing .mark span{color:var(--hub)}
+#landing .bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+#landing .tag{max-width:26ch;font-size:clamp(12px,1.4vw,14px);letter-spacing:.04em;line-height:1.6;color:var(--muted)}
+#landing .enter{pointer-events:auto;display:inline-flex;align-items:center;gap:.6em;padding:13px 22px;min-height:44px;
+  font:600 13px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--text);text-decoration:none;white-space:nowrap;
+  background:rgba(191,233,255,.04);border:1px solid var(--ring);border-radius:2px;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:color .3s,border-color .3s,background .3s}
+#landing .enter:hover,#landing .enter:focus-visible{color:var(--hub);border-color:var(--hub);background:rgba(242,178,92,.06);outline:none}
+#landing .enter .arrow{transition:transform .3s}
+#landing .enter:hover .arrow,#landing .enter:focus-visible .arrow{transform:translateX(3px)}
+#landing .hint{position:absolute;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translateX(-50%);
+  font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);transition:opacity 1.2s ease}
+#landing .hint.gone{opacity:0}
+@media (prefers-reduced-motion:reduce){#landing .hint{display:none}#stage{transition:none;opacity:1}}
+/* dashboard chrome hidden until Enter */
+.pre-enter .appwrap,.pre-enter .navbar,.pre-enter .savefab,.pre-enter .discardfab,.pre-enter .restbar,.pre-enter .savedflash{display:none!important}
 </style>
 </head>
 <body>
@@ -331,7 +362,36 @@ tombstones: `+u.counts.tombstones+" (cap 500)")}}),qe)}function yt(){G="data";le
 <button class="savefab" id="savechip"><span class="dot"></span><span id="savetxt">All changes saved</span></button>
 <div class="savedflash" id="savedflash">Saved \u2713</div>
 
-<script>window.MeridianCore.mountApp(new window.MeridianCore.DomAppHost(document));</script>
+<div id="landing">
+  <div id="stage"></div>
+  <div class="overlay">
+    <div class="mark">MERIDIA<span>N</span></div>
+    <div class="bottom">
+      <p class="tag">A quiet place for the things you're tracking.</p>
+      <a class="enter" href="#" id="enter">Enter Meridian <span class="arrow">&#8594;</span></a>
+    </div>
+    <div class="hint" id="hint">drag to rotate</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var body = document.body;
+  body.classList.add('pre-enter'); // hide the dashboard chrome until Enter
+  var landing = document.getElementById('landing');
+  var entered = false;
+  function enter(){
+    if(entered) return; entered = true;
+    body.classList.remove('pre-enter');
+    if(landing){ landing.classList.add('leaving'); setTimeout(function(){ if(landing) landing.remove(); }, 550); }
+    window.MeridianCore.mountApp(new window.MeridianCore.DomAppHost(document));
+  }
+  // lazily pull in the graph chunk (Three) and mount the landing; on failure, still let the user in
+  import('./meridian-landing.js')
+    .then(function(m){ m.mountLanding(document, enter); })
+    .catch(function(){ var e = document.getElementById('enter'); if(e){ e.addEventListener('click', function(ev){ ev.preventDefault(); enter(); }); } });
+})();
+</script>
 <script>
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }); }
 </script>

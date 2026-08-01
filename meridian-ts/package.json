@@ -23,9 +23,11 @@
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
+    "@types/three": "^0.185.3",
     "esbuild": "^0.25.0",
     "fake-indexeddb": "^6.2.5",
     "fast-check": "^3.23.2",
+    "three": "^0.185.1",
     "typescript": "^5.9.3",
     "vitest": "^2.1.9"
   }

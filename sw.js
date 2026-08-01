@@ -1,5 +1,5 @@
-const CACHE='meridian-v11';   // bump to invalidate old cached app shell
-const ASSETS=['./','./index.html','./manifest.webmanifest'];
+const CACHE='meridian-v12';   // bump to invalidate old cached app shell
+const ASSETS=['./','./index.html','./manifest.webmanifest','./meridian-landing.js'];
 self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())); });
 self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); });
 self.addEventListener('fetch',e=>{

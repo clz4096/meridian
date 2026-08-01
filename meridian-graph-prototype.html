@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#070B14" />
+<title>Meridian — graph prototype</title>
+<style>
+  /* --- design tokens ---
+     void  #070B14  deep ink field (blue-black, not pure black)
+     core  #BFE9FF  cool cyan-white node cores
+     hub   #F2B25C  warm amber — the single accent, used with restraint
+     edge  rgba(120,170,220,.18)  faint cool web
+     ring  rgba(150,200,255,.28)  the meridian ring (signature)
+     text  #DCE6F2  soft off-white wordmark                              */
+  * { margin: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: #070B14; overflow: hidden;
+               overscroll-behavior: none; }              /* no pull-to-refresh in PWA */
+  /* fixed inset:0 sidesteps mobile 100vh toolbar jumps; touch-action:none keeps
+     drag from being hijacked by browser scroll/zoom; no tap highlight on drag */
+  #stage { position: fixed; inset: 0; touch-action: none;
+           -webkit-tap-highlight-color: transparent; user-select: none; }
+  canvas { display: block; }
+
+  /* content layer over the decorative graph. safe-area insets keep the wordmark
+     and CTA clear of the notch / home indicator in standalone PWA mode. */
+  .overlay {
+    position: fixed; inset: 0; pointer-events: none;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding-top:    max(24px, env(safe-area-inset-top));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    padding-left:   max(clamp(20px,5vw,56px), env(safe-area-inset-left));
+    padding-right:  max(clamp(20px,5vw,56px), env(safe-area-inset-right));
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+    color: #DCE6F2;
+  }
+  .mark { font-size: clamp(15px, 2.2vw, 22px); letter-spacing: .5em;
+          font-weight: 600; text-transform: uppercase; opacity: .92; }
+  .mark span { color: #F2B25C; }         /* the meridian point */
+
+  .bottom { display: flex; align-items: flex-end; justify-content: space-between;
+            gap: 16px; flex-wrap: wrap; }
+  .tag { max-width: 26ch; font-size: clamp(12px, 1.4vw, 14px);
+         letter-spacing: .04em; line-height: 1.6; color: #8FA3BE; }
+
+  /* CTA: says exactly what it does. min 44px tap target. keyboard focus visible. */
+  .enter {
+    pointer-events: auto;
+    display: inline-flex; align-items: center; gap: .6em;
+    padding: 13px 22px; min-height: 44px;
+    font: 600 13px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: #DCE6F2; text-decoration: none; white-space: nowrap;
+    background: rgba(191,233,255,0.04);
+    border: 1px solid rgba(150,200,255,0.28); border-radius: 2px;
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    transition: color .3s, border-color .3s, background .3s;
+  }
+  .enter:hover, .enter:focus-visible {
+    color: #F2B25C; border-color: #F2B25C; background: rgba(242,178,92,0.06); outline: none;
+  }
+  .enter .arrow { transition: transform .3s; }
+  .enter:hover .arrow, .enter:focus-visible .arrow { transform: translateX(3px); }
+
+  .hint { position: absolute; left: 50%; bottom: max(20px, env(safe-area-inset-bottom));
+          transform: translateX(-50%); font-size: 12px; letter-spacing: .16em;
+          text-transform: uppercase; color: #5C7291; transition: opacity 1.2s ease; }
+  .hint.gone { opacity: 0; }
+  @media (prefers-reduced-motion: reduce) { .hint { display: none; } }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div class="overlay">
+  <div class="mark">MERIDIA<span>N</span></div>
+  <div class="bottom">
+    <p class="tag">A quiet place for the things you're tracking.</p>
+    <a class="enter" href="#" id="enter">Enter Meridian <span class="arrow">→</span></a>
+  </div>
+  <div class="hint" id="hint">drag to rotate</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ---- tunable knobs (these are what we'll discuss) ---- */
+const CFG = {
+  NODE_COUNT:       150,
+  CLUSTERS:         6,      // community structure, like a real knowledge graph
+  RADIUS:           60,     // overall size of the node cloud
+  AUTO_ROTATE:      0.0016, // baseline drift speed (rad/frame)
+  EDGE_NEIGHBORS:   3,      // links per node to nearest neighbours
+  BRIDGES:          10,     // long inter-cluster links
+  COLOR_VOID:       0x070B14,
+  COLOR_CORE:       0xBFE9FF,
+  COLOR_HUB:        0xF2B25C,
+};
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const stage = document.getElementById('stage');
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(CFG.COLOR_VOID, 0.006);   // depth: far nodes fade into the void
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 1, 600);
+camera.position.set(0, 0, 165);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(CFG.COLOR_VOID, 1);
+stage.appendChild(renderer.domElement);
+
+const world = new THREE.Group();          // everything rotates together
+scene.add(world);
+
+/* uniform random point on a unit sphere — r128 has no Vector3.randomDirection() */
+function randDir(){
+  const u=Math.random(), v=Math.random();
+  const theta=2*Math.PI*u, phi=Math.acos(2*v-1);
+  return new THREE.Vector3(
+    Math.sin(phi)*Math.cos(theta),
+    Math.sin(phi)*Math.sin(theta),
+    Math.cos(phi)
+  );
+}
+
+/* ---- generate a clustered graph (communities + bridges) ---- */
+const nodes = [];
+const clusterCenters = [];
+for (let c = 0; c < CFG.CLUSTERS; c++) {
+  const v = randDir().multiplyScalar(CFG.RADIUS);
+  clusterCenters.push(v);
+}
+for (let i = 0; i < CFG.NODE_COUNT; i++) {
+  const c = Math.floor(Math.random() * CFG.CLUSTERS);
+  const jitter = randDir()
+    .multiplyScalar(THREE.MathUtils.randFloat(4, CFG.RADIUS * 0.42));
+  nodes.push({ pos: clusterCenters[c].clone().add(jitter), cluster: c, deg: 0 });
+}
+
+/* edges: nearest-neighbour within reason + a few long bridges */
+const edges = [];
+function addEdge(a, b){ edges.push([a,b]); nodes[a].deg++; nodes[b].deg++; }
+for (let i = 0; i < nodes.length; i++) {
+  const d = nodes.map((n,j)=>({ j, dist: n.pos.distanceTo(nodes[i].pos) }))
+                 .filter(o => o.j !== i)
+                 .sort((a,b)=>a.dist-b.dist);
+  for (let k = 0; k < CFG.EDGE_NEIGHBORS; k++) if (d[k] && i < d[k].j) addEdge(i, d[k].j);
+}
+for (let b = 0; b < CFG.BRIDGES; b++) {
+  addEdge(Math.floor(Math.random()*nodes.length), Math.floor(Math.random()*nodes.length));
+}
+
+/* ---- node points (hubs = high-degree, get the warm accent + size) ---- */
+const degMax = Math.max(...nodes.map(n=>n.deg));
+const posArr = new Float32Array(nodes.length*3);
+const colArr = new Float32Array(nodes.length*3);
+const core = new THREE.Color(CFG.COLOR_CORE), hub = new THREE.Color(CFG.COLOR_HUB);
+nodes.forEach((n,i)=>{
+  posArr[i*3]=n.pos.x; posArr[i*3+1]=n.pos.y; posArr[i*3+2]=n.pos.z;
+  const t = n.deg/degMax;                       // hubness 0..1
+  const col = core.clone().lerp(hub, t*t);      // most nodes cool, a few warm hubs
+  colArr[i*3]=col.r; colArr[i*3+1]=col.g; colArr[i*3+2]=col.b;
+});
+const nodeGeo = new THREE.BufferGeometry();
+nodeGeo.setAttribute('position', new THREE.BufferAttribute(posArr,3));
+nodeGeo.setAttribute('color', new THREE.BufferAttribute(colArr,3));
+
+/* soft round glow sprite so nodes read as points of light, not squares */
+function glowSprite(){
+  const s=64, cv=document.createElement('canvas'); cv.width=cv.height=s;
+  const g=cv.getContext('2d').createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+  g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(.25,'rgba(255,255,255,.85)');
+  g.addColorStop(.55,'rgba(255,255,255,.25)'); g.addColorStop(1,'rgba(255,255,255,0)');
+  const ctx=cv.getContext('2d'); ctx.fillStyle=g; ctx.fillRect(0,0,s,s);
+  const tex=new THREE.Texture(cv); tex.needsUpdate=true; return tex;
+}
+const nodeMat = new THREE.PointsMaterial({
+  size: 3.2, map: glowSprite(), vertexColors: true, transparent: true,
+  depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true, fog: true,
+});
+world.add(new THREE.Points(nodeGeo, nodeMat));
+
+/* ---- edges: one faint additive web ---- */
+const eArr = new Float32Array(edges.length*6);
+edges.forEach((e,i)=>{
+  const a=nodes[e[0]].pos, b=nodes[e[1]].pos;
+  eArr.set([a.x,a.y,a.z,b.x,b.y,b.z], i*6);
+});
+const edgeGeo = new THREE.BufferGeometry();
+edgeGeo.setAttribute('position', new THREE.BufferAttribute(eArr,3));
+world.add(new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({
+  color: 0x78AADC, transparent: true, opacity: 0.16, fog: true,
+})));
+
+/* ---- signature: a tilted meridian ring around the cloud ---- */
+const ringPts=[]; const RR=CFG.RADIUS*1.5;
+for (let a=0;a<=128;a++){ const t=a/128*Math.PI*2; ringPts.push(new THREE.Vector3(Math.cos(t)*RR,0,Math.sin(t)*RR)); }
+const ring = new THREE.LineLoop(
+  new THREE.BufferGeometry().setFromPoints(ringPts),
+  new THREE.LineBasicMaterial({ color: 0x96C8FF, transparent:true, opacity:0.22, fog:true })
+);
+ring.rotation.x = 0.38;
+world.add(ring);
+
+/* ---- drag-to-rotate with inertia (no OrbitControls needed) ---- */
+let dragging=false, px=0, py=0, velX=0, velY=0;
+const el = renderer.domElement;
+function down(e){ dragging=true; const p=pt(e); px=p.x; py=p.y; fadeHint(); }
+function move(e){ if(!dragging)return; const p=pt(e); velY += (p.x-px)*0.00035; velX += (p.y-py)*0.00035; px=p.x; py=p.y; }
+function up(){ dragging=false; }
+function pt(e){ const t=e.touches?e.touches[0]:e; return {x:t.clientX,y:t.clientY}; }
+el.addEventListener('mousedown',down); addEventListener('mousemove',move); addEventListener('mouseup',up);
+el.addEventListener('touchstart',down,{passive:true}); addEventListener('touchmove',move,{passive:true}); addEventListener('touchend',up);
+
+const hintEl=document.getElementById('hint'); let hinted=false;
+function fadeHint(){ if(!hinted){ hinted=true; hintEl.classList.add('gone'); } }
+setTimeout(fadeHint, 5000);
+
+/* ---- render loop (paused when tab hidden) ---- */
+let raf=null;
+function tick(){
+  raf=requestAnimationFrame(tick);
+  if(!reduce) world.rotation.y += CFG.AUTO_ROTATE;   // baseline drift
+  world.rotation.y += velY;                           // drag inertia
+  world.rotation.x += velX;
+  world.rotation.x = Math.max(-0.6, Math.min(0.6, world.rotation.x)); // clamp tilt
+  velX*=0.94; velY*=0.94;                             // damping
+  ring.rotation.z += 0.0005;                          // faint life in the ring
+  renderer.render(scene,camera);
+}
+tick();
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){ cancelAnimationFrame(raf); raf=null; }
+  else if(!raf) tick();
+});
+/* responsive framing: on narrow (mobile) viewports, pull the camera back so the
+   graph appears smaller and comfortably centered instead of overflowing the edges */
+function fitView(){
+  camera.aspect = innerWidth/innerHeight;
+  const base = 170;
+  const dist = innerWidth < 700 ? base * (1 + (700 - innerWidth)/700 * 0.6) : base;
+  camera.position.z = dist;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+}
+fitView();
+addEventListener('resize', fitView);
+
+/* CTA — in production this routes into the app (e.g. location.href='./app' or a
+   client-side route). Here it's a no-op so the prototype doesn't navigate away. */
+document.getElementById('enter').addEventListener('click',(e)=>{
+  e.preventDefault();
+  console.log('[prototype] Enter Meridian → route into the PWA here');
+});
+</script>
+</body>
+</html>

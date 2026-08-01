@@ -47,6 +47,30 @@ const hash = createHash('sha256').update(js).digest('hex').slice(0, 8);
 const sizeKB = (Buffer.byteLength(js) / 1024).toFixed(1);
 
 /* ------------------------------------------------------------------ */
+/* 1b. Landing chunk (Three + graph) -> lazy, SW-precached ESM file    */
+/*     Kept out of the inlined core so Three never blocks boot/install.*/
+/* ------------------------------------------------------------------ */
+
+const LANDING_ENTRY = path.resolve(ROOT, 'src/landing/index.ts');
+const LANDING_OUT = path.resolve(ROOT, '../meridian-landing.js');
+
+const landingResult = await build({
+  entryPoints: [LANDING_ENTRY],
+  bundle: true,
+  minify: true,
+  format: 'esm',
+  target: ['es2022'],
+  platform: 'browser',
+  write: false,
+  legalComments: 'none',
+  logLevel: 'warning',
+});
+
+const landingJs = landingResult.outputFiles[0].text;
+const landingHash = createHash('sha256').update(landingJs).digest('hex').slice(0, 8);
+const landingKB = (Buffer.byteLength(landingJs) / 1024).toFixed(1);
+
+/* ------------------------------------------------------------------ */
 /* 2. Inject between markers                                           */
 /* ------------------------------------------------------------------ */
 
@@ -98,22 +122,37 @@ if (broken > 0) {
 }
 
 const current = readFileSync(HTML, 'utf8');
+const landingCurrent = existsSync(LANDING_OUT) ? readFileSync(LANDING_OUT, 'utf8') : null;
+
 if (checkOnly) {
+  let stale = false;
   if (current !== html) {
     console.error('✗ index.html is out of date — run `node build.mjs`');
-    process.exit(1);
+    stale = true;
   }
-  console.log(`✓ index.html is up to date (core ${hash}, ${sizeKB}KB)`);
+  if (landingCurrent !== landingJs) {
+    console.error('✗ meridian-landing.js is out of date — run `node build.mjs`');
+    stale = true;
+  }
+  if (stale) process.exit(1);
+  console.log(`✓ up to date (core ${hash} ${sizeKB}KB, landing ${landingHash} ${landingKB}KB)`);
   process.exit(0);
 }
 
 if (current === html) {
-  console.log(`✓ no change (core ${hash}, ${sizeKB}KB)`);
+  console.log(`✓ core: no change (${hash}, ${sizeKB}KB)`);
 } else {
   copyFileSync(HTML, HTML + '.bak');          // one-step undo
   writeFileSync(HTML, html);
   console.log(`✓ injected core ${hash} — ${sizeKB}KB minified`);
   console.log(`  html: ${(Buffer.byteLength(html) / 1024).toFixed(1)}KB  (backup at index.html.bak)`);
+}
+
+if (landingCurrent === landingJs) {
+  console.log(`✓ landing: no change (${landingHash}, ${landingKB}KB)`);
+} else {
+  writeFileSync(LANDING_OUT, landingJs);
+  console.log(`✓ built meridian-landing.js ${landingHash} — ${landingKB}KB minified`);
 }
 
 /* ------------------------------------------------------------------ */
