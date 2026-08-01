@@ -138,7 +138,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
 
   // Charts lead each tab; the logging content collapses under this toggle. Per-tab
   // open state persists across repaints (resets on reload). Default collapsed.
-  let wkLogOpen = false;
+  let wkExtrasOpen = false; // workout is single-screen; this toggles the tucked session options (bodyweight/date/split)
   let sgLogOpen = false;
   let kgLogOpen = false;
   // Which tab is on screen, so the back button knows whose Detail→Progress to flip.
@@ -221,8 +221,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         chart({ kind: 'bar', title: 'Volume · working sets', points: volumeSeries(W, progPeriod), summary: 'sum', color: 'var(--fuel)' }),
         chart({ kind: 'bar', title: 'Tonnage', points: tonnageSeries(W, progPeriod), unit: 'lb', summary: 'sum', color: 'var(--teal)' }),
       ]) +
-      '</div>' +
-      viewLogCta('View workout log')
+      '</div>'
     );
   }
 
@@ -464,8 +463,8 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
           renderWorkout();
         },
         toggleLog() {
-          wkLogOpen = !wkLogOpen;
-          if (wkLogOpen) ctx.pushState?.();
+          // repurposed: the ⚙ on the single workout screen reveals/hides the session options
+          wkExtrasOpen = !wkExtrasOpen;
           renderWorkout();
         },
         toggleExercise(ex: string) {
@@ -494,7 +493,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       { deload: wkDeload, split: wkSplitTouched ? wkSplit : undefined },
       { current: currentBW(), goal: +W.settings.bwGoal || null },
       workoutCharts(),
-      wkLogOpen,
+      wkExtrasOpen,
       [...expandedEx],
     );
   }
@@ -1166,11 +1165,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   }
 
   function handleBack(): boolean {
-    if (currentTab === 'workout' && wkLogOpen) {
-      wkLogOpen = false;
-      renderWorkout();
-      return true;
-    }
+    // Workout is a single screen (no Detail), so back always goes Section→Hub.
     if (currentTab === 'meal' && sgLogOpen) {
       sgLogOpen = false;
       renderWeight();

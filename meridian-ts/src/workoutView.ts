@@ -310,16 +310,24 @@ function renderExerciseCard(
  * This is the only function that knows what the workout tab looks like.
  */
 export function renderWorkoutHTML(vm: WorkoutViewModel, o: WorkoutViewOptions): string {
-  let html = renderBodyweight(o) + renderDateNav(vm, o) + renderSplitPanel(vm) + renderSessionSummary(vm);
+  // One screen: the charts carousel, then today's session inline (collapsed exercises).
+  // Bodyweight / date / split / mark-complete tuck behind the ⚙ (o.logOpen === extras open).
+  const done = vm.exercises.filter((e) => vm.completed[e]).length;
+  const status = vm.sessionComplete ? '✓ complete' : `${done} / ${vm.exercises.length} logged`;
+  const exhead =
+    `<div class="exhead"><span class="exhead-t">Today’s session</span>` +
+    `<span class="exhead-r"><span class="exhead-m">${status}</span>` +
+    `<button class="ex-opts${o.logOpen ? ' on' : ''}" data-act="toggle-log" aria-label="Session options">⚙</button></span></div>`;
+  const extras = o.logOpen
+    ? `<div class="wk-extras">${renderBodyweight(o)}${renderDateNav(vm, o)}${renderSplitPanel(vm)}${renderSessionSummary(vm)}</div>`
+    : '';
+  let list = '';
   if (vm.isPast && vm.exercises.length === 0) {
-    html += `<div class="placeholder">No workout logged on ${esc(o.dateLabel(vm.date))}.</div>`;
+    list += `<div class="placeholder">No workout logged on ${esc(o.dateLabel(vm.date))}.</div>`;
   }
-  html += vm.exercises.map((ex) => renderExerciseCard(vm, o, ex)).join('');
-  // Two screens: Progress (charts + CTA) by default, Detail (back + logging) once drilled in.
-  return o.logOpen ? BACK_BTN + html : (o.charts ?? '');
+  list += vm.exercises.map((ex) => renderExerciseCard(vm, o, ex)).join('');
+  return (o.charts ?? '') + extras + exhead + list;
 }
-
-const BACK_BTN = '<button class="backbtn" data-act="toggle-log">← Progress</button>';
 
 /* ================================================================== */
 /* DOM binding — delegation + focus-preserving repaint                 */
