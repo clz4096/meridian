@@ -102,6 +102,19 @@ export class DomAppHost implements AppHost {
     });
     this.doc.querySelectorAll('.tabpane').forEach((p) => p.classList.remove('on'));
     this.doc.getElementById(PANE_ID[tab])?.classList.add('on');
+    this.doc.body.classList.remove('at-hub');
+  }
+
+  hubPane(): HTMLElement {
+    const el = this.doc.getElementById('pane-hub');
+    if (!el) throw new Error('pane element pane-hub missing');
+    return el;
+  }
+
+  showHub(): void {
+    this.doc.querySelectorAll('.tabpane').forEach((p) => p.classList.remove('on'));
+    this.doc.getElementById('pane-hub')?.classList.add('on');
+    this.doc.body.classList.add('at-hub');
   }
 
   onTabChange(fn: (tab: Tab) => void): void {

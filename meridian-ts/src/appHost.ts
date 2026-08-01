@@ -60,6 +60,10 @@ export interface AppHost {
   showTab(tab: Tab): void;
   /** Register the tab-bar click handler; `fn` receives the newly selected tab. */
   onTabChange(fn: (tab: Tab) => void): void;
+  /** The mount container for the hub (table-of-contents) screen. */
+  hubPane?(): HTMLElement;
+  /** Show the hub screen, hiding every section pane. */
+  showHub?(): void;
 
   /* --- uncommitted input values --- */
 

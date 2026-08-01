@@ -422,10 +422,45 @@ export function mountApp(host: AppHost): void {
 
   appState.init();
 
-  // Browser/OS back returns a tab's Detail screen to its Progress screen.
+  // Browser/OS back: Detail→Progress, else Section→Hub.
   window.addEventListener('popstate', () => {
     app.handleBack();
   });
+
+  /* --- hub navigation + graph carousel (delegated once; survives repaints) --- */
+  document.addEventListener('click', (e) => {
+    const el = e.target instanceof Element ? e.target.closest<HTMLElement>('[data-act]') : null;
+    if (!el) return;
+    const act = el.dataset.act;
+    if (act === 'to-hub') {
+      app.renderHub();
+    } else if (act === 'open-knowledge' || act === 'open-workout' || act === 'open-meal' || act === 'open-data') {
+      window.scrollTo(0, 0);
+      app.openSection(act.slice(5) as 'knowledge' | 'workout' | 'meal' | 'data');
+    } else if (act === 'cdot') {
+      const car = el.parentElement?.previousElementSibling;
+      if (car instanceof HTMLElement && car.classList.contains('carousel')) {
+        car.scrollTo({ left: (Number(el.dataset.i) || 0) * car.clientWidth, behavior: 'smooth' });
+      }
+    }
+  });
+  // Keep each carousel's page dots in sync as it scrolls. `scroll` doesn't bubble and
+  // capturing it on document is unreliable, so listen on the carousel itself. Carousels
+  // are re-created on every repaint, so an observer re-wires them as they appear.
+  const syncDots = (car: HTMLElement): void => {
+    const dots = car.nextElementSibling;
+    if (!(dots instanceof HTMLElement) || !dots.classList.contains('cdots')) return;
+    const idx = Math.round(car.scrollLeft / (car.clientWidth || 1));
+    Array.from(dots.children).forEach((d, i) => d.classList.toggle('on', i === idx));
+  };
+  const wireCarousel = (el: Element): void => {
+    const car = el as HTMLElement & { _wired?: boolean };
+    if (car._wired) return;
+    car._wired = true;
+    car.addEventListener('scroll', () => syncDots(car), { passive: true });
+  };
+  new MutationObserver(() => document.querySelectorAll('.carousel').forEach(wireCarousel)).observe(document.body, { childList: true, subtree: true });
+  document.querySelectorAll('.carousel').forEach(wireCarousel);
 
   /* --- tab routing --- */
   host.onTabChange((tab) => {
@@ -469,8 +504,7 @@ export function mountApp(host: AppHost): void {
   void (async () => {
     stores.core = await appState.loadCore();
     appState.paintChip();
-    host.showTab('knowledge');
-    app.renderKnowledge();
+    app.renderHub(); // Enter opens the hub (table of contents), not a section
     // Pull from cloud in the background once the UI is ready.
     if (cloudEnabled()) {
       window.setTimeout(async () => {

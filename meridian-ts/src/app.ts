@@ -37,6 +37,7 @@ import {
 } from './progress.js';
 import type { AppHost } from './appHost.js';
 import type { AppState, StoreKey } from './appState.js';
+import { renderHubHTML, type HubStat } from './hubView.js';
 
 /* The MeridianCore api surface consumed here; loosely typed (the pieces it calls
    are individually typed + tested in their own modules). */
@@ -64,7 +65,11 @@ export interface AppController {
   renderWeight(): void;
   renderData(): void;
   renderAll(): void;
-  /** Browser/OS back: if the active tab is on its Detail screen, return it to Progress. Returns true if handled. */
+  /** Render + show the hub (table of contents); the post-Enter home screen. */
+  renderHub(): void;
+  /** Open one section from the hub (shows its pane, renders it, pushes history). */
+  openSection(tab: 'workout' | 'meal' | 'knowledge' | 'data'): void;
+  /** Browser/OS back: Detail→Progress, else Section→Hub. Returns true if handled. */
   handleBack(): boolean;
 }
 
@@ -125,9 +130,23 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   let kgLogOpen = false;
   // Which tab is on screen, so the back button knows whose Detail→Progress to flip.
   let currentTab: 'workout' | 'meal' | 'knowledge' | 'data' = 'knowledge';
+  // True while the hub (table of contents) is showing, so back doesn't try to leave a section.
+  let atHub = false;
   // Progress-screen CTA that drills into the detail (logging) screen; back is a `.backbtn` in the view.
   const viewLogCta = (label: string): string =>
     `<button class="cta-log" data-act="toggle-log">${esc(label)}<span class="cta-arrow">→</span></button>`;
+
+  // Every section's Progress screen opens with a Back control returning to the hub.
+  const backBar = (): string => `<div class="secbar"><button class="backbtn" data-act="to-hub">‹ Back</button></div>`;
+
+  // Graphs show one at a time in a horizontal swipe carousel (with page dots) so they
+  // don't stack down the page. `key` keeps each carousel's scroll position across repaints.
+  const carousel = (key: string, charts: string[]): string => {
+    const slides = charts.filter(Boolean);
+    if (!slides.length) return '';
+    const dots = slides.map((_, i) => `<button class="cdot${i ? '' : ' on'}" data-act="cdot" data-i="${i}" aria-label="Graph ${i + 1}"></button>`).join('');
+    return `<div class="carousel" data-keepx="car-${key}">${slides.join('')}</div>` + (slides.length > 1 ? `<div class="cdots">${dots}</div>` : '');
+  };
 
   // Shared hero-stat primitive: one big number leads each tab (WHOOP/Oura score-first).
   const heroStat = (label: string, value: string, unit: string, delta?: { text: string; dir: 'up' | 'down' | '' }): string =>
@@ -156,30 +175,33 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         ? heroStat('Bodyweight', String(cur), 'lb', dToGoal != null ? { text: `${dToGoal > 0 ? '+' : ''}${dToGoal} to goal`, dir: dToGoal > 0 ? 'up' : dToGoal < 0 ? 'down' : '' } : undefined)
         : '';
     return (
+      backBar() +
       '<div class="prog">' +
       hero +
       progHeader() +
-      chart({
-        kind: 'line',
-        title: 'Body growth',
-        points: bodyweightSeries(W, progPeriod),
-        unit: 'lb',
-        format: (v) => v.toFixed(1),
-        reference: goal != null ? { value: goal, label: `goal ${goal}` } : null,
-        color: 'var(--fuel)',
-      }) +
       liftBar +
-      (progLift
-        ? chart({
-            kind: 'line',
-            title: `Strength · ${progLift}`,
-            points: strengthSeries(W, progLift, progPeriod),
-            unit: 'lb',
-            color: 'var(--teal)',
-          })
-        : '') +
-      chart({ kind: 'bar', title: 'Volume · working sets', points: volumeSeries(W, progPeriod), summary: 'sum', color: 'var(--fuel)' }) +
-      chart({ kind: 'bar', title: 'Tonnage', points: tonnageSeries(W, progPeriod), unit: 'lb', summary: 'sum', color: 'var(--teal)' }) +
+      carousel('workout', [
+        chart({
+          kind: 'line',
+          title: 'Body growth',
+          points: bodyweightSeries(W, progPeriod),
+          unit: 'lb',
+          format: (v) => v.toFixed(1),
+          reference: goal != null ? { value: goal, label: `goal ${goal}` } : null,
+          color: 'var(--fuel)',
+        }),
+        progLift
+          ? chart({
+              kind: 'line',
+              title: `Strength · ${progLift}`,
+              points: strengthSeries(W, progLift, progPeriod),
+              unit: 'lb',
+              color: 'var(--teal)',
+            })
+          : '',
+        chart({ kind: 'bar', title: 'Volume · working sets', points: volumeSeries(W, progPeriod), summary: 'sum', color: 'var(--fuel)' }),
+        chart({ kind: 'bar', title: 'Tonnage', points: tonnageSeries(W, progPeriod), unit: 'lb', summary: 'sum', color: 'var(--teal)' }),
+      ]) +
       '</div>' +
       viewLogCta('View workout log')
     );
@@ -203,24 +225,27 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
           : undefined,
     );
     return (
+      backBar() +
       '<div class="prog">' +
       hero +
       progHeader() +
-      chart({
-        kind: 'line',
-        title: 'Calories · avg/day',
-        points: calorieSeries(G, progPeriod),
-        reference: calT != null ? { value: calT, label: `target ${calT}` } : null,
-        color: 'var(--fuel)',
-      }) +
-      chart({
-        kind: 'line',
-        title: 'Protein · avg/day',
-        points: proteinSeries(G, progPeriod),
-        unit: 'g',
-        reference: proT != null ? { value: proT, label: `target ${proT}` } : null,
-        color: 'var(--protein)',
-      }) +
+      carousel('meal', [
+        chart({
+          kind: 'line',
+          title: 'Calories · avg/day',
+          points: calorieSeries(G, progPeriod),
+          reference: calT != null ? { value: calT, label: `target ${calT}` } : null,
+          color: 'var(--fuel)',
+        }),
+        chart({
+          kind: 'line',
+          title: 'Protein · avg/day',
+          points: proteinSeries(G, progPeriod),
+          unit: 'g',
+          reference: proT != null ? { value: proT, label: `target ${proT}` } : null,
+          color: 'var(--protein)',
+        }),
+      ]) +
       '</div>' +
       viewLogCta('View meal log')
     );
@@ -235,13 +260,16 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     const masteryPct = attempted ? Math.round((100 * mastered) / attempted) : 0;
     const hero = heroStat('Mastery', String(masteryPct), '%', streak > 0 ? { text: `🔥 ${streak}-day streak`, dir: '' } : undefined);
     return (
+      backBar() +
       '<div class="prog">' +
       hero +
       progHeader() +
-      chart({ kind: 'bar', title: 'XP earned', points: xpSeries(C, progPeriod, 'kg'), summary: 'sum', color: 'var(--fuel)' }) +
-      chart({ kind: 'bar', title: 'Questions solved', points: questionsSolvedSeries(K, progPeriod), summary: 'sum', color: 'var(--teal)' }) +
-      chart({ kind: 'line', title: 'Mastery %', points: masterySeries(K, progPeriod), unit: '%', color: 'var(--ok)' }) +
-      chart({ kind: 'bar', title: 'Study days', points: studyDaysSeries(K, progPeriod), summary: 'sum', color: 'var(--protein)' }) +
+      carousel('knowledge', [
+        chart({ kind: 'line', title: 'Mastery %', points: masterySeries(K, progPeriod), unit: '%', color: 'var(--ok)' }),
+        chart({ kind: 'bar', title: 'Questions solved', points: questionsSolvedSeries(K, progPeriod), summary: 'sum', color: 'var(--teal)' }),
+        chart({ kind: 'bar', title: 'XP earned', points: xpSeries(C, progPeriod, 'kg'), summary: 'sum', color: 'var(--fuel)' }),
+        chart({ kind: 'bar', title: 'Study days', points: studyDaysSeries(K, progPeriod), summary: 'sum', color: 'var(--protein)' }),
+      ]) +
       '</div>' +
       viewLogCta('View questions & study')
     );
@@ -263,7 +291,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   let wkSplit = 'all';
   let wkSplitTouched = false;
   const wkDeload: Record<string, boolean> = {};
-  const collapsedEx = new Set<string>(); // exercises whose dropdown is flipped from its default
+  const expandedEx = new Set<string>(); // exercises the user has expanded (all start collapsed)
 
   const yt = (q: string): string =>
     'https://www.youtube.com/results?search_query=' + encodeURIComponent(q + ' proper form technique');
@@ -422,8 +450,8 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
           renderWorkout();
         },
         toggleExercise(ex: string) {
-          if (collapsedEx.has(ex)) collapsedEx.delete(ex);
-          else collapsedEx.add(ex);
+          if (expandedEx.has(ex)) expandedEx.delete(ex);
+          else expandedEx.add(ex);
           renderWorkout();
         },
       },
@@ -448,7 +476,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       { current: currentBW(), goal: +W.settings.bwGoal || null },
       workoutCharts(),
       wkLogOpen,
-      [...collapsedEx],
+      [...expandedEx],
     );
   }
 
@@ -1060,6 +1088,57 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     }
   }
 
+  /* ================= HUB (table of contents) ================= */
+  function hubStats(): HubStat[] {
+    const today = dstr();
+
+    const K = kg();
+    const attempted = Object.keys(K.mastery ?? {}).length;
+    const mastered = Object.values(K.mastery ?? {}).filter((r: Any) => Number(r) >= 4).length;
+    const masteryPct = attempted ? Math.round((100 * mastered) / attempted) : 0;
+
+    // distinct workout days in the trailing 7 (local-date math, no UTC shift)
+    const W = wk();
+    const wkd = (W.days ?? {}) as Record<string, Any[]>;
+    const [ty, tm, td] = today.split('-').map(Number);
+    const base = new Date(ty, (tm ?? 1) - 1, td);
+    base.setDate(base.getDate() - 6);
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    const weekAgo = `${base.getFullYear()}-${pad(base.getMonth() + 1)}-${pad(base.getDate())}`;
+    const wkDays = Object.keys(wkd).filter((d) => d >= weekAgo && d <= today && (wkd[d]?.length ?? 0) > 0).length;
+
+    const G = sg();
+    const todayCal = ((G.days?.[today] ?? []) as Any[]).reduce((a: number, m: Any) => a + (+m.cal || 0), 0);
+
+    const dirty = (['core', 'overload', 'surplus', 'csgraph'] as StoreKey[]).some((k) => MC.sync.isDirtyCloud(k));
+    const state = MC.normaliseState({ core: core(), overload: W, surplus: G, csgraph: K });
+    const kb = Math.round(JSON.stringify(state).length / 102.4) / 10;
+
+    return [
+      { key: 'knowledge', label: 'Knowledge', desc: 'Study & spaced review', value: String(masteryPct), unit: '%', sub: 'mastery', tone: 'cyan' },
+      { key: 'workout', label: 'Workout', desc: 'Training log & progression', value: String(wkDays), unit: wkDays === 1 ? ' day' : ' days', sub: 'this week', tone: '' },
+      { key: 'meal', label: 'Meals', desc: 'Food & macros', value: todayCal.toLocaleString('en-US'), unit: ' kcal', sub: todayCal ? 'today' : 'not logged', tone: 'kcal' },
+      { key: 'data', label: 'Data', desc: 'Sync, storage & export', value: ctx.cloudEnabled() ? (dirty ? 'Unsaved' : 'Synced') : 'Local', unit: '', sub: `${kb} KB`, tone: !ctx.cloudEnabled() || dirty ? '' : 'ok', dot: ctx.cloudEnabled() && !dirty },
+    ];
+  }
+
+  function renderHub(): void {
+    atHub = true;
+    host.showHub?.();
+    const el = host.hubPane?.();
+    if (el) el.innerHTML = renderHubHTML(hubStats());
+  }
+
+  function openSection(tab: 'workout' | 'meal' | 'knowledge' | 'data'): void {
+    atHub = false;
+    host.showTab(tab);
+    if (tab === 'workout') renderWorkout();
+    else if (tab === 'knowledge') renderKnowledge();
+    else if (tab === 'meal') renderWeight();
+    else renderData();
+    ctx.pushState?.();
+  }
+
   function handleBack(): boolean {
     if (currentTab === 'workout' && wkLogOpen) {
       wkLogOpen = false;
@@ -1076,8 +1155,12 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       renderKnowledge();
       return true;
     }
+    if (!atHub) {
+      renderHub(); // a section's Progress screen → back to the hub
+      return true;
+    }
     return false;
   }
 
-  return { renderWorkout, renderKnowledge, renderWeight, renderData, renderAll, handleBack };
+  return { renderWorkout, renderKnowledge, renderWeight, renderData, renderAll, renderHub, openSection, handleBack };
 }

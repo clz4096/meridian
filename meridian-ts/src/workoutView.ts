@@ -246,9 +246,9 @@ function renderExerciseCard(
   const performed = vm.performed[exercise] ?? [];
   const complete = vm.completed[exercise] === true;
   const rest = o.restSeconds[exercise];
-  // Collapsible dropdown. Default open; a completed exercise defaults closed.
-  // `o.collapsed` is the user's explicit overrides, so this XOR flips the default.
-  const collapsed = complete !== (o.collapsed?.includes(exercise) ?? false);
+  // Collapsible dropdown. Every exercise is collapsed by default (calm workout screen);
+  // `o.collapsed` lists the exercises the user has explicitly expanded.
+  const collapsed = !(o.collapsed?.includes(exercise) ?? false);
 
   const top = performed.find((s) => s.type === 'top') ?? performed[performed.length - 1];
   const summary = performed.length
