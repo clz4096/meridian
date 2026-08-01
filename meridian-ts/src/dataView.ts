@@ -46,62 +46,65 @@ export function renderDataHTML(vm: DataViewModel): string {
   const s = vm.sync;
   const m = vm.metrics;
   const c = m.counts;
+
+  const statusLabel = !s.cloudConfigured ? 'Local' : s.dirtyStores.length ? 'Unsynced' : 'Synced';
+  const statusTone = !s.cloudConfigured ? 'off' : s.dirtyStores.length ? 'dirty' : 'ok';
+
   return (
-    `<div class="secbar"><button class="backbtn" data-act="to-hub">‹ Back</button></div><div class="eyebrow">Data</div>` +
-    `<div class="panel mpanel"><p class="panel-t">☁ Cloud backend (sync across devices)</p>` +
-    `<div class="note" style="margin-bottom:10px">One-time setup: create a <b>Supabase</b> project, create a public bucket, paste your Project URL and anon key below. ` +
-    `Every save then syncs, and each device pulls the latest on open. The ID stays on this device only.</div>` +
-    `<div class="mrow"><input id="d-pantry" placeholder="Project URL" style="flex:1;min-width:200px" value="${esc(s.pantryId)}"><input id="d-pantry-appkey" type="password" placeholder="Anon Key" style="flex:1;min-width:180px">` +
-    `<button class="mbtn primary" data-act="save-id">Save ID</button></div>` +
-    `<div class="mrow" style="margin-top:8px"><button class="mbtn" data-act="test">Test connection</button>` +
-    `<button class="mbtn" data-act="push">☁↑ Push now</button>` +
-    `<button class="mbtn" data-act="pull">☁↓ Pull now</button>` +
-    `<button class="mbtn" data-act="diag">Sync status</button></div>` +
-    `<div id="d-diagout" class="note" style="margin-top:6px;font-family:var(--mono);font-size:12px;white-space:pre-line"></div>` +
-    `<div id="d-cloudmsg" class="note" style="margin-top:6px;color:${s.lastMessageBad ? 'var(--deficit)' : 'var(--teal)'}">` +
-    `${esc(s.lastMessage || (s.cloudConfigured ? 'Cloud sync is ON.' : 'Cloud sync is OFF — add a Pantry ID to enable.'))}</div>` +
+    `<button class="backbtn" data-act="to-hub">‹ Back</button>` +
+    `<div class="eyebrow">Data</div>` +
 
-    `<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>` +
-    `<p class="panel-t">\u2699 AI \u2014 meal estimation, answers &amp; grading</p>` +
-    `<div class="note" style="margin-bottom:10px">Meal macro estimates and the Knowledge tab\u2019s AI answer/grade run on <b>${esc(vm.model.model)}</b> through OpenRouter, ` +
-    `proxied by a Supabase Edge Function. The OpenRouter key lives in the function\u2019s secrets \u2014 never on this device, never exported or synced. ` +
-    `To enable: deploy the <b>openrouter-proxy</b> function and set its <b>OPENROUTER_API_KEY</b> secret.</div>` +
-    `<div class="note" style="margin-top:6px">${vm.model.configured ? '\u2713 Cloud proxy configured \u2014 AI features ready.' : 'Set up a cloud backend above first \u2014 AI runs through it.'}</div>` +
+    // status hero
+    `<div class="dhero"><div class="dstatus ${statusTone}"><span class="ddot"></span>${statusLabel}</div>` +
+    `<div class="dsub">rev ${s.baseRev}${s.dirtyStores.length ? '<br>unsynced: ' + esc(s.dirtyStores.join(', ')) : ''}</div></div>` +
 
-    `<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>` +
-    `<p class="panel-t">Storage</p><div class="statgrid">` +
-    `<div class="stat"><div class="v">${m.kilobytes}</div><div class="k">KB total</div></div>` +
-    `<div class="stat"><div class="v">${c.workoutSets}</div><div class="k">sets · ${c.workoutDays}d</div></div>` +
-    `<div class="stat"><div class="v">${c.meals}</div><div class="k">meals · ${c.mealDays}d</div></div>` +
-    `<div class="stat"><div class="v">${c.knowledgeItems}</div><div class="k">cards rated</div></div>` +
-    `</div><div class="note" style="margin-top:6px">payload ${vm.payloadKb}KB · ${c.tombstones} tombstones · rev ${s.baseRev}` +
-    `${s.dirtyStores.length ? ' · unsynced: ' + esc(s.dirtyStores.join(', ')) : ' · all synced'}</div>` +
+    // storage stats
+    `<div class="statgrid dstats">` +
+    `<div class="stat"><div class="v">${m.kilobytes}</div><div class="k">KB</div></div>` +
+    `<div class="stat"><div class="v">${c.workoutSets}</div><div class="k">sets</div></div>` +
+    `<div class="stat"><div class="v">${c.meals}</div><div class="k">meals</div></div>` +
+    `<div class="stat"><div class="v">${c.knowledgeItems}</div><div class="k">cards</div></div>` +
+    `</div>` +
 
-    `<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>` +
-    `<div class="mrow"><button class="mbtn" data-act="discard">↺ Discard unsaved changes</button></div>` +
-    `<div class="note" style="margin-top:6px">Revert edits made since the last save, back to the last saved state.${s.dirtyStores.length ? '' : ' Nothing unsaved right now.'}</div>` +
+    // cloud sync card
+    `<div class="dcard"><div class="dcard-h"><span class="dcard-t">Cloud sync</span>` +
+    `<span class="dcard-st ${s.cloudConfigured ? '' : 'off'}">${s.cloudConfigured ? '● On' : '○ Off'}</span></div>` +
+    `<div class="dcard-desc">${s.cloudConfigured ? 'Every save syncs across your devices. Your key stays on this device.' : 'Sync across devices with a Supabase backend.'}</div>` +
+    (s.cloudConfigured ? `<div class="dactions"><button class="mbtn" data-act="push">☁↑ Push</button><button class="mbtn" data-act="pull">☁↓ Pull</button></div>` : '') +
+    `<details class="ddisc"><summary>${s.cloudConfigured ? 'Settings' : 'Set up cloud sync'}</summary><div class="ddisc-b">` +
+    `<div class="note">Create a Supabase project + public bucket, then paste your Project URL and anon key. The ID stays on this device only.</div>` +
+    `<input id="d-pantry" class="minp" placeholder="Project URL" value="${esc(s.pantryId)}">` +
+    `<input id="d-pantry-appkey" class="minp" type="password" placeholder="Anon key">` +
+    `<div class="dactions"><button class="mbtn primary" data-act="save-id">Save</button><button class="mbtn" data-act="test">Test</button><button class="mbtn" data-act="diag">Status</button></div>` +
+    `<div id="d-diagout" class="note" style="font-family:var(--mono);font-size:12px;white-space:pre-line"></div>` +
+    `<div id="d-cloudmsg" class="note" style="color:${s.lastMessageBad ? 'var(--deficit)' : 'var(--ok)'}">${esc(s.lastMessage || '')}</div>` +
+    `</div></details></div>` +
 
-    `<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>` +
-    `<div class="mrow"><button class="mbtn" data-act="restore-snap">↺ Undo last cloud overwrite</button></div>` +
-    `<div class="note" style="margin-top:6px">If a sync ever replaced newer local data, this restores the snapshot taken immediately before it.</div>` +
+    // AI card
+    `<div class="dcard"><div class="dcard-h"><span class="dcard-t">AI features</span>` +
+    `<span class="dcard-st ${vm.model.configured ? '' : 'off'}">${vm.model.configured ? '✓ Ready' : '○ Off'}</span></div>` +
+    `<div class="dcard-desc">${vm.model.configured ? 'Meal estimates &amp; answer grading, via your cloud backend.' : 'Set up cloud sync first — AI runs through it.'}</div>` +
+    `<details class="ddisc"><summary>How it works</summary><div class="ddisc-b"><div class="note">` +
+    `Meal macro estimates and the Knowledge tab’s AI answer/grade run on <b>${esc(vm.model.model)}</b> through OpenRouter, proxied by a Supabase Edge Function. ` +
+    `The OpenRouter key lives in the function’s secrets — never on this device, never exported or synced. Deploy the <b>openrouter-proxy</b> function and set its <b>OPENROUTER_API_KEY</b> secret.` +
+    `</div></div></details></div>` +
 
-    `<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>` +
-    `<p class="panel-t">Manual backup (always reliable)</p>` +
-    `<div class="note" style="margin-bottom:10px">Export on one device, paste + import on another. Works even when cloud sync is unavailable.</div>` +
-    `<div class="mrow"><button class="mbtn primary" data-act="export">Export everything</button>` +
-    `<button class="mbtn" data-act="import">Import from paste</button>` +
-    `<button class="mbtn" data-act="copy">Copy to clipboard</button></div>` +
-    `<textarea id="d-io" class="dictxt" style="margin-top:10px" placeholder="Exported JSON appears here."></textarea>` +
+    // backup card
+    `<div class="dcard"><div class="dcard-h"><span class="dcard-t">Backup</span></div>` +
+    `<div class="dcard-desc">Export on one device, import on another. Works even offline.</div>` +
+    `<div class="dactions"><button class="mbtn primary" data-act="export">Export</button><button class="mbtn" data-act="import">Import</button><button class="mbtn" data-act="copy">Copy</button></div>` +
+    `<textarea id="d-io" class="dictxt" placeholder="Exported JSON appears here."></textarea>` +
+    `<div id="d-msg" class="note" style="color:var(--ok)"></div></div>` +
 
-    `<div style="border-top:1px solid var(--line);margin:14px 0 10px"></div>` +
-    `<p class="panel-t">Restore a single-app backup</p>` +
-    `<div class="note" style="margin-bottom:8px">Import an original per-app export. Pick the store, paste, Import.</div>` +
-    `<div class="mrow"><select id="d-single-key">` +
-    `<option value="overload">Workout (overload)</option><option value="surplus">Meal Tracker (surplus)</option>` +
-    `<option value="csgraph">Knowledge (csgraph)</option><option value="core">Schedule (meridian-core)</option></select>` +
-    `<button class="mbtn primary" data-act="import-single">Import single backup</button></div>` +
-    `<textarea id="d-single-io" class="dictxt" style="margin-top:10px" placeholder="Paste one app's raw backup JSON here."></textarea>` +
-    `<div id="d-msg" class="note" style="color:var(--ok);margin-top:6px"></div></div>`
+    // advanced & recovery
+    `<details class="ddisc dadv"><summary>Advanced &amp; recovery</summary><div class="ddisc-b">` +
+    `<div class="dcard-desc" style="margin-top:0">payload ${vm.payloadKb}KB · ${c.tombstones} tombstones · ${c.workoutDays}d workouts · ${c.mealDays}d meals</div>` +
+    `<button class="dadv-btn" data-act="restore-snap">Undo last cloud overwrite<small>restore the snapshot from before the last sync</small></button>` +
+    `<div class="dadv-sec">Restore a single-app backup</div>` +
+    `<div class="dactions"><select id="d-single-key" class="minp"><option value="overload">Workout</option><option value="surplus">Meals</option><option value="csgraph">Knowledge</option><option value="core">Schedule</option></select><button class="mbtn primary" data-act="import-single">Import</button></div>` +
+    `<textarea id="d-single-io" class="dictxt" placeholder="Paste one app's raw backup JSON here."></textarea>` +
+    `<button class="dadv-btn danger" data-act="discard">Discard unsaved changes<small>revert edits since the last save</small></button>` +
+    `</div></details>`
   );
 }
 
