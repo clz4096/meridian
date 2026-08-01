@@ -29,6 +29,7 @@ import {
   type WorkoutViewOptions,
 } from '../workoutView.js';
 import { DomViewHost } from './domHost.js';
+import { domId } from '../html.js';
 import {
   selectTodayView, scheduleBlocks, streamTotals, entryStreak, parseClock, entriesOn,
 } from '../coreSelectors.js';
@@ -44,6 +45,11 @@ import { fetchQuestionBank } from './questionBank.js';
 import { storeGet } from './store.js';
 import { SyncEngine, type SaveResult, type StoreKey } from '../SyncEngine.js';
 import { mergeStore, sanitizeStore } from '../mergeStores.js';
+import { DomAppHost } from './domAppHost.js';
+import { RestTimer } from '../restTimer.js';
+import { createAppState, type StoreKey as AppStoreKey } from '../appState.js';
+import { createApp, type AppController } from '../app.js';
+import type { AppHost } from '../appHost.js';
 
 export interface MountOptions {
   container: HTMLElement;
@@ -313,6 +319,14 @@ const api = {
   sync,
   mergeStore,
   sanitizeStore,
+
+  // app-shell mount (no-op stub until the orchestration slices land)
+  mountApp,
+  DomAppHost,
+  RestTimer,
+  createAppState,
+  createApp,
+  domId,
 };
 
 declare global {
@@ -321,5 +335,139 @@ declare global {
   }
 }
 window.MeridianCore = api;
+
+/* ------------------------------------------------------------------ */
+/* App-shell mount (grown across the app.ts migration slices)           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Mount the whole app against an {@link AppHost} — the composition root.
+ *
+ * Owns the four store objects and wires them to the SyncEngine (via appState) and
+ * the view layer (app.ts); installs routing, the save-chip/discard handlers,
+ * window lifecycle, and boot. index.html is reduced to a single call to this.
+ */
+export function mountApp(host: AppHost): void {
+  const KEYS = STORAGE_KEYS;
+
+  /* Impure browser helpers: session-unique ids + local-date formatting. */
+  let uidSeq = 0;
+  const uid = (): string => {
+    uidSeq = (uidSeq + 1) % 1000000;
+    return Date.now().toString(36) + '-' + uidSeq.toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+  };
+  const dstr = (d?: Date): string => {
+    const dt = d ?? new Date();
+    return (
+      dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0')
+    );
+  };
+  const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dLabel = (ds: string): string => {
+    const p = ds.split('-');
+    const dt = new Date(+p[0], +p[1] - 1, +p[2]);
+    return (ds === dstr() ? 'Today · ' : '') + WD[dt.getDay()] + ', ' + MO[dt.getMonth()] + ' ' + dt.getDate();
+  };
+  const cloudEnabled = (): boolean =>
+    !!(host.getItem('meridian_supabase_url') && host.getItem('meridian_supabase_key'));
+
+  /* The four store objects — owned here, bridged to the SyncEngine + app.ts. */
+  const stores: Record<AppStoreKey, Record<string, unknown>> = {
+    core: { schedule: {}, entries: [] },
+    overload: { settings: {}, days: {}, bw: {}, rpe: {} },
+    surplus: { settings: {}, days: {}, tad: {} },
+    csgraph: { mastery: {}, srs: {}, log: [], gymDone: {} },
+  };
+
+  let app: AppController;
+
+  const appState = createAppState({
+    host,
+    storeGet: api.storeGet,
+    sync: api.sync,
+    keys: KEYS,
+    defaultWorkout: api.data.defaultWorkout as Record<string, unknown>,
+    read: (key) => stores[key] || {},
+    write: (key, data) => {
+      stores[key] = data;
+      host.setItem(KEYS[key], JSON.stringify(data));
+    },
+    now: () => Date.now(),
+    setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+    clearTimeout: (h) => window.clearTimeout(h),
+    onExternalChange: () => app.renderAll(),
+    markFlush: (reason) => host.setItem('meridian_last_flush', new Date().toISOString() + ' (' + reason + ')'),
+  });
+
+  app = createApp(host, {
+    MC: api,
+    appState,
+    keys: KEYS,
+    uid,
+    today: () => dstr(),
+    now: () => Date.now(),
+    dateLabel: dLabel,
+    cloudEnabled,
+    setInterval: (fn, ms) => window.setInterval(fn, ms),
+    clearInterval: (h) => window.clearInterval(h),
+  });
+
+  appState.init();
+
+  /* --- tab routing --- */
+  host.onTabChange((tab) => {
+    host.showTab(tab);
+    if (tab === 'workout') app.renderWorkout();
+    else if (tab === 'knowledge') app.renderKnowledge();
+    else if (tab === 'meal') app.renderWeight();
+    else if (tab === 'data') app.renderData();
+  });
+
+  /* --- save chip + discard (cancel unsaved changes) --- */
+  host.onSave(() => void appState.save());
+  host.onDiscard(() => {
+    if (!appState.anyDirty()) return;
+    if (!host.confirm('Discard all unsaved changes and return to the last saved state?')) return;
+    void appState.discard().then((ok) => {
+      if (ok) host.flashSaved();
+    });
+  });
+
+  /* --- window lifecycle: flush on background, opportunistic pull on foreground, ⌘S save --- */
+  host.onLifecycle('hide', () => appState.flush('hidden'));
+  host.onLifecycle('visible', () => {
+    if (cloudEnabled() && !appState.anyDirty()) {
+      void api.sync
+        .pull()
+        .then((applied) => {
+          if (applied) app.renderAll();
+        })
+        .catch(() => {
+          /* offline — fine */
+        });
+    }
+  });
+  host.onLifecycle('save-shortcut', () => void appState.save());
+
+  /* --- boot --- */
+  void (async () => {
+    stores.core = await appState.loadCore();
+    appState.paintChip();
+    host.showTab('knowledge');
+    app.renderKnowledge();
+    // Pull from cloud in the background once the UI is ready.
+    if (cloudEnabled()) {
+      window.setTimeout(async () => {
+        try {
+          const applied = await api.sync.pull();
+          if (applied) app.renderAll();
+        } catch {
+          /* offline — fine */
+        }
+      }, 2000);
+    }
+  })();
+}
 
 export type { Split, WorkoutActions };
