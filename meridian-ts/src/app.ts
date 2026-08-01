@@ -14,7 +14,27 @@
  */
 
 import { RestTimer } from './restTimer.js';
-import { domId } from './html.js';
+import { domId, esc } from './html.js';
+import { chart } from './chart.js';
+import {
+  PERIOD_LABEL,
+  bodyweightGoal,
+  bodyweightSeries,
+  calorieSeries,
+  calorieTarget,
+  currentStreak,
+  masterySeries,
+  proteinSeries,
+  proteinTarget,
+  questionsSolvedSeries,
+  strengthSeries,
+  studyDaysSeries,
+  tonnageSeries,
+  trackedLifts,
+  volumeSeries,
+  xpSeries,
+  type Period,
+} from './progress.js';
 import type { AppHost } from './appHost.js';
 import type { AppState, StoreKey } from './appState.js';
 
@@ -63,6 +83,108 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
   const KG_GYM = MC.data.gym;
   const KG_TARGETS = MC.data.targets;
   const EX_VIDEO = MC.data.exVideo;
+
+  /* ---------------- progress charts ---------------- */
+  // One shared time-window across every tab's charts; the strength picker's lift.
+  let progPeriod: Period = 'week';
+  let progLift = '';
+  const SEG: Array<[Period, string]> = [
+    ['day', 'D'],
+    ['week', 'W'],
+    ['month', 'M'],
+    ['quarter', 'Q'],
+    ['year', 'Y'],
+  ];
+  const periodToggle = (): string =>
+    '<div class="seg">' +
+    SEG.map(
+      ([p, l]) =>
+        `<button class="${p === progPeriod ? 'on' : ''}" data-act="chart-period" data-period="${p}" title="${PERIOD_LABEL[p]}">${l}</button>`,
+    ).join('') +
+    '</div>';
+  const progHeader = (): string => `<div class="prog-h"><span class="panel-t">Progress</span>${periodToggle()}</div>`;
+
+  function workoutCharts(): string {
+    const W = wk();
+    const lifts = trackedLifts(W);
+    if (!lifts.includes(progLift)) progLift = lifts[0] ?? '';
+    const goal = bodyweightGoal(W);
+    const liftBar = lifts.length
+      ? '<div class="prog-lift">' +
+        lifts
+          .map((l: string) => `<button class="${l === progLift ? 'on' : ''}" data-act="chart-lift" data-lift="${esc(l)}">${esc(l)}</button>`)
+          .join('') +
+        '</div>'
+      : '';
+    return (
+      '<div class="prog">' +
+      progHeader() +
+      chart({
+        kind: 'line',
+        title: 'Body growth',
+        points: bodyweightSeries(W, progPeriod),
+        unit: 'lb',
+        format: (v) => v.toFixed(1),
+        reference: goal != null ? { value: goal, label: `goal ${goal}` } : null,
+        color: 'var(--fuel)',
+      }) +
+      liftBar +
+      (progLift
+        ? chart({
+            kind: 'line',
+            title: `Strength · ${progLift}`,
+            points: strengthSeries(W, progLift, progPeriod),
+            unit: 'lb',
+            color: 'var(--teal)',
+          })
+        : '') +
+      chart({ kind: 'bar', title: 'Volume · working sets', points: volumeSeries(W, progPeriod), summary: 'sum', color: 'var(--fuel)' }) +
+      chart({ kind: 'bar', title: 'Tonnage', points: tonnageSeries(W, progPeriod), unit: 'lb', summary: 'sum', color: 'var(--teal)' }) +
+      '</div>'
+    );
+  }
+
+  function mealCharts(): string {
+    const G = sg();
+    const calT = calorieTarget(G);
+    const proT = proteinTarget(G);
+    return (
+      '<div class="prog">' +
+      progHeader() +
+      chart({
+        kind: 'line',
+        title: 'Calories · avg/day',
+        points: calorieSeries(G, progPeriod),
+        reference: calT != null ? { value: calT, label: `target ${calT}` } : null,
+        color: 'var(--fuel)',
+      }) +
+      chart({
+        kind: 'line',
+        title: 'Protein · avg/day',
+        points: proteinSeries(G, progPeriod),
+        unit: 'g',
+        reference: proT != null ? { value: proT, label: `target ${proT}` } : null,
+        color: 'var(--protein)',
+      }) +
+      '</div>'
+    );
+  }
+
+  function knowledgeCharts(): string {
+    const K = kg();
+    const C = core();
+    const streak = currentStreak(K, dstr());
+    const streakNote = streak > 0 ? `<span class="note">🔥 ${streak}-day streak</span>` : '';
+    return (
+      '<div class="prog">' +
+      `<div class="prog-h"><div class="prog-hl"><span class="panel-t">Progress</span>${streakNote}</div>${periodToggle()}</div>` +
+      chart({ kind: 'bar', title: 'XP earned', points: xpSeries(C, progPeriod, 'kg'), summary: 'sum', color: 'var(--fuel)' }) +
+      chart({ kind: 'bar', title: 'Questions solved', points: questionsSolvedSeries(K, progPeriod), summary: 'sum', color: 'var(--teal)' }) +
+      chart({ kind: 'line', title: 'Mastery %', points: masterySeries(K, progPeriod), unit: '%', color: 'var(--ok)' }) +
+      chart({ kind: 'bar', title: 'Study days', points: studyDaysSeries(K, progPeriod), summary: 'sum', color: 'var(--protein)' }) +
+      '</div>'
+    );
+  }
 
   /* ---------------- rest timer ---------------- */
   const restTimer = new RestTimer({
@@ -220,6 +342,14 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
           S.markWorkoutDirty();
           renderWorkout();
         },
+        setChartPeriod(p: string) {
+          progPeriod = p as Period;
+          renderWorkout();
+        },
+        setChartLift(exercise: string) {
+          progLift = exercise;
+          renderWorkout();
+        },
       },
     });
     return wkView;
@@ -239,6 +369,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       today,
       { deload: wkDeload, split: wkSplitTouched ? wkSplit : undefined },
       { current: currentBW(), goal: +W.settings.bwGoal || null },
+      workoutCharts(),
     );
   }
 
@@ -430,6 +561,10 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         }
         out.set(res.text.trim(), 'plain');
       },
+      setChartPeriod(p: string) {
+        progPeriod = p as Period;
+        renderKnowledge();
+      },
     });
     return kgView;
   }
@@ -497,6 +632,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
         })
         .filter(Boolean),
       revealed: kgRevealed,
+      charts: knowledgeCharts(),
     });
   }
 
@@ -606,6 +742,10 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
           S.markMealDirty();
           renderWeight();
         },
+        setChartPeriod(p: string) {
+          progPeriod = p as Period;
+          renderWeight();
+        },
       },
       {
         dateLabel: dLabel,
@@ -625,7 +765,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       return;
     }
     if (!sgDate) sgDate = dstr();
-    ensureMealView().repaint(sg(), sgDate, dstr());
+    ensureMealView().repaint(sg(), sgDate, dstr(), mealCharts());
   }
 
   /* ================= DATA ================= */

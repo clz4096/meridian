@@ -34,6 +34,8 @@ export interface KnowledgeViewModel {
   gym: { concepts: GymLink[]; practice: GymLink[]; reading: GymLink[] } | null;
   sources: Array<{ title: string; url: string }>;
   revealed: Record<string, boolean>;
+  /** Pre-rendered progress-charts block, appended below the question list. */
+  charts?: string;
 }
 
 export interface KnowledgeActions {
@@ -50,6 +52,8 @@ export interface KnowledgeActions {
   gradeWithAI(id: string): void;
   /** Generate an AI answer to the question (Opus), shown in the note area. */
   answerWithAI(id: string): void;
+  /** Progress-chart period control (optional — present once charts are wired). */
+  setChartPeriod?(period: string): void;
 }
 
 export const MASTERY_COLOUR: Record<number, string> = {
@@ -206,7 +210,7 @@ export function renderKnowledgeHTML(vm: KnowledgeViewModel): string {
     `</div>`;
 
   h += vm.items.map((it) => renderCard(it, vm)).join('');
-  return h;
+  return h + (vm.charts ?? '');
 }
 
 export class KnowledgeViewController extends BaseViewController {
@@ -229,6 +233,7 @@ export class KnowledgeViewController extends BaseViewController {
       case 'queue': this.actions.queueForReview(id); break;
       case 'ai-grade': this.actions.gradeWithAI(id); break;
       case 'ai-answer': this.actions.answerWithAI(id); break;
+      case 'chart-period': this.actions.setChartPeriod?.(ds.period ?? 'week'); break;
       default: break;
     }
   }

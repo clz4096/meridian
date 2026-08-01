@@ -66,6 +66,7 @@ export interface WorkoutViewHandle {
     today: string,
     overrides?: SessionOverrides,
     bodyweight?: { current: number | null; goal: number | null },
+    charts?: string,
   ): boolean;
   /** Drop the "user typed here" flag for one exercise after logging. */
   clearEdits(exercise?: string): void;
@@ -117,9 +118,10 @@ export function mountWorkoutView(opts: MountOptions): WorkoutViewHandle {
   const controller = new WorkoutViewController(host, opts.actions, (id) => host.readNumber(id));
 
   return {
-    repaint(state, date, today, overrides = {}, bodyweight = { current: null, goal: null }) {
+    repaint(state, date, today, overrides = {}, bodyweight = { current: null, goal: null }, charts = '') {
       const vm = selectWorkoutView(state, date, today, overrides, DEFAULT_CONFIG);
       const options = buildOptions(state, date, today, opts, bodyweight, DEFAULT_CONFIG);
+      options.charts = charts;
       return controller.repaint(vm, options);
     },
     clearEdits(exercise?: string) {
@@ -140,8 +142,8 @@ export function mountMealView(container: HTMLElement, actions: MealActions, opti
     return el?.value ?? '';
   }, options);
   return {
-    repaint(state: Parameters<typeof selectMealView>[0], date: string, today: string) {
-      return ctrl.repaint(selectMealView(state, date, today));
+    repaint(state: Parameters<typeof selectMealView>[0], date: string, today: string, charts = '') {
+      return ctrl.repaint(selectMealView(state, date, today), charts);
     },
     host,
   };

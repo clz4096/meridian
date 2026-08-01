@@ -45,6 +45,9 @@ export interface WorkoutActions {
   changeDate(date: string): void;
   changeSplit(split: Split | 'all'): void;
   logBodyweight(value: number): void;
+  /** Progress-chart controls (optional — present once charts are wired). */
+  setChartPeriod?(period: string): void;
+  setChartLift?(exercise: string): void;
 }
 
 /** Presentation-only inputs that are not part of persisted state. */
@@ -61,6 +64,8 @@ export interface WorkoutViewOptions {
   dateLabel(date: string): string;
   /** Which split is highlighted as suggested. */
   isToday: boolean;
+  /** Pre-rendered progress-charts block, appended below the workout. */
+  charts?: string;
 }
 
 /* ================================================================== */
@@ -297,7 +302,7 @@ export function renderWorkoutHTML(vm: WorkoutViewModel, o: WorkoutViewOptions): 
     html += `<div class="placeholder">No workout logged on ${esc(o.dateLabel(vm.date))}.</div>`;
   }
   html += vm.exercises.map((ex) => renderExerciseCard(vm, o, ex)).join('');
-  return html;
+  return html + (o.charts ?? '');
 }
 
 /* ================================================================== */
@@ -364,6 +369,12 @@ export class WorkoutViewController extends BaseViewController {
         break;
       case 'log-bw':
         this.actions.logBodyweight(this.readInput('bw-in'));
+        break;
+      case 'chart-period':
+        this.actions.setChartPeriod?.(ds.period ?? 'week');
+        break;
+      case 'chart-lift':
+        this.actions.setChartLift?.(ds.lift ?? '');
         break;
       default:
         break;

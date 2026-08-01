@@ -14,6 +14,8 @@ export interface MealActions {
   changeDate(which: 'prev' | 'next' | 'today'): void;
   editTargets(): void;
   adjustSupplement(delta: number): void;
+  /** Progress-chart period control (optional — present once charts are wired). */
+  setChartPeriod?(period: string): void;
 }
 
 export interface MealPreset { label: string; name: string; cal: number; protein: number }
@@ -27,7 +29,7 @@ function bar(pct: number, colour: string): string {
   return `<div class="bar"><div style="width:${pct}%;background:${colour}"></div></div>`;
 }
 
-export function renderMealHTML(vm: MealViewModel, o: MealViewOptions): string {
+export function renderMealHTML(vm: MealViewModel, o: MealViewOptions, charts = ''): string {
   const t = vm.targets;
   let h =
     `<div class="panel"><p class="panel-t">Bulk target</p><div class="statgrid">` +
@@ -102,7 +104,7 @@ export function renderMealHTML(vm: MealViewModel, o: MealViewOptions): string {
     `<div class="mrow"><input id="meal-desc" placeholder="e.g. 2 eggs, oatmeal, banana" style="flex:1;min-width:160px">` +
     `<button class="mbtn" data-act="estimate">Estimate with AI</button></div>` +
     `<div id="meal-eststatus" class="note" style="margin-top:6px"></div></div></div>`;
-  return h;
+  return h + charts;
 }
 
 export class MealViewController extends BaseViewController {
@@ -136,11 +138,12 @@ export class MealViewController extends BaseViewController {
       case 'date-today': this.actions.changeDate('today'); break;
       case 'targets': this.actions.editTargets(); break;
       case 'supp': this.actions.adjustSupplement(Number(ds.delta) || 0); break;
+      case 'chart-period': this.actions.setChartPeriod?.(ds.period ?? 'week'); break;
       default: break;
     }
   }
 
-  repaint(vm: MealViewModel): boolean {
-    return this.paint(renderMealHTML(vm, this.options));
+  repaint(vm: MealViewModel, charts = ''): boolean {
+    return this.paint(renderMealHTML(vm, this.options, charts));
   }
 }
