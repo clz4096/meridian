@@ -79,7 +79,9 @@ interface WorkoutStore extends Store {
   incr?: Store;
 }
 
-const AUTOSAVE_MS = 20_000;
+// Debounce after the last edit before autosaving. Short enough that the quiet
+// save status clears promptly; each edit resets it, so a burst still saves once.
+const AUTOSAVE_MS = 5_000;
 
 export interface AppState {
   init(): void;
@@ -115,7 +117,9 @@ export function createAppState(deps: AppStateDeps): AppState {
   }
 
   function paintChip(text?: string, failed = false): void {
-    deps.host.paintSaveChip({ dirty: anyDirty(), text, failed });
+    // The floating status reflects LOCAL data safety (unsaved local edits), not cloud
+    // sync — cloud state lives in the Data tab. So it clears as soon as the local write lands.
+    deps.host.paintSaveChip({ dirty: dirtyLocal, text, failed });
   }
 
   /** Faithful port of the legacy onStatus switch: chip messaging + dirty reset. */
@@ -132,8 +136,8 @@ export function createAppState(deps: AppStateDeps): AppState {
     } else if (r.cloud === 'throttled') {
       paintChip('Saved · cloud sync queued');
     } else if (r.cloud === 'failed') {
-      paintChip('Saved here only — cloud: ' + ((r.cloudError && r.cloudError.message) || 'failed'), true);
-      clean = false;
+      // Local write succeeded; cloud will retry. Data is safe — don't alarm the status.
+      paintChip('Saved here only — cloud: ' + ((r.cloudError && r.cloudError.message) || 'failed'));
     } else {
       paintChip('All changes saved');
     }
@@ -154,17 +158,22 @@ export function createAppState(deps: AppStateDeps): AppState {
     // per-view marks below intentionally do not (explicit Save + exit-flush cover them).
     armAutosave();
   }
+  // The UI now shows a quiet auto-save status (no manual Save button), so every edit
+  // path arms the debounced autosave — it fires AUTOSAVE_MS after you stop editing.
   function markWorkoutDirty(): void {
     dirtyLocal = true;
     paintChip();
+    armAutosave();
   }
   function markMealDirty(): void {
     dirtyLocal = true;
     paintChip();
+    armAutosave();
   }
   function markKnowledgeDirty(): void {
     dirtyLocal = true;
     paintChip();
+    armAutosave();
   }
 
   function save(): Promise<SaveResult> {

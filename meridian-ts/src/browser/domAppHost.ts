@@ -53,6 +53,7 @@ class DomRestBar implements RestBarHost {
     const el = this.doc.getElementById('restbar');
     if (!el) return;
     el.style.display = 'block';
+    this.doc.body.classList.add('resting'); // lifts the save status above the bar
     el.classList.toggle('over', over);
     const remaining = Math.max(0, targetSec - elapsedSec);
     const time = this.doc.getElementById('resttime');
@@ -68,6 +69,7 @@ class DomRestBar implements RestBarHost {
   hide(): void {
     const el = this.doc.getElementById('restbar');
     if (el) el.style.display = 'none';
+    this.doc.body.classList.remove('resting');
   }
 
   onStop(fn: () => void): void {
@@ -198,16 +200,18 @@ export class DomAppHost implements AppHost {
     const chip = this.doc.getElementById('savechip');
     const txt = this.doc.getElementById('savetxt');
     if (!chip) return;
-    // Quiet, always-present status (autosave does the work; tap to force a sync).
+    // Quiet status: only visible while there's something to reflect (saving / failed).
+    // A clean state hides it — autosave does the work; the transient flash confirms a save.
     if (state.failed) {
+      chip.style.display = 'inline-flex';
       chip.className = 'savestat failed';
       if (txt) txt.textContent = 'Save failed';
     } else if (state.dirty) {
+      chip.style.display = 'inline-flex';
       chip.className = 'savestat dirty';
-      if (txt) txt.textContent = 'Saving…';
+      if (txt) txt.textContent = 'Unsaved';
     } else {
-      chip.className = 'savestat';
-      if (txt) txt.textContent = 'Saved';
+      chip.style.display = 'none';
     }
   }
 

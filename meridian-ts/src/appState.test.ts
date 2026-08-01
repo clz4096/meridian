@@ -183,13 +183,13 @@ describe('appState dirty tracking + autosave', () => {
     expect(t.sync.save).toHaveBeenCalledTimes(1);
   });
 
-  it('per-view marks flag dirty but do NOT arm the autosave', () => {
+  it('per-view marks flag dirty and arm the autosave (quiet auto-save status)', () => {
     const t = build();
     t.appState.markWorkoutDirty();
     t.appState.markMealDirty();
     t.appState.markKnowledgeDirty();
     expect(t.host.paintSaveChip).toHaveBeenCalledTimes(3);
-    expect(t.setTimeout).not.toHaveBeenCalled();
+    expect(t.setTimeout).toHaveBeenCalled();
     expect(t.appState.anyDirty()).toBe(true);
   });
 
@@ -252,7 +252,8 @@ describe('appState onStatus chip messaging', () => {
     [{ cloud: 'synced' }, 'All changes saved', false],
     [{ cloud: 'noop' }, 'All changes saved · cloud already in sync', false],
     [{ cloud: 'throttled' }, 'Saved · cloud sync queued', false],
-    [{ cloud: 'failed', cloudError: { message: 'boom' } }, 'Saved here only — cloud: boom', true],
+    // Local write ok + cloud failed = data-safe → not flagged failed (cloud retries; Data tab shows it).
+    [{ cloud: 'failed', cloudError: { message: 'boom' } }, 'Saved here only — cloud: boom', false],
   ];
   it.each(cases)('maps %o to the right chip', (partial, text, failed) => {
     const t = build();

@@ -442,7 +442,7 @@ export function mountApp(host: AppHost): void {
     } else if (act === 'cdot') {
       const car = el.parentElement?.previousElementSibling;
       if (car instanceof HTMLElement && car.classList.contains('carousel')) {
-        car.scrollTo({ left: (Number(el.dataset.i) || 0) * car.clientWidth, behavior: 'smooth' });
+        car.scrollTo({ left: (Number(el.dataset.i) || 0) * carStride(car), behavior: 'smooth' });
       }
     } else if (act === 'discard') {
       // Discard now lives in the ⚙ session options / Data tab, not a floating fab.
@@ -459,10 +459,16 @@ export function mountApp(host: AppHost): void {
   // Keep each carousel's page dots in sync as it scrolls. `scroll` doesn't bubble and
   // capturing it on document is unreliable, so listen on the carousel itself. Carousels
   // are re-created on every repaint, so an observer re-wires them as they appear.
+  // The stride between snapped slides = slide width + the carousel gap.
+  const carStride = (car: HTMLElement): number => {
+    const a = car.children[0] as HTMLElement | undefined;
+    const b = car.children[1] as HTMLElement | undefined;
+    return a && b ? b.offsetLeft - a.offsetLeft : a?.offsetWidth || car.clientWidth || 1;
+  };
   const syncDots = (car: HTMLElement): void => {
     const dots = car.nextElementSibling;
     if (!(dots instanceof HTMLElement) || !dots.classList.contains('cdots')) return;
-    const idx = Math.round(car.scrollLeft / (car.clientWidth || 1));
+    const idx = Math.round(car.scrollLeft / carStride(car));
     Array.from(dots.children).forEach((d, i) => d.classList.toggle('on', i === idx));
   };
   const wireCarousel = (el: Element): void => {
