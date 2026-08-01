@@ -29,11 +29,11 @@ export interface ChartOpts {
 }
 
 const W = 320;
-const H = 118;
+const H = 142;
 const PAD_L = 6;
 const PAD_R = 8;
-const PAD_T = 10;
-const PAD_B = 16;
+const PAD_T = 8;
+const PAD_B = 18;
 const PLOT_W = W - PAD_L - PAD_R;
 const PLOT_H = H - PAD_T - PAD_B;
 
@@ -142,7 +142,9 @@ export function chart(opts: ChartOpts): string {
       const by = y(points[i].value);
       const bh = Math.max(0, baseY - by);
       const rx = Math.min(2, bw / 2);
-      marks.push(`<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="${rx}" fill="${color}"/>`);
+      // emphasise the current (last) period; earlier bars recede — mirrors the mockup
+      const op = i === n - 1 ? '1' : '0.45';
+      marks.push(`<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="${rx}" fill="${color}" fill-opacity="${op}"/>`);
     }
   }
 
@@ -155,22 +157,20 @@ export function chart(opts: ChartOpts): string {
       const last = i === n - 1;
       const anchor = first ? 'start' : last ? 'end' : 'middle';
       const cx = first ? PAD_L : last ? PAD_L + PLOT_W : kind === 'line' ? xLine(i) : PAD_L + (i + 0.5) * (PLOT_W / n);
-      return `<text x="${cx.toFixed(1)}" y="${H - 5}" text-anchor="${anchor}" font-size="7" fill="var(--dim)">${esc(p.label)}</text>`;
+      return `<text x="${cx.toFixed(1)}" y="${H - 5}" text-anchor="${anchor}" font-size="9" fill="var(--faint)">${esc(p.label)}</text>`;
     })
     .join('');
 
-  // faint top gridline + max-value tick
-  const grid =
-    `<line x1="${PAD_L}" y1="${PAD_T}" x2="${PAD_L + PLOT_W}" y2="${PAD_T}" stroke="var(--line)" stroke-width="1" opacity="0.5"/>` +
-    `<text x="${PAD_L}" y="${PAD_T - 3}" font-size="7" fill="var(--dim)">${esc(fmt(dmax))}${logY ? ' · log' : ''}</text>`;
+  // range caption (mockup's small "PER WEEK / TREND" under the title)
+  const sub = kind === 'bar' ? 'per period' : logY ? 'trend · log' : 'trend';
 
   return (
     `<figure class="chart">` +
     `<figcaption class="chart-h"><span class="chart-t">${esc(title)}</span>` +
     `<span class="chart-v" style="color:${color}">${esc(fmt(headline))}${unit}</span></figcaption>` +
+    `<div class="chart-sub">${esc(sub)}</div>` +
     `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">` +
     defs +
-    grid +
     marks.join('') +
     xLabels +
     `</svg></figure>`
