@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -8,6 +9,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 // dynamic import), and Workbox generates the precache manifest + service worker.
 export default defineConfig({
   base: '/meridian/',
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: {
     target: 'es2022',
     // Three's landing chunk is ~500 KB; keep the warning threshold out of the way.

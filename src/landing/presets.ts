@@ -6,8 +6,8 @@
  * - `background` — a dimmer, slower, non-interactive variant (fewer nodes, `pointer-events:none`)
  *                  for reuse as a passive site background later.
  */
-import type { GraphColors, GraphConfig } from './graph.js';
-import { EDGE_SOLID, RING_SOLID, TOKENS, readToken } from '../tokens.js';
+import type { GraphColors, GraphConfig } from '@/landing/graph';
+import { EDGE_SOLID, RING_SOLID, TOKENS, readToken } from '@/ui/tokens';
 
 /** Colours from the live CSS tokens, falling back to the typed constants. */
 function colors(): GraphColors {

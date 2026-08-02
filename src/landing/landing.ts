@@ -6,8 +6,8 @@
  * the decorative graph, fades the "drag to rotate" hint on first interaction, and on
  * Enter disposes the graph and hands off to `onEnter` (which reveals the dashboard).
  */
-import { mount, type GraphHandle } from './graph.js';
-import { landingPreset } from './presets.js';
+import { mount, type GraphHandle } from '@/landing/graph';
+import { landingPreset } from '@/landing/presets';
 
 export function mountLanding(root: ParentNode, onEnter: () => void): void {
   const stage = root.querySelector<HTMLElement>('#stage');

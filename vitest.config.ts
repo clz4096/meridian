@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 /**
@@ -8,6 +9,7 @@ import { defineConfig } from 'vitest/config';
  * mathematical sweep. Same tests either way — only the sample size changes.
  */
 export default defineConfig({
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   test: {
     include: ['src/**/*.test.ts'],
     // Perf assertions are timing-sensitive; keep worker count modest so a
