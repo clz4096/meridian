@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
   <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="theme-color" content="#070B14">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -232,11 +235,13 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 #tabbar{display:none}
 body:not(.at-hub) .brandrow{display:none}
 body:not(.at-hub) .tabpane{padding-top:calc(14px + env(safe-area-inset-top))}
-.hubtag{font-size:var(--fs-body);color:var(--muted);margin:6px 2px 22px}
-.hub{display:flex;flex-direction:column}
-.hubrow{display:flex;align-items:center;gap:14px;padding:20px 4px;border:0;background:transparent;width:100%;text-align:left;cursor:pointer;color:inherit;border-top:1px solid var(--line);font:inherit;transition:background var(--dur) var(--ease),padding-left var(--dur) var(--ease)}
-.hubrow:last-child{border-bottom:1px solid var(--line)}
-.hubrow:hover,.hubrow:focus-visible{background:linear-gradient(90deg,rgba(124,201,236,.06),transparent 70%);padding-left:12px;outline:none}
+.hubtag{font-size:var(--fs-body);color:var(--muted);margin:6px 2px 18px}
+/* hub is a full-height menu: four rounded cards share the vertical space */
+body.at-hub .appwrap{display:flex;flex-direction:column;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+body.at-hub #pane-hub{flex:1;display:flex;flex-direction:column}
+.hub{display:flex;flex-direction:column;gap:12px;flex:1}
+.hubrow{flex:1 1 0;min-height:104px;display:flex;align-items:center;gap:14px;padding:22px 20px;border:1px solid var(--line);background:var(--panel);border-radius:16px;width:100%;text-align:left;cursor:pointer;color:inherit;font:inherit;transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.hubrow:hover,.hubrow:focus-visible{border-color:var(--line-2);background:var(--panel2);outline:none;transform:translateY(-1px)}
 .hubrow .hb{flex:1;min-width:0}
 .hubrow .hlabel{font-family:var(--mono);font-size:14px;letter-spacing:.16em;text-transform:uppercase;color:var(--text)}
 .hubrow .hdesc{font-size:12.5px;color:var(--faint);margin-top:5px}
