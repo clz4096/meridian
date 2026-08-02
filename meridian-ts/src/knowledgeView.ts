@@ -88,19 +88,73 @@ function gymRow(l: GymLink): string {
   );
 }
 
-function renderTabs(vm: KnowledgeViewModel): string {
+/** Topic becomes a heading + tucked picker: the current topic leads, tapping it opens the list. */
+function renderTopicHead(vm: KnowledgeViewModel): string {
+  const cur = vm.topics.find((t) => t.id === vm.topicId);
+  const title = cur
+    ? cur.name
+    : vm.topicId === '__review__'
+      ? 'Due for review'
+      : vm.topicId === '__target__'
+        ? 'Studying by target'
+        : 'Questions';
+  const prog = cur ? `${cur.mastered} / ${cur.total} mastered` : '';
   return (
-    `<div class="ktabs">` +
+    `<div class="khead">` +
+    `<details class="ktopic-d"><summary class="ktopic">${esc(title)} <span class="kchev">▾</span></summary>` +
+    `<div class="ktopic-list">` +
     vm.topics
       .map(
         (t) =>
-          `<button class="ktab${t.id === vm.topicId ? ' on' : ''}" data-act="topic" data-id="${esc(t.id)}">${esc(t.name)}` +
-          (t.total ? `<span class="cnt">${t.mastered}/${t.total}</span>` : `<span class="cnt">soon</span>`) +
-          (t.total ? `<span class="tprog"><i style="width:${t.percent}%"></i></span>` : '') +
+          `<button class="klist-item${t.id === vm.topicId ? ' on' : ''}" data-act="topic" data-id="${esc(t.id)}">` +
+          `<span class="kli-name">${esc(t.name)}</span>` +
+          (t.total
+            ? `<span class="kli-cnt">${t.mastered}/${t.total}</span>`
+            : `<span class="kli-cnt soon">soon</span>`) +
           `</button>`,
       )
       .join('') +
+    `</div></details>` +
+    `<div class="kprog">${prog}</div>` +
     `</div>`
+  );
+}
+
+/** Length, target and sources collapse into one tucked Filters disclosure. */
+function renderFilters(vm: KnowledgeViewModel): string {
+  const isReal = vm.topicId !== '__review__' && vm.topicId !== '__target__';
+  const lenSummary = vm.timeFilter === 'all' ? 'All lengths' : TIME_LABEL[vm.timeFilter];
+  const targetSummary = !isReal || vm.target === 'all' ? 'everything' : vm.target;
+
+  let b =
+    `<div class="fgrp"><div class="fgrp-l">Question length</div><div class="timebar">` +
+    ['all', '5', '15', '30']
+      .map((t) => `<button class="${t === vm.timeFilter ? 'on' : ''}" data-act="time" data-id="${t}">${TIME_LABEL[t]}</button>`)
+      .join('') +
+    `</div></div>`;
+  if (isReal) {
+    b +=
+      `<div class="fgrp"><div class="fgrp-l">Studying for</div><div class="timebar" style="flex-wrap:wrap">` +
+      vm.targets
+        .map(([id, label]) => `<button class="${id === vm.target ? 'on' : ''}" data-act="target" data-id="${esc(id)}">${esc(label)}</button>`)
+        .join('') +
+      `</div>` +
+      (vm.target !== 'all'
+        ? `<div class="note" style="margin-top:6px">${vm.targetCount} questions tagged ${esc(vm.target)} · ` +
+          `<button class="mbtn" data-act="study-tagged" style="padding:3px 8px;font-size:11px">Study them all</button></div>`
+        : '') +
+      `</div>`;
+  }
+  if (vm.sources.length) {
+    b +=
+      `<div class="fgrp"><div class="fgrp-l">Sources</div><div class="klink">` +
+      vm.sources.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>`).join(' · ') +
+      `</div></div>`;
+  }
+  return (
+    `<details class="kfilters"><summary><span class="fgear">⚙</span>` +
+    `<span class="fsum">${esc(lenSummary)} · studying ${esc(targetSummary)}</span><span class="fcta">Filters</span></summary>` +
+    `<div class="kfilters-b">${b}</div></details>`
   );
 }
 
@@ -129,18 +183,18 @@ function renderCard(it: KnowledgeItem, vm: KnowledgeViewModel): string {
     `</div><div class="qprompt">${esc(it.prompt)}</div>` +
     qsrcHTML(it.src);
   if (full) {
-    c += `<textarea class="ans dictxt" id="ans-${esc(it.id)}" style="min-height:80px;margin-top:8px" placeholder="Write your answer here, then reveal to compare — active recall beats just reading."></textarea>`;
+    c += `<textarea class="ans dictxt" id="ans-${esc(it.id)}" style="min-height:80px;margin-top:10px" placeholder="Write your answer here, then reveal to compare — active recall beats just reading."></textarea>`;
   }
   c +=
-    `<div class="qactions"><button class="mbtn" data-act="reveal" data-id="${esc(it.id)}">${full ? 'Reveal model answer' : 'Show answer'}</button>` +
-    `<button class="mbtn" data-act="ai-answer" data-id="${esc(it.id)}">AI answer</button>` +
-    (full ? `<button class="mbtn" data-act="ai-grade" data-id="${esc(it.id)}">AI grade my answer</button>` : '') +
+    `<div class="qactions"><button class="mbtn primary" data-act="reveal" data-id="${esc(it.id)}">${full ? 'Reveal model answer' : 'Show answer'}</button>` +
+    `<button class="mbtn" data-act="ai-answer" data-id="${esc(it.id)}">✦ AI answer</button>` +
+    (full ? `<button class="mbtn" data-act="ai-grade" data-id="${esc(it.id)}">✦ AI grade</button>` : '') +
     `</div><div id="ai-${esc(it.id)}" class="note" style="margin-top:6px"></div>` +
     `<div class="reveal${open ? ' on' : ''}" id="rv-${esc(it.id)}">${formatReveal(it.reveal)}` +
-    `<div class="mrow" style="margin-top:8px"><button class="mbtn" data-act="queue" data-id="${esc(it.id)}">➕ Add to review queue</button></div>` +
-    `<div class="rate" id="rate-${esc(it.id)}"><span style="color:var(--dim);font-size:11px;align-self:center">Rate recall:</span>` +
+    `<button class="qmeta-add" data-act="queue" data-id="${esc(it.id)}">+ Add to review queue</button>` +
+    `<div class="rate" id="rate-${esc(it.id)}"><span class="rl">Recall</span>` +
     [1, 2, 3, 4, 5]
-      .map((n) => `<button data-act="rate" data-id="${esc(it.id)}" data-score="${n}">${n} ${MASTERY_TEXT[n]}</button>`)
+      .map((n) => `<button data-act="rate" data-id="${esc(it.id)}" data-score="${n}"><span class="rn">${n}</span>${MASTERY_TEXT[n]}</button>`)
       .join('') +
     `</div></div></div>`;
   return c;
@@ -154,21 +208,20 @@ export function renderKnowledgeHTML(vm: KnowledgeViewModel): string {
 }
 
 function renderKnowledgeBody(vm: KnowledgeViewModel): string {
-  let h = renderTabs(vm);
+  const isReal = vm.topicId !== '__review__' && vm.topicId !== '__target__';
+  let h = renderTopicHead(vm);
 
   if (vm.dueCount > 0 && vm.topicId !== '__review__' && !vm.gymMode) {
     h +=
-      `<div class="panel" style="border-color:var(--protein)"><div class="mrow" style="justify-content:space-between">` +
-      `<p class="panel-t" style="margin:0;color:var(--protein)">Due for review · ${vm.dueCount}</p>` +
-      `<button class="mbtn" data-act="review">Start review</button></div>` +
-      `<div class="note">Interleaved recall across all topics — the highest-value thing you can do today.</div></div>`;
+      `<div class="kdue"><div class="kdue-t"><b>${vm.dueCount} due for review</b>` +
+      `<small>Interleaved recall — the highest-value thing today.</small></div>` +
+      `<button class="kdue-b" data-act="review">Start review</button></div>`;
   }
 
-  if (vm.topicId !== '__review__' && vm.topicId !== '__target__') {
+  if (isReal) {
     h +=
-      `<div class="mrow" style="margin-top:10px;gap:8px">` +
-      `<button class="mbtn${vm.gymMode ? ' primary' : ''}" data-act="gym">🎧 ${vm.gymMode ? '← Back to questions' : 'Gym session'}</button>` +
-      `<span class="note" style="align-self:center">${vm.gymMode ? 'Videos + readings for the gym' : 'Recall practice'}</span></div>`;
+      `<div class="kgymrow"><button class="mbtn${vm.gymMode ? ' primary' : ''}" data-act="gym">🎧 ${vm.gymMode ? '← Back to questions' : 'Gym session'}</button>` +
+      `<span class="note">${vm.gymMode ? 'Videos + readings for the gym' : 'Recall practice'}</span></div>`;
   }
 
   if (vm.gymMode && vm.gym) {
@@ -189,38 +242,12 @@ function renderKnowledgeBody(vm: KnowledgeViewModel): string {
     return h;
   }
 
-  if (vm.sources.length) {
-    h +=
-      `<div class="klink"><b>Sources:</b> ` +
-      vm.sources.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>`).join(' · ') +
-      `</div>`;
-  }
-
   if (!vm.items.length) {
     h += `<div class="stub">This topic is scaffolded — questions land here next. Tap “Gym session” above for videos and readings while it fills in.</div>`;
     return h;
   }
 
-  h +=
-    `<div class="panel" style="margin-top:10px"><p class="panel-t">Studying for</p>` +
-    `<div class="timebar" style="flex-wrap:wrap">` +
-    vm.targets
-      .map(([id, label]) => `<button class="${id === vm.target ? 'on' : ''}" data-act="target" data-id="${esc(id)}">${esc(label)}</button>`)
-      .join('') +
-    `</div>` +
-    (vm.target !== 'all'
-      ? `<div class="note" style="margin-top:6px">${vm.targetCount} questions tagged ${esc(vm.target)} across all topics · ` +
-        `<button class="mbtn" data-act="study-tagged" style="padding:3px 8px;font-size:11px">Study them all</button></div>`
-      : '') +
-    `</div>`;
-
-  h +=
-    `<div class="timebar" style="margin-top:10px">` +
-    ['all', '5', '15', '30']
-      .map((t) => `<button class="${t === vm.timeFilter ? 'on' : ''}" data-act="time" data-id="${t}">${TIME_LABEL[t]}</button>`)
-      .join('') +
-    `</div>`;
-
+  h += renderFilters(vm);
   h += vm.items.map((it) => renderCard(it, vm)).join('');
   return h;
 }
