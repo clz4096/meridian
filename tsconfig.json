@@ -10,7 +10,7 @@
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": false,
     "declaration": true,
-    "outDir": "dist",
+    "outDir": "dist-bench",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "resolveJsonModule": true,

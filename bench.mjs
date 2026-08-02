@@ -5,13 +5,13 @@
  * Fails the process if any operation exceeds one 60fps frame (16ms).
  */
 import fs from 'node:fs';
-import * as S from './dist/workoutSelectors.js';
-import * as V from './dist/workoutView.js';
-import * as M from './dist/mealSelectors.js';
-import * as K from './dist/knowledgeSelectors.js';
-import * as D from './dist/dataSelectors.js';
-import * as G from './dist/mergeStores.js';
-import * as U from './dist/util.js';
+import * as S from './dist-bench/workoutSelectors.js';
+import * as V from './dist-bench/workoutView.js';
+import * as M from './dist-bench/mealSelectors.js';
+import * as K from './dist-bench/knowledgeSelectors.js';
+import * as D from './dist-bench/dataSelectors.js';
+import * as G from './dist-bench/mergeStores.js';
+import * as U from './dist-bench/util.js';
 
 const WK = JSON.parse(fs.readFileSync('src/data/defaultWorkout.json', 'utf8'));
 Object.assign(WK, { done: WK.done ?? {}, sessionDone: WK.sessionDone ?? {}, incr: WK.incr ?? {}, _del: WK._del ?? {} });
