@@ -582,6 +582,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       },
       toggleGym() {
         kgGym = !kgGym;
+        if (kgGym) ctx.pushState?.(); // gym is a level deeper than questions — back returns here
         renderKnowledge();
       },
       toggleGymDone(key: string) {
@@ -702,6 +703,7 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
       toggleLog() {
         kgLogOpen = !kgLogOpen;
         if (kgLogOpen) ctx.pushState?.();
+        else kgGym = false; // leaving the questions screen also drops gym mode
         renderKnowledge();
       },
     });
@@ -1201,6 +1203,11 @@ export function createApp(host: AppHost, ctx: AppCtx): AppController {
     if (currentTab === 'meal' && sgLogOpen) {
       sgLogOpen = false;
       renderWeight();
+      return true;
+    }
+    if (currentTab === 'knowledge' && kgGym) {
+      kgGym = false; // gym → back to the questions list (one level up)
+      renderKnowledge();
       return true;
     }
     if (currentTab === 'knowledge' && kgLogOpen) {

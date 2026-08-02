@@ -200,11 +200,16 @@ function renderCard(it: KnowledgeItem, vm: KnowledgeViewModel): string {
   return c;
 }
 
-/** Two screens: Progress (charts + CTA) by default, Detail (back + questions) once drilled in. */
+/**
+ * Screens nest: Progress (charts) → Questions → Gym. The single top-left back
+ * button always walks up exactly one level, matching the OS/swipe back.
+ */
 export function renderKnowledgeHTML(vm: KnowledgeViewModel): string {
-  return vm.logOpen
-    ? '<button class="backbtn" data-act="toggle-log">← Progress</button>' + renderKnowledgeBody(vm)
-    : (vm.charts ?? '');
+  if (!vm.logOpen) return vm.charts ?? '';
+  const back = vm.gymMode
+    ? '<button class="backbtn" data-act="gym">‹ Questions</button>'
+    : '<button class="backbtn" data-act="toggle-log">‹ Progress</button>';
+  return back + renderKnowledgeBody(vm);
 }
 
 function renderKnowledgeBody(vm: KnowledgeViewModel): string {
@@ -218,10 +223,11 @@ function renderKnowledgeBody(vm: KnowledgeViewModel): string {
       `<button class="kdue-b" data-act="review">Start review</button></div>`;
   }
 
-  if (isReal) {
+  // The enter affordance only; exiting gym is the top-left back button (one level up).
+  if (isReal && !vm.gymMode) {
     h +=
-      `<div class="kgymrow"><button class="mbtn${vm.gymMode ? ' primary' : ''}" data-act="gym">🎧 ${vm.gymMode ? '← Back to questions' : 'Gym session'}</button>` +
-      `<span class="note">${vm.gymMode ? 'Videos + readings for the gym' : 'Recall practice'}</span></div>`;
+      `<div class="kgymrow"><button class="mbtn" data-act="gym">🎧 Gym session</button>` +
+      `<span class="note">Videos + readings — recall practice</span></div>`;
   }
 
   if (vm.gymMode && vm.gym) {
