@@ -5,10 +5,11 @@
  * screen: the add-a-meal inputs (read by id), preset chips, and the date nav —
  * each wired to the matching mealActions method.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { MealView } from '@/features/meal/MealTab';
 import { mealActions, MEAL_PRESETS } from '@/ui/actions';
+import { appState, dstr } from '@/app/bootstrap';
 import { sgLoaded, sgLogOpen, sgDate } from '@/ui/store';
 
 beforeEach(() => {
@@ -80,5 +81,56 @@ describe('MealView', () => {
     expect(dateSpy).toHaveBeenNthCalledWith(1, 'prev');
     expect(dateSpy).toHaveBeenNthCalledWith(2, 'next');
     expect(dateSpy).toHaveBeenNthCalledWith(3, 'today');
+  });
+});
+
+/**
+ * Regression: the Progress-screen hero must sum today's meals by the *local*
+ * calendar day (dstr()), the same key meals are stored under — not the UTC day.
+ * These pin a fixed timezone + clock so the local date and the UTC date fall on
+ * different calendar days; the old code keyed the hero off the UTC day and read
+ * an empty bucket, showing 0 while the log view (local day) showed the real sum.
+ */
+describe('MealView · Progress hero uses the local calendar day', () => {
+  const realTZ = process.env.TZ;
+
+  beforeAll(() => {
+    process.env.TZ = 'America/New_York'; // UTC-4/5
+  });
+  afterAll(() => {
+    process.env.TZ = realTZ;
+  });
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // 02:00 UTC on Mar 10 = 22:00 on Mar 9 in New York → local day != UTC day.
+    vi.setSystemTime(new Date('2026-03-10T02:00:00Z'));
+    sgLoaded.value = true;
+    sgLogOpen.value = false;
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    cleanup();
+    vi.restoreAllMocks();
+    localStorage.clear();
+    sgLoaded.value = false;
+    appState.set('surplus', { settings: {}, days: {}, tad: {} });
+  });
+
+  it('sums meals stored under the local day, not the (different) UTC day', () => {
+    // precondition: we really are in a cross-midnight window, else the test is moot
+    const localDay = dstr();
+    const utcDay = new Date().toISOString().slice(0, 10);
+    expect(localDay).not.toBe(utcDay);
+
+    appState.set('surplus', {
+      settings: {},
+      days: { [localDay]: [{ id: 'm1', name: 'Lunch', cal: 230, protein: 20 }] },
+      tad: {},
+    });
+
+    const { container } = render(<MealView />);
+    const hero = container.querySelector('.hero-v');
+    expect(hero?.textContent).toContain('230'); // not '0' — reads the local-day bucket
   });
 });

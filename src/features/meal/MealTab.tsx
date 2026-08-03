@@ -9,7 +9,7 @@ import { calorieSeries, proteinSeries, calorieTarget, proteinTarget } from '@/ui
 import { SectionHead, Hero, ProgControls, Carousel, Chart, ViewLogCta, type Delta } from '@/ui/components/Charts';
 import { sgLoaded, sgLogOpen, sgExtrasOpen, sgDate, progPeriod, dataRev } from '@/ui/store';
 import { sg, mealActions, loadMeal, toggleMealExtras, MEAL_PRESETS } from '@/ui/actions';
-import { dateLabel } from '@/app/bootstrap';
+import { dateLabel, dstr } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 
 type VM = ReturnType<typeof selectMealView>;
@@ -20,7 +20,7 @@ function MealProgress() {
   const period = progPeriod.value;
   const calT = calorieTarget(G);
   const proT = proteinTarget(G);
-  const todayCal = (G.days?.[new Date().toISOString().slice(0, 10)] ?? []).reduce((a: number, m: { cal?: number }) => a + (+(m.cal ?? 0) || 0), 0);
+  const todayCal = (G.days?.[dstr()] ?? []).reduce((a: number, m: { cal?: number }) => a + (+(m.cal ?? 0) || 0), 0);
   const calDelta = calT ? todayCal - calT : null;
   const delta: Delta | undefined =
     todayCal === 0
@@ -96,7 +96,7 @@ function MealExtras({ vm }: { vm: VM }) {
 }
 
 function MealLog() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dstr();
   const vm = selectMealView(sg(), sgDate.value ?? today, today);
   const t = vm.targets;
   const calLeft = t.dailyCalories - vm.totals.calories;
