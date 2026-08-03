@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+import preact from '@preact/preset-vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // Meridian is a GitHub Pages *project* site served under /meridian/, so every
@@ -16,6 +17,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
   },
   plugins: [
+    preact(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],

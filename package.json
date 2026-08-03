@@ -22,15 +22,22 @@
     "deep:3": "FC_RUNS=10000 vitest run src/mealSelectors.test.ts src/dataSelectors.test.ts"
   },
   "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@testing-library/preact": "^3.2.4",
     "@types/node": "^26.1.2",
     "@types/three": "^0.185.3",
     "esbuild": "^0.25.0",
     "fake-indexeddb": "^6.2.5",
     "fast-check": "^3.23.2",
+    "jsdom": "^30.0.1",
     "three": "^0.185.1",
     "typescript": "^5.9.3",
     "vite": "^5.4.21",
     "vite-plugin-pwa": "^0.20.5",
     "vitest": "^2.1.9"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.10.1",
+    "preact": "^10.29.8"
   }
 }

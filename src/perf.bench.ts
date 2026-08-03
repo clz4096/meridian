@@ -7,7 +7,6 @@
 import { bench, describe } from 'vitest';
 import defaultWorkout from '@/core/data/defaultWorkout.json';
 import { selectWorkoutView } from '@/features/workout/workoutSelectors';
-import { renderWorkoutHTML, type WorkoutViewOptions } from '@/features/workout/workoutView';
 import { selectMealView } from '@/features/meal/mealSelectors';
 import { schedule } from '@/features/knowledge/knowledgeSelectors';
 import { storageMetrics, normaliseState, roundTrip } from '@/features/data/dataSelectors';
@@ -28,18 +27,8 @@ const state = {
   surplus: SG,
   csgraph: { mastery: {}, srs: {}, log: [], gymDone: {} },
 } as any;
-const opts = {
-  restSeconds: new Proxy({}, { get: () => ({ warm: 60, top: 180, back: 120 }) }) as WorkoutViewOptions['restSeconds'],
-  increments: new Proxy({}, { get: () => 5 }) as WorkoutViewOptions['increments'],
-  videoUrl: () => '#',
-  bodyweight: { current: 120, goal: 150, toGoal: 30 },
-  dateLabel: (d: string) => d,
-  isToday: true,
-};
-
 describe('data core + selectors', () => {
   bench('selectWorkoutView', () => { selectWorkoutView(WK, DAY, DAY); });
-  bench('renderWorkoutHTML', () => { renderWorkoutHTML(selectWorkoutView(WK, DAY, DAY), opts); });
   bench('selectMealView', () => { selectMealView(SG, DAY, DAY); });
   bench('SRS schedule transition', () => { schedule({ due: '2026-01-01', ivl: 10, ease: 2.5, n: 4 }, 4, DAY); });
   bench('normaliseState + metrics', () => { storageMetrics(normaliseState(state)); });

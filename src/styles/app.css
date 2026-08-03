@@ -240,15 +240,16 @@ body.at-hub #pane-hub{flex:1;display:flex;flex-direction:column}
 .secbar{margin:0}
 .carousel{display:flex;align-items:stretch;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin-top:var(--sp2)}
 .carousel::-webkit-scrollbar{height:0;display:none}
-.carousel>.chart{flex:0 0 100%;min-width:0;scroll-snap-align:center;margin:0}
+.carousel>*{flex:0 0 100%;min-width:0;scroll-snap-align:center;margin:0}
+.chart-cell>.chart{margin:0}
 /* the embedded series picker scrolls inside its card, never widens it */
 .chart .prog-lift{margin:8px 0 2px;max-width:100%}
 .cdots{display:flex;gap:7px;justify-content:center;align-items:center;margin-top:var(--sp3)}
 .cdots .cdot{width:6px;height:6px;min-width:0;min-height:0;flex:0 0 auto;border-radius:50%;background:var(--line-2);border:0;padding:0;line-height:0;cursor:pointer;transition:background var(--dur),width var(--dur)}
 .cdots .cdot.on{background:var(--teal);width:18px;border-radius:3px}
 /* entrance motion (plays on tab switch; not on in-tab repaints) */
-.tabpane.on{animation:paneIn .28s var(--ease)}
-@keyframes paneIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.tabpane.on{animation:paneIn .4s var(--ease)}
+@keyframes paneIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .placeholder{border:1px dashed var(--line);border-radius:14px;padding:28px 18px;color:var(--dim);text-align:center;margin-top:14px;font-size:14px}
 /* buttons/inputs */
 .mbtn{min-height:44px;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:9px 13px;cursor:pointer;font-size:13.5px;font-family:var(--sans)}

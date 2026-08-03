@@ -12,32 +12,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 </head>
 <body>
-<div class="appwrap">
-  <div class="brandrow">
-    <div class="brand"><b>Meridia<span class="mn">n</span></b></div>
-  </div>
-  <div class="tabpane" id="pane-hub"></div>
-  <div class="tabpane" id="pane-knowledge"></div>
-  <div class="tabpane" id="pane-workout"></div>
-  <div class="tabpane" id="pane-weight"></div>
-  <div class="tabpane" id="pane-data"></div>
-</div>
-<nav class="navbar" id="tabbar" role="navigation" aria-label="Main">
-  <button data-t="knowledge" class="on" aria-label="Knowledge"><span class="ni" aria-hidden="true">◈</span><span class="nl">Knowledge</span></button>
-  <button data-t="workout" aria-label="Workout"><span class="ni" aria-hidden="true">▲</span><span class="nl">Workout</span></button>
-  <button data-t="weight" aria-label="Meals"><span class="ni" aria-hidden="true">●</span><span class="nl">Meals</span></button>
-  <button data-t="data" aria-label="Data"><span class="ni" aria-hidden="true">▦</span><span class="nl">Data</span></button>
-</nav>
-<div class="restbar" id="restbar" style="display:none">
-  <div class="restfill" id="restfill"></div>
-  <div class="restrow">
-    <span class="resttime" id="resttime">0:00</span>
-    <div class="restmeta"><div class="restl" id="restl">Rest</div><div class="reste" id="reste"></div></div>
-    <button class="restskip" id="rest-stop">Skip</button>
-  </div>
-</div>
-<button class="savestat" id="savechip"><span class="dot"></span><span id="savetxt">Saved</span></button>
-<div class="savedflash" id="savedflash">Saved &#10003;</div>
+<div id="app"></div>
 <div id="landing">
   <div id="stage"></div>
   <div class="overlay">
@@ -49,6 +24,6 @@
     <div class="hint" id="hint">drag to rotate</div>
   </div>
 </div>
-<script type="module" src="/src/app/main.ts"></script>
+<script type="module" src="/src/app/main.tsx"></script>
 </body>
 </html>

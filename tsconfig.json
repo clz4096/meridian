@@ -5,6 +5,8 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": { "@/*": ["src/*"] },
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "strict": true,
     "noUncheckedIndexedAccess": false,
     "noImplicitOverride": true,
