@@ -13,17 +13,19 @@ src/
     storage/    #   appState (save/dirty/autosave), adapters (cloud: Supabase/Pantry), store (IndexedDB)
     data/       #   seed content (books, defaultWorkout, exVideo, gym, targets, topics) + loader
     types.ts util.ts coreSelectors.ts appHost.ts(port interface)
-  features/     # the four tabs — each owns its read-model + view + tests
-    workout/    #   workoutSelectors (progression math) + view
-    meal/       #   mealSelectors (calorie/macro math) + view
-    knowledge/  #   knowledgeSelectors (spaced repetition) + questionBank + view
-    data/       #   dataSelectors (storage/sync status) + view
-  ui/           # shared presentation
+  features/     # the four tabs — each owns its read-model + component + types + tests
+    workout/    #   workoutSelectors (progression math) + WorkoutTab.tsx + types.ts
+    meal/       #   mealSelectors (calorie/macro math) + MealTab.tsx + types.ts
+    knowledge/  #   knowledgeSelectors (spaced repetition) + questionBank + KnowledgeTab.tsx + types.ts
+    data/       #   dataSelectors (storage/sync status) + DataTab.tsx + types.ts
+  ui/           # the Preact layer + shared presentation
     charts/     #   chart (numbers -> inline SVG) + progress (series builders)
-    html.ts tokens.ts restTimer.ts hubView.ts viewHost.ts
+    components/  #   shared components: Chart, Carousel, SectionHead, SaveChip, RestBar
+    App.tsx Hub.tsx store.ts(signals) actions.ts host.ts html.ts tokens.ts restTimer.ts hubTypes.ts
   services/     # external calls — ai.ts (meal estimation, answer grading via the cloud proxy)
-  app/          # composition root / wiring — main (Vite entry), entry, app (orchestrator), dom*Host
+  app/          # composition root — bootstrap.ts (wiring) + main.tsx (Vite entry, landing gate)
   landing/      # the Three.js constellation gate (lazy-loaded, decorative)
+  test/         # setup.ts — jsdom localStorage polyfill for the component tests
 ```
 
 **Dependency direction:** `app → features → ui/services → core`. The core never imports upward.
@@ -32,12 +34,13 @@ src/
 
 ## Key ideas
 
-- **Ports & adapters.** `appHost` (interface) / `domAppHost` (DOM implementation) is the app-shell
-  port+adapter; `viewHost` / `domHost` is the per-screen rendering port+adapter. Splitting the
-  contract from the DOM is what lets the logic be tested against a fake host with no browser.
-  *(Most of this rendering machinery is slated to be replaced by a UI framework — see below.)*
-- **Selectors are pure read-models.** A view is a pure `ViewModel -> HTML` function; the ViewModel
-  comes from a selector over a plain store object. No derivation lives in the view.
+- **Preact + signals.** UI state lives as signals in `ui/store.ts`; `ui/actions.ts` mutates the
+  plain store objects in place and calls `bump()` to trigger a reactive re-derive. Components read
+  the signals they depend on and derive their ViewModel via a selector — no manual re-render
+  orchestration, no repaint controller. `ui/host.ts` is the thin side-effect surface (localStorage,
+  dialogs, the save-chip/rest-bar bridged to signals) that actions + `appState` call.
+- **Selectors are pure read-models.** A component derives its ViewModel from a selector over a plain
+  store object; no derivation logic lives in the markup. The same selectors are unit-tested directly.
 - **Offline-first sync.** Each store has a monotonic revision and tombstones; two device copies
   merge without conflict. Cloud (Supabase/Pantry) is optional — the app is fully usable offline.
 
