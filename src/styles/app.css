@@ -145,7 +145,7 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .set .st{width:16px;flex:none;text-align:center}
 .set .nm{width:74px;flex:none;color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.07em}
 .set .vl{color:var(--text);font-variant-numeric:tabular-nums}
-.set .undo{margin-left:auto;color:var(--dim);cursor:pointer;font-size:15px;padding:2px 6px;min-height:0}
+.set .undo{margin:-9px 0 -9px auto;padding:9px 12px;color:var(--dim);cursor:pointer;font-size:15px;line-height:1;min-height:0}
 .set.done .st{color:var(--ok)}.set.done .vl{color:var(--muted)}
 .set.now{background:var(--surface-1);border-radius:10px}
 .set.now .st{color:var(--teal)}.set.now .nm{color:var(--teal)}

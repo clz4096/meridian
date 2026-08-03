@@ -93,7 +93,9 @@ export const workoutActions: WorkoutActions = {
       if (!W.done) W.done = {};
       if (!W.done[td]) W.done[td] = [];
       if (W.done[td].indexOf(ex) < 0) W.done[td].push(ex);
-      restTimer.dismissFor(ex);
+      restTimer.dismissFor(ex); // last prescribed set logged → exercise done, no rest to time
+    } else {
+      restTimer.start(ex, type, restSecs(ex, type)); // more sets to go → start the rest countdown
     }
     st.bump();
   },

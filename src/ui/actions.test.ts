@@ -10,10 +10,12 @@
  * Runs in jsdom (see vitest.config): the bodies call host.setValue/status, which
  * touch document.getElementById — harmlessly no-op when the element is absent.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mealActions, knowledgeActions, workoutActions, sg, kg, core, wk } from '@/ui/actions';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mealActions, knowledgeActions, workoutActions, restTimer, sg, kg, core, wk } from '@/ui/actions';
 import { appState, dstr } from '@/app/bootstrap';
-import { dataRev, sgDate, wkDate, kgTopic, kgItems } from '@/ui/store';
+import { selectWorkoutView } from '@/features/workout/workoutSelectors';
+import defaultWorkout from '@/core/data/defaultWorkout.json';
+import { dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems } from '@/ui/store';
 
 const today = dstr();
 
@@ -82,5 +84,48 @@ describe('workout logSet', () => {
     workoutActions.logSet('Leg Press', 'top', 0, 5);
     expect(wk().days[today]).toBeUndefined();
     expect(dirty).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Rest timer: logging a set starts the rest countdown, EXCEPT the last
+ * prescribed set of the exercise, which completes it (dismiss, no rest). Seeds
+ * the real default workout so an exercise has a multi-set prescription; spies on
+ * restTimer so the real interval never runs.
+ */
+describe('workout logSet → rest timer', () => {
+  let ex: string;
+  let need: number;
+
+  beforeEach(() => {
+    appState.set('overload', JSON.parse(JSON.stringify(defaultWorkout)));
+    wkDate.value = today;
+    wkDeload.value = {};
+    const view = selectWorkoutView(wk(), today, today, { deload: {} });
+    const plans = view.plans as Record<string, { cardio?: boolean; warms: unknown[]; backs: unknown[] }>;
+    ex = Object.keys(plans).find((e) => {
+      const p = plans[e]!;
+      return !p.cardio && p.warms.length + 1 + p.backs.length > 1;
+    })!;
+    need = plans[ex]!.warms.length + 1 + plans[ex]!.backs.length;
+  });
+
+  afterEach(() => {
+    wkDate.value = null;
+    wkDeload.value = {};
+  });
+
+  it('finds a multi-set prescription to exercise the branch', () => {
+    expect(ex).toBeTruthy();
+    expect(need).toBeGreaterThan(1);
+  });
+
+  it('starts the rest timer after each set except the last of the exercise', () => {
+    const start = vi.spyOn(restTimer, 'start').mockImplementation(() => {});
+    const dismiss = vi.spyOn(restTimer, 'dismissFor').mockImplementation(() => {});
+    for (let i = 0; i < need; i++) workoutActions.logSet(ex, 'top', 100 + i, 5);
+    expect(start).toHaveBeenCalledTimes(need - 1); // every set but the last
+    expect(dismiss).toHaveBeenCalledTimes(1); // the last completes the exercise
+    expect(dismiss).toHaveBeenLastCalledWith(ex);
   });
 });

@@ -6,6 +6,7 @@
 import { useEffect } from 'preact/hooks';
 import { saveState, savedFlash, restState } from '@/ui/store';
 import { stopRest } from '@/ui/host';
+import { appState } from '@/app/bootstrap';
 
 export function SaveChip() {
   const s = saveState.value;
@@ -13,7 +14,7 @@ export function SaveChip() {
   return (
     <>
       {(s.dirty || s.failed) && (
-        <button class={'savestat ' + (s.failed ? 'failed' : 'dirty')} id="savechip">
+        <button class={'savestat ' + (s.failed ? 'failed' : 'dirty')} id="savechip" onClick={() => void appState.save()}>
           <span class="dot" />
           <span id="savetxt">{s.failed ? 'Save failed' : 'Unsaved'}</span>
         </button>
