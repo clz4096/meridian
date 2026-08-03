@@ -6,9 +6,9 @@
  * each wired to the matching mealActions method.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render } from '@testing-library/preact';
+import { act, cleanup, fireEvent, render } from '@testing-library/preact';
 import { MealView } from '@/features/meal/MealTab';
-import { mealActions, MEAL_PRESETS } from '@/ui/actions';
+import { mealActions, sg, MEAL_PRESETS } from '@/ui/actions';
 import { appState, dstr } from '@/app/bootstrap';
 import { sgLoaded, sgLogOpen, sgDate } from '@/ui/store';
 
@@ -132,5 +132,47 @@ describe('MealView · Progress hero uses the local calendar day', () => {
     const { container } = render(<MealView />);
     const hero = container.querySelector('.hero-v');
     expect(hero?.textContent).toContain('230'); // not '0' — reads the local-day bucket
+  });
+});
+
+/**
+ * Regression: the log screen must re-render when a meal is added or removed. The
+ * store-deriving work lives in the MealLog child, so it must subscribe to
+ * dataRev itself — a subscription on the MealView parent alone did not re-render
+ * the child, so logged/deleted meals silently didn't appear.
+ */
+describe('MealView · log list reacts to add/remove', () => {
+  beforeEach(() => {
+    sgLoaded.value = true;
+    sgLogOpen.value = true;
+    sgDate.value = null;
+    appState.set('surplus', { settings: {}, days: {}, tad: {} });
+  });
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    localStorage.clear();
+    sgLoaded.value = false;
+    sgLogOpen.value = false;
+    sgDate.value = null;
+    appState.set('surplus', { settings: {}, days: {}, tad: {} });
+  });
+
+  it('shows a meal after it is logged and hides it after it is deleted', async () => {
+    // A name that is NOT one of the preset chips, so the query only hits the list.
+    const NAME = 'Grilled Halibut';
+    const { queryByText } = render(<MealView />);
+    expect(queryByText(NAME)).toBeNull();
+
+    await act(async () => {
+      mealActions.addMeal(NAME, 321, 44);
+    });
+    expect(queryByText(NAME)).toBeTruthy();
+
+    const id = sg().days[dstr()][0].id as string;
+    await act(async () => {
+      mealActions.deleteMeal(id);
+    });
+    expect(queryByText(NAME)).toBeNull();
   });
 });

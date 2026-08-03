@@ -190,7 +190,7 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .mealnm{flex:1;font-size:14.5px}
 .mealest{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--protein);border:1px solid rgba(167,139,234,.4);border-radius:10px;padding:2px 6px;margin-left:6px}
 .mealmac{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-.mealrm{color:var(--faint);cursor:pointer;padding:4px 8px;font-size:16px;min-height:0}
+.mealrm{margin:-13px 0;padding:13px 10px;color:var(--faint);cursor:pointer;font-size:16px;line-height:1;min-height:0}
 .mealrm:hover{color:var(--deficit)}
 .hero-k{font-family:var(--sans);font-size:var(--fs-caption);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:var(--sp1)}
 .hero-v{font-family:var(--mono);font-size:48px;font-weight:600;line-height:.95;letter-spacing:-.02em}

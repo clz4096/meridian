@@ -16,6 +16,7 @@ type VM = ReturnType<typeof selectMealView>;
 const rv = (id: string): string => host.readValue(id);
 
 function MealProgress() {
+  dataRev.value; // subscribe here (not just the MealView parent) so a logged/removed meal re-derives
   const G = sg();
   const period = progPeriod.value;
   const calT = calorieTarget(G);
@@ -96,6 +97,7 @@ function MealExtras({ vm }: { vm: VM }) {
 }
 
 function MealLog() {
+  dataRev.value; // subscribe here (not just the MealView parent) so a logged/removed meal re-derives
   const today = dstr();
   const vm = selectMealView(sg(), sgDate.value ?? today, today);
   const t = vm.targets;
