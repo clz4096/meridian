@@ -21,6 +21,8 @@
   /* motion */
   --ease:cubic-bezier(.2,.8,.2,1); --dur:.22s;
   --mono:ui-monospace,SFMono-Regular,Menlo,monospace; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  /* display face for the Today clock (system stack; swap for an inlined woff2 to go further) */
+  --disp:"SF Pro Display","Segoe UI Variable Display","Segoe UI",var(--sans);
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -78,7 +80,7 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .tabbar button{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:10px;padding:8px 14px;font-size:13.5px;font-family:var(--sans);cursor:pointer;white-space:nowrap}
 .tabbar button.on{background:var(--panel2);color:var(--text);border-color:var(--teal)}
 .tabpane{display:none}
-.tabpane.on{display:block}
+.tabpane.on{display:block;position:relative}
 /* panels */
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-top:14px}
 .panel-t{font-family:var(--sans);font-size:var(--fs-caption);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 var(--sp3)}
@@ -560,19 +562,32 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .daynav-item.on{background:var(--surface-3);color:var(--text)}
 
 /* ── Today home ── */
-.today-hero{margin:18px 2px 6px}
-.today-greet{font-size:14px;color:var(--muted);margin-bottom:6px}
-.today-herorow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.today-time{font-family:var(--mono);font-size:40px;font-weight:600;letter-spacing:-.02em;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
-.today-date{font-size:14px;color:var(--muted);margin-top:6px}
-.today-wxblock{text-align:right;white-space:nowrap;padding-top:5px;cursor:pointer}
-.today-wxt{font-family:var(--mono);font-size:23px;color:var(--text);line-height:1}
+/* (1) ambient time-of-day wash — fills the rounded hero panel */
+.today-wash{position:absolute;inset:0;z-index:0;pointer-events:none;transition:background .8s ease}
+.today-wash[data-tod="dawn"]{background:radial-gradient(120% 90% at 50% -12%,rgba(242,178,92,.15),rgba(224,120,90,.05) 42%,transparent 66%)}
+.today-wash[data-tod="day"]{background:radial-gradient(120% 90% at 50% -12%,rgba(124,201,236,.07),transparent 60%)}
+.today-wash[data-tod="dusk"]{background:radial-gradient(120% 90% at 50% -12%,rgba(224,120,90,.15),rgba(167,139,234,.08) 44%,transparent 68%)}
+.today-wash[data-tod="night"]{background:radial-gradient(120% 90% at 50% -12%,rgba(90,120,210,.15),rgba(60,80,150,.05) 46%,transparent 66%)}
+.today-hero{position:relative;overflow:hidden;border-radius:22px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(30,36,46,.5),rgba(23,28,36,.16));padding:15px 18px 18px;margin:14px 0 8px}
+.today-greet{position:relative;z-index:1;text-align:center;font-size:13px;color:var(--muted);letter-spacing:.02em;margin-bottom:10px}
+.today-herorow{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+/* (3) display-type clock with live seconds + amber am/pm */
+.today-time{font-family:var(--disp);font-size:44px;font-weight:500;letter-spacing:-.02em;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
+.today-secs{font-size:23px;font-weight:400;color:var(--muted);margin-left:1px}
+.today-ampm{font-family:var(--disp);color:var(--hub);font-size:25px;font-weight:500;margin-left:7px}
+.today-date{font-size:14px;color:var(--muted);margin-top:8px}
+.today-wxblock{text-align:right;white-space:nowrap;padding-top:4px;cursor:pointer}
+.today-wxt{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:23px;color:var(--text);line-height:1}
 .today-wxt.today-wxset{font-size:13px;color:var(--muted)}
-.today-wxc{font-size:11.5px;color:var(--faint);margin-top:4px}
+.today-wxi{display:inline-flex;align-items:center}
+.today-wxi svg{display:block}
+.today-wxc{font-size:11.5px;color:var(--faint);margin-top:5px}
+/* (2) weather-reactive accent hairline inside the hero panel (colour set inline) */
+.today-wxline{position:relative;z-index:1;height:2px;margin:14px 0 0;border-radius:2px;transition:background .6s ease}
 .today-sec{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin:26px 2px 10px}
 /* two side-by-side quick-action cards (add a todo / capture an idea) */
 .today-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
-.today-qbtn{display:flex;flex-direction:column;align-items:flex-start;gap:9px;padding:15px 16px;border:1px solid var(--line);background:var(--surface-1);border-radius:16px;cursor:pointer;text-align:left;transition:border-color var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.today-qbtn{position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;gap:9px;padding:15px 16px;border:1px solid var(--line);background:var(--surface-1);border-radius:16px;cursor:pointer;text-align:left;transition:border-color var(--dur) var(--ease),transform var(--dur) var(--ease)}
 .today-qbtn:active{transform:scale(.98)}
 .today-qbtn .qi{font-family:var(--mono);font-size:19px;line-height:1;color:var(--teal)}
 .today-qbtn .ql{font-size:14px;color:var(--text)}
@@ -581,6 +596,23 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .today-qbtn.scratch{background:linear-gradient(180deg,rgba(224,166,75,.10),rgba(224,166,75,.03));border-color:rgba(224,166,75,.26)}
 .today-qbtn.scratch .qi{color:var(--fuel)}
 .today-qbtn.scratch:hover,.today-qbtn.scratch:focus-visible{border-color:rgba(224,166,75,.5)}
+/* (4) tap ripple */
+.today-qbtn .ripple{position:absolute;border-radius:50%;transform:translate(-50%,-50%) scale(0);background:radial-gradient(circle,rgba(255,255,255,.20),transparent 70%);pointer-events:none;animation:ripple .55s var(--ease) forwards}
+@keyframes ripple{to{transform:translate(-50%,-50%) scale(1);opacity:0}}
+/* (4) staggered entrance — the Today pane opts out of the global paneIn and
+   cascades its own sections instead (plays on each mount via the per-screen key) */
+#pane-today{animation:none}
+.today-hero,.today-sec,.todo-row,.empty,.today-actions{animation:todayRise .5s var(--ease) both}
+.today-sec{animation-delay:.12s}
+.todo-row,.empty{animation-delay:.16s}
+.today-actions{animation-delay:.2s}
+.today-tiles .tile{animation:todayRise .5s var(--ease) both}
+.today-tiles .tile:nth-child(1){animation-delay:.26s}
+.today-tiles .tile:nth-child(2){animation-delay:.30s}
+.today-tiles .tile:nth-child(3){animation-delay:.34s}
+.today-tiles .tile:nth-child(4){animation-delay:.38s}
+@keyframes todayRise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.today-hero,.today-sec,.todo-row,.empty,.today-actions,.today-tiles .tile{animation:none}.today-wash,.today-wxline,.today-wxi{transition:none}}
 .today-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .tile{display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:16px;border:1px solid var(--line);background:var(--surface-1);border-radius:16px;cursor:pointer;text-align:left;width:100%;color:inherit;font:inherit;transition:border-color var(--dur) var(--ease),transform var(--dur) var(--ease)}
 .tile:active{transform:scale(.98)}
