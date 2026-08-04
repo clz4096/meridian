@@ -5,9 +5,8 @@
  */
 import { organizeTodos } from '@/features/todos/todosSelectors';
 import type { TodoItem } from '@/core/types';
-import { SectionHead } from '@/ui/components/Charts';
 import { dataRev, todoShowDone } from '@/ui/store';
-import { core, todosActions } from '@/ui/actions';
+import { core, todosActions, goHome } from '@/ui/actions';
 import { dstr } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 
@@ -55,10 +54,28 @@ export function TodosView() {
   const o = organizeTodos(core(), today);
   const showDone = todoShowDone.value;
   const openTotal = o.overdue.length + o.today.length + o.upcoming.length + o.noDate.length;
+  const dueCount = o.overdue.length + o.today.length;
+  const tone = dueCount ? 'dirty' : 'teal';
 
   return (
     <>
-      <SectionHead name="Todos" />
+      <button class="backbtn" onClick={goHome}>
+        ‹ Back
+      </button>
+
+      <div class="sechero">
+        <div class="sechero-wash" data-tone={tone} />
+        <div class="sechero-in">
+          <div class="sechero-eyb">Todos</div>
+          <div class="sechero-row">
+            <div class={'sechero-v tone-' + tone}>
+              {openTotal}
+              <span class="sechero-u">open</span>
+            </div>
+            <div class="sechero-sub">{dueCount ? `${dueCount} due today` : openTotal ? 'nothing due' : 'all clear'}</div>
+          </div>
+        </div>
+      </div>
 
       <div class="addcard">
         <div class="addrow">

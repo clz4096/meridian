@@ -297,8 +297,9 @@ body:not(.at-home) .tabpane{padding-top:calc(14px + env(safe-area-inset-top))}
 .sechero-row{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
 .sechero-v{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:30px;font-weight:600;line-height:1;color:var(--text)}
 .sechero-v .ddot{width:11px;height:11px;border-radius:50%;background:currentColor;flex:none}
+.sechero-u{font-size:14px;color:var(--muted);margin-left:5px;font-weight:400}
 .sechero-sub{font-family:var(--mono);font-size:12px;color:var(--faint);text-align:right;line-height:1.5}
-.tone-ok{color:var(--ok)}.tone-dirty{color:var(--fuel)}.tone-off{color:var(--dim)}
+.tone-ok{color:var(--ok)}.tone-dirty{color:var(--fuel)}.tone-off{color:var(--dim)}.tone-teal{color:var(--teal)}.tone-fuel{color:var(--fuel)}
 .tilegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .dcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:14px}
 .dcard-h{display:flex;align-items:center;justify-content:space-between;gap:12px}

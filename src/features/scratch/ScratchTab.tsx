@@ -5,9 +5,8 @@
  */
 import { organizeScratch, SCRATCH_STATUSES, STATUS_LABEL } from '@/features/scratch/scratchSelectors';
 import type { ScratchCard, ScratchStatus } from '@/core/types';
-import { SectionHead } from '@/ui/components/Charts';
 import { dataRev, scratchFilter, scratchOpen } from '@/ui/store';
-import { core, scratchActions } from '@/ui/actions';
+import { core, scratchActions, goHome } from '@/ui/actions';
 import { host } from '@/ui/host';
 
 const rv = (id: string): string => host.readValue(id);
@@ -62,10 +61,30 @@ export function ScratchView() {
   dataRev.value; // subscribe: re-derive on add/edit/status/delete
   const filter = scratchFilter.value;
   const cards = organizeScratch(core(), filter);
+  const all = core().scratch ?? [];
+  const total = all.length;
+  const trying = all.filter((c: ScratchCard) => c.status === 'trying').length;
+  const sub = total === 0 ? 'nothing yet' : trying ? `${trying} in progress` : `${total} captured`;
 
   return (
     <>
-      <SectionHead name="Scratchpad" />
+      <button class="backbtn" onClick={goHome}>
+        ‹ Back
+      </button>
+
+      <div class="sechero">
+        <div class="sechero-wash" data-tone="fuel" />
+        <div class="sechero-in">
+          <div class="sechero-eyb">Scratchpad</div>
+          <div class="sechero-row">
+            <div class="sechero-v tone-fuel">
+              {total}
+              <span class="sechero-u">ideas</span>
+            </div>
+            <div class="sechero-sub">{sub}</div>
+          </div>
+        </div>
+      </div>
 
       <div class="addcard">
         <input id="scratch-title" class="minp" placeholder="Idea title" />
