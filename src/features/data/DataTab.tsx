@@ -47,40 +47,55 @@ export function DataView() {
       <button class="backbtn" onClick={goHome}>
         ‹ Back
       </button>
-      <div class="eyebrow">Data</div>
 
-      <div class="dhero">
-        <div class={'dstatus ' + statusTone}>
-          <span class="ddot" />
-          {statusLabel}
-        </div>
-        <div class="dsub">
-          rev {s.baseRev}
-          {s.dirtyStores.length ? (
-            <>
-              <br />
-              unsynced: {s.dirtyStores.join(', ')}
-            </>
-          ) : null}
+      {/* status hero — the glow + hero value tint by sync state */}
+      <div class="sechero">
+        <div class="sechero-wash" data-tone={statusTone} />
+        <div class="sechero-in">
+          <div class="sechero-eyb">Data · Sync</div>
+          <div class="sechero-row">
+            <div class={'sechero-v tone-' + statusTone}>
+              <span class="ddot" />
+              {statusLabel}
+            </div>
+            <div class="sechero-sub">
+              rev {s.baseRev}
+              {s.dirtyStores.length ? (
+                <>
+                  <br />
+                  {s.dirtyStores.length} unsynced
+                </>
+              ) : null}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="statgrid dstats">
-        <div class="stat">
-          <div class="v">{m.kilobytes}</div>
-          <div class="k">KB</div>
+      <div class="tilegrid">
+        <div class="tile">
+          <span class="tile-l">Storage</span>
+          <span class="tile-v">
+            {m.kilobytes}
+            <span class="tile-u">KB</span>
+          </span>
         </div>
-        <div class="stat">
-          <div class="v">{c.workoutSets}</div>
-          <div class="k">sets</div>
+        <div class="tile">
+          <span class="tile-l">Workout</span>
+          <span class="tile-v">
+            {c.workoutSets}
+            <span class="tile-u">sets</span>
+          </span>
         </div>
-        <div class="stat">
-          <div class="v">{c.meals}</div>
-          <div class="k">meals</div>
+        <div class="tile">
+          <span class="tile-l">Meals</span>
+          <span class="tile-v">{c.meals}</span>
         </div>
-        <div class="stat">
-          <div class="v">{c.knowledgeItems}</div>
-          <div class="k">cards</div>
+        <div class="tile">
+          <span class="tile-l">Knowledge</span>
+          <span class="tile-v">
+            {c.knowledgeItems}
+            <span class="tile-u">cards</span>
+          </span>
         </div>
       </div>
 

@@ -19,13 +19,14 @@ afterEach(() => {
 
 describe('DataView', () => {
   it('renders the local status + storage cards when cloud is not configured', () => {
-    const { getByText } = render(<DataView />);
+    const { getByText, container } = render(<DataView />);
     expect(getByText('Local')).toBeTruthy();
     expect(getByText('Cloud sync')).toBeTruthy();
     expect(getByText('AI features')).toBeTruthy();
     expect(getByText('Backup')).toBeTruthy();
-    // stat grid labels are always present
-    ['KB', 'sets', 'meals', 'cards'].forEach((k) => expect(getByText(k)).toBeTruthy());
+    // stat tile labels (scoped to the grid — the same words also appear in the Advanced restore <select>)
+    const labels = [...container.querySelectorAll('.tilegrid .tile-l')].map((e) => e.textContent);
+    expect(labels).toEqual(['Storage', 'Workout', 'Meals', 'Knowledge']);
   });
 
   it('wires Export/Copy to the data actions', () => {

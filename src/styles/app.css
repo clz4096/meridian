@@ -284,19 +284,25 @@ body:not(.at-home) .tabpane{padding-top:calc(14px + env(safe-area-inset-top))}
 .note{font-size:12px;color:var(--muted)}
 .dictxt{width:100%;min-height:150px;font-family:var(--mono);font-size:12px}
 /* data tab — status-first */
-.dhero{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px}
-.dstatus{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:30px;font-weight:600;line-height:1;color:var(--ok)}
-.dstatus .ddot{width:11px;height:11px;border-radius:50%;background:var(--ok);flex-shrink:0}
-.dstatus.dirty{color:var(--fuel)}.dstatus.dirty .ddot{background:var(--fuel)}
-.dstatus.off{color:var(--dim)}.dstatus.off .ddot{background:var(--dim)}
-.dsub{font-family:var(--mono);font-size:12px;color:var(--faint);text-align:right;line-height:1.5}
-.statgrid.dstats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:16px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.statgrid.dstats .stat{background:var(--panel);padding:14px 6px;text-align:center}
-.statgrid.dstats .stat .v{font-size:20px}
-.statgrid.dstats .stat .k{font-size:9px;letter-spacing:.1em}
+/* ── reusable section-page language: hero (context glow + eyebrow-over-value) + stat tiles ── */
+.sechero{position:relative;overflow:hidden;border-radius:20px;border:1px solid var(--line);margin:12px 0 4px;padding:16px 18px}
+.sechero-wash{position:absolute;inset:0;z-index:0;pointer-events:none;transition:background .6s ease}
+.sechero-wash[data-tone="ok"]{background:radial-gradient(120% 92% at 50% -10%,rgba(59,185,140,.20),transparent 62%),linear-gradient(180deg,rgba(34,40,52,.5),transparent 60%)}
+.sechero-wash[data-tone="dirty"]{background:radial-gradient(120% 92% at 50% -10%,rgba(224,166,75,.22),transparent 62%),linear-gradient(180deg,rgba(34,40,52,.5),transparent 60%)}
+.sechero-wash[data-tone="off"]{background:radial-gradient(120% 92% at 50% -10%,rgba(124,201,236,.13),transparent 62%),linear-gradient(180deg,rgba(34,40,52,.5),transparent 60%)}
+.sechero-wash[data-tone="teal"]{background:radial-gradient(120% 92% at 50% -10%,rgba(124,201,236,.18),transparent 62%),linear-gradient(180deg,rgba(34,40,52,.5),transparent 60%)}
+.sechero-wash[data-tone="fuel"]{background:radial-gradient(120% 92% at 50% -10%,rgba(224,166,75,.20),transparent 62%),linear-gradient(180deg,rgba(34,40,52,.5),transparent 60%)}
+.sechero-in{position:relative;z-index:1}
+.sechero-eyb{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.sechero-row{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.sechero-v{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:30px;font-weight:600;line-height:1;color:var(--text)}
+.sechero-v .ddot{width:11px;height:11px;border-radius:50%;background:currentColor;flex:none}
+.sechero-sub{font-family:var(--mono);font-size:12px;color:var(--faint);text-align:right;line-height:1.5}
+.tone-ok{color:var(--ok)}.tone-dirty{color:var(--fuel)}.tone-off{color:var(--dim)}
+.tilegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .dcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:14px}
 .dcard-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.dcard-t{font-size:14.5px;font-weight:500}
+.dcard-t{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
 .dcard-st{font-family:var(--mono);font-size:12px;color:var(--ok)}
 .dcard-st.off{color:var(--faint)}
 .dcard-desc{font-size:12.5px;color:var(--faint);line-height:1.55;margin-top:8px}
