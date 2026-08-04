@@ -16,8 +16,22 @@ const TRACKERS = new Set(['meal', 'workout', 'knowledge', 'data']);
 const toneColor = (t: HubStat['tone']): string | undefined =>
   t === 'cyan' ? 'var(--teal)' : t === 'kcal' ? 'var(--fuel)' : t === 'ok' ? 'var(--ok)' : undefined;
 
-const fmtDate = (ms: number): string => new Date(ms).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-const greeting = (h: number): string => (h < 5 ? 'Still up' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening');
+const WD = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const MO = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+/** Mono, uppercase date for the header eyebrow, e.g. "TUE · AUG 4". */
+const monoDate = (ms: number): string => {
+  const d = new Date(ms);
+  return `${WD[d.getDay()]} · ${MO[d.getMonth()]} ${d.getDate()}`;
+};
+
+// Time-of-day glyph beside the date: sun by day, moon in the evening/night.
+const SUN = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M5 19l1.4-1.4"/></svg>';
+const MOON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none"><path d="M20.5 15.2A8.2 8.2 0 0 1 9.3 4 8.2 8.2 0 1 0 20.5 15.2z"/></svg>';
+const todGlyph = (period: string): string => (period === 'day' || period === 'dawn' ? SUN : MOON);
+const todColor = (period: string): string => (period === 'day' || period === 'dawn' ? 'var(--hub)' : '#AEBBDA');
+/** The date eyebrow tints with the time of day so it stays legible over the glow. */
+const eyebrowColor = (period: string): string =>
+  period === 'dawn' ? '#EAD0A6' : period === 'day' ? '#C4D6EE' : period === 'dusk' ? '#EDC6AB' : '#BAC7E6';
 
 /** Split the clock into hour:minute + seconds + am/pm so each can be styled. */
 function clockParts(ms: number): { hm: string; ss: string; ap: string } {
@@ -66,9 +80,17 @@ export function TodayView() {
 
   return (
     <>
+      <div class="today-wash" data-tod={tod} />
+      <div class="today-body">
       <div class="today-hero">
-        <div class="today-wash" data-tod={tod} />
-        <div class="today-greet">{greeting(new Date(now).getHours())}</div>
+        <div class="today-eyebrow" style={{ color: eyebrowColor(tod) }}>
+          <span
+            class="today-eyi"
+            style={{ color: todColor(tod) }}
+            dangerouslySetInnerHTML={{ __html: todGlyph(tod) }}
+          />
+          <span>{monoDate(now)}</span>
+        </div>
         <div class="today-herorow">
           <div>
             <div class="today-time">
@@ -76,7 +98,6 @@ export function TodayView() {
               <span class="today-secs">:{ss}</span>
               <span class="today-ampm">{ap}</span>
             </div>
-            <div class="today-date">{fmtDate(now)}</div>
           </div>
           <div class="today-wxblock" onClick={setWeatherCity} title="Set location">
             {w ? (
@@ -140,6 +161,7 @@ export function TodayView() {
             <span class="tile-sub">{s.sub}</span>
           </button>
         ))}
+      </div>
       </div>
     </>
   );
