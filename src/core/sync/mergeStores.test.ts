@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import type { MealState, WorkoutState } from '@/core/types';
 import {
-  mergeMeals, mergeScalarMap, mergeStore, mergeWorkout, sanitizeStore, unionById,
+  mergeCore, mergeMeals, mergeScalarMap, mergeStore, mergeWorkout, sanitizeStore, unionById,
 } from '@/core/sync/mergeStores';
 import { DEFAULT_CONFIG } from '@/core/types';
 import { shiftDate } from '@/core/util';
@@ -166,5 +166,33 @@ describe('sanitize bounds tombstones on every save', () => {
   it('leaves the knowledge store untouched (it has no tombstones)', () => {
     const kg = { mastery: { a: 5 } } as never;
     expect(sanitizeStore('csgraph', kg, Date.now())).toBe(kg);
+  });
+});
+
+describe('mergeCore unions the nested todos + scratch', () => {
+  const base = { schedule: {}, entries: [] };
+
+  it('unions todos and scratch by id across both sides', () => {
+    const local = {
+      ...base,
+      todos: [{ id: 't1', text: 'a', done: false, created: 1 }],
+      scratch: [{ id: 's1', title: 'A', body: '', status: 'idea', created: 1, updated: 1 }],
+    };
+    const remote = {
+      ...base,
+      todos: [{ id: 't2', text: 'b', done: false, created: 2 }],
+      scratch: [],
+    };
+    const m = mergeCore(local as never, remote as never, true);
+    expect((m.todos ?? []).map((t) => String(t.id)).sort()).toEqual(['t1', 't2']);
+    expect((m.scratch ?? []).map((c) => String(c.id))).toEqual(['s1']);
+  });
+
+  it('a tombstone on either side suppresses the todo and survives the merge', () => {
+    const local = { ...base, todos: [{ id: 't1', text: 'a', done: false, created: 1 }], _del: { t1: 999 } };
+    const remote = { ...base, todos: [{ id: 't1', text: 'a', done: false, created: 1 }] };
+    const m = mergeCore(local as never, remote as never, true);
+    expect(m.todos ?? []).toEqual([]);
+    expect(m._del?.t1).toBe(999);
   });
 });

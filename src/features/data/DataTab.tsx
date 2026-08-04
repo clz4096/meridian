@@ -9,7 +9,7 @@ import type { StoreKey } from '@/core/storage/appState';
 import { sync, cloudEnabled } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import { dataRev, dataMsg } from '@/ui/store';
-import { wk, sg, kg, core, dataActions, discard, goHub } from '@/ui/actions';
+import { wk, sg, kg, core, dataActions, discard, goHome } from '@/ui/actions';
 
 const KEYS: StoreKey[] = ['core', 'overload', 'surplus', 'csgraph'];
 
@@ -44,7 +44,7 @@ export function DataView() {
 
   return (
     <>
-      <button class="backbtn" onClick={goHub}>
+      <button class="backbtn" onClick={goHome}>
         ‹ Back
       </button>
       <div class="eyebrow">Data</div>

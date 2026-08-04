@@ -94,7 +94,7 @@ function build(opts: { stored?: Partial<Record<StoreKey, string>>; anyDirtyCloud
 describe('appState loaders', () => {
   it('loadCore returns a fresh shape when storage is empty', async () => {
     const t = build();
-    expect(await t.appState.loadCore()).toEqual({ schedule: {}, entries: [] });
+    expect(await t.appState.loadCore()).toEqual({ schedule: {}, entries: [], todos: [], scratch: [] });
   });
 
   it('loadCore parses stored JSON and backfills missing fields', async () => {
@@ -106,7 +106,7 @@ describe('appState loaders', () => {
 
   it('loadCore recovers from corrupt JSON', async () => {
     const t = build({ stored: { core: '{not json' } });
-    expect(await t.appState.loadCore()).toEqual({ schedule: {}, entries: [] });
+    expect(await t.appState.loadCore()).toEqual({ schedule: {}, entries: [], todos: [], scratch: [] });
   });
 
   it('loadWorkout seeds the baked default when storage is empty', async () => {

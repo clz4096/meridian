@@ -1,20 +1,26 @@
 /**
- * App shell — the Preact root. Renders the brandrow + the active pane (hub or a
- * section) + the rest bar + save chip, all driven by signals. Replaces app.ts's
- * render orchestration + DomAppHost's showTab/showHub.
+ * App shell — the Preact root. Home is the Today tab; everything else
+ * (Todos, Scratch, and the four trackers) is a drill-in section reached from
+ * Today, each with a pill-Back → Today. No persistent nav. Replaces the old
+ * table-of-contents hub.
  */
 import { useEffect } from 'preact/hooks';
-import { atHub, currentTab, sgLogOpen, kgLogOpen, kgGym, type Tab } from '@/ui/store';
-import { handleBack, loadForHub } from '@/ui/actions';
+import { currentTab, sgLogOpen, kgLogOpen, kgGym, type Tab } from '@/ui/store';
+import { handleBack, loadForHome } from '@/ui/actions';
 import { SaveChip, RestBar } from '@/ui/components/Chrome';
-import { Hub } from '@/ui/Hub';
+import { TodayView } from '@/features/today/TodayTab';
 import { DataView } from '@/features/data/DataTab';
 import { MealView } from '@/features/meal/MealTab';
 import { KnowledgeView } from '@/features/knowledge/KnowledgeTab';
 import { WorkoutView } from '@/features/workout/WorkoutTab';
+import { TodosView } from '@/features/todos/TodosTab';
+import { ScratchView } from '@/features/scratch/ScratchTab';
 
 // Historical pane ids (the meal tab's pane is #pane-weight) the CSS still targets.
 const PANE_ID: Record<Tab, string> = {
+  today: 'pane-today',
+  todos: 'pane-todos',
+  scratch: 'pane-scratch',
   workout: 'pane-workout',
   knowledge: 'pane-knowledge',
   meal: 'pane-weight',
@@ -22,6 +28,9 @@ const PANE_ID: Record<Tab, string> = {
 };
 
 function Section({ tab }: { tab: Tab }) {
+  if (tab === 'today') return <TodayView />;
+  if (tab === 'todos') return <TodosView />;
+  if (tab === 'scratch') return <ScratchView />;
   if (tab === 'data') return <DataView />;
   if (tab === 'meal') return <MealView />;
   if (tab === 'knowledge') return <KnowledgeView />;
@@ -29,15 +38,15 @@ function Section({ tab }: { tab: Tab }) {
 }
 
 export function App() {
-  const hub = atHub.value;
   const tab = currentTab.value;
+  const home = tab === 'today';
 
   useEffect(() => {
-    document.body.classList.toggle('at-hub', hub);
-  }, [hub]);
+    document.body.classList.toggle('at-home', home);
+  }, [home]);
 
   useEffect(() => {
-    loadForHub(); // hub stats need every section store
+    loadForHome(); // Today's at-a-glance needs every tracker store
     const onPop = (): void => {
       handleBack();
     };
@@ -45,11 +54,10 @@ export function App() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  // A key unique per screen/subscreen — changing it remounts the pane so the
-  // paneIn entrance replays on every navigation (forward and back).
-  const screenKey = hub
-    ? 'hub'
-    : tab === 'meal'
+  // A key unique per screen/subscreen — changing it replays the paneIn entrance
+  // on every navigation (daily-tab switch, drill-in, and back).
+  const screenKey =
+    tab === 'meal'
       ? 'meal' + (sgLogOpen.value ? ':log' : '')
       : tab === 'knowledge'
         ? 'knowledge' + (kgGym.value ? ':gym' : kgLogOpen.value ? ':q' : '')
@@ -65,8 +73,8 @@ export function App() {
             </b>
           </div>
         </div>
-        <div class="tabpane on" id={hub ? 'pane-hub' : PANE_ID[tab]} key={screenKey}>
-          {hub ? <Hub /> : <Section tab={tab} />}
+        <div class="tabpane on" id={PANE_ID[tab]} key={screenKey}>
+          <Section tab={tab} />
         </div>
       </div>
       <RestBar />

@@ -118,6 +118,8 @@ export function mergeCore(local: CoreState, remote: CoreState, _localWins: boole
   return {
     schedule: mergeDayMap(local.schedule, remote.schedule, dead),
     entries: unionById(local.entries, remote.entries, dead),
+    todos: unionById(local.todos, remote.todos, dead),
+    scratch: unionById(local.scratch, remote.scratch, dead),
     _del: mergeTombs(local._del, remote._del),
   };
 }

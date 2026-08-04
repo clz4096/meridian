@@ -7,13 +7,17 @@
 import { signal } from '@preact/signals';
 import type { KnowledgeItem } from '@/features/knowledge/types';
 import type { Period } from '@/ui/charts/progress';
-import type { Split } from '@/core/types';
+import type { Split, ScratchStatus } from '@/core/types';
+import type { Weather } from '@/services/weather';
 
-export type Tab = 'workout' | 'meal' | 'knowledge' | 'data';
+export type Tab = 'today' | 'todos' | 'scratch' | 'workout' | 'meal' | 'knowledge' | 'data';
 
 // ── navigation ──
-export const currentTab = signal<Tab>('knowledge');
-export const atHub = signal(true); // boot lands on the hub
+export const currentTab = signal<Tab>('today'); // boot lands on Today (the home)
+
+// ── Today home ──
+export const clockNow = signal(Date.now()); // ticked each minute by the Today screen
+export const weather = signal<Weather | null>(null);
 
 // ── shared chart controls ──
 export const progPeriod = signal<Period>('week');
@@ -45,6 +49,13 @@ export const sgLoaded = signal(false);
 export const sgDate = signal<string | null>(null);
 export const sgLogOpen = signal(false);
 export const sgExtrasOpen = signal(false);
+
+// ── todos UI state ── (todos live in the core store, loaded at boot — no lazy load)
+export const todoShowDone = signal(false);
+
+// ── scratchpad UI state ── (scratch lives in the core store, loaded at boot)
+export const scratchFilter = signal<ScratchStatus | 'all'>('all');
+export const scratchOpen = signal<string | null>(null); // id of the card being edited/expanded
 
 // ── data UI state ──
 export const dataMsg = signal<{ text: string; bad: boolean }>({ text: '', bad: false });

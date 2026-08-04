@@ -13,7 +13,10 @@ src/
     storage/    #   appState (save/dirty/autosave), adapters (cloud: Supabase/Pantry), store (IndexedDB)
     data/       #   seed content (books, defaultWorkout, exVideo, gym, targets, topics) + loader
     types.ts util.ts coreSelectors.ts appHost.ts(port interface)
-  features/     # the four tabs — each owns its read-model + component + types + tests
+  features/     # the tabs — each owns its read-model + component + types + tests
+    today/      #   TodayTab.tsx — the home: clock + weather + due todos + at-a-glance
+    todos/      #   todosSelectors (due buckets) + TodosTab.tsx
+    scratch/    #   scratchSelectors (idea-card lifecycle) + ScratchTab.tsx
     workout/    #   workoutSelectors (progression math) + WorkoutTab.tsx + types.ts
     meal/       #   mealSelectors (calorie/macro math) + MealTab.tsx + types.ts
     knowledge/  #   knowledgeSelectors (spaced repetition) + questionBank + KnowledgeTab.tsx + types.ts
@@ -21,8 +24,8 @@ src/
   ui/           # the Preact layer + shared presentation
     charts/     #   chart (numbers -> inline SVG) + progress (series builders)
     components/  #   shared components: Chart, Carousel, SectionHead, SaveChip, RestBar
-    App.tsx Hub.tsx store.ts(signals) actions.ts host.ts html.ts tokens.ts restTimer.ts hubTypes.ts
-  services/     # external calls — ai.ts (meal estimation, answer grading via the cloud proxy)
+    App.tsx store.ts(signals) actions.ts host.ts html.ts tokens.ts restTimer.ts hubTypes.ts
+  services/     # external calls — ai.ts (cloud AI proxy) + weather.ts (Open-Meteo, keyless)
   app/          # composition root — bootstrap.ts (wiring) + main.tsx (Vite entry, landing gate)
   landing/      # the Three.js constellation gate (lazy-loaded, decorative)
   test/         # setup.ts — jsdom localStorage polyfill for the component tests
@@ -41,6 +44,11 @@ src/
   dialogs, the save-chip/rest-bar bridged to signals) that actions + `appState` call.
 - **Selectors are pure read-models.** A component derives its ViewModel from a selector over a plain
   store object; no derivation logic lives in the markup. The same selectors are unit-tested directly.
+- **Navigation is signal-driven, home = Today.** After the landing, the app lands on the Today tab.
+  The three "daily" tabs (Today/Todos/Scratch) share a persistent segmented nav; the four trackers
+  (Workout/Meal/Knowledge/Data) are drill-in sections reached from Today's at-a-glance, each with a
+  pill-Back to Today. `currentTab` is the single nav signal (no separate hub state). Todos + scratch
+  are nested in the `core` store, so they sync with zero changes to the audited SyncEngine.
 - **Offline-first sync.** Each store has a monotonic revision and tombstones; two device copies
   merge without conflict. Cloud (Supabase/Pantry) is optional — the app is fully usable offline.
 

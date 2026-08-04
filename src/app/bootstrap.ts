@@ -21,7 +21,7 @@ export const STORAGE_KEYS: Record<StoreKey, string> = {
 
 /* ── the four store objects (owned here; read/mutated in place by actions) ── */
 export const stores: Record<StoreKey, Record<string, unknown>> = {
-  core: { schedule: {}, entries: [] },
+  core: { schedule: {}, entries: [], todos: [], scratch: [] },
   overload: { settings: {}, days: {}, bw: {}, rpe: {} },
   surplus: { settings: {}, days: {}, tad: {} },
   csgraph: { mastery: {}, srs: {}, log: [], gymDone: {} },
@@ -175,6 +175,7 @@ export async function boot(): Promise<void> {
   appState.init();
   wireLifecycle();
   stores.core = await appState.loadCore();
+  bump(); // core (schedule/entries/todos/scratch) is in — re-derive anything already mounted
   appState.paintChip();
   if (cloudEnabled()) {
     window.setTimeout(async () => {

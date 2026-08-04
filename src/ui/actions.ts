@@ -21,6 +21,9 @@ import { exportBundle, serialise, importBundle, normaliseState, storageMetrics }
 import type { DataActions } from '@/features/data/types';
 import type { StoreKey } from '@/core/storage/appState';
 import type { HubStat } from '@/ui/hubTypes';
+import { openCount as todoOpenCount, dueTodos } from '@/features/todos/todosSelectors';
+import { nextStatus, cardCount as scratchCardCount } from '@/features/scratch/scratchSelectors';
+import { loadWeather, savedCity, setSavedCity } from '@/services/weather';
 import { DATA } from '@/core/data/index';
 import { appState, stores, uid, dstr, sync, cloudEnabled, STORAGE_KEYS } from '@/app/bootstrap';
 import { host } from '@/ui/host';
@@ -586,6 +589,83 @@ export const dataActions: DataActions = {
   },
 };
 
+/* ── todos (nested in the core store) ── */
+export const todosActions = {
+  add(text: string, due?: string): void {
+    const t = text.trim();
+    if (!t) return;
+    const C = core();
+    if (!C.todos) C.todos = [];
+    C.todos.push({ id: uid(), text: t, done: false, due: due || undefined, created: Date.now() });
+    appState.markDirty();
+    st.bump();
+    host.setValue('todo-text', '');
+    host.setValue('todo-due', '');
+  },
+  toggle(id: string): void {
+    const it = (core().todos || []).find((x: Store) => String(x.id) === String(id));
+    if (it) { it.done = !it.done; appState.markDirty(); st.bump(); }
+  },
+  setDue(id: string, due: string): void {
+    const it = (core().todos || []).find((x: Store) => String(x.id) === String(id));
+    if (it) { it.due = due || undefined; appState.markDirty(); st.bump(); }
+  },
+  editText(id: string, text: string): void {
+    const t = text.trim();
+    if (!t) return;
+    const it = (core().todos || []).find((x: Store) => String(x.id) === String(id));
+    if (it) { it.text = t; appState.markDirty(); st.bump(); }
+  },
+  remove(id: string): void {
+    const C = core();
+    appState.tomb(C, id);
+    C.todos = (C.todos || []).filter((x: Store) => String(x.id) !== String(id));
+    appState.markDirty();
+    st.bump();
+  },
+};
+
+/* ── scratchpad idea cards (nested in the core store) ── */
+export const scratchActions = {
+  add(title: string, body: string): void {
+    const t = title.trim();
+    const b = body.trim();
+    if (!t && !b) return;
+    const C = core();
+    if (!C.scratch) C.scratch = [];
+    const now = Date.now();
+    C.scratch.push({ id: uid(), title: t || 'Untitled', body: b, status: 'idea', created: now, updated: now });
+    appState.markDirty();
+    st.bump();
+    host.setValue('scratch-title', '');
+    host.setValue('scratch-body', '');
+  },
+  edit(id: string, patch: { title?: string; body?: string }): void {
+    const c = (core().scratch || []).find((x: Store) => String(x.id) === String(id));
+    if (!c) return;
+    if (patch.title !== undefined) c.title = patch.title.trim() || 'Untitled';
+    if (patch.body !== undefined) c.body = patch.body;
+    c.updated = Date.now();
+    appState.markDirty();
+    st.bump();
+  },
+  cycleStatus(id: string): void {
+    const c = (core().scratch || []).find((x: Store) => String(x.id) === String(id));
+    if (!c) return;
+    c.status = nextStatus(c.status);
+    c.updated = Date.now();
+    appState.markDirty();
+    st.bump();
+  },
+  remove(id: string): void {
+    const C = core();
+    appState.tomb(C, id);
+    C.scratch = (C.scratch || []).filter((x: Store) => String(x.id) !== String(id));
+    appState.markDirty();
+    st.bump();
+  },
+};
+
 /* ── hub + navigation ── */
 export function hubStats(): HubStat[] {
   const today = dstr();
@@ -606,7 +686,13 @@ export function hubStats(): HubStat[] {
   const dirty = (['core', 'overload', 'surplus', 'csgraph'] as StoreKey[]).some((k) => sync.isDirtyCloud(k));
   const state = normaliseState({ core: core(), overload: W, surplus: G, csgraph: K });
   const kb = Math.round(JSON.stringify(state).length / 102.4) / 10;
+  const C = core();
+  const openTodos = todoOpenCount(C);
+  const dueToday = dueTodos(C, today).length;
+  const notes = scratchCardCount(C);
   return [
+    { key: 'todos', label: 'Todos', desc: 'Reminders & tasks', value: String(openTodos), unit: openTodos === 1 ? ' open' : ' open', sub: dueToday ? `${dueToday} due today` : openTodos ? 'to do' : 'all clear', tone: dueToday ? 'kcal' : '' },
+    { key: 'scratch', label: 'Scratchpad', desc: 'Ideas & experiments', value: String(notes), unit: notes === 1 ? ' note' : ' notes', sub: 'captured', tone: '' },
     { key: 'knowledge', label: 'Knowledge', desc: 'Study & spaced review', value: String(masteryPct), unit: '%', sub: 'mastery', tone: 'cyan' },
     { key: 'workout', label: 'Workout', desc: 'Training log & progression', value: String(wkDays), unit: wkDays === 1 ? ' day' : ' days', sub: 'this week', tone: '' },
     { key: 'meal', label: 'Meals', desc: 'Food & macros', value: todayCal.toLocaleString('en-US'), unit: ' kcal', sub: todayCal ? 'today' : 'not logged', tone: 'kcal' },
@@ -616,26 +702,25 @@ export function hubStats(): HubStat[] {
 
 /** Ensure a tab's store is loaded (called by the tab component on mount). */
 export function ensureLoaded(tab: st.Tab): void {
-  if (tab === 'workout' && !st.wkLoaded.value) void loadWorkout();
+  if (tab === 'today') loadForHome();
+  else if (tab === 'workout' && !st.wkLoaded.value) void loadWorkout();
   else if (tab === 'knowledge' && !st.kgLoaded.value) void loadKnowledge();
   else if (tab === 'meal' && !st.sgLoaded.value) void loadMeal();
 }
 
-export function goHub(): void {
-  st.atHub.value = true;
-  const pending: Array<Promise<void>> = [];
-  if (!st.wkLoaded.value) pending.push(loadWorkout());
-  if (!st.kgLoaded.value) pending.push(loadKnowledge());
-  if (!st.sgLoaded.value) pending.push(loadMeal());
-  if (pending.length) void Promise.all(pending.map((p) => p.catch(() => undefined))).then(() => st.bump());
+/** Return to the Today home (the pill-Back target for trackers). */
+export function goHome(): void {
+  st.currentTab.value = 'today';
+  loadForHome();
 }
 
+/** Drill into a tracker section (from Today's at-a-glance); pushes history for back. */
 export function openSection(tab: st.Tab): void {
-  st.atHub.value = false;
   st.currentTab.value = tab;
   ensureLoaded(tab);
   pushState();
 }
+
 
 export function toggleControls(): void {
   st.controlsOpen.value = !st.controlsOpen.value;
@@ -663,13 +748,30 @@ export function handleBack(): boolean {
   if (st.currentTab.value === 'meal' && st.sgLogOpen.value) { st.sgLogOpen.value = false; st.bump(); return true; }
   if (st.currentTab.value === 'knowledge' && st.kgGym.value) { st.kgGym.value = false; st.bump(); return true; }
   if (st.currentTab.value === 'knowledge' && st.kgLogOpen.value) { st.kgLogOpen.value = false; st.bump(); return true; }
-  if (!st.atHub.value) { goHub(); return true; }
+  if (st.currentTab.value !== 'today') { goHome(); return true; }
   return false;
 }
 
-/** Load every section store (hub stats need all three). Called once on mount. */
-export function loadForHub(): void {
-  if (!st.wkLoaded.value) void loadWorkout();
-  if (!st.kgLoaded.value) void loadKnowledge();
-  if (!st.sgLoaded.value) void loadMeal();
+/** Load every tracker store (Today's at-a-glance needs all three). Called on mount. */
+export function loadForHome(): void {
+  const pending: Array<Promise<void>> = [];
+  if (!st.wkLoaded.value) pending.push(loadWorkout());
+  if (!st.kgLoaded.value) pending.push(loadKnowledge());
+  if (!st.sgLoaded.value) pending.push(loadMeal());
+  if (pending.length) void Promise.all(pending.map((p) => p.catch(() => undefined))).then(() => st.bump());
+}
+
+/* ── Today: clock + weather ── */
+export function tickClock(): void {
+  st.clockNow.value = Date.now();
+}
+export async function refreshWeather(): Promise<void> {
+  const w = await loadWeather(Date.now());
+  if (w) st.weather.value = w;
+}
+export function setWeatherCity(): void {
+  const c = host.prompt('City for weather (leave blank to use my location)', savedCity());
+  if (c === null) return;
+  setSavedCity(c.trim());
+  void refreshWeather();
 }

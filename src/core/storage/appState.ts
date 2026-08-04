@@ -238,6 +238,8 @@ export function createAppState(deps: AppStateDeps): AppState {
     }
     if (!core.schedule) core.schedule = {};
     if (!core.entries) core.entries = [];
+    if (!core.todos) core.todos = [];
+    if (!core.scratch) core.scratch = [];
     return core;
   }
 

@@ -217,12 +217,9 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .backbtn:hover,.backbtn:focus-visible{color:var(--teal);border-color:var(--line-2);outline:none}
 /* ===== hub (table of contents) — the post-Enter home ===== */
 #tabbar{display:none}
-body:not(.at-hub) .brandrow{display:none}
-body:not(.at-hub) .tabpane{padding-top:calc(14px + env(safe-area-inset-top))}
+body:not(.at-home) .brandrow{display:none}
+body:not(.at-home) .tabpane{padding-top:calc(14px + env(safe-area-inset-top))}
 .hubtag{font-size:var(--fs-body);color:var(--muted);margin:6px 2px 18px}
-/* hub is a full-height menu: four rounded cards share the vertical space */
-body.at-hub .appwrap{display:flex;flex-direction:column;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
-body.at-hub #pane-hub{flex:1;display:flex;flex-direction:column}
 .hub{display:flex;flex-direction:column;gap:12px;flex:1}
 .hubrow{flex:1 1 0;min-height:104px;display:flex;align-items:center;gap:14px;padding:22px 20px;border:1px solid var(--line);background:var(--panel);border-radius:16px;width:100%;text-align:left;cursor:pointer;color:inherit;font:inherit;transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease),transform var(--dur) var(--ease)}
 .hubrow:hover,.hubrow:focus-visible{border-color:var(--line-2);background:var(--panel2);outline:none;transform:translateY(-1px)}
@@ -524,3 +521,72 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .pre-enter .appwrap,.pre-enter .navbar,.pre-enter .savestat,.pre-enter .restbar,.pre-enter .savedflash{display:none!important}
 .wk-discard{width:100%;margin-top:12px;color:var(--muted);border:1px solid var(--line);background:transparent}
 .wk-discard:hover,.wk-discard:focus-visible{color:var(--deficit);border-color:rgba(216,101,79,.4);outline:none}
+
+/* ── Todos ────────────────────────────────────────────────────────── */
+.todo-grp{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin:22px 2px 8px}
+.todo-row{display:flex;align-items:center;gap:12px;padding:11px 2px;border-top:1px solid var(--line)}
+.todo-chk{flex:none;width:22px;height:22px;border-radius:7px;border:1.5px solid var(--line-2);background:transparent;color:var(--ok);font-size:13px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.todo-row.done .todo-chk{background:var(--surface-3);border-color:var(--surface-3)}
+.todo-text{flex:1;font-size:14.5px;color:var(--text)}
+.todo-row.done .todo-text{color:var(--dim);text-decoration:line-through}
+.todo-due{flex:none;font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface-3);border-radius:20px;padding:3px 9px}
+.todo-due.overdue{color:var(--deficit);background:rgba(216,101,79,.12)}
+.todo-due.today{color:var(--fuel);background:rgba(224,166,75,.12)}
+.todo-rm{flex:none;margin:-11px 0;padding:11px 10px;color:var(--faint);cursor:pointer;font-size:16px;line-height:1}
+.todo-rm:hover{color:var(--deficit)}
+.todo-donetoggle{display:block;width:100%;text-align:left;margin-top:22px;background:transparent;border:0;color:var(--faint);font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;padding:8px 2px}
+
+/* ── Scratchpad ───────────────────────────────────────────────────── */
+.scratch-body-new{width:100%;margin-top:10px;min-height:60px;resize:vertical;font-family:var(--sans);font-size:14px;line-height:1.5}
+.scratch-filters{margin:16px 0 4px;flex-wrap:wrap}
+.scratch-filters .mchip.on{background:var(--teal);color:#04212e;border-color:var(--teal)}
+.scard{background:var(--surface-1);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:10px}
+.scard-h{display:flex;align-items:center;gap:10px}
+.scard-t{flex:1;font-size:15px;color:var(--text);cursor:pointer}
+.scard-rm{flex:none;padding:4px 6px;color:var(--faint);cursor:pointer;font-size:16px;line-height:1}
+.scard-rm:hover{color:var(--deficit)}
+.scard-body{margin-top:8px;font-size:13.5px;line-height:1.55;color:var(--muted);white-space:pre-wrap;cursor:pointer}
+.scard-edit{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.scard-body-edit{min-height:80px;resize:vertical;font-family:var(--sans);font-size:14px;line-height:1.5}
+.sstatus{flex:none;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line-2);border-radius:20px;padding:4px 10px;cursor:pointer;background:var(--surface-3);color:var(--muted)}
+.sstatus.idea{color:var(--teal);border-color:rgba(124,201,236,.3)}
+.sstatus.trying{color:var(--fuel);border-color:rgba(224,166,75,.3)}
+.sstatus.shipped{color:var(--ok);border-color:rgba(107,191,115,.3)}
+.sstatus.parked{color:var(--dim)}
+
+/* ── Daily nav (persistent segmented control for Today / Todos / Scratch) ── */
+.daynav{display:flex;gap:6px;background:var(--surface-1);border:1px solid var(--line);border-radius:14px;padding:5px;margin:6px 0 4px}
+.daynav-item{flex:1;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:transparent;border:0;border-radius:10px;padding:10px 0;cursor:pointer;transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.daynav-item.on{background:var(--surface-3);color:var(--text)}
+
+/* ── Today home ── */
+.today-hero{margin:18px 2px 6px}
+.today-greet{font-size:14px;color:var(--muted);margin-bottom:6px}
+.today-herorow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.today-time{font-family:var(--mono);font-size:40px;font-weight:600;letter-spacing:-.02em;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
+.today-date{font-size:14px;color:var(--muted);margin-top:6px}
+.today-wxblock{text-align:right;white-space:nowrap;padding-top:5px;cursor:pointer}
+.today-wxt{font-family:var(--mono);font-size:23px;color:var(--text);line-height:1}
+.today-wxt.today-wxset{font-size:13px;color:var(--muted)}
+.today-wxc{font-size:11.5px;color:var(--faint);margin-top:4px}
+.today-sec{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin:26px 2px 10px}
+/* two side-by-side quick-action cards (add a todo / capture an idea) */
+.today-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.today-qbtn{display:flex;flex-direction:column;align-items:flex-start;gap:9px;padding:15px 16px;border:1px solid var(--line);background:var(--surface-1);border-radius:16px;cursor:pointer;text-align:left;transition:border-color var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.today-qbtn:active{transform:scale(.98)}
+.today-qbtn .qi{font-family:var(--mono);font-size:19px;line-height:1;color:var(--teal)}
+.today-qbtn .ql{font-size:14px;color:var(--text)}
+.today-qbtn:hover,.today-qbtn:focus-visible{border-color:var(--line-2);outline:none}
+/* the "capture an idea" card gets a warm tint so it feels inviting */
+.today-qbtn.scratch{background:linear-gradient(180deg,rgba(224,166,75,.10),rgba(224,166,75,.03));border-color:rgba(224,166,75,.26)}
+.today-qbtn.scratch .qi{color:var(--fuel)}
+.today-qbtn.scratch:hover,.today-qbtn.scratch:focus-visible{border-color:rgba(224,166,75,.5)}
+.today-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:16px;border:1px solid var(--line);background:var(--surface-1);border-radius:16px;cursor:pointer;text-align:left;width:100%;color:inherit;font:inherit;transition:border-color var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.tile:active{transform:scale(.98)}
+.tile:hover,.tile:focus-visible{border-color:var(--line-2);outline:none}
+.tile-l{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.tile-v{font-family:var(--mono);font-size:24px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;margin-top:8px;display:flex;align-items:baseline}
+.tile-u{font-size:12px;color:var(--muted);margin-left:2px}
+.tile-sub{font-size:11.5px;color:var(--faint);margin-top:3px}
+.tile-v .hdot{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block;margin-right:5px;align-self:center}

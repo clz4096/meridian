@@ -128,9 +128,36 @@ export interface LogEntry {
   xp?: Numeric;
 }
 
+/** A personal reminder. Lives in the core store (nested, not a separate store). */
+export interface TodoItem {
+  id: EntityId;
+  text: string;
+  done: boolean;
+  /** Optional due date, "YYYY-MM-DD" (local). Items due today or overdue surface on Today. */
+  due?: string;
+  created: Millis;
+}
+
+/** Where a scratchpad idea is in its lifecycle. */
+export type ScratchStatus = 'idea' | 'trying' | 'shipped' | 'parked';
+
+/** A brainstorm/idea card. Lives in the core store (nested). */
+export interface ScratchCard {
+  id: EntityId;
+  title: string;
+  body: string;
+  status: ScratchStatus;
+  created: Millis;
+  updated: Millis;
+}
+
 export interface CoreState {
   schedule: Record<string, ScheduleItem[]>;
   entries: LogEntry[];
+  /** Personal todos (nested here rather than a dedicated sync store). */
+  todos?: TodoItem[];
+  /** Scratchpad idea cards (nested here rather than a dedicated sync store). */
+  scratch?: ScratchCard[];
   _del?: Tombstones;
 }
 

@@ -11,11 +11,11 @@
  * touch document.getElementById — harmlessly no-op when the element is absent.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mealActions, knowledgeActions, workoutActions, restTimer, sg, kg, core, wk } from '@/ui/actions';
+import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, restTimer, openSection, goHome, handleBack, sg, kg, core, wk } from '@/ui/actions';
 import { appState, dstr } from '@/app/bootstrap';
 import { selectWorkoutView } from '@/features/workout/workoutSelectors';
 import defaultWorkout from '@/core/data/defaultWorkout.json';
-import { dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems } from '@/ui/store';
+import { dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems, currentTab } from '@/ui/store';
 
 const today = dstr();
 
@@ -24,7 +24,7 @@ beforeEach(() => {
   // reset the live singleton stores to a clean slate
   Object.assign(sg(), { settings: {}, days: {}, tad: {} });
   Object.assign(kg(), { mastery: {}, srs: {}, log: [], gymDone: {} });
-  Object.assign(core(), { schedule: {}, entries: [] });
+  Object.assign(core(), { schedule: {}, entries: [], todos: [], scratch: [], _del: {} });
   Object.assign(wk(), { settings: {}, days: {}, bw: {}, done: {} });
   sgDate.value = null;
   wkDate.value = null;
@@ -127,5 +127,94 @@ describe('workout logSet → rest timer', () => {
     expect(start).toHaveBeenCalledTimes(need - 1); // every set but the last
     expect(dismiss).toHaveBeenCalledTimes(1); // the last completes the exercise
     expect(dismiss).toHaveBeenLastCalledWith(ex);
+  });
+});
+
+describe('todosActions (nested in core)', () => {
+  it('add pushes a todo, marks dirty, and bumps', () => {
+    const dirty = vi.spyOn(appState, 'markDirty');
+    const rev = dataRev.value;
+    todosActions.add('Ship SGEMM worklog', '2026-08-10');
+    const t = core().todos;
+    expect(t).toHaveLength(1);
+    expect(t[0]).toMatchObject({ text: 'Ship SGEMM worklog', done: false, due: '2026-08-10' });
+    expect(dirty).toHaveBeenCalled();
+    expect(dataRev.value).toBeGreaterThan(rev);
+  });
+
+  it('add ignores empty/whitespace text', () => {
+    todosActions.add('   ');
+    expect(core().todos).toHaveLength(0);
+  });
+
+  it('toggle flips done', () => {
+    todosActions.add('x');
+    const id = String(core().todos[0].id);
+    todosActions.toggle(id);
+    expect(core().todos[0].done).toBe(true);
+  });
+
+  it('remove tombstones the id and drops the row', () => {
+    todosActions.add('x');
+    const id = String(core().todos[0].id);
+    todosActions.remove(id);
+    expect(core().todos).toHaveLength(0);
+    expect(core()._del[id]).toBeTruthy();
+  });
+});
+
+describe('scratchActions (nested in core)', () => {
+  it('add captures an idea card in the idea status', () => {
+    scratchActions.add('SGEMM', 'reproduce Bohm/Salykov');
+    const c = core().scratch;
+    expect(c).toHaveLength(1);
+    expect(c[0]).toMatchObject({ title: 'SGEMM', body: 'reproduce Bohm/Salykov', status: 'idea' });
+  });
+
+  it('add with both fields empty is a no-op', () => {
+    scratchActions.add('  ', '  ');
+    expect(core().scratch).toHaveLength(0);
+  });
+
+  it('cycleStatus advances idea → trying', () => {
+    scratchActions.add('x', '');
+    const id = String(core().scratch[0].id);
+    scratchActions.cycleStatus(id);
+    expect(core().scratch[0].status).toBe('trying');
+  });
+
+  it('remove tombstones the id and drops the card', () => {
+    scratchActions.add('x', '');
+    const id = String(core().scratch[0].id);
+    scratchActions.remove(id);
+    expect(core().scratch).toHaveLength(0);
+    expect(core()._del[id]).toBeTruthy();
+  });
+});
+
+describe('navigation (Today home + hybrid nav)', () => {
+  afterEach(() => {
+    currentTab.value = 'today';
+  });
+
+  it('openSection drills into a tracker; goHome returns to Today', () => {
+    openSection('meal');
+    expect(currentTab.value).toBe('meal');
+    goHome();
+    expect(currentTab.value).toBe('today');
+  });
+
+  it('openSection drills into Todos / Scratch (no persistent nav)', () => {
+    openSection('todos');
+    expect(currentTab.value).toBe('todos');
+    openSection('scratch');
+    expect(currentTab.value).toBe('scratch');
+  });
+
+  it('handleBack returns to Today from a tracker, then reports false at home', () => {
+    openSection('workout');
+    expect(handleBack()).toBe(true);
+    expect(currentTab.value).toBe('today');
+    expect(handleBack()).toBe(false);
   });
 });

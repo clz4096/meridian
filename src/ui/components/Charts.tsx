@@ -10,7 +10,7 @@ import { useRef, useState } from 'preact/hooks';
 import { chart, type ChartOpts } from '@/ui/charts/chart';
 import { PERIOD_LABEL, type Period } from '@/ui/charts/progress';
 import { progPeriod, logScale, controlsOpen, progLift } from '@/ui/store';
-import { goHub, toggleControls } from '@/ui/actions';
+import { goHome, toggleControls } from '@/ui/actions';
 
 const SEG: Array<[Period, string]> = [
   ['day', 'D'],
@@ -24,7 +24,7 @@ export function SectionHead({ name }: { name: string }) {
   return (
     <>
       <div class="secbar">
-        <button class="backbtn" onClick={goHub}>
+        <button class="backbtn" onClick={goHome}>
           ‹ Back
         </button>
       </div>
