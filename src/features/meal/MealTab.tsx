@@ -9,12 +9,70 @@ import { calorieSeries, proteinSeries, calorieTarget, proteinTarget } from '@/ui
 import { ProgControls, Carousel, Chart, ViewLogCta } from '@/ui/components/Charts';
 import { SecHero } from '@/ui/components/SecHero';
 import { sgLoaded, sgLogOpen, sgExtrasOpen, sgDate, progPeriod, dataRev } from '@/ui/store';
-import { sg, mealActions, loadMeal, toggleMealExtras, MEAL_PRESETS, goHome } from '@/ui/actions';
+import { sg, wk, mealActions, workoutActions, loadMeal, toggleMealExtras, MEAL_PRESETS, goHome } from '@/ui/actions';
 import { dateLabel, dstr } from '@/app/bootstrap';
 import { host } from '@/ui/host';
+import { toNum } from '@/core/util';
+import { currentWeight, bodyweightSlope, adherence, calorieAdjustment } from '@/features/meal/bodySelectors';
 
 type VM = ReturnType<typeof selectMealView>;
 const rv = (id: string): string => host.readValue(id);
+
+/** Bodyweight goal + pace + plain-language calorie guidance (spec §5 surfaced). */
+function BodyPanel() {
+  dataRev.value;
+  const W = wk();
+  const today = dstr();
+  const cur = currentWeight(W.bw, today);
+  const goal = toNum(W.settings.bwGoal) || null;
+  const slope = bodyweightSlope(W.bw, today);
+  const toGoal = cur != null && goal != null ? Math.round((goal - cur) * 10) / 10 : null;
+  const calT = calorieTarget(sg());
+  const adh = calT ? adherence(sg(), calT, today) : 0;
+  const adj = calorieAdjustment(slope, adh);
+  const newTarget = calT != null ? calT + adj.deltaKcal : null;
+  const advice =
+    adj.verdict === 'hold'
+      ? 'On pace — keep it steady.'
+      : adj.verdict === 'raise'
+        ? `Gaining slow — nudge calories to ${newTarget}.`
+        : adj.verdict === 'trim'
+          ? `Gaining fast — ease calories to ${newTarget}.`
+          : adj.verdict === 'hit-target'
+            ? `Hit your ${calT} kcal target first — you're eating ${Math.round(adh * 100)}%.`
+            : 'Weigh in a few more mornings for a pace read.';
+  const paceTxt = slope == null ? 'no trend yet' : `${slope >= 0 ? '+' : ''}${slope.toFixed(1)} lb/wk`;
+  const paceClass = slope == null ? '' : slope > 0 ? 'up' : 'down';
+  return (
+    <>
+      <SecHero
+        eyebrow="Food & Body"
+        value={cur != null ? cur : '—'}
+        unit="lb"
+        sub={toGoal != null ? `${toGoal} to goal` : goal ? `goal ${goal}` : 'set a goal'}
+        subClass={toGoal != null ? (toGoal > 0 ? 'up' : 'down') : ''}
+        tone="teal"
+      />
+      <div class="bodyrow">
+        <span class={'bodypace ' + paceClass}>{paceTxt}</span>
+        <div class="addslim bodyweigh">
+          <input id="bw-weigh" class="addslim-in" type="number" inputmode="decimal" placeholder="weigh in…" />
+          <button
+            class="addslim-btn"
+            onClick={() => {
+              const v = Number(rv('bw-weigh'));
+              if (v > 0) workoutActions.logBodyweight(v);
+            }}
+            aria-label="Log weight"
+          >
+            ＋
+          </button>
+        </div>
+      </div>
+      <div class={'bodyadvice v-' + adj.verdict}>{advice}</div>
+    </>
+  );
+}
 
 function MealProgress() {
   dataRev.value; // subscribe here (not just the MealView parent) so a logged/removed meal re-derives
@@ -33,6 +91,7 @@ function MealProgress() {
         ‹ Back
       </button>
       <SecHero eyebrow="Meals" value={todayCal} unit="kcal today" sub={sub} subClass={subClass} tone="fuel" />
+      <BodyPanel />
       <div class="prog">
         <ProgControls />
         <Carousel keepKey="meal">

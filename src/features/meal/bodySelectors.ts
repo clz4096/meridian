@@ -107,13 +107,9 @@ export function currentWeight(bw: Record<string, Numeric>, today: string): numbe
  * trailing window. Returns null when there are too few weigh-ins to trust it,
  * so callers never react to a single noisy reading.
  */
-export function bodyweightSlope(
-  bw: Record<string, Numeric>,
-  today: string,
-  config: BodyConfig = DEFAULT_BODY_CONFIG,
-): number | null {
-  const pts = windowReadings(bw, today, config.bwWindowDays);
-  if (pts.length < config.bwMinReadings) return null;
+/** Least-squares slope in lb/day over the readings, or null if it can't be fit. */
+function slopePerDay(pts: Reading[]): number | null {
+  if (pts.length < 2) return null;
   let n = 0;
   let sx = 0;
   let sy = 0;
@@ -128,8 +124,18 @@ export function bodyweightSlope(
   }
   const denom = n * sxx - sx * sx;
   if (Math.abs(denom) < 1e-9) return null; // all readings on one day → no slope
-  const perDay = (n * sxy - sx * sy) / denom;
-  return perDay * 7;
+  return (n * sxy - sx * sy) / denom;
+}
+
+export function bodyweightSlope(
+  bw: Record<string, Numeric>,
+  today: string,
+  config: BodyConfig = DEFAULT_BODY_CONFIG,
+): number | null {
+  const pts = windowReadings(bw, today, config.bwWindowDays);
+  if (pts.length < config.bwMinReadings) return null;
+  const perDay = slopePerDay(pts);
+  return perDay == null ? null : perDay * 7;
 }
 
 /** Calories logged on a date (0 when nothing is logged). */
@@ -169,14 +175,13 @@ export function empiricalTDEE(
   if (kcals.length < config.tdeeMinLoggedDays) return null;
   const meanIntake = kcals.reduce((a, c) => a + c, 0) / kcals.length;
 
+  // Weight change from the least-squares trend over the window, not the two end
+  // readings — one noisy endpoint would otherwise swing the estimate by hundreds
+  // of kcal. perDay (lb/day) × kcalPerLb is the daily energy imbalance.
   const pts = windowReadings(bw, today, config.tdeeWindowDays);
-  if (pts.length < 2) return null;
-  const start = pts[0];
-  const end = pts[pts.length - 1];
-  const spanDays = dayGap(start.date, end.date);
-  if (spanDays <= 0) return null;
-  const deltaLb = end.lb - start.lb;
-  return Math.round(meanIntake - (deltaLb * config.kcalPerLb) / spanDays);
+  const perDay = slopePerDay(pts);
+  if (perDay == null) return null;
+  return Math.round(meanIntake - perDay * config.kcalPerLb);
 }
 
 /** Sex used by the Mifflin–St Jeor cold-start estimate. */

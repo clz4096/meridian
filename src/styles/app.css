@@ -364,6 +364,15 @@ body:not(.at-home) .tabpane{padding-top:calc(14px + env(safe-area-inset-top))}
 .fab.scratch.on{background:var(--surface-2);color:var(--text)}
 /* lift the autosave chip above the FAB when one is present */
 body:has(.fab) .savestat{bottom:calc(90px + env(safe-area-inset-bottom))}
+/* Food & Body panel (Meals) */
+.bodyrow{display:flex;align-items:center;gap:10px;margin:8px 0 0}
+.bodypace{flex:none;font-family:var(--mono);font-size:13px;color:var(--muted);min-width:74px}
+.bodypace.up{color:var(--ok)}.bodypace.down{color:var(--deficit)}
+.bodyweigh{flex:1;margin:0}
+.bodyadvice{font-family:var(--sans);font-size:13px;color:var(--muted);margin:10px 2px 2px;padding:10px 12px;border-radius:12px;background:var(--surface-1);border:1px solid var(--line)}
+.bodyadvice.v-raise{color:var(--fuel);border-color:rgba(224,166,75,.3)}
+.bodyadvice.v-trim{color:var(--deficit);border-color:rgba(216,101,79,.3)}
+.bodyadvice.v-hold{color:var(--ok);border-color:rgba(59,185,140,.3)}
 .dcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:14px}
 .dcard-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .dcard-t{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
