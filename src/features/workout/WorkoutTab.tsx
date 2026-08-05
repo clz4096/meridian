@@ -4,17 +4,106 @@
  * tuck behind the ⚙. Ports workoutCharts (app.ts) + renderWorkoutHTML to JSX.
  */
 import { useEffect } from 'preact/hooks';
-import { selectWorkoutView, restSeconds, inferIncrement } from '@/features/workout/workoutSelectors';
+import { selectWorkoutView, restSeconds, inferIncrement, splitOfDate } from '@/features/workout/workoutSelectors';
 import type { WorkoutViewOptions } from '@/features/workout/types';
 import { bodyweightGoal, trackedLifts, bodyweightSeries, strengthSeries, volumeSeries, tonnageSeries } from '@/ui/charts/progress';
-import { DEFAULT_CONFIG, type SetType, type ExercisePlan } from '@/core/types';
+import { DEFAULT_CONFIG, type SetType, type ExercisePlan, type Split, type WorkoutState } from '@/core/types';
+import { shiftDate } from '@/core/util';
 import { domId } from '@/ui/html';
 import { ProgControls, Carousel, Chart, LiftPicker } from '@/ui/components/Charts';
-import { SecHero } from '@/ui/components/SecHero';
 import { wk, currentBW, exVideo, workoutActions, discard, loadWorkout, goHome } from '@/ui/actions';
-import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkExtrasOpen, expandedEx, progPeriod, progLift, dataRev } from '@/ui/store';
+import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkExtrasOpen, wkShowAll, wkProgOpen, activeExercise, progPeriod, progLift, dataRev } from '@/ui/store';
 import { dstr, dateLabel } from '@/app/bootstrap';
 import { host } from '@/ui/host';
+
+/* ── plate calculator (barbell lifts only) ── */
+const BAR_LB: Record<string, number> = { 'Bench Press': 45 };
+const PLATES = [45, 35, 25, 10, 5, 2.5];
+interface PlateSpec {
+  weight: number; // the target total
+  bar: number;
+  perSide: number;
+  plates: number[]; // one side, largest first
+  empty: boolean; // weight == bar → no plates, just the bar
+  loadable: boolean; // decomposes cleanly on the available plates
+}
+/** Plates to load on EACH side for a target total, or null if not a barbell lift. */
+function platesFor(exercise: string, weight: number): PlateSpec | null {
+  const bar = BAR_LB[exercise];
+  if (bar == null || !(weight > 0)) return null;
+  if (weight <= bar) return { weight, bar, perSide: 0, plates: [], empty: true, loadable: true };
+  let rem = (weight - bar) / 2;
+  const perSide = rem;
+  const plates: number[] = [];
+  for (const p of PLATES) {
+    while (rem >= p - 1e-9) {
+      rem -= p;
+      plates.push(p);
+    }
+  }
+  return { weight, bar, perSide, plates, empty: false, loadable: rem <= 1e-6 };
+}
+
+/** A loaded barbell (plates mirrored on both ends). `mini` renders a small silhouette for card faces. */
+function Barbell({ spec, mini }: { spec: PlateSpec; mini?: boolean }) {
+  const left = [...spec.plates].reverse(); // small → large toward the bar
+  return (
+    <div class={'barbell' + (mini ? ' mini' : '')} aria-hidden="true">
+      <div class="bb-side">
+        {left.map((w) => (
+          <span class="plate" data-w={String(w)}>
+            {w}
+          </span>
+        ))}
+      </div>
+      <div class="bb-bar" />
+      <div class="bb-side">
+        {spec.plates.map((w) => (
+          <span class="plate" data-w={String(w)}>
+            {w}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The centered plate diagram + label shown inside an open exercise card. */
+function PlateBar({ spec }: { spec: PlateSpec }) {
+  if (!spec.loadable) return null;
+  return (
+    <div class="platebox">
+      <Barbell spec={spec} />
+      <span class="platelbl">
+        <b>{spec.weight}</b> lb · {spec.empty ? 'just the bar' : `${spec.perSide} per side`}
+      </span>
+    </div>
+  );
+}
+
+/* ── "Your week" strip — mirrors what was actually trained, today highlighted ── */
+const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+function WeekStrip({ state, today, suggestion }: { state: WorkoutState; today: string; suggestion: Split }) {
+  const dow = (new Date(today + 'T00:00:00').getDay() + 6) % 7; // 0 = Mon
+  const monday = shiftDate(today, -dow);
+  return (
+    <div class="wkweek">
+      {DOW.map((label, i) => {
+        const date = shiftDate(monday, i);
+        const isToday = date === today;
+        const done = splitOfDate(state, date, DEFAULT_CONFIG); // 'lower' | 'upper' | null
+        const split = done ?? (isToday ? suggestion : null);
+        const cls = split === 'upper' ? ' up' : split === 'lower' ? ' lo' : '';
+        return (
+          <div class={'wkday' + cls + (isToday ? ' today' : '')}>
+            <span class="wkday-l">{label}</span>
+            <span class="wkday-dot" />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 type Any = any;
 type VM = ReturnType<typeof selectWorkoutView>;
@@ -36,7 +125,7 @@ function buildOptions(state: Any, date: string, today: string, bw: { current: nu
   return { restSeconds: rest, increments, videoUrl: exVideo, bodyweight: { ...bw, toGoal }, dateLabel, isToday: date === today };
 }
 
-/* ── Progress charts ── */
+/* ── Progress charts (collapsed by default, below the session) ── */
 function WorkoutCharts() {
   const W = wk();
   const period = progPeriod.value;
@@ -46,31 +135,21 @@ function WorkoutCharts() {
   }, [lifts.join('|')]);
   const lift = lifts.includes(progLift.value) ? progLift.value : lifts[0] ?? '';
   const goal = bodyweightGoal(W);
-  const cur = currentBW() as number | null;
-  const dToGoal = cur != null && goal != null ? Math.round((goal - Number(cur)) * 10) / 10 : null;
-  const sub = dToGoal != null ? `${dToGoal > 0 ? '+' : ''}${dToGoal} to goal` : cur != null ? 'weighed in' : 'no weigh-in yet';
-  const subClass = dToGoal != null ? (dToGoal > 0 ? 'up' : dToGoal < 0 ? 'down' : '') : '';
   return (
-    <>
-      <button class="backbtn" onClick={goHome}>
-        ‹ Back
-      </button>
-      <SecHero eyebrow="Workout" value={cur != null ? cur : '—'} unit="lb" sub={sub} subClass={subClass} tone="fuel" />
-      <div class="prog">
-        <ProgControls />
-        <Carousel keepKey="workout">
-          <Chart opts={{ kind: 'line', title: 'Body growth', points: bodyweightSeries(W, period), unit: 'lb', format: (v) => v.toFixed(1), reference: goal != null ? { value: goal, label: `goal ${goal}` } : null, color: 'var(--fuel)' }} />
-          {lift ? (
-            <div>
-              <LiftPicker lifts={lifts} />
-              <Chart opts={{ kind: 'line', title: 'Strength', points: strengthSeries(W, lift, period), unit: 'lb', color: 'var(--teal)' }} />
-            </div>
-          ) : null}
-          <Chart opts={{ kind: 'bar', title: 'Volume · working sets', points: volumeSeries(W, period), summary: 'sum', color: 'var(--fuel)' }} />
-          <Chart opts={{ kind: 'bar', title: 'Tonnage', points: tonnageSeries(W, period), unit: 'lb', summary: 'sum', color: 'var(--teal)' }} />
-        </Carousel>
-      </div>
-    </>
+    <div class="prog">
+      <ProgControls />
+      <Carousel keepKey="workout">
+        <Chart opts={{ kind: 'line', title: 'Body growth', points: bodyweightSeries(W, period), unit: 'lb', format: (v) => v.toFixed(1), reference: goal != null ? { value: goal, label: `goal ${goal}` } : null, color: 'var(--fuel)' }} />
+        {lift ? (
+          <div>
+            <LiftPicker lifts={lifts} />
+            <Chart opts={{ kind: 'line', title: 'Strength', points: strengthSeries(W, lift, period), unit: 'lb', color: 'var(--teal)' }} />
+          </div>
+        ) : null}
+        <Chart opts={{ kind: 'bar', title: 'Volume · working sets', points: volumeSeries(W, period), summary: 'sum', color: 'var(--fuel)' }} />
+        <Chart opts={{ kind: 'bar', title: 'Tonnage', points: tonnageSeries(W, period), unit: 'lb', summary: 'sum', color: 'var(--teal)' }} />
+      </Carousel>
+    </div>
   );
 }
 
@@ -199,12 +278,11 @@ function SetLine({ state, label, val, trailing }: { state: 'done' | 'now' | 'up'
   );
 }
 
-function ExerciseCard({ vm, o, exercise, expanded }: { vm: VM; o: WorkoutViewOptions; exercise: string; expanded: boolean }) {
-  const id = domId(exercise);
+/** A tappable exercise card in the list/grid. Tapping opens the full-screen detail. */
+function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
   const plan: Any = vm.plans[exercise] ?? null;
   const performed: Any[] = vm.performed[exercise] ?? [];
   const complete = vm.completed[exercise] === true;
-  const rest = o.restSeconds[exercise];
 
   const top = performed.find((s) => s.type === 'top') ?? performed[performed.length - 1];
   let sv = 'new';
@@ -219,43 +297,66 @@ function ExerciseCard({ vm, o, exercise, expanded }: { vm: VM; o: WorkoutViewOpt
     sv = `${plan.lastTopWeight} × ${plan.lastTopReps}`;
     sl = 'last';
   }
+  const setCount = plan && !plan.cardio ? plan.warms.length + 1 + plan.backs.length : null;
+  const showCount = !!plan && !plan.cardio && performed.length === 0;
+  const topSpec = plan && !plan.cardio ? platesFor(exercise, plan.top.weight) : null;
 
-  const header = (
-    <button class="ex-top" onClick={() => workoutActions.toggleExercise?.(exercise)}>
-      {complete && (
-        <svg class="ex-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true">
-          <path d="M5 12l4 4 10-10" />
+  return (
+    <div class={'ex' + (complete ? ' done' : '')}>
+      <button class="ex-top" onClick={() => (activeExercise.value = exercise)}>
+        {complete && (
+          <svg class="ex-check" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true">
+            <path d="M5 12l4 4 10-10" />
+          </svg>
+        )}
+        <div class="excard-main">
+          <div class="excard-name">
+            {exercise}
+            {plan?.deload ? <> <span class="cue deload">deload</span></> : null}
+          </div>
+          <div class="excard-meta">
+            <span class="excard-v">{sv}</span>
+            {showCount ? <span class="excard-tag">· {setCount} sets</span> : sl ? <span class="excard-tag">· {sl}</span> : null}
+          </div>
+        </div>
+        {topSpec?.loadable ? <Barbell spec={topSpec} mini /> : null}
+        <svg class="ex-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+          <path d="M9 6l6 6-6 6" />
         </svg>
-      )}
-      <span class="ex-name">
-        {exercise}
-        {plan?.deload ? <> <span class="cue deload">deload</span></> : null}
-      </span>
-      <span class="ex-status">
-        {sv}
-        {sl && <span class="lbl">{sl}</span>}
-      </span>
-      <svg class="ex-chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
-        <path d="M9 6l6 6-6 6" />
-      </svg>
-    </button>
+      </button>
+    </div>
   );
+}
 
-  if (!expanded) {
-    return (
-      <div class={'ex' + (complete ? ' done' : '')} id={'lift-' + id}>
-        {header}
-      </div>
-    );
-  }
+/** The full-screen logging view for one exercise, with a back link and a switcher to the others. */
+function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutViewOptions; exercise: string; exercises: string[] }) {
+  const plan: Any = vm.plans[exercise] ?? null;
+  const performed: Any[] = vm.performed[exercise] ?? [];
+  const complete = vm.completed[exercise] === true;
+  const rest = o.restSeconds[exercise];
+  // Plate glyph follows the *current* set being logged (warmup vs top), not the top set.
+  const setWeights: number[] =
+    plan && !plan.cardio
+      ? [...(plan.warms ?? []).map((w: Any) => w.weight), plan.top.weight, ...(plan.backs ?? []).map((b: Any) => b.weight)]
+      : [];
+  const curWeight = setWeights[performed.length] ?? plan?.top?.weight ?? 0;
+  const ph = platesFor(exercise, curWeight);
 
-  // expanded body
   let body: preact.JSX.Element;
   if (vm.isPast && performed.length > 0) {
     body = (
       <div class="sets">
         {performed.map((s) => (
-          <SetLine state="done" label={setTypeLabel(s.type)} val={`${s.weight} × ${s.reps}`} trailing={<span class="undo" onClick={() => workoutActions.deleteSet(vm.date, s.id)} title="Remove">×</span>} />
+          <SetLine
+            state="done"
+            label={setTypeLabel(s.type)}
+            val={`${s.weight} × ${s.reps}`}
+            trailing={
+              <button class="setundo" onClick={() => workoutActions.deleteSet(vm.date, s.id)}>
+                ✕ Remove
+              </button>
+            }
+          />
         ))}
       </div>
     );
@@ -292,7 +393,12 @@ function ExerciseCard({ vm, o, exercise, expanded }: { vm: VM; o: WorkoutViewOpt
           {rows.map(([, label, set], i) => {
             const state = i < next ? 'done' : i === next ? 'now' : 'up';
             const val = state === 'done' && performed[i] ? `${performed[i].weight} × ${performed[i].reps}` : `${set.weight} × ${set.reps}`;
-            const undo = state === 'done' && i === next - 1 ? <span class="undo" onClick={() => workoutActions.undoLastSet(exercise)} title="Undo">↩</span> : null;
+            const undo =
+              state === 'done' && i === next - 1 ? (
+                <button class="setundo" onClick={() => workoutActions.undoLastSet(exercise)}>
+                  ↩ Undo
+                </button>
+              ) : null;
             return <SetLine state={state} label={label} val={val} trailing={undo} />;
           })}
         </div>
@@ -300,23 +406,41 @@ function ExerciseCard({ vm, o, exercise, expanded }: { vm: VM; o: WorkoutViewOpt
     );
   }
 
+  const idx = exercises.indexOf(exercise);
+  const next = idx >= 0 && idx < exercises.length - 1 ? exercises[idx + 1] : null;
   return (
-    <div class={'ex open' + (complete ? ' done' : '')} id={'lift-' + id}>
-      {header}
-      <div class="ex-body">
-        <div class="ex-inner">
-          {body}
-          <div class="more">
-            <a href={o.videoUrl(exercise)} target="_blank" rel="noopener">▶ How&nbsp;to</a>
-            {plan && !plan.cardio && (
-              <>
-                <button type="button" onClick={() => workoutActions.toggleDeload(exercise)}>{plan.deload ? '✓ Rebuilding' : 'Feel weak'}</button>
-                <button type="button" onClick={() => workoutActions.editIncrement(exercise)}>Stack&nbsp;step · {o.increments[exercise] ?? plan.incr} lb</button>
-                {rest && <span class="more-rest">rest {rest.warm}/{rest.top}/{rest.back}s</span>}
-              </>
-            )}
-            <button type="button" class="more-done" onClick={() => workoutActions.toggleExerciseDone(exercise)}>{complete ? 'Reopen' : 'Mark done'}</button>
-          </div>
+    <div class="exdetail" key={exercise}>
+      <div class="exdetail-top">
+        <button class="backbtn" onClick={() => (activeExercise.value = null)}>
+          ‹ Exercises
+        </button>
+        {next ? (
+          <button class="exnext" onClick={() => (activeExercise.value = next)}>
+            Next · {next} ›
+          </button>
+        ) : (
+          <button class="exnext" onClick={() => (activeExercise.value = null)}>
+            Done ✓
+          </button>
+        )}
+      </div>
+      <div class="exdetail-body">
+        <h2 class="exdetail-name">
+          {exercise}
+          {plan?.deload ? <> <span class="cue deload">deload</span></> : null}
+        </h2>
+        {ph && <PlateBar spec={ph} />}
+        {body}
+        <div class="more">
+        <a href={o.videoUrl(exercise)} target="_blank" rel="noopener">▶ How&nbsp;to</a>
+        {plan && !plan.cardio && (
+          <>
+            <button type="button" onClick={() => workoutActions.toggleDeload(exercise)}>{plan.deload ? '✓ Rebuilding' : 'Feel weak'}</button>
+            <button type="button" onClick={() => workoutActions.editIncrement(exercise)}>Stack&nbsp;step · {o.increments[exercise] ?? plan.incr} lb</button>
+            {rest && <span class="more-rest">rest {rest.warm}/{rest.top}/{rest.back}s</span>}
+          </>
+        )}
+        <button type="button" class="more-done" onClick={() => workoutActions.toggleExerciseDone(exercise)}>{complete ? 'Reopen' : 'Mark done'}</button>
         </div>
       </div>
     </div>
@@ -334,24 +458,51 @@ export function WorkoutView() {
   const date = wkDate.value ?? today;
   const vm = selectWorkoutView(W, date, today, { deload: wkDeload.value, split: wkSplitTouched.value ? wkSplit.value : undefined }, DEFAULT_CONFIG);
   const o = buildOptions(W, date, today, { current: currentBW() as number | null, goal: +W.settings.bwGoal || null });
+  const showAll = wkShowAll.value;
+  // "Show all" re-derives the full list; otherwise the cards follow today's split.
+  const cardVm = showAll ? selectWorkoutView(W, date, today, { deload: wkDeload.value, split: 'all' }, DEFAULT_CONFIG) : vm;
   const done = vm.exercises.filter((e) => vm.completed[e]).length;
   const status = vm.sessionComplete ? '✓ complete' : `${done} / ${vm.exercises.length} logged`;
-  const exp = expandedEx.value;
+  const splitLabel = vm.split === 'upper' ? 'Upper' : vm.split === 'lower' ? 'Lower' : vm.split === 'all' ? 'Full body' : 'Session';
+  const progOpen = wkProgOpen.value;
+
+  // Master–detail: an active exercise takes over the whole screen.
+  const active = activeExercise.value;
+  if (active && cardVm.exercises.includes(active)) {
+    return <ExerciseDetail vm={cardVm} o={o} exercise={active} exercises={cardVm.exercises} />;
+  }
   return (
     <>
-      <WorkoutCharts />
-      {wkExtrasOpen.value && <Extras vm={vm} o={o} />}
-      <div class="exhead">
-        <span class="exhead-t">Today’s session</span>
+      <button class="backbtn" onClick={goHome}>
+        ‹ Back
+      </button>
+
+      <WeekStrip state={W} today={today} suggestion={vm.suggestion.due} />
+
+      <div class="todayhd">
+        <div class="todayhd-split">{vm.isPast ? o.dateLabel(vm.date) : `${splitLabel} day`}</div>
         <span class="exhead-r">
           <span class="exhead-m">{status}</span>
           <button class={'ex-opts' + (wkExtrasOpen.value ? ' on' : '')} onClick={() => workoutActions.toggleLog?.()} aria-label="Session options">⚙</button>
         </span>
       </div>
+      {wkExtrasOpen.value && <Extras vm={vm} o={o} />}
       {vm.isPast && vm.exercises.length === 0 && <div class="placeholder">No workout logged on {o.dateLabel(vm.date)}.</div>}
-      {vm.exercises.map((ex) => (
-        <ExerciseCard vm={vm} o={o} exercise={ex} expanded={exp.has(ex)} />
-      ))}
+      <div class="exgrid">
+        {cardVm.exercises.map((ex) => (
+          <ExerciseCardFace vm={cardVm} exercise={ex} />
+        ))}
+      </div>
+      {!vm.isPast && (
+        <button class="wk-showall" onClick={() => (wkShowAll.value = !showAll)}>
+          {showAll ? 'Show today only' : 'Show all exercises'}
+        </button>
+      )}
+
+      <button class={'wk-progtoggle' + (progOpen ? ' on' : '')} onClick={() => (wkProgOpen.value = !progOpen)}>
+        {progOpen ? '▾' : '▸'} Progress
+      </button>
+      {progOpen && <WorkoutCharts />}
     </>
   );
 }

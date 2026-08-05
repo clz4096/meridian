@@ -102,28 +102,82 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .exhead{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin:26px 2px 8px;display:flex;justify-content:space-between;align-items:center}
 .exhead-r{display:flex;align-items:center;gap:10px}
 .exhead-m{color:var(--muted);letter-spacing:.06em}
+/* workout — your week strip (quiet: letters + a state dot, today emphasized) */
+.wkweek{display:flex;gap:4px;margin:4px 0 22px}
+.wkday{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;padding:2px 0}
+.wkday-l{font-family:var(--mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
+.wkday-dot{width:6px;height:6px;border-radius:50%;background:var(--line-2)}
+.wkday.up .wkday-dot{background:var(--fuel)}
+.wkday.lo .wkday-dot{background:var(--teal)}
+.wkday.today .wkday-l{color:var(--text);font-weight:700}
+.wkday.today .wkday-dot{outline:2px solid rgba(255,255,255,.10);outline-offset:2px}
+/* workout — today's session header (the lead) */
+.todayhd{display:flex;justify-content:space-between;align-items:center;margin:2px 2px 14px}
+.todayhd-split{font-size:19px;font-weight:700;letter-spacing:-.01em}
+/* workout — plate diagram (a centered, loaded barbell).
+   Fixed-height slot so changing plates never pushes the page below it. */
+.platebox{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;margin:2px 0 14px}
+.barbell{height:64px;display:flex;align-items:center;justify-content:center}
+.bb-side{display:flex;align-items:center;gap:2px}
+.bb-bar{width:38px;height:6px;border-radius:3px;background:linear-gradient(180deg,var(--faint),var(--dim));margin:0 1px}
+.plate{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;color:#12151b;background:var(--fuel);border-radius:3px;box-shadow:0 1px 2px rgba(0,0,0,.35)}
+.plate[data-w="45"]{height:62px;width:24px;font-size:12px}
+.plate[data-w="35"]{height:53px;width:22px;font-size:12px}
+.plate[data-w="25"]{height:45px;width:20px;font-size:11px}
+.plate[data-w="10"]{height:36px;width:18px;font-size:10px}
+.plate[data-w="5"]{height:29px;width:16px;font-size:9px}
+.plate[data-w="2.5"]{height:23px;width:19px;font-size:8px}
+.platelbl{font-family:var(--mono);font-size:12.5px;color:var(--muted);letter-spacing:.02em}
+.platelbl b{color:var(--fuel);font-weight:700}
+/* workout — show-all + progress toggles (quiet) */
+.wk-showall{display:block;width:100%;text-align:center;margin-top:12px;background:transparent;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:11px;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+.wk-showall:hover,.wk-showall:focus-visible{color:var(--text);border-color:var(--line-2);outline:none}
+.wk-progtoggle{display:block;width:100%;text-align:left;margin-top:26px;background:transparent;border:0;color:var(--faint);font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;padding:9px 2px}
+.wk-progtoggle:hover,.wk-progtoggle.on,.wk-progtoggle:focus-visible{color:var(--muted);outline:none}
 .ex-opts{font-size:13px;line-height:1;color:var(--muted);background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-sm);padding:5px 9px;cursor:pointer;min-height:0;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
 .ex-opts:hover,.ex-opts.on,.ex-opts:focus-visible{color:var(--teal);border-color:var(--line-2);outline:none}
 .wk-extras{margin-top:var(--sp3)}
 .wk-complete{background:var(--hub);color:#0e1116;border:0;font-weight:600}
 .wk-complete:hover,.wk-complete:focus-visible{background:var(--fuel);outline:none}
 .wk-complete.on{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:500}
-/* ===== streamlined exercise card ===== */
-.ex{border-top:1px solid var(--line)}
-.ex:last-of-type{border-bottom:1px solid var(--line)}
-.ex-top{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;cursor:pointer;color:inherit;text-align:left;font:inherit;padding:17px 2px;min-height:44px}
-.ex-name{flex:1;font-size:15.5px;font-weight:500;color:var(--text)}
-.ex-status{font-family:var(--mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
-.ex-status .lbl{color:var(--faint);text-transform:uppercase;letter-spacing:.08em;font-size:10px;margin-left:6px}
-.ex-chev{color:var(--faint);transition:transform var(--dur) var(--ease);flex:none}
-.ex.open .ex-chev{transform:rotate(90deg);color:var(--teal)}
-.ex.done .ex-name{color:var(--muted)}
-.ex.done .ex-status{color:var(--ok)}
+/* ===== exercise cards — responsive grid, tap to open a full-screen detail ===== */
+.exgrid{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:10px;margin-top:2px}
+@media (max-width:420px){.exgrid{grid-template-columns:1fr;grid-auto-rows:auto}}
+.ex{display:flex;background:var(--surface-1);border:1px solid var(--line);border-radius:16px;overflow:hidden;transition:border-color var(--dur) var(--ease)}
+.ex-top{flex:1;display:flex;align-items:center;gap:14px;width:100%;background:none;border:0;cursor:pointer;color:inherit;text-align:left;font:inherit;padding:15px 16px;min-height:72px;transition:background var(--dur) var(--ease)}
+.ex-top:active{background:var(--surface-2)}
+.excard-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.excard-name{font-size:15.5px;font-weight:600;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.excard-meta{font-family:var(--mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.excard-v{color:var(--text)}
+.excard-tag{color:var(--faint);margin-left:5px}
+.ex-chev{color:var(--faint);flex:none}
+.ex.done .excard-name{color:var(--muted)}
+.ex.done .excard-v{color:var(--ok)}
 .ex-check{color:var(--ok);flex:none}
-.ex-body{max-height:0;overflow:hidden;transition:max-height .32s var(--ease)}
-.ex.open .ex-body{max-height:760px}
-.ex-inner{padding:2px 2px 20px}
-.rx{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:6px 0 14px}
+/* full-screen exercise detail — a content view: fills the screen, no scroll, content centered */
+.exdetail{animation:exdetailIn .26s var(--ease);display:flex;flex-direction:column;min-height:calc(100dvh - 96px)}
+@keyframes exdetailIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.exdetail-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.exnext{flex:none;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--sans);font-size:13px;font-weight:600;color:var(--teal);background:var(--tealSoft);border:1px solid rgba(124,201,236,.28);border-radius:var(--r-pill);padding:0 15px;min-height:40px;cursor:pointer;transition:background var(--dur) var(--ease)}
+.exnext:hover,.exnext:focus-visible{background:rgba(124,201,236,.16);outline:none}
+.exdetail-body{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;padding:4px 0}
+.exdetail-name{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:6px 2px 2px;text-align:center}
+.exdetail .platebox{margin:6px 0 12px}
+.exdetail .set{min-height:46px}
+.exdetail .more{margin-top:14px;padding-top:12px}
+/* mini barbell silhouette on the card face */
+.barbell.mini{gap:0}
+.barbell.mini .bb-side{gap:1px}
+.barbell.mini .bb-bar{width:13px;height:3px;margin:0;border-radius:2px}
+.barbell.mini .plate{border-radius:2px;font-size:0;box-shadow:none}
+.barbell.mini .plate[data-w="45"]{height:24px;width:8px}
+.barbell.mini .plate[data-w="35"]{height:21px;width:8px}
+.barbell.mini .plate[data-w="25"]{height:18px;width:7px}
+.barbell.mini .plate[data-w="10"]{height:15px;width:7px}
+.barbell.mini .plate[data-w="5"]{height:12px;width:6px}
+.barbell.mini .plate[data-w="2.5"]{height:10px;width:6px}
+.rx{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-height:20px;margin:6px 0 14px}
 .rx-what{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
 .rx-what.all-done{color:var(--ok)}
 .rx-cue{font-family:var(--mono);font-size:12px;color:var(--ok)}
@@ -139,16 +193,18 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .logbtn{flex:1.1;display:flex;align-items:center;justify-content:center;background:var(--teal);color:#04212e;border:0;border-radius:12px;font:600 15px/1 var(--sans);cursor:pointer;min-height:56px;letter-spacing:.01em;transition:transform .1s var(--ease)}
 .logbtn:active{transform:scale(.99)}
 .logbtn:focus-visible{outline:2px solid var(--core);outline-offset:2px}
-.sets{margin-top:16px;display:grid;gap:2px}
-.set{display:flex;align-items:center;gap:12px;padding:9px 4px;font-family:var(--mono);font-size:13.5px}
-.set .st{width:16px;flex:none;text-align:center}
-.set .nm{width:74px;flex:none;color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.07em}
-.set .vl{color:var(--text);font-variant-numeric:tabular-nums}
-.set .undo{margin:-9px 0 -9px auto;padding:9px 12px;color:var(--dim);cursor:pointer;font-size:15px;line-height:1;min-height:0}
+.sets{margin-top:18px;display:flex;flex-direction:column}
+.set{display:flex;align-items:center;gap:14px;min-height:52px;padding:4px 6px;font-family:var(--mono);font-size:14px;border-top:1px solid var(--line)}
+.set:first-child{border-top:0}
+.set .st{width:18px;flex:none;text-align:center;font-size:13px}
+.set .nm{flex:none;color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.09em}
+.set .vl{margin-left:auto;color:var(--text);font-variant-numeric:tabular-nums;font-size:15px;letter-spacing:.01em}
 .set.done .st{color:var(--ok)}.set.done .vl{color:var(--muted)}
-.set.now{background:var(--surface-1);border-radius:10px}
+.set.now{background:var(--surface-1);border-radius:12px}
 .set.now .st{color:var(--teal)}.set.now .nm{color:var(--teal)}
-.set.up{opacity:.5}
+.set.up{opacity:.45}
+.setundo{margin-left:14px;flex:none;height:30px;display:inline-flex;align-items:center;padding:0 13px;border-radius:var(--r-pill);border:1px solid var(--line-2);background:var(--surface-1);color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+.setundo:hover,.setundo:focus-visible{color:var(--deficit);border-color:var(--deficit);outline:none}
 .more{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
 .more a,.more button{font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--muted);text-decoration:none;cursor:pointer;background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-pill);padding:7px 12px;min-height:0;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
 .more a:hover,.more button:hover,.more a:focus-visible,.more button:focus-visible{color:var(--teal);border-color:var(--line-2);outline:none}

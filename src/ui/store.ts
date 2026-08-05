@@ -33,6 +33,9 @@ export const wkSplitTouched = signal(false);
 export const wkDeload = signal<Record<string, boolean>>({});
 export const expandedEx = signal<Set<string>>(new Set());
 export const wkExtrasOpen = signal(false);
+export const wkShowAll = signal(false); // Today's card: show the full exercise list vs just today's split
+export const wkProgOpen = signal(false); // Progress charts collapsed by default to keep the tab calm
+export const activeExercise = signal<string | null>(null); // full-screen exercise detail (null = the list)
 
 // ── knowledge UI state ──
 export const kgLoaded = signal(false);

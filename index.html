@@ -10,6 +10,9 @@
   <meta name="apple-mobile-web-app-title" content="Meridian">
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <!-- Critical: paint the dark ground on the very first frame, before the bundled CSS loads,
+       so the landing never flashes white. Matches --void / theme-color. -->
+  <style>html,body{margin:0;background:#070B14}</style>
 </head>
 <body>
 <div id="app"></div>

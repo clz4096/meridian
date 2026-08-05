@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { WorkoutView } from '@/features/workout/WorkoutTab';
 import { wk, workoutActions } from '@/ui/actions';
-import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, expandedEx, wkExtrasOpen } from '@/ui/store';
+import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, activeExercise, wkExtrasOpen } from '@/ui/store';
 
 beforeEach(() => {
   // The view shows "Loading…" and kicks off a real async loadWorkout() in an
@@ -41,7 +41,7 @@ afterEach(() => {
   wkSplit.value = 'all';
   wkSplitTouched.value = false;
   wkDeload.value = {};
-  expandedEx.value = new Set();
+  activeExercise.value = null;
   wkExtrasOpen.value = false;
   const W = wk() as any;
   W.days = {};
@@ -49,22 +49,22 @@ afterEach(() => {
 });
 
 describe('WorkoutView', () => {
-  it('renders the workout screen: bodyweight hero + the seeded exercise card', () => {
-    const { getByText, container } = render(<WorkoutView />);
-    expect(getByText('150')).toBeTruthy(); // hero value
-    expect(getByText('Workout')).toBeTruthy(); // sechero eyebrow
-    const names = [...container.querySelectorAll('.ex-name')].map((e) => e.textContent);
+  it('renders the workout screen: week strip + today header + the seeded exercise card', () => {
+    const { container } = render(<WorkoutView />);
+    expect(container.querySelector('.wkweek')).toBeTruthy(); // your-week strip
+    expect(container.querySelector('.todayhd-split')).toBeTruthy(); // today's split header (the lead)
+    const names = [...container.querySelectorAll('.excard-name')].map((e) => e.textContent);
     expect(names.some((n) => n?.includes('Leg Press'))).toBe(true);
   });
 
-  it('starts collapsed — the log inputs appear only once the card is expanded', () => {
+  it('shows the list of cards, not the log inputs, until an exercise is opened', () => {
     const { queryByText, container } = render(<WorkoutView />);
-    // collapsed: header shows, no Log set / no weight input
+    // the grid: a card face shows, no Log set / no weight input
     expect(queryByText('Log set')).toBeNull();
     expect(container.querySelector('#w-leg-press-top0')).toBeNull();
 
     cleanup();
-    expandedEx.value = new Set(['Leg Press']);
+    activeExercise.value = 'Leg Press'; // open the full-screen detail
     const r = render(<WorkoutView />);
     expect(r.queryByText('Log set')).toBeTruthy();
     expect(r.container.querySelector('#w-leg-press-top0')).toBeTruthy();
@@ -73,7 +73,7 @@ describe('WorkoutView', () => {
 
   it('reads the weight/reps inputs by id and passes them to workoutActions.logSet', () => {
     const logSpy = vi.spyOn(workoutActions, 'logSet').mockImplementation(() => {});
-    expandedEx.value = new Set(['Leg Press']);
+    activeExercise.value = 'Leg Press';
     const { getByText, container } = render(<WorkoutView />);
     (container.querySelector('#w-leg-press-top0') as HTMLInputElement).value = '185';
     (container.querySelector('#r-leg-press-top0') as HTMLInputElement).value = '10';
@@ -99,10 +99,15 @@ describe('WorkoutView', () => {
     expect(bwSpy).toHaveBeenCalledWith(162);
   });
 
-  it('fires workoutActions.toggleExercise when an exercise header is tapped', () => {
-    const toggleSpy = vi.spyOn(workoutActions as Required<typeof workoutActions>, 'toggleExercise').mockImplementation(() => {});
+  it('tapping an exercise card opens its full-screen detail', () => {
     const { container } = render(<WorkoutView />);
+    expect(activeExercise.value).toBeNull();
     fireEvent.click(container.querySelector('.ex-top')!);
-    expect(toggleSpy).toHaveBeenCalledWith('Leg Press');
+    expect(activeExercise.value).toBe('Leg Press');
+    // re-render reflects the detail (the switcher + log inputs)
+    cleanup();
+    const r = render(<WorkoutView />);
+    expect(r.container.querySelector('.exdetail')).toBeTruthy();
+    expect(r.getByText('Log set')).toBeTruthy();
   });
 });
