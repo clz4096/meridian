@@ -193,6 +193,11 @@ export const workoutActions: WorkoutActions = {
     appState.markWorkoutDirty();
     st.bump();
   },
+  setSundayFullBody(on) {
+    wk().settings.sundayFullBody = on;
+    appState.markWorkoutDirty();
+    st.bump();
+  },
   setChartPeriod(p) {
     st.progPeriod.value = p as import("@/ui/charts/progress").Period;
     st.bump();

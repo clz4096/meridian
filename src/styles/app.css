@@ -103,16 +103,20 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .exhead-r{display:flex;align-items:center;gap:10px}
 .exhead-m{color:var(--muted);letter-spacing:.06em}
 /* workout — your week strip (quiet: letters + a state dot, today emphasized) */
-.wkweekrow{display:flex;align-items:center;gap:2px;margin:4px 0 20px}
-.wkweek{display:flex;gap:2px;flex:1}
-.wkweek-nav{flex:none;background:none;border:0;color:var(--faint);font-size:16px;line-height:1;cursor:pointer;padding:8px 6px;border-radius:8px}
-.wkweek-nav:hover,.wkweek-nav:focus-visible{color:var(--muted);background:var(--surface-1);outline:none}
+.wkweek{display:flex;gap:2px;margin:4px 0 20px}
 .wkday{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;padding:7px 0 9px;background:none;border:0;cursor:pointer;color:inherit;border-radius:10px;transition:background var(--dur) var(--ease)}
 .wkday:hover{background:var(--surface-1)}
 .wkday-l{font-family:var(--mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
-.wkday-dot{width:6px;height:6px;border-radius:50%;background:var(--line-2)}
-.wkday.up .wkday-dot{background:var(--fuel)}
-.wkday.lo .wkday-dot{background:var(--teal)}
+/* dot: grey = rest, hollow ring = planned, solid = done (logged) */
+.wkday-dot{width:7px;height:7px;border-radius:50%;background:var(--line-2);border:1.5px solid transparent;box-sizing:border-box}
+.wkday.up .wkday-dot{background:transparent;border-color:var(--fuel)}
+.wkday.lo .wkday-dot{background:transparent;border-color:var(--teal)}
+.wkday.full .wkday-dot{background:transparent;border-color:var(--muted)}
+.wkday.up.done .wkday-dot{background:var(--fuel);border-color:var(--fuel)}
+.wkday.lo.done .wkday-dot{background:var(--teal);border-color:var(--teal)}
+.wkday.full.done .wkday-dot{background:var(--muted);border-color:var(--muted)}
+/* rest day: a faint dash, not a plan dot */
+.wkday.rest .wkday-dot{width:8px;height:1.5px;border-radius:1px;background:var(--line-2);border:0}
 .wkday.today .wkday-l{color:var(--text);font-weight:700}
 .wkday.sel{background:var(--surface-2)}
 .wkday.sel .wkday-l{color:var(--text);font-weight:700}
@@ -144,6 +148,24 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 /* workout — show-all + progress toggles (quiet) */
 .wk-showall{display:block;width:100%;text-align:center;margin-top:12px;background:transparent;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:11px;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
 .wk-showall:hover,.wk-showall:focus-visible{color:var(--text);border-color:var(--line-2);outline:none}
+/* finish action — a sticky bottom action bar, always in the thumb zone, never
+ * adjacent to "Show all" so the primary action can't be hit by accident */
+.wk-finish{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:center;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--bg) 62%,transparent);pointer-events:none}
+.wk-finish-in{width:100%;max-width:820px;pointer-events:auto}
+.wk-finish .wk-donebtn{box-shadow:0 10px 30px -8px rgba(0,0,0,.7)}
+/* primary session action — the one button that closes out a workout */
+.wk-donebtn{display:block;width:100%;min-height:52px;padding:15px 18px;border-radius:12px;border:1px solid var(--teal);background:var(--tealSoft);color:var(--teal);font-size:15px;font-weight:600;letter-spacing:.01em;cursor:pointer;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),color var(--dur) var(--ease)}
+.wk-donebtn:hover{background:color-mix(in srgb,var(--teal) 22%,transparent)}
+.wk-donebtn:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
+.wk-donebtn.done{border-color:var(--ok);background:transparent;color:var(--ok)}
+.wk-donebtn.done:focus-visible{outline-color:var(--ok)}
+/* rest day state */
+.restday{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:44px 20px 40px;margin-top:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface-1)}
+.restday-icon{font-size:34px;line-height:1;opacity:.9}
+.restday-t{font-size:19px;font-weight:700;color:var(--text)}
+.restday-sub{font-size:14px;color:var(--dim);max-width:34ch}
+.restday-go{margin-top:12px;background:transparent;border:1px solid var(--line-2);border-radius:10px;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;padding:11px 16px;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+.restday-go:hover,.restday-go:focus-visible{color:var(--text);border-color:var(--muted);outline:none}
 .wk-progtoggle{display:block;width:100%;text-align:left;margin-top:26px;background:transparent;border:0;color:var(--faint);font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;padding:9px 2px}
 .wk-progtoggle:hover,.wk-progtoggle.on,.wk-progtoggle:focus-visible{color:var(--muted);outline:none}
 .ex-opts{font-size:13px;line-height:1;color:var(--muted);background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-sm);padding:5px 9px;cursor:pointer;min-height:0;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
@@ -376,6 +398,9 @@ body:not(.at-home) .tabpane{padding-top:calc(14px + env(safe-area-inset-top))}
 .fab.scratch.on{background:var(--surface-2);color:var(--text)}
 /* lift the autosave chip above the FAB when one is present */
 body:has(.fab) .savestat{bottom:calc(90px + env(safe-area-inset-bottom))}
+/* likewise lift it above the workout finish bar (but not during a rest timer,
+   whose taller offset wins) */
+body:has(.wk-finish):not(.resting) .savestat{bottom:calc(92px + env(safe-area-inset-bottom))}
 /* Food & Body — two heroes side by side + weigh-in + advice */
 .heroduo{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;margin-top:12px}
 .heroduo .sechero{margin:0}

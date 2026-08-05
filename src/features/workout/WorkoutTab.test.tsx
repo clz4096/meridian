@@ -1,21 +1,21 @@
 /**
  * WorkoutView component test. Replaces the workout coverage that lived in the
- * deleted string-renderer suite. Asserts the one-screen render (bodyweight hero
- * + today's exercise cards), the collapsed→expanded card toggle, and that each
+ * deleted string-renderer suite. Asserts the one-screen render (week strip +
+ * today's exercise cards), the collapsed→expanded card toggle, and that each
  * interactive control is wired to the matching workoutActions method: logSet
- * (inputs read by id), changeSplit, logBodyweight, and toggleExercise.
+ * (inputs read by id), toggleExercise, and toggleSessionDone (the one primary
+ * "Mark session complete" action).
  *
  * Unlike Data/Meal, WorkoutView derives its exercise list from *logged* sets
  * (allExercises() reads state.days), and in the isolated test env wk() starts
  * empty — so each test seeds one past-dated set and forces split='all' to make
- * a card render. Bodyweight hero + split/bodyweight controls live behind the ⚙
- * (wkExtrasOpen), so those tests open it first.
+ * a card render (which also bypasses the rest-day schedule).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { WorkoutView } from '@/features/workout/WorkoutTab';
 import { wk, workoutActions } from '@/ui/actions';
-import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, activeExercise, wkExtrasOpen } from '@/ui/store';
+import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, activeExercise } from '@/ui/store';
 
 beforeEach(() => {
   // The view shows "Loading…" and kicks off a real async loadWorkout() in an
@@ -42,7 +42,6 @@ afterEach(() => {
   wkSplitTouched.value = false;
   wkDeload.value = {};
   activeExercise.value = null;
-  wkExtrasOpen.value = false;
   const W = wk() as any;
   W.days = {};
   W.bw = {};
@@ -81,22 +80,11 @@ describe('WorkoutView', () => {
     expect(logSpy).toHaveBeenCalledWith('Leg Press', 'top', 185, 10);
   });
 
-  it('fires workoutActions.changeSplit with the chosen split (behind the ⚙)', () => {
-    const splitSpy = vi.spyOn(workoutActions, 'changeSplit').mockImplementation(() => {});
-    wkExtrasOpen.value = true;
-    const { container } = render(<WorkoutView />);
-    const btns = [...container.querySelectorAll('.timebar button')]; // All / Lower / Upper
-    fireEvent.click(btns[2]!); // Upper
-    expect(splitSpy).toHaveBeenCalledWith('upper');
-  });
-
-  it('parses the #bw-in field and fires workoutActions.logBodyweight with a number', () => {
-    const bwSpy = vi.spyOn(workoutActions, 'logBodyweight').mockImplementation(() => {});
-    wkExtrasOpen.value = true;
-    const { getByText, container } = render(<WorkoutView />);
-    (container.querySelector('#bw-in') as HTMLInputElement).value = '162';
-    fireEvent.click(getByText('Log'));
-    expect(bwSpy).toHaveBeenCalledWith(162);
+  it('fires toggleSessionDone when the Mark-session-complete button is tapped', () => {
+    const spy = vi.spyOn(workoutActions, 'toggleSessionDone').mockImplementation(() => {});
+    const { getByText } = render(<WorkoutView />);
+    fireEvent.click(getByText('Mark workout session complete'));
+    expect(spy).toHaveBeenCalledOnce();
   });
 
   it('tapping an exercise card opens its full-screen detail', () => {

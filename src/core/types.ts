@@ -60,6 +60,8 @@ export interface WorkoutSettings {
   benchGoal?: Numeric;
   volLow?: Numeric;
   volHigh?: Numeric;
+  /** Sunday is a rest day by default; when true it becomes a full-body day. */
+  sundayFullBody?: boolean;
 }
 
 export interface WorkoutState {
