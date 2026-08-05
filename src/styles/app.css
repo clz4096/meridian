@@ -103,17 +103,33 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .exhead-r{display:flex;align-items:center;gap:10px}
 .exhead-m{color:var(--muted);letter-spacing:.06em}
 /* workout — your week strip (quiet: letters + a state dot, today emphasized) */
-.wkweek{display:flex;gap:4px;margin:4px 0 22px}
-.wkday{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;padding:2px 0}
+.wkweek{display:flex;gap:2px;margin:4px 0 20px}
+.wkday{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;padding:7px 0 9px;background:none;border:0;cursor:pointer;color:inherit;border-radius:10px;transition:background var(--dur) var(--ease)}
+.wkday:hover{background:var(--surface-1)}
 .wkday-l{font-family:var(--mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
-.wkday-dot{width:6px;height:6px;border-radius:50%;background:var(--line-2)}
-.wkday.up .wkday-dot{background:var(--fuel)}
-.wkday.lo .wkday-dot{background:var(--teal)}
+/* dot: grey = rest, hollow ring = planned, solid = done (logged) */
+.wkday-dot{width:7px;height:7px;border-radius:50%;background:var(--line-2);border:1.5px solid transparent;box-sizing:border-box}
+.wkday.up .wkday-dot{background:transparent;border-color:var(--fuel)}
+.wkday.lo .wkday-dot{background:transparent;border-color:var(--teal)}
+.wkday.full .wkday-dot{background:transparent;border-color:var(--muted)}
+.wkday.up.done .wkday-dot{background:var(--fuel);border-color:var(--fuel)}
+.wkday.lo.done .wkday-dot{background:var(--teal);border-color:var(--teal)}
+.wkday.full.done .wkday-dot{background:var(--muted);border-color:var(--muted)}
+/* rest day: a faint dash, not a plan dot */
+.wkday.rest .wkday-dot{width:8px;height:1.5px;border-radius:1px;background:var(--line-2);border:0}
 .wkday.today .wkday-l{color:var(--text);font-weight:700}
-.wkday.today .wkday-dot{outline:2px solid rgba(255,255,255,.10);outline-offset:2px}
+.wkday.sel{background:var(--surface-2)}
+.wkday.sel .wkday-l{color:var(--text);font-weight:700}
+.wkday.sel .wkday-dot{outline:2px solid var(--muted);outline-offset:2px}
+/* opposite-split group under "Show all" */
+.wkgroup-h{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:20px 2px 8px;padding-top:14px;border-top:1px solid var(--line)}
 /* workout — today's session header (the lead) */
 .todayhd{display:flex;justify-content:space-between;align-items:center;margin:2px 2px 14px}
 .todayhd-split{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.effchip{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;border-radius:var(--r-pill);padding:3px 9px;border:1px solid var(--line)}
+.effchip.eff-strong{color:var(--ok);border-color:rgba(59,185,140,.35);background:rgba(59,185,140,.1)}
+.effchip.eff-moderate{color:var(--fuel);border-color:rgba(224,166,75,.3)}
+.effchip.eff-weak{color:var(--deficit);border-color:rgba(216,101,79,.3)}
 /* workout — plate diagram (a centered, loaded barbell).
    Fixed-height slot so changing plates never pushes the page below it. */
 .platebox{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;margin:2px 0 14px}
@@ -132,6 +148,24 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 /* workout — show-all + progress toggles (quiet) */
 .wk-showall{display:block;width:100%;text-align:center;margin-top:12px;background:transparent;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:11px;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
 .wk-showall:hover,.wk-showall:focus-visible{color:var(--text);border-color:var(--line-2);outline:none}
+/* finish action — a sticky bottom action bar, always in the thumb zone, never
+ * adjacent to "Show all" so the primary action can't be hit by accident */
+.wk-finish{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:center;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--bg) 62%,transparent);pointer-events:none}
+.wk-finish-in{width:100%;max-width:820px;pointer-events:auto}
+.wk-finish .wk-donebtn{box-shadow:0 10px 30px -8px rgba(0,0,0,.7)}
+/* primary session action — the one button that closes out a workout */
+.wk-donebtn{display:block;width:100%;min-height:52px;padding:15px 18px;border-radius:12px;border:1px solid var(--teal);background:var(--tealSoft);color:var(--teal);font-size:15px;font-weight:600;letter-spacing:.01em;cursor:pointer;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),color var(--dur) var(--ease)}
+.wk-donebtn:hover{background:color-mix(in srgb,var(--teal) 22%,transparent)}
+.wk-donebtn:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
+.wk-donebtn.done{border-color:var(--ok);background:transparent;color:var(--ok)}
+.wk-donebtn.done:focus-visible{outline-color:var(--ok)}
+/* rest day state */
+.restday{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:44px 20px 40px;margin-top:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface-1)}
+.restday-icon{font-size:34px;line-height:1;opacity:.9}
+.restday-t{font-size:19px;font-weight:700;color:var(--text)}
+.restday-sub{font-size:14px;color:var(--dim);max-width:34ch}
+.restday-go{margin-top:12px;background:transparent;border:1px solid var(--line-2);border-radius:10px;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;padding:11px 16px;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+.restday-go:hover,.restday-go:focus-visible{color:var(--text);border-color:var(--muted);outline:none}
 .wk-progtoggle{display:block;width:100%;text-align:left;margin-top:26px;background:transparent;border:0;color:var(--faint);font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;padding:9px 2px}
 .wk-progtoggle:hover,.wk-progtoggle.on,.wk-progtoggle:focus-visible{color:var(--muted);outline:none}
 .ex-opts{font-size:13px;line-height:1;color:var(--muted);background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-sm);padding:5px 9px;cursor:pointer;min-height:0;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
@@ -163,6 +197,7 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .exnext:hover,.exnext:focus-visible{background:rgba(124,201,236,.16);outline:none}
 .exdetail-body{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;padding:4px 0}
 .exdetail-name{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:6px 2px 2px;text-align:center}
+.exswap-tag{margin-left:9px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);background:var(--tealSoft);border-radius:var(--r-pill);padding:3px 9px;vertical-align:middle}
 .exdetail .platebox{margin:6px 0 12px}
 .exdetail .set{min-height:46px}
 .exdetail .more{margin-top:14px;padding-top:12px}
@@ -363,6 +398,24 @@ body:not(.at-home) .tabpane{padding-top:calc(14px + env(safe-area-inset-top))}
 .fab.scratch.on{background:var(--surface-2);color:var(--text)}
 /* lift the autosave chip above the FAB when one is present */
 body:has(.fab) .savestat{bottom:calc(90px + env(safe-area-inset-bottom))}
+/* likewise lift it above the workout finish bar (but not during a rest timer,
+   whose taller offset wins) */
+body:has(.wk-finish):not(.resting) .savestat{bottom:calc(92px + env(safe-area-inset-bottom))}
+/* Food & Body — two heroes side by side + weigh-in + advice */
+.heroduo{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;margin-top:12px}
+.heroduo .sechero{margin:0}
+.heroduo-body{display:flex;flex-direction:column;gap:8px}
+.bodyweigh{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface-1);border-radius:12px;padding:4px 4px 4px 12px}
+.bodyweigh .addslim-in{flex:1;min-width:0;background:transparent;border:0;color:var(--text);font-size:14px;font-family:var(--sans);color-scheme:dark;outline:none;padding:7px 0}
+.bodyweigh .addslim-in::placeholder{color:var(--faint)}
+.bodyweigh .addslim-btn{flex:none;width:32px;height:32px;border-radius:9px;border:0;background:var(--teal);color:#04212e;font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.bodyadvice{font-family:var(--sans);font-size:13px;color:var(--muted);margin:12px 2px 2px;padding:10px 12px;border-radius:12px;background:var(--surface-1);border:1px solid var(--line)}
+.bodypace{font-family:var(--mono)}
+.bodypace.up{color:var(--ok)}.bodypace.down{color:var(--deficit)}
+.bodyadvice.v-raise{color:var(--fuel);border-color:rgba(224,166,75,.3)}
+.bodyadvice.v-trim{color:var(--deficit);border-color:rgba(216,101,79,.3)}
+.bodyadvice.v-hold{color:var(--ok);border-color:rgba(59,185,140,.3)}
+@media (max-width:360px){.heroduo{grid-template-columns:1fr}}
 .dcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:14px}
 .dcard-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .dcard-t{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
@@ -618,7 +671,7 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .scard-body{margin-top:8px;font-size:13.5px;line-height:1.55;color:var(--muted);white-space:pre-wrap;cursor:pointer}
 .scard-edit{margin-top:10px;display:flex;flex-direction:column;gap:8px}
 .scard-body-edit{min-height:80px;resize:vertical;font-family:var(--sans);font-size:14px;line-height:1.5}
-.sstatus{flex:none;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line-2);border-radius:20px;padding:4px 10px;cursor:pointer;background:var(--surface-3);color:var(--muted)}
+.sstatus{flex:none;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line-2);border-radius:20px;padding:4px 20px 4px 10px;cursor:pointer;background-color:var(--surface-3);color:var(--muted);-webkit-appearance:none;appearance:none;color-scheme:dark;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="%239aa3b0" stroke-width="1.4"><path d="M1 2.5l3 3 3-3"/></svg>');background-repeat:no-repeat;background-position:right 8px center}
 .sstatus.idea{color:var(--teal);border-color:rgba(124,201,236,.3)}
 .sstatus.trying{color:var(--fuel);border-color:rgba(224,166,75,.3)}
 .sstatus.shipped{color:var(--ok);border-color:rgba(107,191,115,.3)}

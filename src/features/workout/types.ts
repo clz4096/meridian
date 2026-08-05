@@ -19,6 +19,8 @@ export interface WorkoutActions {
   changeDate(date: string): void;
   changeSplit(split: Split | 'all'): void;
   logBodyweight(value: number): void;
+  /** Toggle Sunday between a rest day (default) and a full-body day. */
+  setSundayFullBody(on: boolean): void;
   /** Progress-chart controls (optional — present once charts are wired). */
   setChartPeriod?(period: string): void;
   setChartLift?(exercise: string): void;

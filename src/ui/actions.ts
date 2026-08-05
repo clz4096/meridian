@@ -49,11 +49,16 @@ export const restTimer = new RestTimer({
 
 /* ── static build-time content ── */
 const EX_VIDEO: Record<string, string> = DATA.exVideo;
+const EX_SWAP: Record<string, string> = DATA.exSwap;
 
 /* ── workout helpers ── */
 const yt = (q: string): string =>
   'https://www.youtube.com/results?search_query=' + encodeURIComponent(q + ' proper form technique');
-export const exVideo = (ex: string): string => EX_VIDEO[ex] || yt(ex);
+/** The dumbbell alternate for an exercise when away from the gym, or null if none. */
+export const exSwap = (ex: string): string | null => EX_SWAP[ex] ?? null;
+/** Exercise name to show: the dumbbell alternate when Away mode is on and one exists. */
+export const displayExercise = (ex: string): string => (st.awayMode.value && EX_SWAP[ex]) || ex;
+export const exVideo = (ex: string): string => EX_VIDEO[displayExercise(ex)] || yt(displayExercise(ex));
 const daysSorted = (): string[] => Object.keys(wk().days).sort();
 const exSessions = (ex: string): string[] =>
   daysSorted().filter((d) => (wk().days[d] || []).some((s: Store) => s.ex === ex));
@@ -185,6 +190,11 @@ export const workoutActions: WorkoutActions = {
     const W = wk();
     W.bw[st.wkDate.value ?? dstr()] = v;
     if (!W.settings.bwCurrent) W.settings.bwCurrent = v;
+    appState.markWorkoutDirty();
+    st.bump();
+  },
+  setSundayFullBody(on) {
+    wk().settings.sundayFullBody = on;
     appState.markWorkoutDirty();
     st.bump();
   },
@@ -653,7 +663,16 @@ export const scratchActions = {
     const c = (core().scratch || []).find((x: Store) => String(x.id) === String(id));
     if (!c) return;
     c.status = nextStatus(c.status);
-    c.updated = Date.now();
+    // Deliberately do NOT touch `updated`: the list sorts by newest-updated, so
+    // bumping it here would jump the card to the top on every tap.
+    appState.markDirty();
+    st.bump();
+  },
+  /** Set a card's status directly (upgrade or downgrade on the fly) — no cycling. */
+  setStatus(id: string, status: string): void {
+    const c = (core().scratch || []).find((x: Store) => String(x.id) === String(id));
+    if (!c) return;
+    c.status = status;
     appState.markDirty();
     st.bump();
   },
@@ -695,7 +714,7 @@ export function hubStats(): HubStat[] {
     { key: 'scratch', label: 'Scratchpad', desc: 'Ideas & experiments', value: String(notes), unit: notes === 1 ? ' note' : ' notes', sub: 'captured', tone: '' },
     { key: 'knowledge', label: 'Knowledge', desc: 'Study & spaced review', value: String(masteryPct), unit: '%', sub: 'mastery', tone: 'cyan' },
     { key: 'workout', label: 'Workout', desc: 'Training log & progression', value: String(wkDays), unit: wkDays === 1 ? ' day' : ' days', sub: 'this week', tone: '' },
-    { key: 'meal', label: 'Meals', desc: 'Food & macros', value: todayCal.toLocaleString('en-US'), unit: ' kcal', sub: todayCal ? 'today' : 'not logged', tone: 'kcal' },
+    { key: 'meal', label: 'Food & Body', desc: 'Calories & bodyweight', value: todayCal.toLocaleString('en-US'), unit: ' kcal', sub: todayCal ? 'today' : 'not logged', tone: 'kcal' },
     { key: 'data', label: 'Data', desc: 'Sync, storage & export', value: cloudEnabled() ? (dirty ? 'Unsaved' : 'Synced') : 'Local', unit: '', sub: `${kb} KB`, tone: !cloudEnabled() || dirty ? '' : 'ok', dot: cloudEnabled() && !dirty },
   ];
 }

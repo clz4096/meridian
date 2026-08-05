@@ -180,9 +180,9 @@ describe('progression invariant', () => {
       fc.property(arbWorkoutState, arbDate, (state, date) => {
         for (const ex of allExercises(state)) {
           const plan = buildPlan(state, ex, date);
-          // gapHold plans hold despite reaching the ceiling (returning from a break), so they
-          // are excluded from the clean bump-iff-repHigh rule alongside deloads.
-          if (!plan || plan.cardio || plan.deload || plan.gapHold) continue;
+          // Layoff plans deload (a break at the ceiling backs off, not bumps), so they are
+          // already excluded by the plan.deload guard below alongside stalls and manual deloads.
+          if (!plan || plan.cardio || plan.deload) continue;
           if (plan.bumped) {
             expect(plan.lastTopReps).toBeGreaterThanOrEqual(plan.repHigh);
           } else {
@@ -551,8 +551,8 @@ describe('exercise class & rep ceilings', () => {
       { date: D(0), ex: 'Bench Press', weight: 135, reps: 6, muscle: 'chest' },
       { date: D(0), ex: 'Bicep Curl', weight: 30, reps: 6, muscle: 'biceps' },
     ]);
-    const bench = buildPlan(s, 'Bench Press', D(7))!;
-    const curl = buildPlan(s, 'Bicep Curl', D(7))!;
+    const bench = buildPlan(s, 'Bench Press', D(3))!; // normal 3-day cadence (no layoff)
+    const curl = buildPlan(s, 'Bicep Curl', D(3))!;
     expect(bench.bumped).toBe(true); // 6 >= 6
     expect(bench.top.weight).toBeGreaterThan(135);
     expect(bench.top.reps).toBe(DEFAULT_CONFIG.repsAfterBumpCompound);
@@ -562,16 +562,18 @@ describe('exercise class & rep ceilings', () => {
 });
 
 describe('strength stall → auto-deload', () => {
-  const flat = [1, 8, 15, 22].map((d) => ({ date: D(d), ex: 'Bench Press', weight: 135, reps: 5, muscle: 'chest' as Muscle }));
+  // 3-day spacing = a normal 2x/week per-lift cadence (below the layoff thresholds),
+  // so this isolates the stall path from the time-off path.
+  const flat = [0, 3, 6, 9].map((d) => ({ date: D(d), ex: 'Bench Press', weight: 135, reps: 5, muscle: 'chest' as Muscle }));
   it('flags a stall after N non-improving sessions, not before', () => {
-    expect(isStalled(stateOf(flat), 'Bench Press', D(29))).toBe(true);
-    const rising = [1, 8, 15, 22].map((d, i) => ({ date: D(d), ex: 'Bench Press', weight: 135 + i * 5, reps: 5, muscle: 'chest' as Muscle }));
-    expect(isStalled(stateOf(rising), 'Bench Press', D(29))).toBe(false);
+    expect(isStalled(stateOf(flat), 'Bench Press', D(12))).toBe(true);
+    const rising = [0, 3, 6, 9].map((d, i) => ({ date: D(d), ex: 'Bench Press', weight: 135 + i * 5, reps: 5, muscle: 'chest' as Muscle }));
+    expect(isStalled(stateOf(rising), 'Bench Press', D(12))).toBe(false);
     // too little history to judge
-    expect(isStalled(stateOf(flat.slice(0, 2)), 'Bench Press', D(29))).toBe(false);
+    expect(isStalled(stateOf(flat.slice(0, 2)), 'Bench Press', D(12))).toBe(false);
   });
   it('auto-deloads a stalled lift: deload set, weight backed off, never a bump', () => {
-    const plan = buildPlan(stateOf(flat), 'Bench Press', D(29))!;
+    const plan = buildPlan(stateOf(flat), 'Bench Press', D(12))!;
     expect(plan.autoDeload).toBe(true);
     expect(plan.deload).toBe(true);
     expect(plan.bumped).toBe(false);
@@ -609,34 +611,34 @@ describe('days since last', () => {
 });
 
 describe('deload does not spiral', () => {
-  const flat = [1, 8, 15, 22].map((d) => ({ date: D(d), ex: 'Bench Press', weight: 135, reps: 5, muscle: 'chest' as Muscle }));
+  const flat = [0, 3, 6, 9].map((d) => ({ date: D(d), ex: 'Bench Press', weight: 135, reps: 5, muscle: 'chest' as Muscle }));
   it('after an obeyed deload, a rebuild window opens before it can deload again', () => {
-    // stalled at 135 → deload to 120; the lifter obeys and logs 120.
-    const obeyed = [...flat, { date: D(29), ex: 'Bench Press', weight: 120, reps: 5, muscle: 'chest' as Muscle }];
+    // stalled at 135 → deload to 120; the lifter obeys and logs 120 (3-day cadence, no layoff).
+    const obeyed = [...flat, { date: D(12), ex: 'Bench Press', weight: 120, reps: 5, muscle: 'chest' as Muscle }];
     // the very next session must NOT auto-deload again — the drop sits in the stall window.
-    expect(isStalled(stateOf(obeyed), 'Bench Press', D(36))).toBe(false);
-    expect(buildPlan(stateOf(obeyed), 'Bench Press', D(36))!.autoDeload).toBe(false);
+    expect(isStalled(stateOf(obeyed), 'Bench Press', D(15))).toBe(false);
+    expect(buildPlan(stateOf(obeyed), 'Bench Press', D(15))!.autoDeload).toBe(false);
   });
 });
 
-describe('time off (layoff) handling', () => {
+describe('time off (layoff) handling — graduated', () => {
   const hist = [{ date: D(0), ex: 'Bench Press', weight: 135, reps: 6, muscle: 'chest' as Muscle }]; // hit the ceiling → would bump
   it('a normal few-day cadence is unaffected (still bumps off the ceiling)', () => {
-    const plan = buildPlan(stateOf(hist), 'Bench Press', D(4))!;
-    expect(plan.gapHold).toBe(false);
+    const plan = buildPlan(stateOf(hist), 'Bench Press', D(4))!; // 4d: at the threshold, not over
+    expect(plan.autoDeload).toBe(false);
     expect(plan.bumped).toBe(true);
   });
-  it('a short layoff repeats last session instead of bumping', () => {
-    const plan = buildPlan(stateOf(hist), 'Bench Press', D(14))!; // 14d: > gapRepeatDays, <= gapDeloadDays
-    expect(plan.gapHold).toBe(true);
-    expect(plan.bumped).toBe(false);
-    expect(plan.deload).toBe(false);
-    expect(plan.top.weight).toBe(135);
-  });
-  it('a long layoff eases back in with a deload', () => {
-    const plan = buildPlan(stateOf(hist), 'Bench Press', D(30))!; // 30d: > gapDeloadDays
+  it('a short layoff eases back with a MILD deload', () => {
+    const plan = buildPlan(stateOf(hist), 'Bench Press', D(6))!; // 6d: > gapRepeatDays(4), <= gapDeloadDays(7)
     expect(plan.autoDeload).toBe(true);
-    expect(plan.deload).toBe(true);
+    expect(plan.bumped).toBe(false);
     expect(plan.top.weight).toBeLessThan(135);
+  });
+  it('a long layoff deloads MORE than a short one', () => {
+    const short = buildPlan(stateOf(hist), 'Bench Press', D(6))!; // mild (×0.95)
+    const long = buildPlan(stateOf(hist), 'Bench Press', D(30))!; // full (×0.9)
+    expect(long.autoDeload).toBe(true);
+    expect(long.top.weight).toBeLessThan(short.top.weight);
+    expect(long.top.weight).toBeLessThan(135);
   });
 });

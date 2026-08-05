@@ -111,6 +111,7 @@ export function createAppState(deps: AppStateDeps): AppState {
   /** All four legacy dirty flags collapse to one: they were only ever OR'd and reset together. */
   let dirtyLocal = false;
   let saveTimer: number | null = null;
+  let flushing = false;
 
   function anyDirty(): boolean {
     return deps.sync.anyDirty() || dirtyLocal;
@@ -181,11 +182,17 @@ export function createAppState(deps: AppStateDeps): AppState {
   }
 
   function flush(reason: string): void {
+    // visibilitychange-hidden, pagehide and beforeunload all co-fire on one unload;
+    // guard so a single unload flushes once instead of firing three saves in a row.
+    if (flushing) return;
+    flushing = true;
     try {
-      void deps.sync.save();
+      void Promise.resolve(deps.sync.save()).finally(() => {
+        flushing = false;
+      });
       deps.markFlush?.(reason);
     } catch {
-      /* backgrounding must never throw */
+      flushing = false; // backgrounding must never throw
     }
   }
 

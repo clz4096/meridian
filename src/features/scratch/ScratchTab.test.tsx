@@ -49,14 +49,16 @@ describe('ScratchView', () => {
     expect(queryByText('minikv')).toBeTruthy();
   });
 
-  it('wires the status chip to cycleStatus and the × to remove', () => {
-    const cycle = vi.spyOn(scratchActions, 'cycleStatus').mockImplementation(() => {});
+  it('sets a card status directly from the picker, and the × removes', () => {
+    const setStatus = vi.spyOn(scratchActions, 'setStatus').mockImplementation(() => {});
     const remove = vi.spyOn(scratchActions, 'remove').mockImplementation(() => {});
-    seed([card('a')]);
+    seed([card('a')]); // status 'idea'
     const { container, getByTitle } = render(<ScratchView />);
-    fireEvent.click(container.querySelector('.sstatus')!);
+    const sel = container.querySelector('.sstatus') as HTMLSelectElement;
+    sel.value = 'shipped'; // downgrade/upgrade directly, no cycling
+    fireEvent.change(sel);
     fireEvent.click(getByTitle('Remove'));
-    expect(cycle).toHaveBeenCalledWith('a');
+    expect(setStatus).toHaveBeenCalledWith('a', 'shipped');
     expect(remove).toHaveBeenCalledWith('a');
   });
 

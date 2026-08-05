@@ -397,7 +397,6 @@ export function buildPlan(
       bumped: false,
       deload: false,
       autoDeload: false,
-      gapHold: false,
       repHigh,
       atMinimum: false,
       incr: inferIncrement(state, exercise, config),
@@ -411,18 +410,23 @@ export function buildPlan(
   const lastReps = toNum(top.reps);
   const step = inferIncrement(state, exercise, config);
 
-  // Time off: a long layoff eases you back with a deload (detraining); a shorter
-  // one repeats last session with no PR until you're back in rhythm.
+  // Time off (per lift): a short layoff eases you back with a *mild* deload; a
+  // longer one detrains more, so it takes the full deload. On a normal 3–4 day
+  // split cadence neither fires — the thresholds sit just above it.
   const gap = daysSinceLast(state, exercise, date);
   const longLayoff = gap != null && gap > config.gapDeloadDays;
   const shortLayoff = gap != null && gap > config.gapRepeatDays && !longLayoff;
 
   let bumped = lastReps >= repHigh && !shortLayoff && !longLayoff;
-  // Auto-deload: a strength stall (no e1RM progress over `stallSessions`) or a long
-  // layoff backs the load off — but only when the lift isn't already about to progress.
-  const autoDeload = !bumped && (isStalled(state, exercise, date, config) || longLayoff);
-  const deload = overrides.deload?.[exercise] === true || autoDeload;
-  const gapHold = shortLayoff && !deload && !bumped;
+  const stalled = !bumped && isStalled(state, exercise, date, config);
+  // Auto-deload: a strength stall, or any layoff, backs the load off — but only
+  // when the lift isn't already about to progress.
+  const autoDeload = !bumped && (stalled || shortLayoff || longLayoff);
+  const manual = overrides.deload?.[exercise] === true;
+  const deload = manual || autoDeload;
+  // A short layoff alone eases back mildly; a stall, a long layoff, or a manual
+  // deload takes the full step.
+  const factor = shortLayoff && !stalled && !manual ? config.layoffMildFactor : config.deloadFactor;
 
   let atMinimum = false;
   let weight = bumped ? roundTo(lastWeight + step, step) : lastWeight;
@@ -434,7 +438,7 @@ export function buildPlan(
     // increment is large relative to the load (e.g. 5 lb top set on a 20 lb
     // stack), so deload always derives from `lastWeight` and is clamped.
     bumped = false;
-    const target = roundDownTo(lastWeight * config.deloadFactor, step);
+    const target = roundDownTo(lastWeight * factor, step);
     // target is now guaranteed <= lastWeight and on the increment.
     weight = target > 0 ? target : lastWeight;
     atMinimum = target <= 0;   // load is already below one increment
@@ -454,7 +458,6 @@ export function buildPlan(
     bumped,
     deload,
     autoDeload,
-    gapHold,
     repHigh,
     atMinimum,
     incr: step,

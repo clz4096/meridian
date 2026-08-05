@@ -18,9 +18,16 @@ function Card({ c }: { c: ScratchCard }) {
   return (
     <div class="scard">
       <div class="scard-h">
-        <button class={'sstatus ' + c.status} onClick={() => scratchActions.cycleStatus(id)} title="Cycle status">
-          {STATUS_LABEL[c.status]}
-        </button>
+        <select
+          class={'sstatus ' + c.status}
+          value={c.status}
+          onChange={(e) => scratchActions.setStatus(id, (e.currentTarget as HTMLSelectElement).value)}
+          title="Set status"
+        >
+          {SCRATCH_STATUSES.map((s) => (
+            <option value={s}>{STATUS_LABEL[s]}</option>
+          ))}
+        </select>
         <span class="scard-t" onClick={() => (scratchOpen.value = open ? null : id)}>
           {c.title}
         </span>

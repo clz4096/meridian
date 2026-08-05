@@ -4,15 +4,15 @@
  * tuck behind the ⚙. Ports workoutCharts (app.ts) + renderWorkoutHTML to JSX.
  */
 import { useEffect } from 'preact/hooks';
-import { selectWorkoutView, restSeconds, inferIncrement, splitOfDate } from '@/features/workout/workoutSelectors';
+import { selectWorkoutView, restSeconds, inferIncrement, splitOfDate, sortedDates, sessionEffort, exerciseSplit } from '@/features/workout/workoutSelectors';
 import type { WorkoutViewOptions } from '@/features/workout/types';
 import { bodyweightGoal, trackedLifts, bodyweightSeries, strengthSeries, volumeSeries, tonnageSeries } from '@/ui/charts/progress';
 import { DEFAULT_CONFIG, type SetType, type ExercisePlan, type Split, type WorkoutState } from '@/core/types';
 import { shiftDate } from '@/core/util';
 import { domId } from '@/ui/html';
 import { ProgControls, Carousel, Chart, LiftPicker } from '@/ui/components/Charts';
-import { wk, currentBW, exVideo, workoutActions, discard, loadWorkout, goHome } from '@/ui/actions';
-import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkExtrasOpen, wkShowAll, wkProgOpen, activeExercise, progPeriod, progLift, dataRev } from '@/ui/store';
+import { wk, currentBW, exVideo, displayExercise, exSwap, workoutActions, loadWorkout, goHome } from '@/ui/actions';
+import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkShowAll, wkProgOpen, activeExercise, awayMode, progPeriod, progLift, dataRev } from '@/ui/store';
 import { dstr, dateLabel } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 
@@ -81,24 +81,96 @@ function PlateBar({ spec }: { spec: PlateSpec }) {
   );
 }
 
-/* ── "Your week" strip — mirrors what was actually trained, today highlighted ── */
+/* ── "Your week" strip — tap a day to view its session; ‹ › page between weeks ── */
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-function WeekStrip({ state, today, suggestion }: { state: WorkoutState; today: string; suggestion: Split }) {
-  const dow = (new Date(today + 'T00:00:00').getDay() + 6) % 7; // 0 = Mon
-  const monday = shiftDate(today, -dow);
+
+/** The seven dates (Mon…Sun) of the week that contains `date`. */
+function weekDaysFor(date: string): string[] {
+  const dow = (new Date(date + 'T00:00:00').getDay() + 6) % 7; // 0 = Mon
+  const monday = shiftDate(date, -dow);
+  return DOW.map((_, i) => shiftDate(monday, i));
+}
+
+/** What one day of the week holds. `full` = full-body (Sunday opt-in). */
+type PlanSplit = 'upper' | 'lower' | 'full' | null;
+interface PlanDay {
+  split: PlanSplit;
+  done: boolean; // you logged a real session that day
+  rest: boolean; // scheduled off (Sat, and Sun by default)
+}
+
+/**
+ * Seed the visible week's plan from the training trend. The schedule is Mon–Fri
+ * training (Upper/Lower alternating off your most recent real session), Saturday
+ * always rest, and Sunday rest by default (a full-body day when opted in). A day
+ * you've logged shows what you actually did; a weekday you skipped stays blank
+ * (no back-fill); today onward shows the plan. Rest days never shift the
+ * Upper/Lower alternation, so a Friday-Upper still hands Monday a Lower.
+ */
+function weekPlan(state: WorkoutState, days: string[], today: string, sundayFullBody: boolean): Record<string, PlanDay> {
+  // most recent real session strictly before the week → seeds the alternation
+  let last: Split | null = null;
+  const before = sortedDates(state).filter((d) => d < days[0]);
+  for (let i = before.length - 1; i >= 0 && last == null; i--) last = splitOfDate(state, before[i], DEFAULT_CONFIG);
+
+  const plan: Record<string, PlanDay> = {};
+  days.forEach((date, i) => {
+    const logged = splitOfDate(state, date, DEFAULT_CONFIG); // what you actually did
+    if (logged) {
+      plan[date] = { split: logged === 'upper' || logged === 'lower' ? logged : 'full', done: true, rest: false };
+      if (logged === 'upper' || logged === 'lower') last = logged;
+      return;
+    }
+    const isWeekday = i <= 4; // Mon–Fri
+    const isFullSunday = i === 6 && sundayFullBody;
+    if (!isWeekday && !isFullSunday) {
+      plan[date] = { split: null, done: false, rest: true }; // Sat, and Sun by default
+      return;
+    }
+    if (isFullSunday) {
+      plan[date] = { split: 'full', done: false, rest: false }; // stands outside the U/L alternation
+      return;
+    }
+    if (date < today) {
+      plan[date] = { split: null, done: false, rest: false }; // a weekday you skipped
+      return;
+    }
+    const next: Split = last === 'upper' ? 'lower' : 'upper'; // alternate off the trend
+    plan[date] = { split: next, done: false, rest: false };
+    last = next;
+  });
+  return plan;
+}
+
+/** The plan entry for a single date, consistent with the week strip's dots. */
+function dayPlan(state: WorkoutState, date: string, today: string, sundayFullBody: boolean): PlanDay | undefined {
+  return weekPlan(state, weekDaysFor(date), today, sundayFullBody)[date];
+}
+
+function WeekStrip({ state, today, selected, sundayFullBody }: { state: WorkoutState; today: string; selected: string; sundayFullBody: boolean }) {
+  const days = weekDaysFor(selected);
+  const plan = weekPlan(state, days, today, sundayFullBody);
   return (
     <div class="wkweek">
       {DOW.map((label, i) => {
-        const date = shiftDate(monday, i);
+        const date = days[i];
         const isToday = date === today;
-        const done = splitOfDate(state, date, DEFAULT_CONFIG); // 'lower' | 'upper' | null
-        const split = done ?? (isToday ? suggestion : null);
-        const cls = split === 'upper' ? ' up' : split === 'lower' ? ' lo' : '';
+        const isSel = date === selected;
+        const { split, done, rest } = plan[date];
+        const cls =
+          split === 'upper' ? ' up' : split === 'lower' ? ' lo' : split === 'full' ? ' full' : rest ? ' rest' : '';
         return (
-          <div class={'wkday' + cls + (isToday ? ' today' : '')}>
+          <button
+            class={'wkday' + cls + (done ? ' done' : '') + (isSel ? ' sel' : '') + (isToday ? ' today' : '')}
+            onClick={() => {
+              wkDate.value = date;
+              wkSplitTouched.value = false; // each tapped day starts on its own plan
+              wkShowAll.value = false;
+            }}
+          >
             <span class="wkday-l">{label}</span>
             <span class="wkday-dot" />
-          </div>
+          </button>
         );
       })}
     </div>
@@ -107,6 +179,29 @@ function WeekStrip({ state, today, suggestion }: { state: WorkoutState; today: s
 
 type Any = any;
 type VM = ReturnType<typeof selectWorkoutView>;
+
+/** Scheduled rest day. Calm state with an escape hatch to train anyway. */
+function RestDay({ date, today, vm, o }: { date: string; today: string; vm: VM; o: WorkoutViewOptions }) {
+  const label = date === today ? 'Today' : o.dateLabel(date);
+  return (
+    <>
+      <div class="todayhd">
+        <div class="todayhd-split">Rest day</div>
+        <span class="exhead-r">
+          <span class="exhead-m">{label}</span>
+        </span>
+      </div>
+      <div class="restday">
+        <div class="restday-icon">🌙</div>
+        <div class="restday-t">Rest day</div>
+        <div class="restday-sub">Nothing scheduled — recovery is when the work pays off.</div>
+        <button class="restday-go" onClick={() => workoutActions.changeSplit(vm.suggestion.due)}>
+          Train anyway · {vm.suggestion.due === 'lower' ? 'Lower' : 'Upper'} day →
+        </button>
+      </div>
+    </>
+  );
+}
 
 /* ── options (ported from entry.ts buildOptions) ── */
 function uniqueExercises(state: Any): string[] {
@@ -153,79 +248,19 @@ function WorkoutCharts() {
   );
 }
 
-/* ── session extras (behind the ⚙) ── */
-function Extras({ vm, o }: { vm: VM; o: WorkoutViewOptions }) {
-  const s = vm.suggestion;
-  const { current, goal, toGoal } = o.bodyweight;
-  const bwPct = current !== null && goal !== null && goal !== current ? Math.max(0, Math.min(100, Math.round((current / goal) * 100))) : 0;
-  const done = vm.exercises.filter((e) => vm.completed[e]).length;
-  const pct = vm.exercises.length ? Math.round((100 * done) / vm.exercises.length) : 0;
-  const note = s.logged ? `You logged ${s.last} work on this date.` : s.lastDate ? `Last session was ${s.last} on ${s.lastDate.slice(5)} — alternate to ${s.due}.` : 'No history yet — start with upper.';
-  const splits: Array<['all' | 'lower' | 'upper', string]> = [['all', 'All'], ['lower', 'Lower'], ['upper', 'Upper']];
+/** The one primary action for a session: close it out (or reopen it). Full-width
+ * and keyboard-accessible — a real button with an aria-label and pressed state. */
+function MarkComplete({ vm }: { vm: VM }) {
+  const done = vm.sessionComplete;
   return (
-    <div class="wk-extras">
-      {/* bodyweight */}
-      <div class="panel">
-        <p class="panel-t">Bodyweight</p>
-        <div class="mrow" style="justify-content:space-between">
-          <div>
-            <span style="font-family:var(--mono);font-size:24px">{current ?? '—'}</span>
-            <span style="color:var(--dim)"> lb{goal !== null ? ` → ${goal}` : ''}</span>
-          </div>
-          <div class="mrow">
-            <input id="bw-in" type="number" placeholder="today" style="width:90px" />
-            <button class="mbtn" onClick={() => workoutActions.logBodyweight(Number(host.readValue('bw-in')) || 0)}>Log</button>
-          </div>
-        </div>
-        {goal !== null && current !== null && (
-          <>
-            <div class="bar" style="margin-top:10px"><div style={`width:${bwPct}%`} /></div>
-            <div style="font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:4px">{toGoal ?? '—'} lb to goal</div>
-          </>
-        )}
-      </div>
-      {/* date */}
-      <div class="panel">
-        <div class="mrow" style="justify-content:space-between">
-          <p class="panel-t" style="margin:0">Session</p>
-          <div class="mrow">
-            <button class="mbtn" onClick={() => workoutActions.changeDate('prev')}>‹</button>
-            <span style="font-family:var(--mono);font-size:12px;min-width:150px;text-align:center">{o.dateLabel(vm.date)}</span>
-            <button class="mbtn" onClick={() => workoutActions.changeDate('next')}>›</button>
-            {!o.isToday && <button class="mbtn" onClick={() => workoutActions.changeDate('today')}>→ Today</button>}
-          </div>
-        </div>
-      </div>
-      {/* split */}
-      <div class="panel">
-        <div class="mrow" style="justify-content:space-between">
-          <p class="panel-t" style="margin:0">Today’s split</p>
-          <span class="mchip" style="background:var(--tealSoft);color:var(--teal)">{s.due === 'lower' ? 'LOWER day' : 'UPPER day'}</span>
-        </div>
-        <div class="note" style="margin:6px 0 8px">{note} Cardio is shown every day.</div>
-        <div class="timebar">
-          {splits.map(([value, label]) => (
-            <button class={vm.split === value ? 'on' : ''} onClick={() => workoutActions.changeSplit(value)}>
-              {label}{value === s.due ? ' ★' : ''}
-            </button>
-          ))}
-        </div>
-      </div>
-      {/* summary */}
-      <div class="panel" style={vm.sessionComplete ? 'border-color:var(--ok)' : undefined}>
-        <div class="mrow" style="justify-content:space-between">
-          <div>
-            <div style="font-family:var(--mono);font-size:20px">{vm.sessionComplete ? '✓ Session complete' : `${done} / ${vm.exercises.length} done`}</div>
-            <div class="note">~{vm.estimate.minutes} min · {vm.estimate.workingSets} working sets planned</div>
-          </div>
-          <button class={'mbtn wk-complete' + (vm.sessionComplete ? ' on' : '')} onClick={() => workoutActions.toggleSessionDone()}>
-            {vm.sessionComplete ? 'Reopen' : 'Mark complete'}
-          </button>
-        </div>
-        <div class="bar" style="margin-top:8px"><div style={`width:${pct}%;background:var(--ok)`} /></div>
-      </div>
-      <button class="mbtn wk-discard" onClick={discard}>↺ Discard unsaved changes</button>
-    </div>
+    <button
+      class={'wk-donebtn' + (done ? ' done' : '')}
+      onClick={() => workoutActions.toggleSessionDone()}
+      aria-pressed={done}
+      aria-label={done ? 'Workout session complete — activate to reopen' : 'Mark workout session complete'}
+    >
+      {done ? '✓ Session complete · tap to reopen' : 'Mark workout session complete'}
+    </button>
   );
 }
 
@@ -299,7 +334,8 @@ function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
   }
   const setCount = plan && !plan.cardio ? plan.warms.length + 1 + plan.backs.length : null;
   const showCount = !!plan && !plan.cardio && performed.length === 0;
-  const topSpec = plan && !plan.cardio ? platesFor(exercise, plan.top.weight) : null;
+  const swapped = awayMode.value && !!exSwap(exercise); // showing the dumbbell alternate → no barbell glyph
+  const topSpec = !swapped && plan && !plan.cardio ? platesFor(exercise, plan.top.weight) : null;
 
   return (
     <div class={'ex' + (complete ? ' done' : '')}>
@@ -311,7 +347,7 @@ function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
         )}
         <div class="excard-main">
           <div class="excard-name">
-            {exercise}
+            {displayExercise(exercise)}
             {plan?.deload ? <> <span class="cue deload">deload</span></> : null}
           </div>
           <div class="excard-meta">
@@ -340,7 +376,7 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
       ? [...(plan.warms ?? []).map((w: Any) => w.weight), plan.top.weight, ...(plan.backs ?? []).map((b: Any) => b.weight)]
       : [];
   const curWeight = setWeights[performed.length] ?? plan?.top?.weight ?? 0;
-  const ph = platesFor(exercise, curWeight);
+  const ph = awayMode.value && exSwap(exercise) ? null : platesFor(exercise, curWeight);
 
   let body: preact.JSX.Element;
   if (vm.isPast && performed.length > 0) {
@@ -426,8 +462,9 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
       </div>
       <div class="exdetail-body">
         <h2 class="exdetail-name">
-          {exercise}
+          {displayExercise(exercise)}
           {plan?.deload ? <> <span class="cue deload">deload</span></> : null}
+          {awayMode.value && exSwap(exercise) ? <span class="exswap-tag">away</span> : null}
         </h2>
         {ph && <PlateBar spec={ph} />}
         {body}
@@ -456,20 +493,35 @@ export function WorkoutView() {
   const W = wk();
   const today = dstr();
   const date = wkDate.value ?? today;
-  const vm = selectWorkoutView(W, date, today, { deload: wkDeload.value, split: wkSplitTouched.value ? wkSplit.value : undefined }, DEFAULT_CONFIG);
+  // Follow the week strip's projected plan so the day you tap loads the split its
+  // dot shows. A scheduled rest day (Sat, and Sun by default) shows a rest state
+  // instead of a workout — unless you've overridden the split to train anyway.
+  const sundayFullBody = !!W.settings.sundayFullBody;
+  const dp = dayPlan(W, date, today, sundayFullBody);
+  const isRest = !!dp?.rest && !dp?.done && !wkSplitTouched.value;
+  const planSplit = dp?.split ?? null;
+  const viewSplit = wkSplitTouched.value ? wkSplit.value : planSplit === 'full' ? 'all' : planSplit ?? undefined;
+  const vm = selectWorkoutView(W, date, today, { deload: wkDeload.value, split: viewSplit }, DEFAULT_CONFIG);
   const o = buildOptions(W, date, today, { current: currentBW() as number | null, goal: +W.settings.bwGoal || null });
   const showAll = wkShowAll.value;
-  // "Show all" re-derives the full list; otherwise the cards follow today's split.
-  const cardVm = showAll ? selectWorkoutView(W, date, today, { deload: wkDeload.value, split: 'all' }, DEFAULT_CONFIG) : vm;
+  // "Show all" reveals the OTHER split (e.g. an upper day shows the lower lifts) in
+  // its own labeled group below today's — never mixed in.
+  const otherSplit: Split | null = vm.split === 'upper' ? 'lower' : vm.split === 'lower' ? 'upper' : null;
+  const otherVm = showAll && otherSplit ? selectWorkoutView(W, date, today, { deload: wkDeload.value, split: otherSplit }, DEFAULT_CONFIG) : null;
   const done = vm.exercises.filter((e) => vm.completed[e]).length;
   const status = vm.sessionComplete ? '✓ complete' : `${done} / ${vm.exercises.length} logged`;
   const splitLabel = vm.split === 'upper' ? 'Upper' : vm.split === 'lower' ? 'Lower' : vm.split === 'all' ? 'Full body' : 'Session';
   const progOpen = wkProgOpen.value;
 
-  // Master–detail: an active exercise takes over the whole screen.
+  // Master–detail: an active exercise takes over the whole screen. Resolve it in
+  // its own split's view so it opens whether it's in today's split or the other one.
   const active = activeExercise.value;
-  if (active && cardVm.exercises.includes(active)) {
-    return <ExerciseDetail vm={cardVm} o={o} exercise={active} exercises={cardVm.exercises} />;
+  if (active) {
+    const sp = exerciseSplit(W, active, DEFAULT_CONFIG);
+    const dv = selectWorkoutView(W, date, today, { deload: wkDeload.value, split: sp === 'upper' || sp === 'lower' ? sp : 'all' }, DEFAULT_CONFIG);
+    if (dv.exercises.includes(active)) {
+      return <ExerciseDetail vm={dv} o={o} exercise={active} exercises={dv.exercises} />;
+    }
   }
   return (
     <>
@@ -477,32 +529,65 @@ export function WorkoutView() {
         ‹ Back
       </button>
 
-      <WeekStrip state={W} today={today} suggestion={vm.suggestion.due} />
+      <WeekStrip state={W} today={today} selected={date} sundayFullBody={sundayFullBody} />
 
-      <div class="todayhd">
-        <div class="todayhd-split">{vm.isPast ? o.dateLabel(vm.date) : `${splitLabel} day`}</div>
-        <span class="exhead-r">
-          <span class="exhead-m">{status}</span>
-          <button class={'ex-opts' + (wkExtrasOpen.value ? ' on' : '')} onClick={() => workoutActions.toggleLog?.()} aria-label="Session options">⚙</button>
-        </span>
-      </div>
-      {wkExtrasOpen.value && <Extras vm={vm} o={o} />}
-      {vm.isPast && vm.exercises.length === 0 && <div class="placeholder">No workout logged on {o.dateLabel(vm.date)}.</div>}
-      <div class="exgrid">
-        {cardVm.exercises.map((ex) => (
-          <ExerciseCardFace vm={cardVm} exercise={ex} />
-        ))}
-      </div>
-      {!vm.isPast && (
-        <button class="wk-showall" onClick={() => (wkShowAll.value = !showAll)}>
-          {showAll ? 'Show today only' : 'Show all exercises'}
-        </button>
+      {isRest ? (
+        <RestDay date={date} today={today} vm={vm} o={o} />
+      ) : (
+        <>
+          <div class="todayhd">
+            <div class="todayhd-split">{vm.isPast ? o.dateLabel(vm.date) : `${splitLabel} day`}</div>
+            <span class="exhead-r">
+              {sessionEffort(W, date) && <span class={'effchip eff-' + sessionEffort(W, date)}>{sessionEffort(W, date)}</span>}
+              <span class="exhead-m">{status}</span>
+              <button
+                class={'ex-opts' + (awayMode.value ? ' on' : '')}
+                onClick={() => (awayMode.value = !awayMode.value)}
+                title="Away from Life Time — show dumbbell alternates"
+              >
+                {awayMode.value ? '🏠 Away' : '🏋 Gym'}
+              </button>
+            </span>
+          </div>
+          {vm.isPast && vm.exercises.length === 0 && <div class="placeholder">No workout logged on {o.dateLabel(vm.date)}.</div>}
+          <div class="exgrid">
+            {vm.exercises.map((ex) => (
+              <ExerciseCardFace vm={vm} exercise={ex} />
+            ))}
+          </div>
+          {!vm.isPast && otherSplit && (
+            <button class="wk-showall" onClick={() => (wkShowAll.value = !showAll)}>
+              {showAll ? `Hide ${otherSplit} day` : `Show all · + ${otherSplit} day`}
+            </button>
+          )}
+          {showAll && otherVm && otherVm.exercises.length > 0 && (
+            <>
+              <div class="wkgroup-h">{otherSplit === 'lower' ? 'Lower body' : 'Upper body'} · not today</div>
+              <div class="exgrid">
+                {otherVm.exercises.map((ex) => (
+                  <ExerciseCardFace vm={otherVm} exercise={ex} />
+                ))}
+              </div>
+            </>
+          )}
+        </>
       )}
 
       <button class={'wk-progtoggle' + (progOpen ? ' on' : '')} onClick={() => (wkProgOpen.value = !progOpen)}>
         {progOpen ? '▾' : '▸'} Progress
       </button>
       {progOpen && <WorkoutCharts />}
+
+      {/* The finish action is pinned to the bottom of the viewport in the thumb
+          zone, so it's reachable without scrolling past every card, yet never
+          adjacent to "Show all" (which stays inline) — no fat-finger mis-tap. */}
+      {!isRest && vm.exercises.length > 0 && (
+        <div class="wk-finish">
+          <div class="wk-finish-in">
+            <MarkComplete vm={vm} />
+          </div>
+        </div>
+      )}
     </>
   );
 }

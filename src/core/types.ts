@@ -60,6 +60,8 @@ export interface WorkoutSettings {
   benchGoal?: Numeric;
   volLow?: Numeric;
   volHigh?: Numeric;
+  /** Sunday is a rest day by default; when true it becomes a full-body day. */
+  sundayFullBody?: boolean;
 }
 
 export interface WorkoutState {
@@ -207,10 +209,8 @@ export interface ExercisePlan {
   bumped: boolean;
   /** true when a deload applies (user-requested, or auto after a stall) */
   deload: boolean;
-  /** true when this deload was triggered automatically (a strength stall or a long layoff) */
+  /** true when this deload was triggered automatically (a strength stall or a layoff) */
   autoDeload: boolean;
-  /** true when a bump was held back because the lift is returning from a shorter break */
-  gapHold: boolean;
   /** rep ceiling for this exercise's class (compound vs isolation) */
   repHigh: number;
   /**
@@ -278,9 +278,11 @@ export interface ProgressionConfig {
   repsAfterBumpIsolation: number;
   /** consecutive sessions without an estimated-1RM improvement before an auto-deload */
   stallSessions: number;
-  /** gap (days) after which a lift repeats last session with no PR; then deloads */
+  /** per-lift gap (days) that triggers a mild layoff deload; a longer gap deloads more */
   gapRepeatDays: number;
   gapDeloadDays: number;
+  /** deload multiplier for a short layoff (milder than the full `deloadFactor`) */
+  layoffMildFactor: number;
   /** per-exercise e1RM ratio (actual/prescribed) thresholds for the day's effort grade */
   effortStrong: number;
   effortModerate: number;
@@ -317,8 +319,9 @@ export const DEFAULT_CONFIG: ProgressionConfig = {
   repHighIsolation: 12,
   repsAfterBumpIsolation: 8,
   stallSessions: 3,
-  gapRepeatDays: 10,
-  gapDeloadDays: 21,
+  gapRepeatDays: 4,
+  gapDeloadDays: 7,
+  layoffMildFactor: 0.95,
   effortStrong: 1.0,
   effortModerate: 0.95,
   sessionStrong: 0.85,
