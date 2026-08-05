@@ -180,7 +180,9 @@ describe('progression invariant', () => {
       fc.property(arbWorkoutState, arbDate, (state, date) => {
         for (const ex of allExercises(state)) {
           const plan = buildPlan(state, ex, date);
-          if (!plan || plan.cardio || plan.deload) continue;
+          // gapHold plans hold despite reaching the ceiling (returning from a break), so they
+          // are excluded from the clean bump-iff-repHigh rule alongside deloads.
+          if (!plan || plan.cardio || plan.deload || plan.gapHold) continue;
           if (plan.bumped) {
             expect(plan.lastTopReps).toBeGreaterThanOrEqual(plan.repHigh);
           } else {
@@ -578,17 +580,22 @@ describe('strength stall → auto-deload', () => {
   });
 });
 
-describe('session effort', () => {
-  const base = { ex: 'Bench Press', weight: 135, reps: 5, muscle: 'chest' as Muscle };
+describe('session effort (absolute, current session)', () => {
+  // Bench Press is compound: floor 3 (repsAfterBumpCompound), ceiling 6 (repHighCompound).
+  const bench = (reps: number) => ({ ex: 'Bench Press', weight: 135, reps, muscle: 'chest' as Muscle, date: D(0) });
   it('is null when nothing gradable was logged', () => {
-    expect(sessionEffort(stateOf([]), D(7))).toBeNull();
+    expect(sessionEffort(stateOf([]), D(0))).toBeNull();
   });
-  it('grades meeting/beating the prescription strong and a big miss weak', () => {
-    const hist = [{ ...base, date: D(0) }];
-    const strong = stateOf([...hist, { ...base, date: D(7), reps: 8 }]); // beats the held ~135x5
-    expect(sessionEffort(strong, D(7))).toBe('strong');
-    const weak = stateOf([...hist, { ...base, date: D(7), weight: 95, reps: 5 }]); // well under
-    expect(sessionEffort(weak, D(7))).toBe('weak');
+  it('grades by where the top set lands in the rep range, not versus last time', () => {
+    expect(sessionEffort(stateOf([bench(6)]), D(0))).toBe('strong'); // at the ceiling
+    expect(sessionEffort(stateOf([bench(5)]), D(0))).toBe('moderate'); // mid-range
+    expect(sessionEffort(stateOf([bench(3)]), D(0))).toBe('weak'); // at the floor
+  });
+  it('does not read as strong just because a session repeats the last one', () => {
+    // two identical mid-range sessions — the fixed grade is moderate both times (was 'strong' when self-referential)
+    const s = stateOf([bench(5), { ...bench(5), date: D(7) }]);
+    expect(sessionEffort(s, D(0))).toBe('moderate');
+    expect(sessionEffort(s, D(7))).toBe('moderate');
   });
 });
 
@@ -598,5 +605,38 @@ describe('days since last', () => {
     expect(daysSinceLast(s, 'Bench Press', D(10))).toBe(10);
     expect(daysSinceLast(s, 'Bench Press', D(0))).toBeNull();
     expect(daysSinceLast(s, 'Squat', D(10))).toBeNull();
+  });
+});
+
+describe('deload does not spiral', () => {
+  const flat = [1, 8, 15, 22].map((d) => ({ date: D(d), ex: 'Bench Press', weight: 135, reps: 5, muscle: 'chest' as Muscle }));
+  it('after an obeyed deload, a rebuild window opens before it can deload again', () => {
+    // stalled at 135 → deload to 120; the lifter obeys and logs 120.
+    const obeyed = [...flat, { date: D(29), ex: 'Bench Press', weight: 120, reps: 5, muscle: 'chest' as Muscle }];
+    // the very next session must NOT auto-deload again — the drop sits in the stall window.
+    expect(isStalled(stateOf(obeyed), 'Bench Press', D(36))).toBe(false);
+    expect(buildPlan(stateOf(obeyed), 'Bench Press', D(36))!.autoDeload).toBe(false);
+  });
+});
+
+describe('time off (layoff) handling', () => {
+  const hist = [{ date: D(0), ex: 'Bench Press', weight: 135, reps: 6, muscle: 'chest' as Muscle }]; // hit the ceiling → would bump
+  it('a normal few-day cadence is unaffected (still bumps off the ceiling)', () => {
+    const plan = buildPlan(stateOf(hist), 'Bench Press', D(4))!;
+    expect(plan.gapHold).toBe(false);
+    expect(plan.bumped).toBe(true);
+  });
+  it('a short layoff repeats last session instead of bumping', () => {
+    const plan = buildPlan(stateOf(hist), 'Bench Press', D(14))!; // 14d: > gapRepeatDays, <= gapDeloadDays
+    expect(plan.gapHold).toBe(true);
+    expect(plan.bumped).toBe(false);
+    expect(plan.deload).toBe(false);
+    expect(plan.top.weight).toBe(135);
+  });
+  it('a long layoff eases back in with a deload', () => {
+    const plan = buildPlan(stateOf(hist), 'Bench Press', D(30))!; // 30d: > gapDeloadDays
+    expect(plan.autoDeload).toBe(true);
+    expect(plan.deload).toBe(true);
+    expect(plan.top.weight).toBeLessThan(135);
   });
 });

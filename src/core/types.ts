@@ -207,8 +207,10 @@ export interface ExercisePlan {
   bumped: boolean;
   /** true when a deload applies (user-requested, or auto after a stall) */
   deload: boolean;
-  /** true when this deload was triggered automatically by a strength stall */
+  /** true when this deload was triggered automatically (a strength stall or a long layoff) */
   autoDeload: boolean;
+  /** true when a bump was held back because the lift is returning from a shorter break */
+  gapHold: boolean;
   /** rep ceiling for this exercise's class (compound vs isolation) */
   repHigh: number;
   /**

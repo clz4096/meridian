@@ -294,9 +294,12 @@ export function e1rmHistory(state: WorkoutState, exercise: string): Array<{ date
 }
 
 /**
- * Has the lift's strength stalled? True when its top-set e1RM has not exceeded
- * the value `stallSessions` sessions ago — i.e. no net progress across that
- * window. Only sessions strictly before `before` count, so it is date-navigable.
+ * Has the lift's strength stalled on a flat plateau? True when, across the last
+ * `stallSessions` transitions, the top-set e1RM made no net progress AND never
+ * dropped. The "no drop" clause is what stops a deload spiral: once an auto-deload
+ * lowers the load and the lifter obeys, that drop sits in the window and suppresses
+ * further deloads until they have `stallSessions` fresh sessions to rebuild from.
+ * Only sessions strictly before `before` count, so it stays date-navigable.
  */
 export function isStalled(
   state: WorkoutState,
@@ -308,9 +311,12 @@ export function isStalled(
   if (k <= 0) return false;
   const hist = e1rmHistory(state, exercise).filter((h) => h.date < before);
   if (hist.length <= k) return false; // not enough history to judge a stall
-  const cur = hist[hist.length - 1].e1rm;
-  const kAgo = hist[hist.length - 1 - k].e1rm;
-  return cur <= kAgo + 1e-9;
+  const window = hist.slice(-(k + 1)).map((h) => h.e1rm);
+  if (window[window.length - 1] > window[0] + 1e-9) return false; // net progress → not stalled
+  for (let i = 1; i < window.length; i++) {
+    if (window[i] < window[i - 1] - 1e-9) return false; // a drop → a deload already happened; rebuilding
+  }
+  return true; // flat plateau with no recent deload
 }
 
 /** Whole days between two ISO dates (UTC, DST-independent). */
@@ -330,29 +336,28 @@ export function daysSinceLast(state: WorkoutState, exercise: string, date: strin
 export type Effort = 'strong' | 'moderate' | 'weak';
 
 /**
- * Grade a whole session — Strong / Moderate / Weak — from how each exercise's
- * top set actually performed against what the algorithm prescribed that day
- * (via estimated 1RM), weighted by working sets so compounds count for more.
+ * Grade a session — Strong / Moderate / Weak — from *this* session alone: where
+ * each lift's top set landed inside its class rep range [reset … ceiling]. Hitting
+ * the ceiling (ready to add load) scores strong; the bottom scores weak; the middle
+ * is moderate. Working-set-weighted so compounds count for more. Absolute (no
+ * comparison to prior sessions), so exactly repeating no longer reads as "strong".
  * Returns null when the date has no gradable lifting.
  */
 export function sessionEffort(
   state: WorkoutState,
   date: string,
-  overrides: SessionOverrides = {},
   config: ProgressionConfig = DEFAULT_CONFIG,
 ): Effort | null {
   let weighted = 0;
   let total = 0;
   for (const ex of loggedExercises(state, date)) {
     if (isCardio(state, ex)) continue;
-    const actualTop = topSetOf(setsOn(state, ex, date));
-    if (!actualTop) continue;
-    const plan = buildPlan(state, ex, date, overrides, config);
-    if (!plan || plan.cardio) continue;
-    const prescribed = e1rm(plan.top.weight, plan.top.reps);
-    if (prescribed <= 0) continue;
-    const ratio = e1rm(toNum(actualTop.weight), toNum(actualTop.reps)) / prescribed;
-    const score = ratio >= config.effortStrong ? 1 : ratio >= config.effortModerate ? 0.6 : 0.2;
+    const top = topSetOf(setsOn(state, ex, date));
+    if (!top) continue;
+    const reps = toNum(top.reps);
+    const ceiling = repCeiling(state, ex, config);
+    const floor = repsAfterBumpFor(state, ex, config);
+    const score = reps >= ceiling ? 1 : reps > floor ? 0.6 : 0.2;
     const w = setsOn(state, ex, date).length || 1;
     weighted += score * w;
     total += w;
@@ -392,6 +397,7 @@ export function buildPlan(
       bumped: false,
       deload: false,
       autoDeload: false,
+      gapHold: false,
       repHigh,
       atMinimum: false,
       incr: inferIncrement(state, exercise, config),
@@ -405,11 +411,18 @@ export function buildPlan(
   const lastReps = toNum(top.reps);
   const step = inferIncrement(state, exercise, config);
 
-  let bumped = lastReps >= repHigh;
-  // Auto-deload: a strength stall (no e1RM progress over `stallSessions`) backs
-  // the load off — but only when the lift isn't already about to progress.
-  const autoDeload = !bumped && isStalled(state, exercise, date, config);
+  // Time off: a long layoff eases you back with a deload (detraining); a shorter
+  // one repeats last session with no PR until you're back in rhythm.
+  const gap = daysSinceLast(state, exercise, date);
+  const longLayoff = gap != null && gap > config.gapDeloadDays;
+  const shortLayoff = gap != null && gap > config.gapRepeatDays && !longLayoff;
+
+  let bumped = lastReps >= repHigh && !shortLayoff && !longLayoff;
+  // Auto-deload: a strength stall (no e1RM progress over `stallSessions`) or a long
+  // layoff backs the load off — but only when the lift isn't already about to progress.
+  const autoDeload = !bumped && (isStalled(state, exercise, date, config) || longLayoff);
   const deload = overrides.deload?.[exercise] === true || autoDeload;
+  const gapHold = shortLayoff && !deload && !bumped;
 
   let atMinimum = false;
   let weight = bumped ? roundTo(lastWeight + step, step) : lastWeight;
@@ -441,6 +454,7 @@ export function buildPlan(
     bumped,
     deload,
     autoDeload,
+    gapHold,
     repHigh,
     atMinimum,
     incr: step,

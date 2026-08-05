@@ -238,27 +238,21 @@ describe('progression algorithm — simulated training blocks', () => {
       });
 
       /* ---------------- Effort grading ---------------- */
-      it('sessionEffort returns strong / moderate / weak for over/under-delivery', () => {
-        // Build a bumped prescription, then log actual at three delivery levels.
-        function effortFor(scale: number, reps: number): ReturnType<typeof sessionEffort> {
+      it('sessionEffort grades this session absolutely by reps in the rep range', () => {
+        // Absolute (no prior comparison): where the top set lands in [floor … ceiling].
+        function effortFor(reps: number): ReturnType<typeof sessionEffort> {
           const s = emptyState();
-          s.incr[BENCH] = 5;
-          const [d0, d1] = trainingDates(START, 10);
-          logTop(s, BENCH, d0, 100, C.repHighCompound, 'chest'); // seed at ceiling → next bumps
-          const plan = buildPlan(s, BENCH, d1)!; // prescribes 105 @ repsAfterBump(3)
-          logTop(s, BENCH, d1, plan.top.weight * scale, reps, 'chest');
+          const [, d1] = trainingDates(START, 10);
+          logTop(s, BENCH, d1, 135, reps, 'chest');
           return sessionEffort(s, d1);
         }
-        // over-deliver: same weight at ceiling reps (6 > prescribed 3) → ratio>1
-        const strong = effortFor(1.0, C.repHighCompound);
-        // under-deliver slightly: 0.97× the prescribed weight at prescribed reps → ratio 0.97
-        const moderate = effortFor(0.97, C.repsAfterBumpCompound);
-        // big miss: 0.70× → ratio 0.70 → weak
-        const weak = effortFor(0.7, C.repsAfterBumpCompound);
+        const strong = effortFor(C.repHighCompound); // 6 = ceiling → strong
+        const moderate = effortFor(C.repHighCompound - 1); // 5 = mid → moderate
+        const weak = effortFor(C.repsAfterBumpCompound); // 3 = floor → weak
 
-        record(n, "sessionEffort 'strong'", strong === 'strong', `over-delivery → ${strong}`);
-        record(n, "sessionEffort 'moderate'", moderate === 'moderate', `0.97× → ${moderate}`);
-        record(n, "sessionEffort 'weak'", weak === 'weak', `0.70× → ${weak}`);
+        record(n, "sessionEffort 'strong'", strong === 'strong', `ceiling reps → ${strong}`);
+        record(n, "sessionEffort 'moderate'", moderate === 'moderate', `mid-range reps → ${moderate}`);
+        record(n, "sessionEffort 'weak'", weak === 'weak', `floor reps → ${weak}`);
         if (n === 30) traj.effort = { strong, moderate, weak };
 
         expect(strong).toBe('strong');
@@ -383,22 +377,25 @@ describe('progression algorithm — adversarial edge cases', () => {
     expect(dsl).toBeNull();
   });
 
-  it('30-day gap: daysSinceLast=30 but buildPlan IGNORES the gap (dead config)', () => {
-    const s = emptyState();
-    s.incr[BENCH] = 5;
-    logTop(s, BENCH, START, 100, 5, 'chest'); // below ceiling
-    const far = shiftDate(START, 30);
-    const dsl = daysSinceLast(s, BENCH, far);
-    const plan = buildPlan(s, BENCH, far)!;
-    // Despite a 30-day layoff (> gapDeloadDays=21), the plan just holds 100 — no gap logic.
-    const gapIgnored = plan.top.weight === 100 && plan.deload === false && plan.bumped === false;
+  it('layoffs are wired: short gap repeats, long gap eases back with a deload', () => {
+    const seed = () => {
+      const s = emptyState();
+      s.incr[BENCH] = 5;
+      logTop(s, BENCH, START, 100, C.repHighCompound, 'chest'); // at the ceiling → would bump on a normal cadence
+      return s;
+    };
+    const shortGap = buildPlan(seed(), BENCH, shiftDate(START, 14))!; // 14d: repeat, no bump
+    const longGap = buildPlan(seed(), BENCH, shiftDate(START, 30))!; // 30d: deload
+    const dsl = daysSinceLast(seed(), BENCH, shiftDate(START, 30));
     notes.push(
-      `30-day gap: daysSinceLast=${dsl}. gapRepeatDays(${C.gapRepeatDays})/gapDeloadDays(${C.gapDeloadDays}) ` +
-      `are defined in config but referenced nowhere in the engine; buildPlan holds ${plan.top.weight} with no repeat/deload. ` +
-      `daysSinceLast is only read by tests. => GAP HANDLING IS UNWIRED.`,
+      `Layoffs wired: 14-day gap → gapHold=${shortGap.gapHold}, bumped=${shortGap.bumped}, holds ${shortGap.top.weight}; ` +
+      `30-day gap (daysSinceLast=${dsl}) → autoDeload=${longGap.autoDeload}, top ${longGap.top.weight} (< 100).`,
     );
-    expect(dsl).toBe(30);
-    expect(gapIgnored).toBe(true);
+    expect(shortGap.gapHold).toBe(true);
+    expect(shortGap.bumped).toBe(false);
+    expect(shortGap.top.weight).toBe(100);
+    expect(longGap.autoDeload).toBe(true);
+    expect(longGap.top.weight).toBeLessThan(100);
   });
 
   it('fractional & string weights: toNum coerces, held top echoes logged weight exactly', () => {
@@ -455,49 +452,46 @@ describe('progression algorithm — adversarial edge cases', () => {
     expect(ok).toBe(true);
   });
 
-  it('follow-the-deload SPIRAL: a lifter who obeys the deload keeps deloading', () => {
-    // If the lifter LOGS the deloaded prescription each session, e1RM keeps
-    // dropping, so isStalled stays true and it deloads again — a downward spiral.
+  it('follow-the-deload does NOT spiral: obeyed deloads are spaced by a rebuild window', () => {
+    // A lifter who logs exactly the deloaded prescription each session must NOT be
+    // deloaded again the next session — the drop opens a rebuild window first.
     const s = emptyState();
     s.incr[BENCH] = 5;
     const dates = trainingDates(START, 40);
     logTop(s, BENCH, dates[0], 100, 5, 'chest');
-    let deloadCount = 0;
+    const deloadAt: number[] = [];
     const weights = [100];
     for (let i = 1; i < Math.min(dates.length, 12); i++) {
       const plan = buildPlan(s, BENCH, dates[i])!;
-      if (plan.autoDeload) deloadCount++;
+      if (plan.autoDeload) deloadAt.push(i);
       logTop(s, BENCH, dates[i], plan.top.weight, plan.top.reps, 'chest'); // OBEY the plan
       weights.push(plan.top.weight);
     }
+    const consecutive = deloadAt.some((v, k) => k > 0 && v === deloadAt[k - 1] + 1);
+    const deloadCount = deloadAt.length;
     notes.push(
-      `Deload spiral (RECOMMENDATION): a lifter who obeys each deload logs a lower weight, which keeps ` +
-      `isStalled true, so the engine deloads AGAIN next session. Observed weights: [${weights.join(', ')}] with ` +
-      `${deloadCount} deloads in a row. The stall counter is never reset by a deload → the load ratchets down to ` +
-      `atMinimum instead of deload-once-then-retry. Consider resetting the stall window after an auto-deload.`,
+      `Deload spiral fixed: a lifter who obeys is deloaded only on sessions [${deloadAt.join(', ')}] — each followed ` +
+      `by a rebuild window, never two in a row. Weights: [${weights.join(', ')}]. No single-session ratchet to atMinimum.`,
     );
-    // documents behavior; assert only that it stayed finite/non-negative
     expect(weights.every((w) => Number.isFinite(w) && w >= 0)).toBe(true);
-    expect(deloadCount).toBeGreaterThan(1);
+    expect(consecutive).toBe(false); // the fix: no back-to-back auto-deloads
     traj.spiral = { weights, deloadCount };
   });
 
-  it('effort spreads STRONG for a lifter who exactly repeats (self-referential prescription)', () => {
-    // A "grinder" who matches the held prescription exactly scores ratio 1.0 = strong,
-    // because the prescription echoes their own last session. Moderate/weak require
-    // under-performing your own prior. Documented, not a bug.
+  it('effort is absolute: exactly repeating a mid-range session is not auto-strong', () => {
+    // Now graded by reps in the range, not versus the last session. Two identical
+    // mid-range sessions both score 'moderate' (they used to score 'strong').
     const s = emptyState();
     s.incr[BENCH] = 5;
     const [d0, d1] = trainingDates(START, 10);
-    logTop(s, BENCH, d0, 100, 5, 'chest');
-    logTop(s, BENCH, d1, 100, 5, 'chest'); // exact repeat of held plan
+    logTop(s, BENCH, d0, 100, 5, 'chest'); // mid-range (floor 3 < 5 < ceiling 6)
+    logTop(s, BENCH, d1, 100, 5, 'chest'); // exact repeat
     const eff = sessionEffort(s, d1);
     notes.push(
-      `Effort is self-referential: a lifter who exactly repeats the held prescription scores '${eff}' (ratio 1.0), ` +
-      `NOT 'moderate'. Moderate/weak only appear when the actual top set underperforms that day's prescription ` +
-      `(e.g. right after a bump raises the bar, or on a genuine miss).`,
+      `Effort is now absolute (reps in the class range): an exact repeat of a mid-range session scores '${eff}' ` +
+      `(was 'strong' under the old self-referential grade). Strong requires hitting the ceiling this session.`,
     );
-    expect(eff).toBe('strong');
+    expect(eff).toBe('moderate');
   });
 });
 
@@ -520,7 +514,7 @@ afterAll(() => {
   lines.push('');
   lines.push(
     verdict
-      ? 'The double-progression + auto-deload engine in `workoutSelectors.ts` is **correct and robust** across every simulated 5/10/15/30-day block and every adversarial edge case. e1RM is strictly monotonic for a progressor, perfectly flat for a plateauer with a clean auto-deload at the expected session, per-class rep ceilings (compound 6 / isolation 12) fire exactly, deloads never round up or go non-positive, and no `NaN`/`Infinity`/negative weight appears anywhere. Three design characteristics are worth the author\'s attention (below): gap-handling is defined-but-unwired, the stall window is not reset after a deload (a downward spiral if the lifter obeys), and effort is graded self-referentially. None is a correctness bug in the code as written.'
+      ? 'The double-progression + auto-deload engine in `workoutSelectors.ts` is **correct and robust** across every simulated 5/10/15/30-day block and every adversarial edge case. e1RM is strictly monotonic for a progressor, perfectly flat for a plateauer with a clean auto-deload at the expected session, per-class rep ceilings (compound 6 / isolation 12) fire exactly, deloads never round up or go non-positive, and no `NaN`/`Infinity`/negative weight appears anywhere. The three design issues from the first pass are now **resolved**: the deload spiral is fixed (a drop in the stall window suppresses re-deloads, so an obeyed deload opens a rebuild window), layoff handling is wired into `buildPlan` (a short gap repeats, a long gap eases back with a deload), and effort is now graded absolutely from the current session (reps within the class range) rather than self-referentially.'
       : 'One or more checks FAILED — see the table. Investigate before shipping.',
   );
   lines.push('');
@@ -575,14 +569,15 @@ afterAll(() => {
   for (const nline of notes) lines.push(`- ${nline}`);
   lines.push('');
 
-  lines.push('## Recommendations');
+  lines.push('## Resolution');
   lines.push('');
-  lines.push('1. **Wire up (or delete) gap handling.** `gapRepeatDays` (10) and `gapDeloadDays` (21) live in `DEFAULT_CONFIG` and `ProgressionConfig`, and `daysSinceLast` exists as a selector, but *nothing in `buildPlan` reads them*. A lifter returning after a 30-day layoff gets the same prescription as if they trained yesterday. Either implement the intended "repeat after a gap, deload after a long gap" rule in `buildPlan`, or remove the dead tunables so they don\'t imply behavior that isn\'t there.');
-  lines.push('2. **Reset the stall window after an auto-deload.** `isStalled` compares current e1RM to the value `stallSessions` sessions ago. Because an auto-deload lowers e1RM, a lifter who *obeys* the deload keeps satisfying the stall condition and deloads again the next session — a downward spiral to `atMinimum` rather than deload-once-then-reattempt. Consider treating the deload session as a fresh baseline (e.g. ignore pre-deload sessions in the stall check, or require a *new* stall to form after a deload).');
-  lines.push('3. **Document the effort metric\'s self-reference.** `sessionEffort` grades the actual top set against *that day\'s prescription*, and the prescription echoes the lifter\'s own last session. A steady-state lifter who exactly repeats therefore scores `strong` (ratio 1.0); `moderate`/`weak` only surface when they underperform their own prior (typically right after a bump raises the target, or on a genuine miss). This is defensible but non-obvious — worth a comment so it isn\'t mistaken for absolute-difficulty grading.');
-  lines.push('4. **Minor: the "after 3 flat sessions" wording is off by one.** With `stallSessions = 3`, `isStalled` needs `history.length > 3`, so the deload first fires on the session *after the 4th flat session* (the 5th session overall). Align the copy/comment with the code, or change the comparison if 3 was intended.');
+  lines.push('The three issues from the first verification pass have been fixed and are re-verified above:');
   lines.push('');
-  lines.push('_No changes were made to the algorithm; this is a verification pass only._');
+  lines.push('1. **Gap handling — WIRED.** `buildPlan` now reads `daysSinceLast`: a gap over `gapRepeatDays` (10) repeats last session with no bump (`gapHold`), and a gap over `gapDeloadDays` (21) eases back with an auto-deload. Normal few-day training cadence is unaffected.');
+  lines.push('2. **Deload spiral — FIXED.** `isStalled` now requires the window to be flat with *no e1RM drop*. Once an auto-deload lowers the load and the lifter obeys, that drop sits in the window and suppresses further deloads until `stallSessions` fresh sessions have rebuilt — deload-once-then-reattempt instead of spiralling to `atMinimum`.');
+  lines.push('3. **Effort — ABSOLUTE.** `sessionEffort` now grades the current session alone by where each top set lands in its class rep range (ceiling = strong, floor = weak, middle = moderate). Exactly repeating a mid-range session reads `moderate`, not `strong`; it no longer echoes the prior session.');
+  lines.push('');
+  lines.push('_Remaining note: with `stallSessions = 3` a flat plateau first auto-deloads on the session after the 4th flat session; the config value, not a bug — tune `stallSessions` if a different cadence is wanted._');
 
   const outPath = fileURLToPath(new URL('../../../docs/algo-verification-findings.md', import.meta.url));
   mkdirSync(fileURLToPath(new URL('../../../docs', import.meta.url)), { recursive: true });
