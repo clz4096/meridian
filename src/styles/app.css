@@ -635,7 +635,7 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .scard-body{margin-top:8px;font-size:13.5px;line-height:1.55;color:var(--muted);white-space:pre-wrap;cursor:pointer}
 .scard-edit{margin-top:10px;display:flex;flex-direction:column;gap:8px}
 .scard-body-edit{min-height:80px;resize:vertical;font-family:var(--sans);font-size:14px;line-height:1.5}
-.sstatus{flex:none;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line-2);border-radius:20px;padding:4px 10px;cursor:pointer;background:var(--surface-3);color:var(--muted)}
+.sstatus{flex:none;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line-2);border-radius:20px;padding:4px 20px 4px 10px;cursor:pointer;background-color:var(--surface-3);color:var(--muted);-webkit-appearance:none;appearance:none;color-scheme:dark;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="%239aa3b0" stroke-width="1.4"><path d="M1 2.5l3 3 3-3"/></svg>');background-repeat:no-repeat;background-position:right 8px center}
 .sstatus.idea{color:var(--teal);border-color:rgba(124,201,236,.3)}
 .sstatus.trying{color:var(--fuel);border-color:rgba(224,166,75,.3)}
 .sstatus.shipped{color:var(--ok);border-color:rgba(107,191,115,.3)}

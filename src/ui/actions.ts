@@ -659,8 +659,15 @@ export const scratchActions = {
     if (!c) return;
     c.status = nextStatus(c.status);
     // Deliberately do NOT touch `updated`: the list sorts by newest-updated, so
-    // bumping it here would jump the card to the top on every tap — making the
-    // status chip impossible to cycle consistently.
+    // bumping it here would jump the card to the top on every tap.
+    appState.markDirty();
+    st.bump();
+  },
+  /** Set a card's status directly (upgrade or downgrade on the fly) — no cycling. */
+  setStatus(id: string, status: string): void {
+    const c = (core().scratch || []).find((x: Store) => String(x.id) === String(id));
+    if (!c) return;
+    c.status = status;
     appState.markDirty();
     st.bump();
   },
