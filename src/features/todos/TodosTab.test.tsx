@@ -1,7 +1,6 @@
 /**
- * TodosView component test — render + add/toggle/remove wiring + reactive update
- * (the leaf reads dataRev so mutations re-render). Todos live nested in core, so
- * we seed via appState.set('core', …).
+ * TodosView component test (layout C) — slim always-there add + one scroll list.
+ * Todos live nested in core, seeded via appState.set('core', …).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render } from '@testing-library/preact';
@@ -13,7 +12,10 @@ import { todoShowDone } from '@/ui/store';
 const emptyCore = () => ({ schedule: {}, entries: [], todos: [] as unknown[], scratch: [], _del: {} });
 const seed = (todos: unknown[]) => appState.set('core', { ...emptyCore(), todos } as never);
 
-beforeEach(() => appState.set('core', emptyCore() as never));
+beforeEach(() => {
+  todoShowDone.value = false;
+  appState.set('core', emptyCore() as never);
+});
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -23,20 +25,20 @@ afterEach(() => {
 });
 
 describe('TodosView', () => {
-  it('shows the empty state when there are no open todos', () => {
+  it('shows the empty state when there are no todos', () => {
     const { getByText } = render(<TodosView />);
-    expect(getByText(/Nothing to do/)).toBeTruthy();
+    expect(getByText(/Nothing to do yet/)).toBeTruthy();
   });
 
-  it('wires the Add button to todosActions.add with the input values', () => {
+  it('wires the slim add to todosActions.add with the input values', () => {
     const spy = vi.spyOn(todosActions, 'add').mockImplementation(() => {});
-    const { container, getByText } = render(<TodosView />);
+    const { container } = render(<TodosView />);
     (container.querySelector('#todo-text') as HTMLInputElement).value = 'Call the vendor';
-    fireEvent.click(getByText('Add'));
+    fireEvent.click(container.querySelector('.addslim-btn')!);
     expect(spy).toHaveBeenCalledWith('Call the vendor', '');
   });
 
-  it('reactively renders a new todo and buckets it under Today', async () => {
+  it('reactively renders a new todo in the list', async () => {
     const today = dstr();
     const { queryByText } = render(<TodosView />);
     expect(queryByText('Write worklog')).toBeNull();
@@ -44,7 +46,6 @@ describe('TodosView', () => {
       todosActions.add('Write worklog', today);
     });
     expect(queryByText('Write worklog')).toBeTruthy();
-    expect(queryByText('Today')).toBeTruthy(); // the group header
   });
 
   it('wires the row checkbox and delete to toggle/remove', () => {

@@ -7,7 +7,7 @@ import { act, cleanup, fireEvent, render } from '@testing-library/preact';
 import { ScratchView } from '@/features/scratch/ScratchTab';
 import { scratchActions } from '@/ui/actions';
 import { appState } from '@/app/bootstrap';
-import { scratchFilter, scratchOpen } from '@/ui/store';
+import { scratchFilter, scratchOpen, scratchAdding } from '@/ui/store';
 
 const emptyCore = () => ({ schedule: {}, entries: [], todos: [], scratch: [] as unknown[], _del: {} });
 const seed = (scratch: unknown[]) => appState.set('core', { ...emptyCore(), scratch } as never);
@@ -20,6 +20,7 @@ afterEach(() => {
   localStorage.clear();
   scratchFilter.value = 'all';
   scratchOpen.value = null;
+  scratchAdding.value = false;
   appState.set('core', emptyCore() as never);
 });
 
@@ -29,8 +30,9 @@ describe('ScratchView', () => {
     expect(getByText(/No ideas yet/)).toBeTruthy();
   });
 
-  it('wires Capture to scratchActions.add with title + body', () => {
+  it('wires Capture (revealed by the FAB) to scratchActions.add with title + body', () => {
     const spy = vi.spyOn(scratchActions, 'add').mockImplementation(() => {});
+    scratchAdding.value = true;
     const { container, getByText } = render(<ScratchView />);
     (container.querySelector('#scratch-title') as HTMLInputElement).value = 'CUDA SGEMM';
     (container.querySelector('#scratch-body') as HTMLTextAreaElement).value = 'roofline twist';

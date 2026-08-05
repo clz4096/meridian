@@ -52,10 +52,13 @@ export const sgExtrasOpen = signal(false);
 
 // ── todos UI state ── (todos live in the core store, loaded at boot — no lazy load)
 export const todoShowDone = signal(false);
+export const todoView = signal<'due' | 'all' | 'done'>('all'); // segmented view
+export const todoAdding = signal(false); // FAB-revealed add form
 
 // ── scratchpad UI state ── (scratch lives in the core store, loaded at boot)
 export const scratchFilter = signal<ScratchStatus | 'all'>('all');
 export const scratchOpen = signal<string | null>(null); // id of the card being edited/expanded
+export const scratchAdding = signal(false); // FAB-revealed capture form
 
 // ── data UI state ──
 export const dataMsg = signal<{ text: string; bad: boolean }>({ text: '', bad: false });

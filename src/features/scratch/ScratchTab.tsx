@@ -5,7 +5,7 @@
  */
 import { organizeScratch, SCRATCH_STATUSES, STATUS_LABEL } from '@/features/scratch/scratchSelectors';
 import type { ScratchCard, ScratchStatus } from '@/core/types';
-import { dataRev, scratchFilter, scratchOpen } from '@/ui/store';
+import { dataRev, scratchFilter, scratchOpen, scratchAdding } from '@/ui/store';
 import { core, scratchActions, goHome } from '@/ui/actions';
 import { host } from '@/ui/host';
 
@@ -65,6 +65,7 @@ export function ScratchView() {
   const total = all.length;
   const trying = all.filter((c: ScratchCard) => c.status === 'trying').length;
   const sub = total === 0 ? 'nothing yet' : trying ? `${trying} in progress` : `${total} captured`;
+  const adding = scratchAdding.value;
 
   return (
     <>
@@ -86,15 +87,17 @@ export function ScratchView() {
         </div>
       </div>
 
-      <div class="addcard">
-        <input id="scratch-title" class="minp" placeholder="Idea title" />
-        <textarea id="scratch-body" class="minp scratch-body-new" placeholder="What's the idea? (optional notes)" />
-        <div class="mrow" style="margin-top:8px">
-          <button class="madd" onClick={() => scratchActions.add(rv('scratch-title'), rv('scratch-body'))}>
-            Capture
-          </button>
+      {adding && (
+        <div class="addcard">
+          <input id="scratch-title" class="minp" placeholder="Idea title" />
+          <textarea id="scratch-body" class="minp scratch-body-new" placeholder="What's the idea? (optional notes)" />
+          <div class="mrow" style="margin-top:8px">
+            <button class="madd" onClick={() => scratchActions.add(rv('scratch-title'), rv('scratch-body'))}>
+              Capture
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <div class="mchips scratch-filters">
         {FILTERS.map((f) => (
@@ -105,10 +108,18 @@ export function ScratchView() {
       </div>
 
       {cards.length === 0 ? (
-        <div class="empty">{filter === 'all' ? 'No ideas yet. Capture one above.' : 'Nothing here.'}</div>
+        <div class="empty">{filter === 'all' ? 'No ideas yet. Tap ＋ to capture one.' : 'Nothing here.'}</div>
       ) : (
         cards.map((c) => <Card c={c} />)
       )}
+
+      <button
+        class={'fab scratch' + (adding ? ' on' : '')}
+        onClick={() => (scratchAdding.value = !adding)}
+        aria-label={adding ? 'Close' : 'Capture an idea'}
+      >
+        {adding ? '×' : '＋'}
+      </button>
     </>
   );
 }
