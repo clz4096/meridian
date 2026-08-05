@@ -255,6 +255,113 @@ export function setTemplate(
   return { warms, backs };
 }
 
+/* ================================================================== */
+/* Estimated 1RM, exercise class, effort & stalls                      */
+/* ================================================================== */
+
+/** Epley estimated one-rep max — the smoothed strength score. Non-positive input → 0. */
+export function e1rm(weight: number, reps: number): number {
+  const w = toNum(weight);
+  const r = toNum(reps);
+  if (w <= 0 || r <= 0) return 0;
+  return w * (1 + r / 30);
+}
+
+/** True for multi-joint lifts (chest/back/quads/hamstrings/glutes) — they earn the strength ranges. */
+export function isCompound(state: WorkoutState, exercise: string, config: ProgressionConfig = DEFAULT_CONFIG): boolean {
+  const muscle = exerciseMeta(state, exercise).muscle;
+  return muscle !== null && config.compoundMuscles.includes(muscle);
+}
+
+/** Rep count at which the top set earns a load increase, by exercise class. */
+export function repCeiling(state: WorkoutState, exercise: string, config: ProgressionConfig = DEFAULT_CONFIG): number {
+  if (isCardio(state, exercise)) return config.repHigh;
+  return isCompound(state, exercise, config) ? config.repHighCompound : config.repHighIsolation;
+}
+function repsAfterBumpFor(state: WorkoutState, exercise: string, config: ProgressionConfig): number {
+  if (isCardio(state, exercise)) return config.repsAfterBump;
+  return isCompound(state, exercise, config) ? config.repsAfterBumpCompound : config.repsAfterBumpIsolation;
+}
+
+/** Top-set estimated-1RM for each session of `exercise`, ascending by date. */
+export function e1rmHistory(state: WorkoutState, exercise: string): Array<{ date: string; e1rm: number }> {
+  const out: Array<{ date: string; e1rm: number }> = [];
+  for (const date of exerciseDates(state, exercise)) {
+    const top = topSetOf(setsOn(state, exercise, date));
+    if (top) out.push({ date, e1rm: e1rm(toNum(top.weight), toNum(top.reps)) });
+  }
+  return out;
+}
+
+/**
+ * Has the lift's strength stalled? True when its top-set e1RM has not exceeded
+ * the value `stallSessions` sessions ago — i.e. no net progress across that
+ * window. Only sessions strictly before `before` count, so it is date-navigable.
+ */
+export function isStalled(
+  state: WorkoutState,
+  exercise: string,
+  before: string,
+  config: ProgressionConfig = DEFAULT_CONFIG,
+): boolean {
+  const k = config.stallSessions;
+  if (k <= 0) return false;
+  const hist = e1rmHistory(state, exercise).filter((h) => h.date < before);
+  if (hist.length <= k) return false; // not enough history to judge a stall
+  const cur = hist[hist.length - 1].e1rm;
+  const kAgo = hist[hist.length - 1 - k].e1rm;
+  return cur <= kAgo + 1e-9;
+}
+
+/** Whole days between two ISO dates (UTC, DST-independent). */
+function dayGap(from: string, to: string): number {
+  const a = Date.parse(from + 'T00:00:00Z');
+  const b = Date.parse(to + 'T00:00:00Z');
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.round((b - a) / 86_400_000);
+}
+
+/** Days since the exercise was last performed strictly before `date` (null if never). */
+export function daysSinceLast(state: WorkoutState, exercise: string, date: string): number | null {
+  const prev = lastSession(state, exercise, date);
+  return prev ? dayGap(prev.date, date) : null;
+}
+
+export type Effort = 'strong' | 'moderate' | 'weak';
+
+/**
+ * Grade a whole session — Strong / Moderate / Weak — from how each exercise's
+ * top set actually performed against what the algorithm prescribed that day
+ * (via estimated 1RM), weighted by working sets so compounds count for more.
+ * Returns null when the date has no gradable lifting.
+ */
+export function sessionEffort(
+  state: WorkoutState,
+  date: string,
+  overrides: SessionOverrides = {},
+  config: ProgressionConfig = DEFAULT_CONFIG,
+): Effort | null {
+  let weighted = 0;
+  let total = 0;
+  for (const ex of loggedExercises(state, date)) {
+    if (isCardio(state, ex)) continue;
+    const actualTop = topSetOf(setsOn(state, ex, date));
+    if (!actualTop) continue;
+    const plan = buildPlan(state, ex, date, overrides, config);
+    if (!plan || plan.cardio) continue;
+    const prescribed = e1rm(plan.top.weight, plan.top.reps);
+    if (prescribed <= 0) continue;
+    const ratio = e1rm(toNum(actualTop.weight), toNum(actualTop.reps)) / prescribed;
+    const score = ratio >= config.effortStrong ? 1 : ratio >= config.effortModerate ? 0.6 : 0.2;
+    const w = setsOn(state, ex, date).length || 1;
+    weighted += score * w;
+    total += w;
+  }
+  if (total === 0) return null;
+  const mean = weighted / total;
+  return mean >= config.sessionStrong ? 'strong' : mean <= config.sessionWeak ? 'weak' : 'moderate';
+}
+
 /**
  * The prescription for one exercise on one date.
  *
@@ -272,6 +379,8 @@ export function buildPlan(
   const previous = lastSession(state, exercise, date);
   if (!previous) return null;
 
+  const repHigh = repCeiling(state, exercise, config);
+
   const top = topSetOf(previous.sets);
   if (!top) {
     return {
@@ -282,6 +391,8 @@ export function buildPlan(
       backs: [],
       bumped: false,
       deload: false,
+      autoDeload: false,
+      repHigh,
       atMinimum: false,
       incr: inferIncrement(state, exercise, config),
       lastTopWeight: 0,
@@ -293,12 +404,16 @@ export function buildPlan(
   const lastWeight = toNum(top.weight, 1) || 1;
   const lastReps = toNum(top.reps);
   const step = inferIncrement(state, exercise, config);
-  const deload = overrides.deload?.[exercise] === true;
 
-  let bumped = lastReps >= config.repHigh;
+  let bumped = lastReps >= repHigh;
+  // Auto-deload: a strength stall (no e1RM progress over `stallSessions`) backs
+  // the load off — but only when the lift isn't already about to progress.
+  const autoDeload = !bumped && isStalled(state, exercise, date, config);
+  const deload = overrides.deload?.[exercise] === true || autoDeload;
+
   let atMinimum = false;
   let weight = bumped ? roundTo(lastWeight + step, step) : lastWeight;
-  let reps = bumped ? config.repsAfterBump : lastReps;
+  let reps = bumped ? repsAfterBumpFor(state, exercise, config) : lastReps;
 
   if (deload) {
     // A deload must never out-prescribe the previous session. Applying the
@@ -310,7 +425,7 @@ export function buildPlan(
     // target is now guaranteed <= lastWeight and on the increment.
     weight = target > 0 ? target : lastWeight;
     atMinimum = target <= 0;   // load is already below one increment
-    reps = Math.max(5, Math.min(lastReps, config.repHigh - 2));
+    reps = Math.max(5, Math.min(lastReps, repHigh - 2));
   }
 
   const template = setTemplate(state, exercise, config);
@@ -325,6 +440,8 @@ export function buildPlan(
     backs: scale(template?.backs ?? []),
     bumped,
     deload,
+    autoDeload,
+    repHigh,
     atMinimum,
     incr: step,
     lastTopWeight: lastWeight,

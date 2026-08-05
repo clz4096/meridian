@@ -19,11 +19,17 @@ import {
 import {
   allExercises,
   buildPlan,
+  daysSinceLast,
+  e1rm,
   exerciseSplit,
   inferIncrement,
+  isCompound,
   isSessionComplete,
+  isStalled,
+  repCeiling,
   restSeconds,
   selectWorkoutView,
+  sessionEffort,
   splitOfDate,
   suggestSplit,
   weeklyWorkingSets,
@@ -176,10 +182,10 @@ describe('progression invariant', () => {
           const plan = buildPlan(state, ex, date);
           if (!plan || plan.cardio || plan.deload) continue;
           if (plan.bumped) {
-            expect(plan.lastTopReps).toBeGreaterThanOrEqual(DEFAULT_CONFIG.repHigh);
+            expect(plan.lastTopReps).toBeGreaterThanOrEqual(plan.repHigh);
           } else {
             expect(plan.top.weight).toBe(plan.lastTopWeight);
-            expect(plan.lastTopReps).toBeLessThan(DEFAULT_CONFIG.repHigh);
+            expect(plan.lastTopReps).toBeLessThan(plan.repHigh);
           }
         }
       }),
@@ -485,5 +491,112 @@ describe('coercion safety', () => {
       }),
       opts,
     );
+  });
+});
+
+/* ================================================================== */
+/* Algorithm: estimated 1RM, class, effort & stalls                    */
+/* ================================================================== */
+
+/** Build a minimal WorkoutState from top-set rows (date, exercise, weight, reps, muscle). */
+function stateOf(
+  rows: Array<{ date: string; ex: string; weight: number; reps: number; muscle?: Muscle; type?: SetType }>,
+): WorkoutState {
+  const days: Record<string, WorkoutSet[]> = {};
+  let n = 0;
+  for (const r of rows) {
+    (days[r.date] ??= []).push({
+      id: ('e' + n++) as EntityId,
+      ex: r.ex,
+      weight: r.weight,
+      reps: r.reps,
+      type: r.type ?? 'top',
+      muscle: r.muscle,
+    });
+  }
+  return { settings: {}, days, bw: {}, rpe: {}, done: {}, sessionDone: {}, incr: {} };
+}
+const D = (offset: number) => shiftDate('2025-01-01', offset);
+
+describe('estimated 1RM (Epley)', () => {
+  it('matches the Epley formula and floors non-positive input to 0', () => {
+    expect(e1rm(100, 1)).toBeCloseTo(103.333, 2);
+    expect(e1rm(100, 5)).toBeCloseTo(116.667, 2);
+    expect(e1rm(200, 8)).toBeCloseTo(253.333, 2);
+    expect(e1rm(0, 5)).toBe(0);
+    expect(e1rm(100, 0)).toBe(0);
+    expect(e1rm(-5, 5)).toBe(0);
+  });
+  it('rises with both weight and reps', () => {
+    expect(e1rm(105, 5)).toBeGreaterThan(e1rm(100, 5));
+    expect(e1rm(100, 6)).toBeGreaterThan(e1rm(100, 5));
+  });
+});
+
+describe('exercise class & rep ceilings', () => {
+  it('compounds get the strength ceiling, isolation the hypertrophy ceiling', () => {
+    const s = stateOf([
+      { date: D(0), ex: 'Bench Press', weight: 135, reps: 5, muscle: 'chest' },
+      { date: D(0), ex: 'Bicep Curl', weight: 30, reps: 8, muscle: 'biceps' },
+    ]);
+    expect(isCompound(s, 'Bench Press')).toBe(true);
+    expect(isCompound(s, 'Bicep Curl')).toBe(false);
+    expect(repCeiling(s, 'Bench Press')).toBe(DEFAULT_CONFIG.repHighCompound);
+    expect(repCeiling(s, 'Bicep Curl')).toBe(DEFAULT_CONFIG.repHighIsolation);
+  });
+  it('a compound bumps at its ceiling (6) while an isolation lift still holds', () => {
+    const s = stateOf([
+      { date: D(0), ex: 'Bench Press', weight: 135, reps: 6, muscle: 'chest' },
+      { date: D(0), ex: 'Bicep Curl', weight: 30, reps: 6, muscle: 'biceps' },
+    ]);
+    const bench = buildPlan(s, 'Bench Press', D(7))!;
+    const curl = buildPlan(s, 'Bicep Curl', D(7))!;
+    expect(bench.bumped).toBe(true); // 6 >= 6
+    expect(bench.top.weight).toBeGreaterThan(135);
+    expect(bench.top.reps).toBe(DEFAULT_CONFIG.repsAfterBumpCompound);
+    expect(curl.bumped).toBe(false); // 6 < 12
+    expect(curl.top.weight).toBe(30);
+  });
+});
+
+describe('strength stall → auto-deload', () => {
+  const flat = [1, 8, 15, 22].map((d) => ({ date: D(d), ex: 'Bench Press', weight: 135, reps: 5, muscle: 'chest' as Muscle }));
+  it('flags a stall after N non-improving sessions, not before', () => {
+    expect(isStalled(stateOf(flat), 'Bench Press', D(29))).toBe(true);
+    const rising = [1, 8, 15, 22].map((d, i) => ({ date: D(d), ex: 'Bench Press', weight: 135 + i * 5, reps: 5, muscle: 'chest' as Muscle }));
+    expect(isStalled(stateOf(rising), 'Bench Press', D(29))).toBe(false);
+    // too little history to judge
+    expect(isStalled(stateOf(flat.slice(0, 2)), 'Bench Press', D(29))).toBe(false);
+  });
+  it('auto-deloads a stalled lift: deload set, weight backed off, never a bump', () => {
+    const plan = buildPlan(stateOf(flat), 'Bench Press', D(29))!;
+    expect(plan.autoDeload).toBe(true);
+    expect(plan.deload).toBe(true);
+    expect(plan.bumped).toBe(false);
+    expect(plan.top.weight).toBeLessThanOrEqual(135);
+    expect(plan.top.weight).toBeGreaterThan(0);
+  });
+});
+
+describe('session effort', () => {
+  const base = { ex: 'Bench Press', weight: 135, reps: 5, muscle: 'chest' as Muscle };
+  it('is null when nothing gradable was logged', () => {
+    expect(sessionEffort(stateOf([]), D(7))).toBeNull();
+  });
+  it('grades meeting/beating the prescription strong and a big miss weak', () => {
+    const hist = [{ ...base, date: D(0) }];
+    const strong = stateOf([...hist, { ...base, date: D(7), reps: 8 }]); // beats the held ~135x5
+    expect(sessionEffort(strong, D(7))).toBe('strong');
+    const weak = stateOf([...hist, { ...base, date: D(7), weight: 95, reps: 5 }]); // well under
+    expect(sessionEffort(weak, D(7))).toBe('weak');
+  });
+});
+
+describe('days since last', () => {
+  it('counts whole days to the previous session, null when none', () => {
+    const s = stateOf([{ date: D(0), ex: 'Bench Press', weight: 135, reps: 5, muscle: 'chest' }]);
+    expect(daysSinceLast(s, 'Bench Press', D(10))).toBe(10);
+    expect(daysSinceLast(s, 'Bench Press', D(0))).toBeNull();
+    expect(daysSinceLast(s, 'Squat', D(10))).toBeNull();
   });
 });

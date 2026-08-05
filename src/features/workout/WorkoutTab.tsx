@@ -234,7 +234,7 @@ function topCue(plan: ExercisePlan): preact.JSX.Element | null {
   if (plan.atMinimum) return <span class="rx-cue muted">at minimum load</span>;
   if (plan.bumped) return <span class="rx-cue">↑ +{plan.incr} from {plan.lastTopWeight}</span>;
   if (plan.deload) return null;
-  return <span class="rx-cue muted">hold · +{plan.incr} at 8 reps</span>;
+  return <span class="rx-cue muted">hold · +{plan.incr} at {plan.repHigh} reps</span>;
 }
 const setTypeLabel = (type: SetType): string => (type === 'warm' ? 'Warmup' : type === 'top' ? 'Top set' : type === 'back' ? 'Back-off' : 'Set');
 

@@ -203,10 +203,14 @@ export interface ExercisePlan {
   warms: PrescribedSet[];
   top: PrescribedSet;
   backs: PrescribedSet[];
-  /** true when the last top set hit REP_HI and the weight goes up */
+  /** true when the last top set hit the rep ceiling and the weight goes up */
   bumped: boolean;
-  /** true when a deload was requested for this session */
+  /** true when a deload applies (user-requested, or auto after a stall) */
   deload: boolean;
+  /** true when this deload was triggered automatically by a strength stall */
+  autoDeload: boolean;
+  /** rep ceiling for this exercise's class (compound vs isolation) */
+  repHigh: number;
   /**
    * True when the load already sits below one increment, so a deload cannot
    * lower it further without prescribing zero. In this case `top.weight`
@@ -260,10 +264,27 @@ export interface WorkoutViewModel {
 /* ------------------------------------------------------------------ */
 
 export interface ProgressionConfig {
-  /** rep count at which the top set earns a weight increase */
+  /** rep count at which the top set earns a weight increase (fallback / cardio) */
   repHigh: number;
-  /** reps prescribed immediately after a weight bump */
+  /** reps prescribed immediately after a weight bump (fallback) */
   repsAfterBump: number;
+  /** strength rep ceiling + reset for big compound lifts (bench, row, leg press) */
+  repHighCompound: number;
+  repsAfterBumpCompound: number;
+  /** hypertrophy rep ceiling + reset for isolation lifts (curls, extensions, …) */
+  repHighIsolation: number;
+  repsAfterBumpIsolation: number;
+  /** consecutive sessions without an estimated-1RM improvement before an auto-deload */
+  stallSessions: number;
+  /** gap (days) after which a lift repeats last session with no PR; then deloads */
+  gapRepeatDays: number;
+  gapDeloadDays: number;
+  /** per-exercise e1RM ratio (actual/prescribed) thresholds for the day's effort grade */
+  effortStrong: number;
+  effortModerate: number;
+  /** working-set-weighted mean thresholds mapping a session to Strong / Weak */
+  sessionStrong: number;
+  sessionWeak: number;
   /** multiplier applied when the user flags a deload */
   deloadFactor: number;
   defaultIncrement: number;
@@ -289,6 +310,17 @@ export interface ProgressionConfig {
 export const DEFAULT_CONFIG: ProgressionConfig = {
   repHigh: 8,
   repsAfterBump: 6,
+  repHighCompound: 6,
+  repsAfterBumpCompound: 3,
+  repHighIsolation: 12,
+  repsAfterBumpIsolation: 8,
+  stallSessions: 3,
+  gapRepeatDays: 10,
+  gapDeloadDays: 21,
+  effortStrong: 1.0,
+  effortModerate: 0.95,
+  sessionStrong: 0.85,
+  sessionWeak: 0.5,
   deloadFactor: 0.9,
   defaultIncrement: 5,
   secondsPerSet: 40,
