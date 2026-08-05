@@ -62,7 +62,7 @@ describe('TodayView', () => {
   it('drills into a tracker from the at-a-glance', () => {
     const spy = vi.spyOn(actions, 'openSection').mockImplementation(() => {});
     const { getByText } = render(<TodayView />);
-    fireEvent.click(getByText('Meals').closest('.tile')!);
+    fireEvent.click(getByText('Food & Body').closest('.tile')!);
     expect(spy).toHaveBeenCalledWith('meal');
   });
 });

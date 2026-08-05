@@ -18,17 +18,26 @@ import { currentWeight, bodyweightSlope, adherence, calorieAdjustment } from '@/
 type VM = ReturnType<typeof selectMealView>;
 const rv = (id: string): string => host.readValue(id);
 
-/** Bodyweight goal + pace + plain-language calorie guidance (spec §5 surfaced). */
-function BodyPanel() {
-  dataRev.value;
-  const W = wk();
+function MealProgress() {
+  dataRev.value; // subscribe here (not just the MealView parent) so a logged/removed meal re-derives
+  const G = sg();
+  const period = progPeriod.value;
   const today = dstr();
+  const calT = calorieTarget(G);
+  const proT = proteinTarget(G);
+  const todayCal = (G.days?.[today] ?? []).reduce((a: number, m: { cal?: number }) => a + (+(m.cal ?? 0) || 0), 0);
+  const calDelta = calT ? todayCal - calT : null;
+  const calSub =
+    todayCal === 0 ? 'not logged' : calDelta != null ? `${calDelta >= 0 ? '+' : ''}${calDelta} vs target` : `${todayCal} today`;
+  const calSubClass = todayCal === 0 || calDelta == null ? '' : calDelta >= 0 ? 'up' : 'down';
+
+  // Body: latest weigh-in, goal, smoothed pace, and the plain-language calorie call.
+  const W = wk();
   const cur = currentWeight(W.bw, today);
   const goal = toNum(W.settings.bwGoal) || null;
   const slope = bodyweightSlope(W.bw, today);
   const toGoal = cur != null && goal != null ? Math.round((goal - cur) * 10) / 10 : null;
-  const calT = calorieTarget(sg());
-  const adh = calT ? adherence(sg(), calT, today) : 0;
+  const adh = calT ? adherence(G, calT, today) : 0;
   const adj = calorieAdjustment(slope, adh);
   const newTarget = calT != null ? calT + adj.deltaKcal : null;
   const advice =
@@ -43,55 +52,41 @@ function BodyPanel() {
             : 'Weigh in a few more mornings for a pace read.';
   const paceTxt = slope == null ? 'no trend yet' : `${slope >= 0 ? '+' : ''}${slope.toFixed(1)} lb/wk`;
   const paceClass = slope == null ? '' : slope > 0 ? 'up' : 'down';
-  return (
-    <>
-      <SecHero
-        eyebrow="Food & Body"
-        value={cur != null ? cur : '—'}
-        unit="lb"
-        sub={toGoal != null ? `${toGoal} to goal` : goal ? `goal ${goal}` : 'set a goal'}
-        subClass={toGoal != null ? (toGoal > 0 ? 'up' : 'down') : ''}
-        tone="teal"
-      />
-      <div class="bodyrow">
-        <span class={'bodypace ' + paceClass}>{paceTxt}</span>
-        <div class="addslim bodyweigh">
-          <input id="bw-weigh" class="addslim-in" type="number" inputmode="decimal" placeholder="weigh in…" />
-          <button
-            class="addslim-btn"
-            onClick={() => {
-              const v = Number(rv('bw-weigh'));
-              if (v > 0) workoutActions.logBodyweight(v);
-            }}
-            aria-label="Log weight"
-          >
-            ＋
-          </button>
-        </div>
-      </div>
-      <div class={'bodyadvice v-' + adj.verdict}>{advice}</div>
-    </>
-  );
-}
 
-function MealProgress() {
-  dataRev.value; // subscribe here (not just the MealView parent) so a logged/removed meal re-derives
-  const G = sg();
-  const period = progPeriod.value;
-  const calT = calorieTarget(G);
-  const proT = proteinTarget(G);
-  const todayCal = (G.days?.[dstr()] ?? []).reduce((a: number, m: { cal?: number }) => a + (+(m.cal ?? 0) || 0), 0);
-  const calDelta = calT ? todayCal - calT : null;
-  const sub =
-    todayCal === 0 ? 'not logged yet' : calDelta != null ? `${calDelta >= 0 ? '+' : ''}${calDelta} vs target` : `${todayCal} today`;
-  const subClass = todayCal === 0 || calDelta == null ? '' : calDelta >= 0 ? 'up' : 'down';
   return (
     <>
       <button class="backbtn" onClick={goHome}>
         ‹ Back
       </button>
-      <SecHero eyebrow="Meals" value={todayCal} unit="kcal today" sub={sub} subClass={subClass} tone="fuel" />
-      <BodyPanel />
+      <div class="heroduo">
+        <SecHero eyebrow="Calories" value={todayCal} unit="kcal" sub={calSub} subClass={calSubClass} tone="fuel" />
+        <div class="heroduo-body">
+          <SecHero
+            eyebrow="Body"
+            value={cur != null ? cur : '—'}
+            unit="lb"
+            sub={toGoal != null ? `${toGoal} to goal` : goal ? `goal ${goal}` : 'set a goal'}
+            subClass={toGoal != null ? (toGoal > 0 ? 'up' : 'down') : ''}
+            tone="teal"
+          />
+          <div class="bodyweigh">
+            <input id="bw-weigh" class="addslim-in" type="number" inputmode="decimal" placeholder="weigh in…" />
+            <button
+              class="addslim-btn"
+              onClick={() => {
+                const v = Number(rv('bw-weigh'));
+                if (v > 0) workoutActions.logBodyweight(v);
+              }}
+              aria-label="Log weight"
+            >
+              ＋
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class={'bodyadvice v-' + adj.verdict}>
+        <span class={'bodypace ' + paceClass}>{paceTxt}</span> · {advice}
+      </div>
       <div class="prog">
         <ProgControls />
         <Carousel keepKey="meal">

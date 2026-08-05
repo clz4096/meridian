@@ -368,18 +368,21 @@ body:not(.at-home) .tabpane{padding-top:calc(14px + env(safe-area-inset-top))}
 .fab.scratch.on{background:var(--surface-2);color:var(--text)}
 /* lift the autosave chip above the FAB when one is present */
 body:has(.fab) .savestat{bottom:calc(90px + env(safe-area-inset-bottom))}
-/* Food & Body panel (Meals) */
-.bodyrow{display:flex;align-items:center;gap:10px;margin:8px 0 0}
-.bodypace{flex:none;font-family:var(--mono);font-size:13px;color:var(--muted);min-width:74px}
-.bodypace.up{color:var(--ok)}.bodypace.down{color:var(--deficit)}
-.bodyweigh{flex:1;display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface-1);border-radius:12px;padding:4px 4px 4px 12px;margin:0}
+/* Food & Body — two heroes side by side + weigh-in + advice */
+.heroduo{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;margin-top:12px}
+.heroduo .sechero{margin:0}
+.heroduo-body{display:flex;flex-direction:column;gap:8px}
+.bodyweigh{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface-1);border-radius:12px;padding:4px 4px 4px 12px}
 .bodyweigh .addslim-in{flex:1;min-width:0;background:transparent;border:0;color:var(--text);font-size:14px;font-family:var(--sans);color-scheme:dark;outline:none;padding:7px 0}
 .bodyweigh .addslim-in::placeholder{color:var(--faint)}
 .bodyweigh .addslim-btn{flex:none;width:32px;height:32px;border-radius:9px;border:0;background:var(--teal);color:#04212e;font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.bodyadvice{font-family:var(--sans);font-size:13px;color:var(--muted);margin:10px 2px 2px;padding:10px 12px;border-radius:12px;background:var(--surface-1);border:1px solid var(--line)}
+.bodyadvice{font-family:var(--sans);font-size:13px;color:var(--muted);margin:12px 2px 2px;padding:10px 12px;border-radius:12px;background:var(--surface-1);border:1px solid var(--line)}
+.bodypace{font-family:var(--mono)}
+.bodypace.up{color:var(--ok)}.bodypace.down{color:var(--deficit)}
 .bodyadvice.v-raise{color:var(--fuel);border-color:rgba(224,166,75,.3)}
 .bodyadvice.v-trim{color:var(--deficit);border-color:rgba(216,101,79,.3)}
 .bodyadvice.v-hold{color:var(--ok);border-color:rgba(59,185,140,.3)}
+@media (max-width:360px){.heroduo{grid-template-columns:1fr}}
 .dcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:14px}
 .dcard-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .dcard-t{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}

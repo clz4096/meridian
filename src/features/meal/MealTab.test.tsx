@@ -28,9 +28,10 @@ afterEach(() => {
 });
 
 describe('MealView', () => {
-  it('renders the Progress screen with a "View meal log" CTA by default', () => {
+  it('renders the Progress screen with the Calories + Body heroes and a "View meal log" CTA', () => {
     const { getByText } = render(<MealView />);
-    expect(getByText('Meals')).toBeTruthy();
+    expect(getByText('Calories')).toBeTruthy(); // left hero
+    expect(getByText('Body')).toBeTruthy(); // right hero (weigh-in)
     expect(getByText('View meal log')).toBeTruthy();
   });
 
