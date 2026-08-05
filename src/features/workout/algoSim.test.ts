@@ -377,25 +377,26 @@ describe('progression algorithm — adversarial edge cases', () => {
     expect(dsl).toBeNull();
   });
 
-  it('layoffs are wired: short gap repeats, long gap eases back with a deload', () => {
+  it('layoffs are graduated: a short gap deloads mildly, a long gap deloads more', () => {
     const seed = () => {
       const s = emptyState();
       s.incr[BENCH] = 5;
       logTop(s, BENCH, START, 100, C.repHighCompound, 'chest'); // at the ceiling → would bump on a normal cadence
       return s;
     };
-    const shortGap = buildPlan(seed(), BENCH, shiftDate(START, 14))!; // 14d: repeat, no bump
-    const longGap = buildPlan(seed(), BENCH, shiftDate(START, 30))!; // 30d: deload
+    const shortGap = buildPlan(seed(), BENCH, shiftDate(START, 6))!; // 6d: > gapRepeatDays(4), <= gapDeloadDays(7) → mild
+    const longGap = buildPlan(seed(), BENCH, shiftDate(START, 30))!; // 30d: > gapDeloadDays → full
     const dsl = daysSinceLast(seed(), BENCH, shiftDate(START, 30));
     notes.push(
-      `Layoffs wired: 14-day gap → gapHold=${shortGap.gapHold}, bumped=${shortGap.bumped}, holds ${shortGap.top.weight}; ` +
-      `30-day gap (daysSinceLast=${dsl}) → autoDeload=${longGap.autoDeload}, top ${longGap.top.weight} (< 100).`,
+      `Layoffs graduated (thresholds ${C.gapRepeatDays}/${C.gapDeloadDays}d): 6-day gap → mild deload, ` +
+      `autoDeload=${shortGap.autoDeload}, top ${shortGap.top.weight}; 30-day gap (daysSinceLast=${dsl}) → ` +
+      `full deload, top ${longGap.top.weight} — a longer break backs off more.`,
     );
-    expect(shortGap.gapHold).toBe(true);
+    expect(shortGap.autoDeload).toBe(true);
     expect(shortGap.bumped).toBe(false);
-    expect(shortGap.top.weight).toBe(100);
+    expect(shortGap.top.weight).toBeLessThan(100);
     expect(longGap.autoDeload).toBe(true);
-    expect(longGap.top.weight).toBeLessThan(100);
+    expect(longGap.top.weight).toBeLessThan(shortGap.top.weight); // long deloads more than short
   });
 
   it('fractional & string weights: toNum coerces, held top echoes logged weight exactly', () => {
@@ -514,7 +515,7 @@ afterAll(() => {
   lines.push('');
   lines.push(
     verdict
-      ? 'The double-progression + auto-deload engine in `workoutSelectors.ts` is **correct and robust** across every simulated 5/10/15/30-day block and every adversarial edge case. e1RM is strictly monotonic for a progressor, perfectly flat for a plateauer with a clean auto-deload at the expected session, per-class rep ceilings (compound 6 / isolation 12) fire exactly, deloads never round up or go non-positive, and no `NaN`/`Infinity`/negative weight appears anywhere. The three design issues from the first pass are now **resolved**: the deload spiral is fixed (a drop in the stall window suppresses re-deloads, so an obeyed deload opens a rebuild window), layoff handling is wired into `buildPlan` (a short gap repeats, a long gap eases back with a deload), and effort is now graded absolutely from the current session (reps within the class range) rather than self-referentially.'
+      ? 'The double-progression + auto-deload engine in `workoutSelectors.ts` is **correct and robust** across every simulated 5/10/15/30-day block and every adversarial edge case. e1RM is strictly monotonic for a progressor, perfectly flat for a plateauer with a clean auto-deload at the expected session, per-class rep ceilings (compound 6 / isolation 12) fire exactly, deloads never round up or go non-positive, and no `NaN`/`Infinity`/negative weight appears anywhere. The three design issues from the first pass are now **resolved**: the deload spiral is fixed (a drop in the stall window suppresses re-deloads, so an obeyed deload opens a rebuild window), layoff handling is wired into `buildPlan` and graduated (a short gap eases back with a mild deload, a longer gap deloads more), and effort is now graded absolutely from the current session (reps within the class range) rather than self-referentially.'
       : 'One or more checks FAILED — see the table. Investigate before shipping.',
   );
   lines.push('');
@@ -573,7 +574,7 @@ afterAll(() => {
   lines.push('');
   lines.push('The three issues from the first verification pass have been fixed and are re-verified above:');
   lines.push('');
-  lines.push('1. **Gap handling — WIRED.** `buildPlan` now reads `daysSinceLast`: a gap over `gapRepeatDays` (10) repeats last session with no bump (`gapHold`), and a gap over `gapDeloadDays` (21) eases back with an auto-deload. Normal few-day training cadence is unaffected.');
+  lines.push('1. **Gap handling — WIRED & GRADUATED.** `buildPlan` reads `daysSinceLast`: a gap over `gapRepeatDays` (4) eases back with a *mild* deload (×`layoffMildFactor` 0.95), and a gap over `gapDeloadDays` (7) takes the *full* deload (×`deloadFactor` 0.9) — a longer break backs off more. Thresholds sit just above the normal 3–4 day per-lift split cadence, so ordinary training is unaffected.');
   lines.push('2. **Deload spiral — FIXED.** `isStalled` now requires the window to be flat with *no e1RM drop*. Once an auto-deload lowers the load and the lifter obeys, that drop sits in the window and suppresses further deloads until `stallSessions` fresh sessions have rebuilt — deload-once-then-reattempt instead of spiralling to `atMinimum`.');
   lines.push('3. **Effort — ABSOLUTE.** `sessionEffort` now grades the current session alone by where each top set lands in its class rep range (ceiling = strong, floor = weak, middle = moderate). Exactly repeating a mid-range session reads `moderate`, not `strong`; it no longer echoes the prior session.');
   lines.push('');
