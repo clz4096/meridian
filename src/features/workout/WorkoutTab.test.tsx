@@ -52,7 +52,7 @@ describe('WorkoutView', () => {
   it('renders the workout screen: bodyweight hero + the seeded exercise card', () => {
     const { getByText, container } = render(<WorkoutView />);
     expect(getByText('150')).toBeTruthy(); // hero value
-    expect(getByText(/bodyweight/i)).toBeTruthy(); // hero label (Hero lowercases it)
+    expect(getByText('Workout')).toBeTruthy(); // sechero eyebrow
     const names = [...container.querySelectorAll('.ex-name')].map((e) => e.textContent);
     expect(names.some((n) => n?.includes('Leg Press'))).toBe(true);
   });

@@ -95,9 +95,6 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .seg button{font-family:var(--sans);font-size:var(--fs-caption);font-weight:500;line-height:1;border:0;background:transparent;color:var(--dim);padding:7px 9px;border-radius:6px;cursor:pointer;min-width:30px;transition:color var(--dur) var(--ease),background var(--dur) var(--ease)}
 .seg button.on{background:var(--surface-3);color:var(--text)}
 .seg-row{display:flex;gap:var(--sp2)}
-/* hero stat */
-.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--sp4);margin:2px 0 var(--sp2)}
-.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--faint);margin:18px 2px 4px}
 .ctrl-row{display:flex;justify-content:flex-end;align-items:center;gap:var(--sp2);margin:var(--sp3) 0 var(--sp1)}
 .ctrl-toggle{font-family:var(--mono);font-size:var(--fs-caption);letter-spacing:.06em;color:var(--muted);background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-sm);padding:6px 11px;cursor:pointer;min-height:0;white-space:nowrap;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
 .ctrl-toggle:hover,.ctrl-toggle.on,.ctrl-toggle:focus-visible{color:var(--teal);border-color:var(--line-2);outline:none}
@@ -194,11 +191,6 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .mealmac{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .mealrm{margin:-13px 0;padding:13px 10px;color:var(--faint);cursor:pointer;font-size:16px;line-height:1;min-height:0}
 .mealrm:hover{color:var(--deficit)}
-.hero-k{font-family:var(--sans);font-size:var(--fs-caption);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:var(--sp1)}
-.hero-v{font-family:var(--mono);font-size:48px;font-weight:600;line-height:.95;letter-spacing:-.02em}
-.hero-u{font-size:20px;color:var(--muted);font-weight:500}
-.hero-d{font-family:var(--mono);font-size:var(--fs-body);font-weight:600;color:var(--dim)}
-.hero-d.up{color:var(--ok)} .hero-d.down{color:var(--deficit)}
 .chart{margin:var(--sp2) 0;background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 16px 13px}
 .chart-h{display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp2);margin-bottom:0}
 .chart-t{font-family:var(--sans);font-size:var(--fs-body);font-weight:500;color:var(--text)}
@@ -235,8 +227,7 @@ body:not(.at-home) .tabpane{padding-top:calc(14px + env(safe-area-inset-top))}
 .hubrow .hdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:6px;vertical-align:middle}
 .hubrow .hchev{color:var(--faint);flex:none;font-size:22px;line-height:1;transition:transform var(--dur) var(--ease),color var(--dur)}
 .hubrow:hover .hchev{transform:translateX(3px);color:var(--teal)}
-/* ===== section Back + graph carousel ===== */
-.secbar{margin:0}
+/* ===== graph carousel ===== */
 .carousel{display:flex;align-items:stretch;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin-top:var(--sp2)}
 .carousel::-webkit-scrollbar{height:0;display:none}
 .carousel>*{flex:0 0 100%;min-width:0;scroll-snap-align:center;margin:0}
@@ -299,6 +290,8 @@ body:not(.at-home) .tabpane{padding-top:calc(14px + env(safe-area-inset-top))}
 .sechero-v .ddot{width:11px;height:11px;border-radius:50%;background:currentColor;flex:none}
 .sechero-u{font-size:14px;color:var(--muted);margin-left:5px;font-weight:400}
 .sechero-sub{font-family:var(--mono);font-size:12px;color:var(--faint);text-align:right;line-height:1.5}
+.sechero-sub.up{color:var(--ok)}
+.sechero-sub.down{color:var(--deficit)}
 .tone-ok{color:var(--ok)}.tone-dirty{color:var(--fuel)}.tone-off{color:var(--dim)}.tone-teal{color:var(--teal)}.tone-fuel{color:var(--fuel)}
 .tilegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 /* segmented view switch (list pages) — full-width, equal thirds. Own class so it

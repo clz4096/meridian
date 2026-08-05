@@ -55,7 +55,7 @@ describe('KnowledgeView', () => {
   it('renders the Progress screen with the Knowledge head + mastery hero by default', () => {
     const { getByText } = render(<KnowledgeView />);
     expect(getByText('Knowledge')).toBeTruthy();
-    // Hero renders the label lowercased and joined with its unit ("% mastery").
+    // SecHero renders the unit next to the value ("% mastery").
     expect(getByText('% mastery')).toBeTruthy();
     expect(getByText('View questions & study')).toBeTruthy();
   });

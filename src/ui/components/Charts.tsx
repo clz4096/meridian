@@ -10,7 +10,7 @@ import { useRef, useState } from 'preact/hooks';
 import { chart, type ChartOpts } from '@/ui/charts/chart';
 import { PERIOD_LABEL, type Period } from '@/ui/charts/progress';
 import { progPeriod, logScale, controlsOpen, progLift } from '@/ui/store';
-import { goHome, toggleControls } from '@/ui/actions';
+import { toggleControls } from '@/ui/actions';
 
 const SEG: Array<[Period, string]> = [
   ['day', 'D'],
@@ -19,36 +19,6 @@ const SEG: Array<[Period, string]> = [
   ['quarter', 'Q'],
   ['year', 'Y'],
 ];
-
-export function SectionHead({ name }: { name: string }) {
-  return (
-    <>
-      <div class="secbar">
-        <button class="backbtn" onClick={goHome}>
-          ‹ Back
-        </button>
-      </div>
-      <div class="eyebrow">{name}</div>
-    </>
-  );
-}
-
-export interface Delta {
-  text: string;
-  dir: 'up' | 'down' | '';
-}
-export function Hero({ value, unit, label, delta }: { value: string; unit: string; label: string; delta?: Delta }) {
-  const tail = unit === '%' ? `% ${label.toLowerCase()}` : ` ${unit} ${label.toLowerCase()}`;
-  return (
-    <div class="hero">
-      <div class="hero-v">
-        {value}
-        <span class="hero-u">{tail}</span>
-      </div>
-      {delta && <div class={'hero-d ' + delta.dir}>{delta.text}</div>}
-    </div>
-  );
-}
 
 export function ProgControls() {
   const open = controlsOpen.value;

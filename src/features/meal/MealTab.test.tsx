@@ -130,7 +130,7 @@ describe('MealView · Progress hero uses the local calendar day', () => {
     });
 
     const { container } = render(<MealView />);
-    const hero = container.querySelector('.hero-v');
+    const hero = container.querySelector('.sechero-v');
     expect(hero?.textContent).toContain('230'); // not '0' — reads the local-day bucket
   });
 });

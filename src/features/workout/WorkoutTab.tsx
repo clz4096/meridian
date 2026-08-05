@@ -9,8 +9,9 @@ import type { WorkoutViewOptions } from '@/features/workout/types';
 import { bodyweightGoal, trackedLifts, bodyweightSeries, strengthSeries, volumeSeries, tonnageSeries } from '@/ui/charts/progress';
 import { DEFAULT_CONFIG, type SetType, type ExercisePlan } from '@/core/types';
 import { domId } from '@/ui/html';
-import { SectionHead, Hero, ProgControls, Carousel, Chart, LiftPicker, type Delta } from '@/ui/components/Charts';
-import { wk, currentBW, exVideo, workoutActions, discard, loadWorkout } from '@/ui/actions';
+import { ProgControls, Carousel, Chart, LiftPicker } from '@/ui/components/Charts';
+import { SecHero } from '@/ui/components/SecHero';
+import { wk, currentBW, exVideo, workoutActions, discard, loadWorkout, goHome } from '@/ui/actions';
 import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkExtrasOpen, expandedEx, progPeriod, progLift, dataRev } from '@/ui/store';
 import { dstr, dateLabel } from '@/app/bootstrap';
 import { host } from '@/ui/host';
@@ -47,12 +48,15 @@ function WorkoutCharts() {
   const goal = bodyweightGoal(W);
   const cur = currentBW() as number | null;
   const dToGoal = cur != null && goal != null ? Math.round((goal - Number(cur)) * 10) / 10 : null;
-  const delta: Delta | undefined = dToGoal != null ? { text: `${dToGoal > 0 ? '+' : ''}${dToGoal} to goal`, dir: dToGoal > 0 ? 'up' : dToGoal < 0 ? 'down' : '' } : undefined;
+  const sub = dToGoal != null ? `${dToGoal > 0 ? '+' : ''}${dToGoal} to goal` : cur != null ? 'weighed in' : 'no weigh-in yet';
+  const subClass = dToGoal != null ? (dToGoal > 0 ? 'up' : dToGoal < 0 ? 'down' : '') : '';
   return (
     <>
-      <SectionHead name="Workout" />
+      <button class="backbtn" onClick={goHome}>
+        ‹ Back
+      </button>
+      <SecHero eyebrow="Workout" value={cur != null ? cur : '—'} unit="lb" sub={sub} subClass={subClass} tone="fuel" />
       <div class="prog">
-        {cur != null && <Hero value={String(cur)} unit="lb" label="Bodyweight" delta={delta} />}
         <ProgControls />
         <Carousel keepKey="workout">
           <Chart opts={{ kind: 'line', title: 'Body growth', points: bodyweightSeries(W, period), unit: 'lb', format: (v) => v.toFixed(1), reference: goal != null ? { value: goal, label: `goal ${goal}` } : null, color: 'var(--fuel)' }} />

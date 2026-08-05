@@ -6,9 +6,10 @@
 import { useEffect } from 'preact/hooks';
 import { selectMealView } from '@/features/meal/mealSelectors';
 import { calorieSeries, proteinSeries, calorieTarget, proteinTarget } from '@/ui/charts/progress';
-import { SectionHead, Hero, ProgControls, Carousel, Chart, ViewLogCta, type Delta } from '@/ui/components/Charts';
+import { ProgControls, Carousel, Chart, ViewLogCta } from '@/ui/components/Charts';
+import { SecHero } from '@/ui/components/SecHero';
 import { sgLoaded, sgLogOpen, sgExtrasOpen, sgDate, progPeriod, dataRev } from '@/ui/store';
-import { sg, mealActions, loadMeal, toggleMealExtras, MEAL_PRESETS } from '@/ui/actions';
+import { sg, mealActions, loadMeal, toggleMealExtras, MEAL_PRESETS, goHome } from '@/ui/actions';
 import { dateLabel, dstr } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 
@@ -23,17 +24,16 @@ function MealProgress() {
   const proT = proteinTarget(G);
   const todayCal = (G.days?.[dstr()] ?? []).reduce((a: number, m: { cal?: number }) => a + (+(m.cal ?? 0) || 0), 0);
   const calDelta = calT ? todayCal - calT : null;
-  const delta: Delta | undefined =
-    todayCal === 0
-      ? { text: 'not logged yet', dir: '' }
-      : calDelta != null
-        ? { text: `${calDelta >= 0 ? '+' : ''}${calDelta} vs target`, dir: calDelta >= 0 ? 'up' : 'down' }
-        : undefined;
+  const sub =
+    todayCal === 0 ? 'not logged yet' : calDelta != null ? `${calDelta >= 0 ? '+' : ''}${calDelta} vs target` : `${todayCal} today`;
+  const subClass = todayCal === 0 || calDelta == null ? '' : calDelta >= 0 ? 'up' : 'down';
   return (
     <>
-      <SectionHead name="Meals" />
+      <button class="backbtn" onClick={goHome}>
+        ‹ Back
+      </button>
+      <SecHero eyebrow="Meals" value={todayCal} unit="kcal today" sub={sub} subClass={subClass} tone="fuel" />
       <div class="prog">
-        <Hero value={String(todayCal)} unit="kcal" label="today" delta={delta} />
         <ProgControls />
         <Carousel keepKey="meal">
           <Chart opts={{ kind: 'line', title: 'Calories · avg/day', points: calorieSeries(G, period), reference: calT != null ? { value: calT, label: `target ${calT}` } : null, color: 'var(--fuel)' }} />
@@ -124,13 +124,14 @@ function MealLog() {
           ⚙
         </button>
       </div>
-      <div class="hero">
-        <div class="hero-v" style="color:var(--fuel)">
-          {vm.totals.calories}
-          <span class="hero-u"> / {t.dailyCalories} kcal</span>
-        </div>
-        <div class={'hero-d ' + (over ? 'up' : '')}>{calLeft >= 0 ? calLeft + ' left' : Math.abs(calLeft) + ' over'}</div>
-      </div>
+      <SecHero
+        eyebrow="Calories"
+        value={vm.totals.calories}
+        unit={`/ ${t.dailyCalories} kcal`}
+        sub={calLeft >= 0 ? `${calLeft} left` : `${Math.abs(calLeft)} over`}
+        subClass={over ? 'up' : ''}
+        tone="fuel"
+      />
       <div class="macros">
         <MacroBar label="Calories" value={String(vm.totals.calories)} target={`${t.dailyCalories} kcal`} pct={vm.calorieProgress} colour="var(--fuel)" hit={over} />
         <MacroBar label="Protein" value={`${vm.totals.protein}g`} target={`${t.proteinTarget}g`} pct={vm.proteinProgress} colour="var(--protein)" hit={vm.totals.protein >= t.proteinTarget} />

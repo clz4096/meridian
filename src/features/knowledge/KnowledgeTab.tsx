@@ -7,8 +7,9 @@ import { useEffect } from 'preact/hooks';
 import { DATA } from '@/core/data/index';
 import type { KnowledgeViewModel, KnowledgeItem, GymLink } from '@/features/knowledge/types';
 import { masterySeries, questionsSolvedSeries, xpSeries, studyDaysSeries, currentStreak } from '@/ui/charts/progress';
-import { SectionHead, Hero, ProgControls, Carousel, Chart, ViewLogCta, type Delta } from '@/ui/components/Charts';
-import { kg, core, dueItems, allTargetItems, knowledgeActions, loadKnowledge } from '@/ui/actions';
+import { ProgControls, Carousel, Chart, ViewLogCta } from '@/ui/components/Charts';
+import { SecHero } from '@/ui/components/SecHero';
+import { kg, core, dueItems, allTargetItems, knowledgeActions, loadKnowledge, goHome } from '@/ui/actions';
 import { kgLoaded, kgLogOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, progPeriod, dataRev } from '@/ui/store';
 import { dstr } from '@/app/bootstrap';
 import type { Mastery } from '@/core/types';
@@ -85,12 +86,14 @@ function KnowledgeProgress() {
   const attempted = Object.keys(K.mastery ?? {}).length;
   const mastered = Object.values(K.mastery ?? {}).filter((r: Any) => Number(r) >= 4).length;
   const masteryPct = attempted ? Math.round((100 * mastered) / attempted) : 0;
-  const delta: Delta | undefined = streak > 0 ? { text: `🔥 ${streak}-day streak`, dir: '' } : undefined;
+  const sub = streak > 0 ? `🔥 ${streak}-day streak` : attempted ? `${mastered} mastered` : 'nothing yet';
   return (
     <>
-      <SectionHead name="Knowledge" />
+      <button class="backbtn" onClick={goHome}>
+        ‹ Back
+      </button>
+      <SecHero eyebrow="Knowledge" value={masteryPct} unit="% mastery" sub={sub} tone="ok" />
       <div class="prog">
-        <Hero value={String(masteryPct)} unit="%" label="Mastery" delta={delta} />
         <ProgControls />
         <Carousel keepKey="knowledge">
           <Chart opts={{ kind: 'line', title: 'Mastery %', points: masterySeries(K, period), unit: '%', color: 'var(--ok)' }} />
