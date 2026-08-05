@@ -51,7 +51,6 @@ export const sgLogOpen = signal(false);
 export const sgExtrasOpen = signal(false);
 
 // ── todos UI state ── (todos live in the core store, loaded at boot — no lazy load)
-export const todoShowDone = signal(false);
 export const todoView = signal<'due' | 'all' | 'done'>('all'); // segmented view
 export const todoAdding = signal(false); // FAB-revealed add form
 

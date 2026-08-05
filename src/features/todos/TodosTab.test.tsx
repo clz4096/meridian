@@ -1,5 +1,5 @@
 /**
- * TodosView component test (layout C) — slim always-there add + one scroll list.
+ * TodosView component test — Due/All/Done segmented switch + FAB-revealed add.
  * Todos live nested in core, seeded via appState.set('core', …).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,34 +7,37 @@ import { act, cleanup, fireEvent, render } from '@testing-library/preact';
 import { TodosView } from '@/features/todos/TodosTab';
 import { todosActions } from '@/ui/actions';
 import { appState, dstr } from '@/app/bootstrap';
-import { todoShowDone } from '@/ui/store';
+import { todoView, todoAdding } from '@/ui/store';
 
 const emptyCore = () => ({ schedule: {}, entries: [], todos: [] as unknown[], scratch: [], _del: {} });
 const seed = (todos: unknown[]) => appState.set('core', { ...emptyCore(), todos } as never);
 
 beforeEach(() => {
-  todoShowDone.value = false;
+  todoView.value = 'all';
+  todoAdding.value = false;
   appState.set('core', emptyCore() as never);
 });
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   localStorage.clear();
-  todoShowDone.value = false;
+  todoView.value = 'all';
+  todoAdding.value = false;
   appState.set('core', emptyCore() as never);
 });
 
 describe('TodosView', () => {
   it('shows the empty state when there are no todos', () => {
     const { getByText } = render(<TodosView />);
-    expect(getByText(/Nothing to do yet/)).toBeTruthy();
+    expect(getByText(/No todos yet/)).toBeTruthy();
   });
 
-  it('wires the slim add to todosActions.add with the input values', () => {
+  it('reveals the add form via the FAB and wires Add to todosActions.add', () => {
     const spy = vi.spyOn(todosActions, 'add').mockImplementation(() => {});
-    const { container } = render(<TodosView />);
+    todoAdding.value = true;
+    const { container, getByText } = render(<TodosView />);
     (container.querySelector('#todo-text') as HTMLInputElement).value = 'Call the vendor';
-    fireEvent.click(container.querySelector('.addslim-btn')!);
+    fireEvent.click(getByText('Add'));
     expect(spy).toHaveBeenCalledWith('Call the vendor', '');
   });
 
