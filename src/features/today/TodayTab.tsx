@@ -8,9 +8,39 @@ import { useEffect } from 'preact/hooks';
 import { dstr } from '@/app/bootstrap';
 import { dataRev, clockNow, weather } from '@/ui/store';
 import type { HubStat } from '@/ui/hubTypes';
-import { core, hubStats, openSection, todosActions, tickClock, refreshWeather, setWeatherCity } from '@/ui/actions';
+import { core, wk, hubStats, openSection, todosActions, tickClock, refreshWeather, setWeatherCity } from '@/ui/actions';
 import { dueTodos } from '@/features/todos/todosSelectors';
 import { weatherSvg, weatherColor, cachedWeather } from '@/services/weather';
+import { currentWeight, bodyweightSlope } from '@/features/meal/bodySelectors';
+import { toNum } from '@/core/util';
+
+/** North-star line: current bodyweight → goal + pace; taps through to Food & Body. */
+function Scoreboard() {
+  dataRev.value;
+  const W = wk();
+  const today = dstr();
+  const cur = currentWeight(W.bw, today);
+  const goal = toNum(W.settings.bwGoal) || null;
+  const slope = bodyweightSlope(W.bw, today);
+  if (cur == null && goal == null) return null;
+  const toGoal = cur != null && goal != null ? Math.round((goal - cur) * 10) / 10 : null;
+  const onPace = slope != null && slope >= 0.5 && slope <= 1.0;
+  return (
+    <button class="scoreboard" onClick={() => openSection('meal')}>
+      <span class="sb-w">
+        {cur != null ? cur : '—'}
+        <span class="sb-u">lb</span>
+      </span>
+      {toGoal != null && <span class="sb-goal">{toGoal > 0 ? `${toGoal} to go` : 'at goal'}</span>}
+      {slope != null && (
+        <span class={'sb-pace' + (onPace ? ' on' : '')}>
+          {slope >= 0 ? '+' : ''}
+          {slope.toFixed(1)}/wk{onPace ? ' · on pace' : ''}
+        </span>
+      )}
+    </button>
+  );
+}
 
 const TRACKERS = new Set(['meal', 'workout', 'knowledge', 'data']);
 const toneColor = (t: HubStat['tone']): string | undefined =>
@@ -147,6 +177,8 @@ export function TodayView() {
           <span class="ql">Capture an idea</span>
         </button>
       </div>
+
+      <Scoreboard />
 
       <div class="today-sec">At a glance</div>
       <div class="today-tiles">
