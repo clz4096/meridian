@@ -491,7 +491,7 @@ export function WorkoutView() {
             onClick={() => (awayMode.value = !awayMode.value)}
             title="Away from Life Time — show dumbbell alternates"
           >
-            {awayMode.value ? '🏠 Away' : '🏠'}
+            {awayMode.value ? '🏠 Away' : '🏋 Gym'}
           </button>
           <button class={'ex-opts' + (wkExtrasOpen.value ? ' on' : '')} onClick={() => workoutActions.toggleLog?.()} aria-label="Session options">⚙</button>
         </span>

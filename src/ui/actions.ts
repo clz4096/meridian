@@ -658,7 +658,9 @@ export const scratchActions = {
     const c = (core().scratch || []).find((x: Store) => String(x.id) === String(id));
     if (!c) return;
     c.status = nextStatus(c.status);
-    c.updated = Date.now();
+    // Deliberately do NOT touch `updated`: the list sorts by newest-updated, so
+    // bumping it here would jump the card to the top on every tap — making the
+    // status chip impossible to cycle consistently.
     appState.markDirty();
     st.bump();
   },
