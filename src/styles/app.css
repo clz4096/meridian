@@ -103,14 +103,22 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .exhead-r{display:flex;align-items:center;gap:10px}
 .exhead-m{color:var(--muted);letter-spacing:.06em}
 /* workout — your week strip (quiet: letters + a state dot, today emphasized) */
-.wkweek{display:flex;gap:4px;margin:4px 0 22px}
-.wkday{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;padding:2px 0}
+.wkweekrow{display:flex;align-items:center;gap:2px;margin:4px 0 20px}
+.wkweek{display:flex;gap:2px;flex:1}
+.wkweek-nav{flex:none;background:none;border:0;color:var(--faint);font-size:16px;line-height:1;cursor:pointer;padding:8px 6px;border-radius:8px}
+.wkweek-nav:hover,.wkweek-nav:focus-visible{color:var(--muted);background:var(--surface-1);outline:none}
+.wkday{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;padding:7px 0 9px;background:none;border:0;cursor:pointer;color:inherit;border-radius:10px;transition:background var(--dur) var(--ease)}
+.wkday:hover{background:var(--surface-1)}
 .wkday-l{font-family:var(--mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
 .wkday-dot{width:6px;height:6px;border-radius:50%;background:var(--line-2)}
 .wkday.up .wkday-dot{background:var(--fuel)}
 .wkday.lo .wkday-dot{background:var(--teal)}
 .wkday.today .wkday-l{color:var(--text);font-weight:700}
-.wkday.today .wkday-dot{outline:2px solid rgba(255,255,255,.10);outline-offset:2px}
+.wkday.sel{background:var(--surface-2)}
+.wkday.sel .wkday-l{color:var(--text);font-weight:700}
+.wkday.sel .wkday-dot{outline:2px solid var(--muted);outline-offset:2px}
+/* opposite-split group under "Show all" */
+.wkgroup-h{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:20px 2px 8px;padding-top:14px;border-top:1px solid var(--line)}
 /* workout — today's session header (the lead) */
 .todayhd{display:flex;justify-content:space-between;align-items:center;margin:2px 2px 14px}
 .todayhd-split{font-size:19px;font-weight:700;letter-spacing:-.01em}
