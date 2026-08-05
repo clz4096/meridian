@@ -10,6 +10,7 @@ import gym from '@/core/data/gym.json';
 import topics from '@/core/data/topics.json';
 import targets from '@/core/data/targets.json';
 import exVideo from '@/core/data/exVideo.json';
+import exSwap from '@/core/data/exSwap.json';
 
 /** A book in the source registry: title + URL (deep-linked to a PDF page where known). */
 export interface BookEntry {
@@ -24,6 +25,8 @@ export const DATA = {
   topics,
   targets,
   exVideo: exVideo as Record<string, string>,
+  /** machine/barbell exercise → the dumbbell alternate to use when away from the gym */
+  exSwap: exSwap as Record<string, string>,
 };
 
 export type MeridianData = typeof DATA;

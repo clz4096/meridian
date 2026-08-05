@@ -11,8 +11,8 @@ import { DEFAULT_CONFIG, type SetType, type ExercisePlan, type Split, type Worko
 import { shiftDate } from '@/core/util';
 import { domId } from '@/ui/html';
 import { ProgControls, Carousel, Chart, LiftPicker } from '@/ui/components/Charts';
-import { wk, currentBW, exVideo, workoutActions, discard, loadWorkout, goHome } from '@/ui/actions';
-import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkExtrasOpen, wkShowAll, wkProgOpen, activeExercise, progPeriod, progLift, dataRev } from '@/ui/store';
+import { wk, currentBW, exVideo, displayExercise, exSwap, workoutActions, discard, loadWorkout, goHome } from '@/ui/actions';
+import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkExtrasOpen, wkShowAll, wkProgOpen, activeExercise, awayMode, progPeriod, progLift, dataRev } from '@/ui/store';
 import { dstr, dateLabel } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 
@@ -299,7 +299,8 @@ function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
   }
   const setCount = plan && !plan.cardio ? plan.warms.length + 1 + plan.backs.length : null;
   const showCount = !!plan && !plan.cardio && performed.length === 0;
-  const topSpec = plan && !plan.cardio ? platesFor(exercise, plan.top.weight) : null;
+  const swapped = awayMode.value && !!exSwap(exercise); // showing the dumbbell alternate → no barbell glyph
+  const topSpec = !swapped && plan && !plan.cardio ? platesFor(exercise, plan.top.weight) : null;
 
   return (
     <div class={'ex' + (complete ? ' done' : '')}>
@@ -311,7 +312,7 @@ function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
         )}
         <div class="excard-main">
           <div class="excard-name">
-            {exercise}
+            {displayExercise(exercise)}
             {plan?.deload ? <> <span class="cue deload">deload</span></> : null}
           </div>
           <div class="excard-meta">
@@ -340,7 +341,7 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
       ? [...(plan.warms ?? []).map((w: Any) => w.weight), plan.top.weight, ...(plan.backs ?? []).map((b: Any) => b.weight)]
       : [];
   const curWeight = setWeights[performed.length] ?? plan?.top?.weight ?? 0;
-  const ph = platesFor(exercise, curWeight);
+  const ph = awayMode.value && exSwap(exercise) ? null : platesFor(exercise, curWeight);
 
   let body: preact.JSX.Element;
   if (vm.isPast && performed.length > 0) {
@@ -426,8 +427,9 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
       </div>
       <div class="exdetail-body">
         <h2 class="exdetail-name">
-          {exercise}
+          {displayExercise(exercise)}
           {plan?.deload ? <> <span class="cue deload">deload</span></> : null}
+          {awayMode.value && exSwap(exercise) ? <span class="exswap-tag">away</span> : null}
         </h2>
         {ph && <PlateBar spec={ph} />}
         {body}
@@ -483,6 +485,13 @@ export function WorkoutView() {
         <div class="todayhd-split">{vm.isPast ? o.dateLabel(vm.date) : `${splitLabel} day`}</div>
         <span class="exhead-r">
           <span class="exhead-m">{status}</span>
+          <button
+            class={'ex-opts' + (awayMode.value ? ' on' : '')}
+            onClick={() => (awayMode.value = !awayMode.value)}
+            title="Away from Life Time — show dumbbell alternates"
+          >
+            {awayMode.value ? '🏠 Away' : '🏠'}
+          </button>
           <button class={'ex-opts' + (wkExtrasOpen.value ? ' on' : '')} onClick={() => workoutActions.toggleLog?.()} aria-label="Session options">⚙</button>
         </span>
       </div>

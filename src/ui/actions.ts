@@ -49,11 +49,16 @@ export const restTimer = new RestTimer({
 
 /* ── static build-time content ── */
 const EX_VIDEO: Record<string, string> = DATA.exVideo;
+const EX_SWAP: Record<string, string> = DATA.exSwap;
 
 /* ── workout helpers ── */
 const yt = (q: string): string =>
   'https://www.youtube.com/results?search_query=' + encodeURIComponent(q + ' proper form technique');
-export const exVideo = (ex: string): string => EX_VIDEO[ex] || yt(ex);
+/** The dumbbell alternate for an exercise when away from the gym, or null if none. */
+export const exSwap = (ex: string): string | null => EX_SWAP[ex] ?? null;
+/** Exercise name to show: the dumbbell alternate when Away mode is on and one exists. */
+export const displayExercise = (ex: string): string => (st.awayMode.value && EX_SWAP[ex]) || ex;
+export const exVideo = (ex: string): string => EX_VIDEO[displayExercise(ex)] || yt(displayExercise(ex));
 const daysSorted = (): string[] => Object.keys(wk().days).sort();
 const exSessions = (ex: string): string[] =>
   daysSorted().filter((d) => (wk().days[d] || []).some((s: Store) => s.ex === ex));

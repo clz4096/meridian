@@ -163,6 +163,7 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .exnext:hover,.exnext:focus-visible{background:rgba(124,201,236,.16);outline:none}
 .exdetail-body{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;padding:4px 0}
 .exdetail-name{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:6px 2px 2px;text-align:center}
+.exswap-tag{margin-left:9px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);background:var(--tealSoft);border-radius:var(--r-pill);padding:3px 9px;vertical-align:middle}
 .exdetail .platebox{margin:6px 0 12px}
 .exdetail .set{min-height:46px}
 .exdetail .more{margin-top:14px;padding-top:12px}
