@@ -114,6 +114,10 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 /* workout — today's session header (the lead) */
 .todayhd{display:flex;justify-content:space-between;align-items:center;margin:2px 2px 14px}
 .todayhd-split{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.effchip{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;border-radius:var(--r-pill);padding:3px 9px;border:1px solid var(--line)}
+.effchip.eff-strong{color:var(--ok);border-color:rgba(59,185,140,.35);background:rgba(59,185,140,.1)}
+.effchip.eff-moderate{color:var(--fuel);border-color:rgba(224,166,75,.3)}
+.effchip.eff-weak{color:var(--deficit);border-color:rgba(216,101,79,.3)}
 /* workout — plate diagram (a centered, loaded barbell).
    Fixed-height slot so changing plates never pushes the page below it. */
 .platebox{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;margin:2px 0 14px}

@@ -4,7 +4,7 @@
  * tuck behind the ⚙. Ports workoutCharts (app.ts) + renderWorkoutHTML to JSX.
  */
 import { useEffect } from 'preact/hooks';
-import { selectWorkoutView, restSeconds, inferIncrement, splitOfDate } from '@/features/workout/workoutSelectors';
+import { selectWorkoutView, restSeconds, inferIncrement, splitOfDate, sessionEffort } from '@/features/workout/workoutSelectors';
 import type { WorkoutViewOptions } from '@/features/workout/types';
 import { bodyweightGoal, trackedLifts, bodyweightSeries, strengthSeries, volumeSeries, tonnageSeries } from '@/ui/charts/progress';
 import { DEFAULT_CONFIG, type SetType, type ExercisePlan, type Split, type WorkoutState } from '@/core/types';
@@ -484,6 +484,7 @@ export function WorkoutView() {
       <div class="todayhd">
         <div class="todayhd-split">{vm.isPast ? o.dateLabel(vm.date) : `${splitLabel} day`}</div>
         <span class="exhead-r">
+          {sessionEffort(W, date) && <span class={'effchip eff-' + sessionEffort(W, date)}>{sessionEffort(W, date)}</span>}
           <span class="exhead-m">{status}</span>
           <button
             class={'ex-opts' + (awayMode.value ? ' on' : '')}
