@@ -1,10 +1,9 @@
 /**
- * KnowledgeView component test. Replaces the knowledge coverage that lived in the
- * deleted string-renderer suite. Asserts the charts-first Progress screen and its
- * "View questions & study" CTA, then flips kgLogOpen to exercise the study body:
- * a seeded question renders, Reveal / Recall ratings / filters / gym rows are each
- * wired to the matching knowledgeActions method, and untrusted question text is
- * escaped to inert TEXT (the injection-safety case carried from the old suite).
+ * KnowledgeView component test. Asserts the Progress screen (Today's-path CTA +
+ * mastery hero + growth readout + "Browse all topics" CTA), then flips kgLogOpen
+ * to exercise the study body: a seeded question renders, Reveal / the 4 FSRS grade
+ * buttons / filters / gym rows are each wired to the matching knowledgeActions
+ * method, and untrusted question text is escaped to inert TEXT (injection safety).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/preact';
@@ -52,18 +51,26 @@ afterEach(() => {
 });
 
 describe('KnowledgeView', () => {
-  it('renders the Progress screen with the Knowledge head + mastery hero by default', () => {
+  it('renders the Progress screen with the Today’s-path CTA, mastery hero + Browse CTA by default', () => {
     const { getByText } = render(<KnowledgeView />);
+    expect(getByText('Today’s path')).toBeTruthy();
     expect(getByText('Knowledge')).toBeTruthy();
     // SecHero renders the unit next to the value ("% mastery").
     expect(getByText('% mastery')).toBeTruthy();
-    expect(getByText('View questions & study')).toBeTruthy();
+    expect(getByText('Browse all topics')).toBeTruthy();
   });
 
-  it('fires knowledgeActions.toggleLog when the "View questions & study" CTA is tapped', () => {
+  it('fires knowledgeActions.startToday when the Today’s-path CTA is tapped', () => {
+    const startSpy = vi.spyOn(knowledgeActions, 'startToday').mockImplementation(() => {});
+    const { getByText } = render(<KnowledgeView />);
+    fireEvent.click(getByText('Today’s path'));
+    expect(startSpy).toHaveBeenCalledOnce();
+  });
+
+  it('fires knowledgeActions.toggleLog when the "Browse all topics" CTA is tapped', () => {
     const toggleSpy = vi.spyOn(knowledgeActions as Required<typeof knowledgeActions>, 'toggleLog').mockImplementation(() => {});
     const { getByText } = render(<KnowledgeView />);
-    fireEvent.click(getByText('View questions & study'));
+    fireEvent.click(getByText('Browse all topics'));
     expect(toggleSpy).toHaveBeenCalledOnce();
   });
 
@@ -77,7 +84,7 @@ describe('KnowledgeView', () => {
     expect(revealSpy).toHaveBeenCalledWith('q1');
   });
 
-  it('fires knowledgeActions.rate with the chosen numeric score once the card is revealed', () => {
+  it('fires knowledgeActions.rate with the FSRS grade once the card is revealed', () => {
     seedQuestions();
     kgLogOpen.value = true;
     kgRevealed.value = { q1: true };
@@ -85,7 +92,8 @@ describe('KnowledgeView', () => {
     const { container } = render(<KnowledgeView />);
     const rate = container.querySelector('#rate-q1') as HTMLElement;
     const buttons = rate.querySelectorAll('button');
-    fireEvent.click(buttons[3]); // Recall buttons are 1..5; index 3 => score 4
+    // Grades are Again/Hard/Good/Easy = 1/2/3/4; index 3 => Easy => grade 4.
+    fireEvent.click(buttons[3]);
     expect(rateSpy).toHaveBeenCalledWith('q1', 4);
   });
 

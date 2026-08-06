@@ -9,10 +9,14 @@ import type { KnowledgeViewModel, KnowledgeItem, GymLink } from '@/features/know
 import { masterySeries, questionsSolvedSeries, xpSeries, studyDaysSeries, currentStreak } from '@/ui/charts/progress';
 import { ProgControls, Carousel, Chart, ViewLogCta } from '@/ui/components/Charts';
 import { SecHero } from '@/ui/components/SecHero';
-import { kg, core, dueItems, allTargetItems, knowledgeActions, loadKnowledge, goHome } from '@/ui/actions';
+import { kg, core, dueItems, allTargetItems, todayPathItems, knowledgeActions, loadKnowledge, goHome } from '@/ui/actions';
+import { knowledgeGrowth } from '@/features/knowledge/knowledgeSelectors';
 import { kgLoaded, kgLogOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, progPeriod, dataRev } from '@/ui/store';
 import { dstr } from '@/app/bootstrap';
 import type { Mastery } from '@/core/types';
+
+/** FSRS's four grades → the value passed to rate() (1 Again · 2 Hard · 3 Good · 4 Easy). */
+const GRADES: ReadonlyArray<readonly [number, string]> = [[1, 'Again'], [2, 'Hard'], [3, 'Good'], [4, 'Easy']];
 
 type Any = any;
 const KG_BOOKS: Any = DATA.books;
@@ -27,7 +31,8 @@ const TIME_LABEL: Record<string, string> = { all: 'All', '5': 'Quick · 5m', '15
 function knowledgeVM(): KnowledgeViewModel {
   const K = kg();
   const topicId = kgTopic.value;
-  const items: Any[] = topicId === '__review__' ? dueItems() : topicId === '__target__' ? allTargetItems() : kgItems.value[topicId] || [];
+  const items: Any[] =
+    topicId === '__today__' ? todayPathItems() : topicId === '__review__' ? dueItems() : topicId === '__target__' ? allTargetItems() : kgItems.value[topicId] || [];
   const time = kgTime.value;
   const target = kgTarget.value;
   const matchesTarget = (it: Any): boolean => (target === 'all' ? true : (it.tags || []).includes(target));
@@ -82,17 +87,33 @@ function KnowledgeProgress() {
   const K = kg();
   const C = core();
   const period = progPeriod.value;
-  const streak = currentStreak(K, dstr());
-  const attempted = Object.keys(K.mastery ?? {}).length;
-  const mastered = Object.values(K.mastery ?? {}).filter((r: Any) => Number(r) >= 4).length;
-  const masteryPct = attempted ? Math.round((100 * mastered) / attempted) : 0;
-  const sub = streak > 0 ? `🔥 ${streak}-day streak` : attempted ? `${mastered} mastered` : 'nothing yet';
+  const today = dstr();
+  const streak = currentStreak(K, today);
+  const g = knowledgeGrowth(K, today);
+  const masteryPct = g.seen ? Math.round((100 * g.solid) / g.seen) : 0;
+  const sub = streak > 0 ? `🔥 ${streak}-day streak` : g.seen ? `${g.solid} solid` : 'nothing yet';
+  const dueN = dueItems().length;
+  const newN = Math.max(0, todayPathItems().length - dueN);
+  const retentionTxt = g.retention == null ? '—' : `${Math.round(g.retention * 100)}%`;
   return (
     <>
       <button class="backbtn" onClick={goHome}>
         ‹ Back
       </button>
+      {/* Today's path — the primary study action, FSRS-driven */}
+      <button class="kpath" onClick={() => knowledgeActions.startToday()}>
+        <div class="kpath-l">
+          <div class="kpath-t">Today’s path</div>
+          <div class="kpath-s">{dueN + newN > 0 ? `${dueN} to review · ${newN} new` : 'all caught up 🎉'}</div>
+        </div>
+        <span class="kpath-go">Study →</span>
+      </button>
       <SecHero eyebrow="Knowledge" value={masteryPct} unit="% mastery" sub={sub} tone="ok" />
+      <div class="kgrowth">
+        <div class="kg-stat"><div class="kg-v">{retentionTxt}</div><div class="kg-k">retention</div></div>
+        <div class="kg-stat"><div class="kg-v">{g.solid}</div><div class="kg-k">solid</div></div>
+        <div class="kg-stat"><div class="kg-v">{g.seen}</div><div class="kg-k">seen</div></div>
+      </div>
       <div class="prog">
         <ProgControls />
         <Carousel keepKey="knowledge">
@@ -102,14 +123,14 @@ function KnowledgeProgress() {
           <Chart opts={{ kind: 'bar', title: 'Study days', points: studyDaysSeries(K, period), summary: 'sum', color: 'var(--protein)' }} />
         </Carousel>
       </div>
-      <ViewLogCta label="View questions & study" onClick={() => knowledgeActions.toggleLog?.()} />
+      <ViewLogCta label="Browse all topics" onClick={() => knowledgeActions.toggleLog?.()} />
     </>
   );
 }
 
 function TopicHead({ vm }: { vm: KnowledgeViewModel }) {
   const cur = vm.topics.find((t) => t.id === vm.topicId);
-  const title = cur ? cur.name : vm.topicId === '__review__' ? 'Due for review' : vm.topicId === '__target__' ? 'Studying by target' : 'Questions';
+  const title = cur ? cur.name : vm.topicId === '__today__' ? "Today’s path" : vm.topicId === '__review__' ? 'Due for review' : vm.topicId === '__target__' ? 'Studying by target' : 'Questions';
   return (
     <div class="khead">
       <details class="ktopic-d">
@@ -259,12 +280,11 @@ function QuestionCard({ it, vm }: { it: KnowledgeItem; vm: KnowledgeViewModel })
         <button class="qmeta-add" onClick={() => knowledgeActions.queueForReview(it.id)}>
           + Add to review queue
         </button>
-        <div class="rate" id={'rate-' + it.id}>
-          <span class="rl">Recall</span>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button onClick={() => knowledgeActions.rate(it.id, n as Mastery)}>
-              <span class="rn">{n}</span>
-              {MASTERY_TEXT[n]}
+        <div class="rate grade4" id={'rate-' + it.id}>
+          <span class="rl">How well?</span>
+          {GRADES.map(([g, label]) => (
+            <button class={'g' + g} onClick={() => knowledgeActions.rate(it.id, g as Mastery)}>
+              {label}
             </button>
           ))}
         </div>
@@ -295,7 +315,7 @@ function KnowledgeBody({ vm }: { vm: KnowledgeViewModel }) {
         {vm.gymMode ? '‹ Questions' : '‹ Progress'}
       </button>
       <TopicHead vm={vm} />
-      {vm.dueCount > 0 && vm.topicId !== '__review__' && !vm.gymMode && (
+      {vm.dueCount > 0 && vm.topicId !== '__review__' && vm.topicId !== '__today__' && !vm.gymMode && (
         <div class="kdue">
           <div class="kdue-t">
             <b>{vm.dueCount} due for review</b>
@@ -338,7 +358,11 @@ function KnowledgeBody({ vm }: { vm: KnowledgeViewModel }) {
           </div>
         </>
       ) : !vm.items.length ? (
-        <div class="stub">This topic is scaffolded — questions land here next. Tap “Gym session” above for videos and readings while it fills in.</div>
+        isReal ? (
+          <div class="stub">This topic is scaffolded — questions land here next. Tap “Gym session” above for videos and readings while it fills in.</div>
+        ) : (
+          <div class="stub">You’re all caught up 🎉 — nothing due right now. Pick a topic to get ahead.</div>
+        )
       ) : (
         <>
           <Filters vm={vm} />

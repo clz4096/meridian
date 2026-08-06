@@ -12,7 +12,8 @@ import { selectWorkoutView, inferIncrement, restSeconds } from '@/features/worko
 import type { WorkoutActions } from '@/features/workout/types';
 import { shiftDate } from '@/core/util';
 import type { SetType, Mastery } from '@/core/types';
-import { schedule as srsSchedule, dueCards } from '@/features/knowledge/knowledgeSelectors';
+import { dueCards } from '@/features/knowledge/knowledgeSelectors';
+import { scheduleFsrs, queuedEntry, type Grade } from '@/features/knowledge/fsrs';
 import type { KnowledgeActions } from '@/features/knowledge/types';
 import { fetchQuestionBank } from '@/features/knowledge/questionBank';
 import { aiCall, estimateMacros } from '@/services/ai';
@@ -257,10 +258,28 @@ export function dueItems(): Store[] {
     .map((c: Store) => byId[c.id])
     .filter(Boolean);
 }
-function scheduleCard(id: string, rating: Mastery): void {
+function scheduleCard(id: string, grade: Grade): void {
   const K = kg();
   if (!K.srs) K.srs = {};
-  K.srs[id] = srsSchedule(K.srs[id], rating, dstr());
+  K.srs[id] = scheduleFsrs(K.srs[id] as never, grade, new Date(dstr() + 'T00:00:00Z')) as never;
+}
+
+/** A grade (Again/Hard/Good/Easy) → the 1–5 mastery the charts + log still read. */
+const GRADE_MASTERY: Record<Grade, Mastery> = { 1: 1, 2: 3, 3: 4, 4: 5 };
+
+/**
+ * "Today's path" — the growth queue: everything due for review (FSRS), then up
+ * to `newCap` brand-new questions you haven't seen. Due first (most overdue),
+ * new after, so retention is protected before coverage grows.
+ */
+export function todayPathItems(newCap = 10): Store[] {
+  const due = dueItems();
+  const seen = new Set(due.map((i) => i.id));
+  const K = kg();
+  const fresh = allKGItems().filter(
+    (it) => !seen.has(it.id) && K.srs?.[it.id] === undefined && K.mastery?.[it.id] === undefined,
+  );
+  return [...due, ...fresh.slice(0, Math.max(0, newCap))];
 }
 
 /* ── knowledge actions ── */
@@ -290,6 +309,18 @@ export const knowledgeActions: KnowledgeActions = {
     st.kgGym.value = false;
     st.bump();
   },
+  startToday() {
+    st.kgTopic.value = '__today__';
+    st.kgTime.value = 'all';
+    st.kgTarget.value = 'all';
+    st.kgGym.value = false;
+    st.kgRevealed.value = {};
+    if (!st.kgLogOpen.value) {
+      st.kgLogOpen.value = true;
+      pushState(); // studying is a level below the progress screen
+    }
+    st.bump();
+  },
   toggleGym() {
     st.kgGym.value = !st.kgGym.value;
     if (st.kgGym.value) pushState(); // gym is a level deeper than questions
@@ -306,16 +337,18 @@ export const knowledgeActions: KnowledgeActions = {
     st.bump();
   },
   queueForReview(id) {
-    kg().srs[id] = { due: shiftDate(dstr(), 1), ivl: 1, ease: 2.3, n: 0 };
+    kg().srs[id] = queuedEntry(shiftDate(dstr(), 1)) as never;
     appState.markKnowledgeDirty();
     st.bump();
   },
-  rate(id, score) {
+  rate(id, grade) {
     const K = kg();
-    K.mastery[id] = score;
-    scheduleCard(id, score);
+    const g = (grade as Grade) in GRADE_MASTERY ? (grade as Grade) : (3 as Grade);
+    const mastery = GRADE_MASTERY[g];
+    K.mastery[id] = mastery;
+    scheduleCard(id, g);
     const it = allKGItems().find((x) => x.id === id);
-    K.log.push({ id: uid(), qid: id, at: Date.now(), rating: score, date: dstr(), topic: st.kgTopic.value });
+    K.log.push({ id: uid(), qid: id, at: Date.now(), rating: mastery, date: dstr(), topic: st.kgTopic.value });
     appState.markKnowledgeDirty();
     core().entries.push({
       id: uid(),
@@ -323,9 +356,9 @@ export const knowledgeActions: KnowledgeActions = {
       stream: 'kg',
       problem: it ? it.prompt.slice(0, 42) + '…' : id,
       topic: st.kgTopic.value,
-      status: score >= 4 ? 'solved' : 'attempted',
-      score,
-      xp: score * 4,
+      status: mastery >= 4 ? 'solved' : 'attempted',
+      score: mastery,
+      xp: mastery * 4,
     });
     appState.markDirty();
     st.bump();

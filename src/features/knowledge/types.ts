@@ -50,6 +50,8 @@ export interface KnowledgeActions {
   setTarget(value: string): void;
   studyAllTagged(): void;
   startReview(): void;
+  /** Start "Today's path" — the FSRS growth queue (due reviews + new questions). */
+  startToday(): void;
   toggleGym(): void;
   toggleGymDone(key: string): void;
   reveal(id: string): void;
