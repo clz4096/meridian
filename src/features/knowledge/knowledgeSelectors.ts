@@ -239,3 +239,24 @@ export function selectStudyView(
 export const MASTERY_LABEL: Record<number, string> = {
   0: 'new', 1: 'shaky', 2: 'learning', 3: 'learning', 4: 'solid', 5: 'mastered',
 };
+
+/** The "am I growing?" readout — retention over a recent window + coverage. */
+export interface GrowthReadout {
+  retention: number | null; // 0..1 recall success over the window; null if too few reviews
+  reviews: number; // reviews inside the window
+  solid: number; // questions at mastery >= 4
+  seen: number; // questions attempted at least once
+}
+export function knowledgeGrowth(state: KnowledgeState, today: string, windowDays = 30): GrowthReadout {
+  const cutoff = shiftDate(today, -windowDays);
+  const log = (state.log ?? []).filter((e) => String((e as { date?: string }).date ?? '') >= cutoff);
+  const reviews = log.length;
+  const hits = log.filter((e) => Number((e as { rating?: number }).rating ?? 0) >= 4).length;
+  const mastery = state.mastery ?? {};
+  return {
+    retention: reviews >= 5 ? hits / reviews : null,
+    reviews,
+    solid: Object.values(mastery).filter((m) => Number(m) >= 4).length,
+    seen: Object.keys(mastery).length,
+  };
+}

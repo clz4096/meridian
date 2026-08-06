@@ -799,3 +799,21 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .jlog-add.on{border-style:solid;background:var(--surface-1);color:var(--muted)}
 .jlog-plus{font-size:19px;line-height:1}
 .jcomposer{margin-top:10px}
+
+/* ── Knowledge — Today's path CTA + growth readout + 4-grade rating ── */
+.kpath{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;margin-top:4px;padding:16px 18px;border-radius:14px;border:1px solid var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent);cursor:pointer;text-align:left;color:inherit;font:inherit;transition:background var(--dur) var(--ease)}
+.kpath:hover,.kpath:focus-visible{background:color-mix(in srgb,var(--ok) 18%,transparent);outline:none}
+.kpath-t{font-size:16px;font-weight:600;color:var(--text)}
+.kpath-s{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:3px}
+.kpath-go{flex:none;font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--ok)}
+.kgrowth{display:flex;gap:10px;margin-top:14px}
+.kg-stat{flex:1;text-align:center;background:var(--surface-1);border:1px solid var(--line);border-radius:12px;padding:12px 8px}
+.kg-v{font-family:var(--mono);font-size:20px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
+.kg-k{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-top:4px}
+.rate.grade4{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.rate.grade4 .rl{flex:none;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-right:2px}
+.rate.grade4 button{flex:1 1 0;min-width:64px;border-radius:9px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--text);font-family:var(--sans);font-size:13.5px;font-weight:600;cursor:pointer;transition:border-color var(--dur) var(--ease),color var(--dur) var(--ease)}
+.rate.grade4 button.g1:hover,.rate.grade4 button.g1:focus-visible{border-color:var(--deficit);color:var(--deficit);outline:none}
+.rate.grade4 button.g2:hover,.rate.grade4 button.g2:focus-visible{border-color:var(--fuel);color:var(--fuel);outline:none}
+.rate.grade4 button.g3:hover,.rate.grade4 button.g3:focus-visible{border-color:var(--teal);color:var(--teal);outline:none}
+.rate.grade4 button.g4:hover,.rate.grade4 button.g4:focus-visible{border-color:var(--ok);color:var(--ok);outline:none}

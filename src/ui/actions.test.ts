@@ -53,19 +53,19 @@ describe('meal addMeal', () => {
 });
 
 describe('knowledge rate', () => {
-  it('records mastery + a core kg entry and marks dirty', () => {
+  it('maps an Easy grade to mastery 5, records a solved core kg entry, and marks dirty', () => {
     const dirty = vi.spyOn(appState, 'markKnowledgeDirty');
-    knowledgeActions.rate('q1', 5);
+    knowledgeActions.rate('q1', 4); // 4 = Easy
     expect(kg().mastery['q1']).toBe(5);
     const entry = core().entries.at(-1);
     expect(entry).toMatchObject({ stream: 'kg', status: 'solved', score: 5, xp: 20 });
     expect(dirty).toHaveBeenCalledOnce();
   });
 
-  it('marks a low score as attempted, not solved', () => {
-    knowledgeActions.rate('q2', 2);
-    expect(kg().mastery['q2']).toBe(2);
-    expect(core().entries.at(-1)).toMatchObject({ status: 'attempted', score: 2, xp: 8 });
+  it('maps an Again grade to mastery 1 and marks it attempted, not solved', () => {
+    knowledgeActions.rate('q2', 1); // 1 = Again
+    expect(kg().mastery['q2']).toBe(1);
+    expect(core().entries.at(-1)).toMatchObject({ status: 'attempted', score: 1, xp: 4 });
   });
 });
 
