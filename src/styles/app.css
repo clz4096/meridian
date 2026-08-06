@@ -747,3 +747,55 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .tile-u{font-size:12px;color:var(--muted);margin-left:2px}
 .tile-sub{font-size:11.5px;color:var(--faint);margin-top:3px}
 .tile-v .hdot{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block;margin-right:5px;align-self:center}
+
+/* ── Food & Body — budget dashboard + diary feed (hybrid B×C) ── */
+.bud-card{margin-top:12px;background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px 18px 18px;display:flex;flex-direction:column;gap:16px}
+.bud-focal{position:relative;width:172px;height:172px;align-self:center}
+.bud-ring{width:172px;height:172px;display:block}
+.bud-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.bud-num{font-family:var(--mono);font-size:46px;font-weight:600;line-height:1;letter-spacing:-.02em;color:var(--fuel);font-variant-numeric:tabular-nums}
+.bud-num.over{color:var(--deficit)}
+.bud-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);margin-top:6px}
+.bud-eaten{text-align:center;font-family:var(--mono);font-size:12px;color:var(--text);font-variant-numeric:tabular-nums;margin-top:-6px}
+.bud-eaten span{color:var(--faint)}
+/* zone status pill: red under maintenance → amber at maintenance → green surplus */
+.bud-pill{display:inline-block;margin-top:9px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;border:1px solid;border-radius:20px;padding:4px 12px}
+.bud-pill.z-under{color:var(--deficit);border-color:color-mix(in srgb,var(--deficit) 42%,transparent);background:color-mix(in srgb,var(--deficit) 14%,transparent)}
+.bud-pill.z-at{color:var(--fuel);border-color:color-mix(in srgb,var(--fuel) 42%,transparent);background:color-mix(in srgb,var(--fuel) 14%,transparent)}
+.bud-pill.z-surplus{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 42%,transparent);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.bud-meta{display:flex;flex-direction:column;gap:14px}
+.bud-body{display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line);padding-top:14px}
+.bud-body-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.bud-body-eyb{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+.bud-body-v{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--teal);font-variant-numeric:tabular-nums}
+.bud-body-v small{font-size:12px;color:var(--muted);margin-left:3px}
+.bud-body-sub{margin-left:auto;font-size:12.5px;color:var(--muted)}
+.bud-pace{font-family:var(--sans);font-size:12.5px;color:var(--muted);line-height:1.5}
+/* wide: ring on the left, protein + body on the right (B's original layout) */
+@media (min-width:560px){
+  .bud-card{display:grid;grid-template-columns:172px 1fr;grid-template-areas:"focal meta" "eaten meta";column-gap:24px;align-items:center}
+  .bud-focal{grid-area:focal}
+  .bud-eaten{grid-area:eaten;text-align:center;margin-top:8px}
+  .bud-meta{grid-area:meta}
+}
+/* the diary feed */
+.jfeed{list-style:none;margin:16px 0 0;padding:0;position:relative}
+.jfeed::before{content:"";position:absolute;left:6px;top:14px;bottom:14px;width:2px;background:var(--line-2);border-radius:2px}
+.jentry{position:relative;display:grid;grid-template-columns:14px 1fr auto;gap:12px;align-items:center;padding:11px 0}
+.jnode{grid-column:1;width:12px;height:12px;border-radius:50%;background:var(--surface-3);border:2px solid var(--fuel);box-shadow:0 0 0 3px var(--bg);z-index:1}
+.jentry-row{grid-column:2;min-width:0;display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.jentry-nm{min-width:0;font-size:15px;color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jentry-mac{flex:none;font-family:var(--mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+/* circled, bigger delete so it reads as actionable */
+/* square dimensions + min-height override (the global button rule forces 44px,
+   which would render this a vertical oval) → a true circle */
+.jentry-rm{grid-column:3;flex:none;width:36px;height:36px;min-width:36px;min-height:36px;padding:0;display:grid;place-items:center;background:transparent;border:1px solid var(--line-2);color:var(--muted);font-size:17px;line-height:1;cursor:pointer;border-radius:50%;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease),background var(--dur) var(--ease)}
+.jentry-rm:hover,.jentry-rm:focus-visible{color:var(--deficit);border-color:var(--deficit);background:color-mix(in srgb,var(--deficit) 12%,transparent);outline:none}
+.jempty{display:flex;align-items:center;gap:14px;color:var(--dim);font-size:14px;padding:22px 2px;margin-top:6px}
+.jempty::before{content:"";width:12px;height:12px;border-radius:50%;border:2px dashed var(--line-2);flex:none}
+/* inline "+ Log food" */
+.jlog-add{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:16px;font-family:var(--sans);font-size:15px;font-weight:600;color:var(--text);background:var(--surface-2);border:1px dashed var(--line-2);border-radius:14px;padding:14px;cursor:pointer;transition:border-color var(--dur) var(--ease),color var(--dur) var(--ease),background var(--dur) var(--ease)}
+.jlog-add:hover,.jlog-add:focus-visible{border-color:var(--teal);color:var(--teal);outline:none}
+.jlog-add.on{border-style:solid;background:var(--surface-1);color:var(--muted)}
+.jlog-plus{font-size:19px;line-height:1}
+.jcomposer{margin-top:10px}

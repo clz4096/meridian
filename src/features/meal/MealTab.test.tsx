@@ -1,16 +1,21 @@
 /**
- * MealView component test. Replaces the meal coverage that lived in the deleted
- * string-renderer suite. Asserts the charts-first Progress screen and its
- * "View meal log" CTA, then flips the sgLogOpen signal to exercise the log
- * screen: the add-a-meal inputs (read by id), preset chips, and the date nav —
- * each wired to the matching mealActions method.
+ * MealView component test — the single-screen Food & Body (budget dashboard over
+ * a diary feed). Asserts the calories-left ring + Body block, the "+ Log food"
+ * composer (opened on demand: add-a-meal inputs read by id, preset chips), the
+ * date nav, the weigh-in, and that a logged meal appears in the feed and a
+ * deleted one disappears — each wired to the matching action.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render } from '@testing-library/preact';
 import { MealView } from '@/features/meal/MealTab';
-import { mealActions, sg, MEAL_PRESETS } from '@/ui/actions';
+import { mealActions, workoutActions, sg, MEAL_PRESETS } from '@/ui/actions';
 import { appState, dstr } from '@/app/bootstrap';
-import { sgLoaded, sgLogOpen, sgDate } from '@/ui/store';
+import { sgLoaded, sgDate } from '@/ui/store';
+
+/** Reveal the "+ Log food" composer so the add-a-meal controls are in the DOM. */
+function openComposer(getByText: (t: string) => HTMLElement) {
+  fireEvent.click(getByText('Log food'));
+}
 
 beforeEach(() => {
   // The component shows "Loading…" until the store is marked loaded, and its
@@ -23,37 +28,35 @@ afterEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
   sgLoaded.value = false;
-  sgLogOpen.value = false;
   sgDate.value = null;
 });
 
 describe('MealView', () => {
-  it('renders the Progress screen with the Calories + Body heroes and a "View meal log" CTA', () => {
-    const { getByText } = render(<MealView />);
-    expect(getByText('Calories')).toBeTruthy(); // left hero
-    expect(getByText('Body')).toBeTruthy(); // right hero (weigh-in)
-    expect(getByText('View meal log')).toBeTruthy();
+  it('renders the budget dashboard: the calories-left ring + the Body block', () => {
+    const { container, getByText } = render(<MealView />);
+    expect(container.querySelector('.bud-num')).toBeTruthy(); // calories-left ring center
+    expect(getByText('Body')).toBeTruthy();
   });
 
-  it('fires mealActions.toggleLog when the "View meal log" CTA is tapped', () => {
-    const toggleSpy = vi.spyOn(mealActions as Required<typeof mealActions>, 'toggleLog').mockImplementation(() => {});
+  it('shows a clear empty state when nothing is logged for the day', () => {
+    appState.set('surplus', { settings: {}, days: {}, tad: {} });
     const { getByText } = render(<MealView />);
-    fireEvent.click(getByText('View meal log'));
-    expect(toggleSpy).toHaveBeenCalledOnce();
+    expect(getByText('No meals logged yet today.')).toBeTruthy();
   });
 
-  it('renders the add-a-meal inputs on the log screen', () => {
-    sgLogOpen.value = true;
-    const { container } = render(<MealView />);
+  it('reveals the add-a-meal inputs only after "+ Log food" is tapped', () => {
+    const { container, getByText } = render(<MealView />);
+    expect(container.querySelector('#meal-name')).toBeNull();
+    openComposer(getByText);
     expect(container.querySelector('#meal-name')).toBeTruthy();
     expect(container.querySelector('#meal-cal')).toBeTruthy();
     expect(container.querySelector('#meal-pro')).toBeTruthy();
   });
 
   it('passes the parsed name/calories/protein to mealActions.addMeal', () => {
-    sgLogOpen.value = true;
     const addSpy = vi.spyOn(mealActions, 'addMeal').mockImplementation(() => {});
     const { getByText, container } = render(<MealView />);
+    openComposer(getByText);
     (container.querySelector('#meal-name') as HTMLInputElement).value = 'Oatmeal';
     (container.querySelector('#meal-cal') as HTMLInputElement).value = '300';
     (container.querySelector('#meal-pro') as HTMLInputElement).value = '12';
@@ -62,18 +65,25 @@ describe('MealView', () => {
   });
 
   it('fires mealActions.addPreset with the chip\'s args when a preset is tapped', () => {
-    sgLogOpen.value = true;
     const presetSpy = vi.spyOn(mealActions, 'addPreset').mockImplementation(() => {});
     const p = MEAL_PRESETS[0];
     const { getByText } = render(<MealView />);
+    openComposer(getByText);
     fireEvent.click(getByText(p.name));
     expect(presetSpy).toHaveBeenCalledWith(p.name, p.cal, p.protein);
+  });
+
+  it('fires workoutActions.logBodyweight from the weigh-in', () => {
+    const bwSpy = vi.spyOn(workoutActions, 'logBodyweight').mockImplementation(() => {});
+    const { getByLabelText } = render(<MealView />);
+    (getByLabelText("Log today's weight") as HTMLInputElement).value = '182';
+    fireEvent.click(getByLabelText('Log weight'));
+    expect(bwSpy).toHaveBeenCalledWith(182);
   });
 
   it('fires mealActions.changeDate for prev / next / today nav', () => {
     // A non-today date makes the "→ Today" button render.
     sgDate.value = '2020-01-01';
-    sgLogOpen.value = true;
     const dateSpy = vi.spyOn(mealActions, 'changeDate').mockImplementation(() => {});
     const { getByLabelText, getByText } = render(<MealView />);
     fireEvent.click(getByLabelText('Previous day'));
@@ -86,13 +96,13 @@ describe('MealView', () => {
 });
 
 /**
- * Regression: the Progress-screen hero must sum today's meals by the *local*
- * calendar day (dstr()), the same key meals are stored under — not the UTC day.
- * These pin a fixed timezone + clock so the local date and the UTC date fall on
- * different calendar days; the old code keyed the hero off the UTC day and read
- * an empty bucket, showing 0 while the log view (local day) showed the real sum.
+ * Regression: the budget must sum the day's meals by the *local* calendar day
+ * (dstr()), the same key meals are stored under — not the UTC day. These pin a
+ * fixed timezone + clock so the local date and the UTC date fall on different
+ * calendar days; the old code keyed the total off the UTC day and read an empty
+ * bucket, showing 0 while the log view (local day) showed the real sum.
  */
-describe('MealView · Progress hero uses the local calendar day', () => {
+describe('MealView · budget uses the local calendar day', () => {
   const realTZ = process.env.TZ;
 
   beforeAll(() => {
@@ -107,7 +117,6 @@ describe('MealView · Progress hero uses the local calendar day', () => {
     // 02:00 UTC on Mar 10 = 22:00 on Mar 9 in New York → local day != UTC day.
     vi.setSystemTime(new Date('2026-03-10T02:00:00Z'));
     sgLoaded.value = true;
-    sgLogOpen.value = false;
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -131,21 +140,20 @@ describe('MealView · Progress hero uses the local calendar day', () => {
     });
 
     const { container } = render(<MealView />);
-    const hero = container.querySelector('.sechero-v');
-    expect(hero?.textContent).toContain('230'); // not '0' — reads the local-day bucket
+    const eaten = container.querySelector('.bud-eaten');
+    expect(eaten?.textContent).toContain('230'); // not '0' — reads the local-day bucket
   });
 });
 
 /**
- * Regression: the log screen must re-render when a meal is added or removed. The
- * store-deriving work lives in the MealLog child, so it must subscribe to
- * dataRev itself — a subscription on the MealView parent alone did not re-render
- * the child, so logged/deleted meals silently didn't appear.
+ * Regression: the feed must re-render when a meal is added or removed. The
+ * store-deriving work lives in MealView, which subscribes to dataRev itself — a
+ * subscription only on a parent would not re-render, so logged/deleted meals
+ * would silently not appear in the feed.
  */
-describe('MealView · log list reacts to add/remove', () => {
+describe('MealView · feed reacts to add/remove', () => {
   beforeEach(() => {
     sgLoaded.value = true;
-    sgLogOpen.value = true;
     sgDate.value = null;
     appState.set('surplus', { settings: {}, days: {}, tad: {} });
   });
@@ -154,13 +162,12 @@ describe('MealView · log list reacts to add/remove', () => {
     vi.restoreAllMocks();
     localStorage.clear();
     sgLoaded.value = false;
-    sgLogOpen.value = false;
     sgDate.value = null;
     appState.set('surplus', { settings: {}, days: {}, tad: {} });
   });
 
   it('shows a meal after it is logged and hides it after it is deleted', async () => {
-    // A name that is NOT one of the preset chips, so the query only hits the list.
+    // A name that is NOT one of the preset chips, so the query only hits the feed.
     const NAME = 'Grilled Halibut';
     const { queryByText } = render(<MealView />);
     expect(queryByText(NAME)).toBeNull();
