@@ -40,7 +40,12 @@ export default defineConfig({
         // (Supabase / Pantry) is never matched here, so it stays uncached —
         // preserving the old sw.js bypass.
         globPatterns: ['**/*.{js,css,html,svg,png,json,webmanifest}'],
+        // The /preview/* subpaths hold self-contained design-preview builds; keep
+        // them out of the main precache and let their navigations hit the network
+        // so the SW never serves the main shell in their place.
+        globIgnores: ['preview/**'],
         navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/\/preview\//],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
     }),
