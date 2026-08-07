@@ -286,8 +286,21 @@ export function todayPathItems(newCap = 10): Store[] {
 export const knowledgeActions: KnowledgeActions = {
   selectTopic(id) {
     st.kgTopic.value = id;
+    st.kgOverview.value = false;
     st.kgGym.value = false;
     st.kgRevealed.value = {};
+    st.bump();
+  },
+  browseTopics() {
+    st.kgLogOpen.value = true;
+    st.kgOverview.value = true;
+    st.kgGym.value = false;
+    pushState(); // the gallery is a level below the progress screen
+    st.bump();
+  },
+  backToTopics() {
+    st.kgOverview.value = true;
+    st.kgGym.value = false;
     st.bump();
   },
   setTimeFilter(v) {
