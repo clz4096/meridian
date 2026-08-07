@@ -114,6 +114,30 @@ describe('KnowledgeView', () => {
     expect(rateSpy).toHaveBeenCalledWith('q1', 4);
   });
 
+  it('shows the belonging headline + trail band, and the topic switcher fires selectTopic', () => {
+    seedQuestions();
+    kgLogOpen.value = true;
+    kgOverview.value = false;
+    const selectSpy = vi.spyOn(knowledgeActions, 'selectTopic').mockImplementation(() => {});
+    const { getByText } = render(<KnowledgeView />);
+    // Base Camp hero: belonging progress + the forward-looking trail.
+    expect(getByText(/You.*ve mastered/)).toBeTruthy();
+    expect(getByText(/Your trail up/)).toBeTruthy();
+    // The Switch menu lists every topic; picking a different one drills into it.
+    fireEvent.click(getByText('Graph Theory'));
+    expect(selectSpy).toHaveBeenCalledWith('graph');
+  });
+
+  it('fires knowledgeActions.answerWithAI when the AI-answer button is tapped', () => {
+    seedQuestions();
+    kgLogOpen.value = true;
+    kgOverview.value = false;
+    const aiSpy = vi.spyOn(knowledgeActions, 'answerWithAI').mockImplementation(() => {});
+    const { getByText } = render(<KnowledgeView />);
+    fireEvent.click(getByText('AI answer'));
+    expect(aiSpy).toHaveBeenCalledWith('q1');
+  });
+
   it('fires knowledgeActions.setTimeFilter when a question-length filter is tapped', () => {
     seedQuestions();
     kgLogOpen.value = true;
