@@ -12,9 +12,9 @@ import { shiftDate } from '@/core/util';
 import { domId } from '@/ui/html';
 import { ProgControls, Carousel, Chart, LiftPicker } from '@/ui/components/Charts';
 import { wk, currentBW, exVideo, displayExercise, exSwap, workoutActions, loadWorkout, goHome } from '@/ui/actions';
+import { DATA } from '@/core/data/index';
 import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkShowAll, wkProgOpen, activeExercise, awayMode, progPeriod, progLift, dataRev } from '@/ui/store';
 import { dstr, dateLabel } from '@/app/bootstrap';
-import AWAY_START from '@/core/data/awayStart.json';
 import { host } from '@/ui/host';
 
 /* ── plate calculator (barbell lifts only) ── */
@@ -180,41 +180,6 @@ function WeekStrip({ state, today, selected, sundayFullBody }: { state: WorkoutS
 
 type Any = any;
 
-/**
- * In Away mode a machine lift is shown as its dumbbell alternate (e.g. Leg Press
- * → Goblet Squat). The machine's prescribed load is meaningless on dumbbells, so
- * anchor the whole prescription to that sub's defined STARTING weight/reps
- * (`awayStart.json`) — the point at which a beginner should start the movement —
- * keeping the machine plan's set structure (warm/back counts) and warm-up ramp
- * shape so the session still auto-completes correctly. Subs with no defined
- * start (or lifts with no swap) are left untouched.
- */
-function awayStartPlan(exercise: string, plan: Any): Any {
-  if (!plan || plan.cardio) return plan;
-  const sub = awayMode.value ? exSwap(exercise) : null;
-  if (!sub) return plan;
-  const start = (AWAY_START as Record<string, { weight: number; reps: number }>)[sub];
-  if (!start) return plan;
-  const oldTop = plan.top?.weight || 1;
-  const incr = plan.incr || 5;
-  // Scale each warm/back to the same fraction of the top it had on the machine,
-  // but anchored to the sub's start weight — never above it.
-  const rescale = (w: number): number => {
-    const v = Math.round((start.weight * (w / oldTop)) / incr) * incr;
-    return Math.max(incr, Math.min(v, start.weight));
-  };
-  return {
-    ...plan,
-    top: { weight: start.weight, reps: start.reps },
-    warms: (plan.warms ?? []).map((s: Any) => ({ ...s, weight: rescale(s.weight) })),
-    backs: (plan.backs ?? []).map((s: Any) => ({ ...s, weight: rescale(s.weight) })),
-    // The sub is anchored to a fresh starting weight, so the machine's
-    // deload/bump state doesn't apply — clear it so no misleading tag shows.
-    deload: false,
-    autoDeload: false,
-    bumped: false,
-  };
-}
 type VM = ReturnType<typeof selectWorkoutView>;
 
 /** Scheduled rest day. Calm state with an escape hatch to train anyway. */
@@ -314,6 +279,9 @@ function LogInput({ exercise, type, label, set, index, cue, setNo, setTotal }: {
   const id = domId(exercise);
   const wid = `w-${id}-${type}${index}`;
   const rid = `r-${id}-${type}${index}`;
+  // Input ids stay keyed by the gym slot; the set logs under the ACTIVE exercise
+  // (the dumbbell substitute in Away mode) so the sub accrues its own history.
+  const active = awayMode.value && exSwap(exercise) ? exSwap(exercise)! : exercise;
   return (
     <>
       <div class="rx">
@@ -330,7 +298,7 @@ function LogInput({ exercise, type, label, set, index, cue, setNo, setTotal }: {
           <input class="fv" key={rid} id={rid} type="number" inputmode="numeric" defaultValue={String(set.reps)} aria-label={`${label} reps`} />
           <div class="k">reps</div>
         </div>
-        <button class="logbtn" onClick={() => workoutActions.logSet(exercise, type, Number(host.readValue(wid)) || 0, Number(host.readValue(rid)) || 0)}>
+        <button class="logbtn" onClick={() => workoutActions.logSet(active, type, Number(host.readValue(wid)) || 0, Number(host.readValue(rid)) || 0)}>
           Log set
         </button>
       </div>
@@ -352,7 +320,7 @@ function SetLine({ state, label, val, trailing }: { state: 'done' | 'now' | 'up'
 
 /** A tappable exercise card in the list/grid. Tapping opens the full-screen detail. */
 function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
-  const plan: Any = awayStartPlan(exercise, vm.plans[exercise] ?? null);
+  const plan: Any = vm.plans[exercise] ?? null;
   const performed: Any[] = vm.performed[exercise] ?? [];
   const complete = vm.completed[exercise] === true;
 
@@ -403,7 +371,7 @@ function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
 
 /** The full-screen logging view for one exercise, with a back link and a switcher to the others. */
 function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutViewOptions; exercise: string; exercises: string[] }) {
-  const plan: Any = awayStartPlan(exercise, vm.plans[exercise] ?? null);
+  const plan: Any = vm.plans[exercise] ?? null;
   const performed: Any[] = vm.performed[exercise] ?? [];
   const complete = vm.completed[exercise] === true;
   const rest = o.restSeconds[exercise];
@@ -530,6 +498,10 @@ export function WorkoutView() {
   const W = wk();
   const today = dstr();
   const date = wkDate.value ?? today;
+  // Away (home) mode: each machine slot is driven by its dumbbell substitute —
+  // own plan, own history, own completion — while list position/split/order stay
+  // keyed by the gym lift. Threaded into every view below.
+  const away = awayMode.value ? { swap: DATA.exSwap, start: DATA.awayStart } : undefined;
   // Follow the week strip's projected plan so the day you tap loads the split its
   // dot shows. A scheduled rest day (Sat, and Sun by default) shows a rest state
   // instead of a workout — unless you've overridden the split to train anyway.
@@ -538,13 +510,13 @@ export function WorkoutView() {
   const isRest = !!dp?.rest && !dp?.done && !wkSplitTouched.value;
   const planSplit = dp?.split ?? null;
   const viewSplit = wkSplitTouched.value ? wkSplit.value : planSplit === 'full' ? 'all' : planSplit ?? undefined;
-  const vm = selectWorkoutView(W, date, today, { deload: wkDeload.value, split: viewSplit }, DEFAULT_CONFIG);
+  const vm = selectWorkoutView(W, date, today, { deload: wkDeload.value, split: viewSplit, away }, DEFAULT_CONFIG);
   const o = buildOptions(W, date, today, { current: currentBW() as number | null, goal: +W.settings.bwGoal || null });
   const showAll = wkShowAll.value;
   // "Show all" reveals the OTHER split (e.g. an upper day shows the lower lifts) in
   // its own labeled group below today's — never mixed in.
   const otherSplit: Split | null = vm.split === 'upper' ? 'lower' : vm.split === 'lower' ? 'upper' : null;
-  const otherVm = showAll && otherSplit ? selectWorkoutView(W, date, today, { deload: wkDeload.value, split: otherSplit }, DEFAULT_CONFIG) : null;
+  const otherVm = showAll && otherSplit ? selectWorkoutView(W, date, today, { deload: wkDeload.value, split: otherSplit, away }, DEFAULT_CONFIG) : null;
   const done = vm.exercises.filter((e) => vm.completed[e]).length;
   const status = vm.sessionComplete ? '✓ complete' : `${done} / ${vm.exercises.length} logged`;
   const splitLabel = vm.split === 'upper' ? 'Upper' : vm.split === 'lower' ? 'Lower' : vm.split === 'all' ? 'Full body' : 'Session';
@@ -555,7 +527,7 @@ export function WorkoutView() {
   const active = activeExercise.value;
   if (active) {
     const sp = exerciseSplit(W, active, DEFAULT_CONFIG);
-    const dv = selectWorkoutView(W, date, today, { deload: wkDeload.value, split: sp === 'upper' || sp === 'lower' ? sp : 'all' }, DEFAULT_CONFIG);
+    const dv = selectWorkoutView(W, date, today, { deload: wkDeload.value, split: sp === 'upper' || sp === 'lower' ? sp : 'all', away }, DEFAULT_CONFIG);
     if (dv.exercises.includes(active)) {
       return <ExerciseDetail vm={dv} o={o} exercise={active} exercises={dv.exercises} />;
     }
