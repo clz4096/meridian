@@ -1,0 +1,10 @@
+{
+  "Dumbbell Floor Press": { "weight": 30, "reps": 8, "muscle": "chest" },
+  "One-Arm Dumbbell Row": { "weight": 35, "reps": 10, "muscle": "back" },
+  "Goblet Squat": { "weight": 30, "reps": 10, "muscle": "quads" },
+  "Bulgarian Split Squat": { "weight": 20, "reps": 10, "muscle": "quads" },
+  "Standing Side Leg Raise": { "weight": 5, "reps": 15, "muscle": "hips" },
+  "Sumo Goblet Squat": { "weight": 30, "reps": 12, "muscle": "hips" },
+  "Standing Dumbbell Calf Raise": { "weight": 35, "reps": 15, "muscle": "calves" },
+  "Overhead Dumbbell Extension": { "weight": 25, "reps": 12, "muscle": "triceps" }
+}
