@@ -520,6 +520,22 @@ function stateOf(
 }
 const D = (offset: number) => shiftDate('2025-01-01', offset);
 
+describe('back-off set floor (missing-sets regression)', () => {
+  it('a lift keeps its default back-off sets even after top-set-only sessions', () => {
+    // Reproduce the bug: several recent sessions with ONLY a top set drive the
+    // modal back-off count to 0, which made logSet auto-complete the exercise
+    // right after the top set. The baked-in default for this lift prescribes
+    // back-offs, so buildPlan must still prescribe them.
+    const s = stateOf([
+      { date: D(0), ex: 'Bicep Curl (Dumbbell)', weight: 30, reps: 8, muscle: 'biceps' },
+      { date: D(3), ex: 'Bicep Curl (Dumbbell)', weight: 30, reps: 8, muscle: 'biceps' },
+      { date: D(6), ex: 'Bicep Curl (Dumbbell)', weight: 30, reps: 8, muscle: 'biceps' },
+    ]);
+    const plan = buildPlan(s, 'Bicep Curl (Dumbbell)', D(9))!;
+    expect(plan.backs.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
 describe('estimated 1RM (Epley)', () => {
   it('matches the Epley formula and floors non-positive input to 0', () => {
     expect(e1rm(100, 1)).toBeCloseTo(103.333, 2);

@@ -178,6 +178,27 @@ function WeekStrip({ state, today, selected, sundayFullBody }: { state: WorkoutS
 }
 
 type Any = any;
+
+/** Heaviest dumbbell in the home/apartment gym. Away-mode alternates are all
+ *  dumbbell movements, so a swapped exercise can never be loaded above this. */
+const DUMBBELL_MAX = 50;
+
+/**
+ * In Away mode a machine lift is shown as its dumbbell alternate (e.g. Leg Press
+ * → Goblet Squat). The machine's prescribed load is meaningless — and often
+ * impossible — on dumbbells, so clamp every prescribed set to the dumbbell max.
+ * (The set count is untouched; only the loads are capped.)
+ */
+function awayCapPlan(exercise: string, plan: Any): Any {
+  if (!plan || plan.cardio || !(awayMode.value && exSwap(exercise))) return plan;
+  const cap = (w: number): number => Math.min(w, DUMBBELL_MAX);
+  return {
+    ...plan,
+    top: { ...plan.top, weight: cap(plan.top.weight) },
+    warms: (plan.warms ?? []).map((s: Any) => ({ ...s, weight: cap(s.weight) })),
+    backs: (plan.backs ?? []).map((s: Any) => ({ ...s, weight: cap(s.weight) })),
+  };
+}
 type VM = ReturnType<typeof selectWorkoutView>;
 
 /** Scheduled rest day. Calm state with an escape hatch to train anyway. */
@@ -315,7 +336,7 @@ function SetLine({ state, label, val, trailing }: { state: 'done' | 'now' | 'up'
 
 /** A tappable exercise card in the list/grid. Tapping opens the full-screen detail. */
 function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
-  const plan: Any = vm.plans[exercise] ?? null;
+  const plan: Any = awayCapPlan(exercise, vm.plans[exercise] ?? null);
   const performed: Any[] = vm.performed[exercise] ?? [];
   const complete = vm.completed[exercise] === true;
 
@@ -366,7 +387,7 @@ function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
 
 /** The full-screen logging view for one exercise, with a back link and a switcher to the others. */
 function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutViewOptions; exercise: string; exercises: string[] }) {
-  const plan: Any = vm.plans[exercise] ?? null;
+  const plan: Any = awayCapPlan(exercise, vm.plans[exercise] ?? null);
   const performed: Any[] = vm.performed[exercise] ?? [];
   const complete = vm.completed[exercise] === true;
   const rest = o.restSeconds[exercise];

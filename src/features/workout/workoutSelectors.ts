@@ -27,6 +27,7 @@ import {
   type WorkoutViewModel,
 } from '@/core/types';
 import { shiftDate, toId, toNum, tombstoneIds } from '@/core/util';
+import defaultWorkoutData from '@/core/data/defaultWorkout.json';
 
 /* ================================================================== */
 /* Coercion helpers — the audit found `+x || 0` silently zeroing typos */
@@ -255,6 +256,41 @@ export function setTemplate(
   return { warms, backs };
 }
 
+/**
+ * Baseline set STRUCTURE per exercise, read once from the baked-in default
+ * workout. `setTemplate` derives the warm/back COUNT from the modal of recent
+ * sessions; a run of short (top-set-only) days can therefore erode a lift's
+ * back-off sets to zero — and because `logSet` auto-completes an exercise once
+ * `warms + 1 + backs` sets are in, that makes the exercise finish right after
+ * the top set (the "missing sets" bug). We floor the prescribed warm/back
+ * counts at this baseline so a lift never drops below the sets it was designed
+ * for. Ratios are relative to the default top set, so they scale to any weight.
+ * Only exercises present in the default are floored; anything else is untouched.
+ */
+type TemplateSlots = Array<{ ratio: number; reps: number }>;
+const DEFAULT_TEMPLATES: Record<string, { warms: TemplateSlots; backs: TemplateSlots }> = (() => {
+  const days =
+    (defaultWorkoutData as { days?: Record<string, Array<{ ex: string; type: string; weight: number; reps: number }>> }).days ?? {};
+  const sessionsByEx: Record<string, Array<Array<{ type: string; weight: number; reps: number }>>> = {};
+  for (const date of Object.keys(days)) {
+    const perEx: Record<string, Array<{ type: string; weight: number; reps: number }>> = {};
+    for (const s of days[date]!) (perEx[s.ex] ??= []).push(s);
+    for (const ex of Object.keys(perEx)) (sessionsByEx[ex] ??= []).push(perEx[ex]!);
+  }
+  const out: Record<string, { warms: TemplateSlots; backs: TemplateSlots }> = {};
+  for (const ex of Object.keys(sessionsByEx)) {
+    // The most complete default session defines the canonical structure.
+    const session = sessionsByEx[ex]!.slice().sort((a, b) => b.length - a.length)[0]!;
+    const top = session.find((s) => s.type === 'top');
+    if (!top) continue;
+    const tw = toNum(top.weight, 1) || 1;
+    const slots = (type: string): TemplateSlots =>
+      session.filter((s) => s.type === type).map((s) => ({ ratio: toNum(s.weight) / tw, reps: toNum(s.reps) }));
+    out[ex] = { warms: slots('warm'), backs: slots('back') };
+  }
+  return out;
+})();
+
 /* ================================================================== */
 /* Estimated 1RM, exercise class, effort & stalls                      */
 /* ================================================================== */
@@ -446,6 +482,15 @@ export function buildPlan(
   }
 
   const template = setTemplate(state, exercise, config);
+  const base = DEFAULT_TEMPLATES[exercise];
+  // Floor the BACK-OFF count at the lift's baked-in default. `setTemplate` takes
+  // the modal back-off count over recent sessions, so a run of short (top-set-
+  // only) days erodes it to zero — and since `logSet` auto-completes an exercise
+  // once `warms + 1 + backs` sets are in, the lift then finishes right after the
+  // top set (the reported "missing sets" bug). History may still ADD back-off
+  // sets; it just can't drop below the designed count. Warm-ups are left to
+  // history (skipping them is legitimate and never triggers auto-complete).
+  const backSlots = (template?.backs.length ?? 0) >= (base?.backs.length ?? 0) ? template?.backs ?? [] : base!.backs;
   const scale = (slots: Array<{ ratio: number; reps: number }>): PrescribedSet[] =>
     slots.map((s) => ({ weight: roundTo(s.ratio * weight, step), reps: s.reps }));
 
@@ -454,7 +499,7 @@ export function buildPlan(
     cardio: false,
     warms: scale(template?.warms ?? []),
     top: { weight, reps },
-    backs: scale(template?.backs ?? []),
+    backs: scale(backSlots),
     bumped,
     deload,
     autoDeload,
