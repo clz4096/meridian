@@ -5,7 +5,7 @@
  * table-of-contents hub.
  */
 import { useEffect } from 'preact/hooks';
-import { currentTab, sgLogOpen, kgLogOpen, kgGym, type Tab } from '@/ui/store';
+import { currentTab, sgLogOpen, kgProgressOpen, kgGym, kgOverview, type Tab } from '@/ui/store';
 import { handleBack, loadForHome } from '@/ui/actions';
 import { SaveChip, RestBar } from '@/ui/components/Chrome';
 import { TodayView } from '@/features/today/TodayTab';
@@ -60,7 +60,7 @@ export function App() {
     tab === 'meal'
       ? 'meal' + (sgLogOpen.value ? ':log' : '')
       : tab === 'knowledge'
-        ? 'knowledge' + (kgGym.value ? ':gym' : kgLogOpen.value ? ':q' : '')
+        ? 'knowledge' + (kgGym.value ? ':gym' : kgProgressOpen.value ? ':prog' : !kgOverview.value ? ':q' : '')
         : tab;
 
   return (

@@ -63,10 +63,10 @@ export interface KnowledgeActions {
   /** Progress-chart controls (optional — present once charts are wired). */
   setChartPeriod?(period: string): void;
   setChartScale?(scale: string): void;
-  /** Expand/collapse the questions/study section below the charts. */
-  toggleLog?(): void;
-  /** Open the Browse-all-topics overview gallery (above the per-topic body). */
+  /** Open the secondary Progress (charts/trends) view from the gallery. */
+  openProgress(): void;
+  /** Show the card gallery — the Progress view's back-to-gallery action. */
   browseTopics(): void;
-  /** Return from a topic's questions to the Browse-all-topics overview. */
+  /** Return from a topic's questions to the card gallery. */
   backToTopics(): void;
 }

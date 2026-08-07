@@ -7,11 +7,11 @@ import { useEffect, useState } from 'preact/hooks';
 import { DATA } from '@/core/data/index';
 import type { KnowledgeViewModel, KnowledgeItem, GymLink } from '@/features/knowledge/types';
 import { masterySeries, questionsSolvedSeries, xpSeries, studyDaysSeries, currentStreak } from '@/ui/charts/progress';
-import { ProgControls, Carousel, Chart, ViewLogCta } from '@/ui/components/Charts';
+import { ProgControls, Carousel, Chart } from '@/ui/components/Charts';
 import { SecHero } from '@/ui/components/SecHero';
 import { kg, core, dueItems, allTargetItems, todayPathItems, knowledgeActions, loadKnowledge, goHome } from '@/ui/actions';
 import { knowledgeGrowth } from '@/features/knowledge/knowledgeSelectors';
-import { kgLoaded, kgLogOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgOverview, progPeriod, dataRev } from '@/ui/store';
+import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgOverview, progPeriod, dataRev } from '@/ui/store';
 import { dstr } from '@/app/bootstrap';
 import type { Mastery } from '@/core/types';
 
@@ -103,21 +103,11 @@ function KnowledgeProgress() {
   const g = knowledgeGrowth(K, today);
   const masteryPct = g.seen ? Math.round((100 * g.solid) / g.seen) : 0;
   const sub = streak > 0 ? `🔥 ${streak}-day streak` : g.seen ? `${g.solid} solid` : 'nothing yet';
-  const dueN = dueItems().length;
-  const newN = Math.max(0, todayPathItems().length - dueN);
   const retentionTxt = g.retention == null ? '—' : `${Math.round(g.retention * 100)}%`;
   return (
     <>
-      <button class="backbtn" onClick={goHome}>
-        ‹ Back
-      </button>
-      {/* Today's path — the primary study action, FSRS-driven */}
-      <button class="kpath" onClick={() => knowledgeActions.startToday()}>
-        <div class="kpath-l">
-          <div class="kpath-t">Today’s path</div>
-          <div class="kpath-s">{dueN + newN > 0 ? `${dueN} to review · ${newN} new` : 'all caught up 🎉'}</div>
-        </div>
-        <span class="kpath-go">Study →</span>
+      <button class="backbtn" onClick={() => knowledgeActions.browseTopics()}>
+        ‹ Topics
       </button>
       <SecHero eyebrow="Knowledge" value={masteryPct} unit="% mastery" sub={sub} tone="ok" />
       <div class="kgrowth">
@@ -134,7 +124,6 @@ function KnowledgeProgress() {
           <Chart opts={{ kind: 'bar', title: 'Study days', points: studyDaysSeries(K, period), summary: 'sum', color: 'var(--protein)' }} />
         </Carousel>
       </div>
-      <ViewLogCta label="Browse all topics" onClick={() => knowledgeActions.browseTopics()} />
     </>
   );
 }
@@ -718,10 +707,20 @@ function TopicsOverview() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
+  // Streak + retention for the hero; Today's-path counts for the primary bar.
+  const K = kg();
+  const today = dstr();
+  const streak = currentStreak(K, today);
+  const retention = knowledgeGrowth(K, today).retention;
+  const retentionTxt = retention == null ? '—' : `${Math.round(retention * 100)}%`;
+  const dueN = dueItems().length;
+  const newN = Math.max(0, todayPathItems().length - dueN);
+  const pathTxt = dueN + newN > 0 ? `${dueN} to review · ${newN} new` : 'You’re all caught up 🎉';
+
   return (
     <div class="ktopics">
       <div class="tov-barrow">
-        <button class="backbtn" onClick={() => knowledgeActions.toggleLog?.()}>‹ Progress</button>
+        <button class="backbtn" onClick={goHome}>‹ Back</button>
         <form class="tov-search" role="search" onSubmit={(e) => e.preventDefault()}>
           <svg class="tov-mag" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" /><path d="m20 20-3.2-3.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
           <label class="tov-sr" for="tov-q">Search topics</label>
@@ -742,9 +741,22 @@ function TopicsOverview() {
       <header class="tov-hero">
         <h1 class="tov-title">{greeting}, Albert. Where to <span class="tov-warm">next?</span></h1>
         <p class="tov-lede">
-          <b>{totalDue} due</b> across {all.length} topics · {totalQ} questions and growing · <b>{overallPct}% mastery</b>
+          <span class="tov-streak" aria-label={`${streak} day streak`}>🔥{streak}</span> · <b>{totalDue} due</b> across {all.length} topics · {totalQ} questions · {retentionTxt} retention ·{' '}
+          <button type="button" class="tov-masterylink" onClick={() => knowledgeActions.openProgress()} aria-label={`Mastery ${overallPct} percent — open progress and trends`}>
+            <b>{overallPct}% mastery</b> ›
+          </button>
         </p>
       </header>
+
+      {/* Today's path — the single most important daily action, FSRS-driven */}
+      <button type="button" class="kpath tov-path" onClick={() => knowledgeActions.startToday()}
+        aria-label={`Today’s path — ${pathTxt}. Start studying.`}>
+        <div class="kpath-l">
+          <div class="kpath-t">Today’s path</div>
+          <div class="kpath-s">{pathTxt}</div>
+        </div>
+        <span class="kpath-go">Study →</span>
+      </button>
 
       <div class="tov-chips" role="group" aria-label="Filter topics">
         <button class="tov-chip" aria-pressed={domain === 'all'} onClick={() => setDomain('all')}>All <span class="tov-cnt">{all.length}</span></button>
@@ -765,6 +777,7 @@ function TopicsOverview() {
           <div class="tov-horizon" role="note" aria-label="Your curriculum keeps growing">
             <svg class="tov-hspark" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l1.6 5.2L19 10l-5.4 1.8L12 17l-1.6-5.2L5 10l5.4-1.8L12 3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" /></svg>
             <span><b>Your curriculum keeps growing.</b> Master a topic and Meridian writes deeper questions — new concepts surface as you climb.</span>
+            <button type="button" class="tov-progresslink" onClick={() => knowledgeActions.openProgress()}>See progress →</button>
           </div>
         </>
       ) : (
@@ -780,7 +793,7 @@ export function KnowledgeView() {
   }, []);
   dataRev.value; // re-derive
   if (!kgLoaded.value) return <div class="empty">Loading…</div>;
-  if (!kgLogOpen.value) return <KnowledgeProgress />;
-  if (kgOverview.value) return <TopicsOverview />;
-  return <KnowledgeBody vm={knowledgeVM()} />;
+  if (kgProgressOpen.value) return <KnowledgeProgress />; // secondary charts/trends
+  if (!kgOverview.value) return <KnowledgeBody vm={knowledgeVM()} />; // per-topic study
+  return <TopicsOverview />; // card gallery = default landing
 }

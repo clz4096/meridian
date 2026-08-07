@@ -835,6 +835,14 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .tov-warm{color:var(--fuel)}
 .tov-lede{font-size:13px;color:var(--muted);margin:0}
 .tov-lede b{color:var(--text);font-weight:600}
+.tov-streak{color:var(--fuel);font-weight:700;white-space:nowrap}
+/* mastery % is a doorway to the Progress (charts) view */
+.tov-masterylink{font:inherit;color:var(--muted);background:none;border:none;padding:2px 5px;margin:0 -3px;cursor:pointer;border-radius:6px;white-space:nowrap}
+.tov-masterylink b{color:var(--text)}
+.tov-masterylink:hover,.tov-masterylink:focus-visible{color:var(--text);outline:none;text-decoration:underline}
+.tov-masterylink:focus-visible{box-shadow:0 0 0 2px color-mix(in srgb,var(--fuel) 55%,transparent)}
+/* Today's-path bar spacing when it lands in the gallery (above the chips) */
+.tov-path{margin:4px 0 12px}
 /* category chips — slim single scroller */
 .tov-chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:10px;margin-bottom:4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .tov-chips::-webkit-scrollbar{display:none}
@@ -881,6 +889,9 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .tov-horizon{display:flex;align-items:center;gap:10px;border:1px dashed var(--line-2);border-radius:12px;padding:10px 13px;margin-bottom:8px;color:var(--muted);font-size:12px;line-height:1.4;background:repeating-linear-gradient(-45deg,transparent 0 10px,rgba(255,255,255,.012) 10px 20px)}
 .tov-horizon b{color:var(--text);font-weight:600}
 .tov-hspark{width:16px;height:16px;flex:none;color:var(--fuel)}
+.tov-progresslink{margin-left:auto;flex:none;font:inherit;font-size:12px;font-weight:600;color:var(--fuel);background:none;border:none;padding:6px 8px;cursor:pointer;border-radius:8px;white-space:nowrap}
+.tov-progresslink:hover,.tov-progresslink:focus-visible{color:var(--text);outline:none;text-decoration:underline}
+.tov-progresslink:focus-visible{box-shadow:0 0 0 2px color-mix(in srgb,var(--fuel) 55%,transparent)}
 .tov-empty{padding:32px 20px;text-align:center;color:var(--muted)}
 .tov-empty b{color:var(--text)}
 .tov-search input:focus-visible,.tov-chip:focus-visible,.tov-cardlink:focus-visible,.tov-sort:focus-visible{outline:2px solid var(--teal);outline-offset:2px;border-radius:8px}

@@ -287,15 +287,22 @@ export const knowledgeActions: KnowledgeActions = {
   selectTopic(id) {
     st.kgTopic.value = id;
     st.kgOverview.value = false;
+    st.kgProgressOpen.value = false;
     st.kgGym.value = false;
     st.kgRevealed.value = {};
+    pushState(); // gallery → study is a drill-in; back returns to the gallery
+    st.bump();
+  },
+  openProgress() {
+    st.kgProgressOpen.value = true;
+    pushState(); // gallery → Progress; back returns to the gallery
     st.bump();
   },
   browseTopics() {
-    st.kgLogOpen.value = true;
+    // Back to the gallery (the landing) from the Progress view — a pop, not a push.
     st.kgOverview.value = true;
+    st.kgProgressOpen.value = false;
     st.kgGym.value = false;
-    pushState(); // the gallery is a level below the progress screen
     st.bump();
   },
   backToTopics() {
@@ -319,19 +326,22 @@ export const knowledgeActions: KnowledgeActions = {
   startReview() {
     st.kgTopic.value = '__review__';
     st.kgTime.value = 'all';
+    st.kgOverview.value = false;
+    st.kgProgressOpen.value = false;
     st.kgGym.value = false;
+    st.kgRevealed.value = {};
+    pushState(); // drill into the review study body; back returns to the gallery
     st.bump();
   },
   startToday() {
     st.kgTopic.value = '__today__';
     st.kgTime.value = 'all';
     st.kgTarget.value = 'all';
+    st.kgOverview.value = false;
+    st.kgProgressOpen.value = false;
     st.kgGym.value = false;
     st.kgRevealed.value = {};
-    if (!st.kgLogOpen.value) {
-      st.kgLogOpen.value = true;
-      pushState(); // studying is a level below the progress screen
-    }
+    pushState(); // drill into today's-path study body; back returns to the gallery
     st.bump();
   },
   toggleGym() {
@@ -454,12 +464,6 @@ export const knowledgeActions: KnowledgeActions = {
   },
   setChartScale(s) {
     st.logScale.value = s === 'log';
-    st.bump();
-  },
-  toggleLog() {
-    st.kgLogOpen.value = !st.kgLogOpen.value;
-    if (st.kgLogOpen.value) pushState();
-    else st.kgGym.value = false;
     st.bump();
   },
 };
@@ -782,6 +786,12 @@ export function goHome(): void {
 /** Drill into a tracker section (from Today's at-a-glance); pushes history for back. */
 export function openSection(tab: st.Tab): void {
   st.currentTab.value = tab;
+  // Entering Knowledge always lands on the card gallery, never wherever it was left.
+  if (tab === 'knowledge') {
+    st.kgProgressOpen.value = false;
+    st.kgOverview.value = true;
+    st.kgGym.value = false;
+  }
   ensureLoaded(tab);
   pushState();
 }
@@ -811,9 +821,10 @@ export function discard(): void {
 }
 export function handleBack(): boolean {
   if (st.currentTab.value === 'meal' && st.sgLogOpen.value) { st.sgLogOpen.value = false; st.bump(); return true; }
-  if (st.currentTab.value === 'knowledge' && st.kgGym.value) { st.kgGym.value = false; st.bump(); return true; }
-  if (st.currentTab.value === 'knowledge' && st.kgLogOpen.value) { st.kgLogOpen.value = false; st.bump(); return true; }
-  if (st.currentTab.value !== 'today') { goHome(); return true; }
+  if (st.currentTab.value === 'knowledge' && st.kgGym.value) { st.kgGym.value = false; st.bump(); return true; } // gym → questions
+  if (st.currentTab.value === 'knowledge' && st.kgProgressOpen.value) { st.kgProgressOpen.value = false; st.bump(); return true; } // Progress → gallery
+  if (st.currentTab.value === 'knowledge' && !st.kgOverview.value) { st.kgOverview.value = true; st.bump(); return true; } // study → gallery
+  if (st.currentTab.value !== 'today') { goHome(); return true; } // gallery → hub
   return false;
 }
 

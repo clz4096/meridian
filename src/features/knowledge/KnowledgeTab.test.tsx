@@ -1,16 +1,17 @@
 /**
- * KnowledgeView component test. Asserts the Progress screen (Today's-path CTA +
- * mastery hero + growth readout + "Browse all topics" CTA), then flips kgLogOpen
- * to exercise the study body: a seeded question renders, Reveal / the 4 FSRS grade
- * buttons / filters / gym rows are each wired to the matching knowledgeActions
- * method, and untrusted question text is escaped to inert TEXT (injection safety).
+ * KnowledgeView component test. Asserts the gallery landing (Today's-path bar +
+ * hero + topic cards + Progress doorways), then exercises the study body via
+ * kgOverview=false: a seeded question renders, Reveal / the 4 FSRS grade buttons /
+ * filters / gym rows are each wired to the matching knowledgeActions method, and
+ * untrusted question text is escaped to inert TEXT (injection safety). Also covers
+ * the secondary Progress (charts) view reached via kgProgressOpen.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { KnowledgeView } from '@/features/knowledge/KnowledgeTab';
 import { knowledgeActions } from '@/ui/actions';
 import { appState } from '@/app/bootstrap';
-import { kgLoaded, kgLogOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgOverview } from '@/ui/store';
+import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgOverview } from '@/ui/store';
 import type { KnowledgeItem } from '@/features/knowledge/types';
 
 const QUESTION: KnowledgeItem = {
@@ -40,7 +41,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
   kgLoaded.value = false;
-  kgLogOpen.value = false;
+  kgProgressOpen.value = false;
   kgOverview.value = true;
   kgGym.value = false;
   kgTopic.value = 'algorithms';
@@ -52,36 +53,42 @@ afterEach(() => {
 });
 
 describe('KnowledgeView', () => {
-  it('renders the Progress screen with the Today’s-path CTA, mastery hero + Browse CTA by default', () => {
+  it('lands on the card gallery by default — Today’s-path bar + topic cards', () => {
     const { getByText } = render(<KnowledgeView />);
     expect(getByText('Today’s path')).toBeTruthy();
-    expect(getByText('Knowledge')).toBeTruthy();
-    // SecHero renders the unit next to the value ("% mastery").
-    expect(getByText('% mastery')).toBeTruthy();
-    expect(getByText('Browse all topics')).toBeTruthy();
+    // A couple of the 15 fixed topic names render as cards on the landing gallery.
+    expect(getByText('Algorithms / LC')).toBeTruthy();
+    expect(getByText('Graph Theory')).toBeTruthy();
   });
 
-  it('fires knowledgeActions.startToday when the Today’s-path CTA is tapped', () => {
+  it('fires knowledgeActions.startToday when the Today’s-path bar is tapped', () => {
     const startSpy = vi.spyOn(knowledgeActions, 'startToday').mockImplementation(() => {});
     const { getByText } = render(<KnowledgeView />);
     fireEvent.click(getByText('Today’s path'));
     expect(startSpy).toHaveBeenCalledOnce();
   });
 
-  it('fires knowledgeActions.browseTopics when the "Browse all topics" CTA is tapped', () => {
+  it('fires knowledgeActions.openProgress from the gallery’s "See progress" doorway', () => {
+    const progSpy = vi.spyOn(knowledgeActions, 'openProgress').mockImplementation(() => {});
+    const { getByText } = render(<KnowledgeView />);
+    fireEvent.click(getByText('See progress →'));
+    expect(progSpy).toHaveBeenCalledOnce();
+  });
+
+  it('renders the secondary Progress (charts) view when kgProgressOpen, back → gallery via browseTopics', () => {
+    kgProgressOpen.value = true;
     const browseSpy = vi.spyOn(knowledgeActions, 'browseTopics').mockImplementation(() => {});
     const { getByText } = render(<KnowledgeView />);
-    fireEvent.click(getByText('Browse all topics'));
+    expect(getByText('Knowledge')).toBeTruthy(); // SecHero eyebrow
+    expect(getByText('% mastery')).toBeTruthy(); // SecHero unit next to the value
+    fireEvent.click(getByText('‹ Topics'));
     expect(browseSpy).toHaveBeenCalledOnce();
   });
 
-  it('renders the Browse-all-topics overview (topic names visible) and tapping a topic fires selectTopic', () => {
+  it('renders topic cards on the gallery and tapping a topic fires selectTopic', () => {
     seedQuestions();
-    kgLogOpen.value = true;
-    kgOverview.value = true; // gallery sits above the per-topic body
     const selectSpy = vi.spyOn(knowledgeActions, 'selectTopic').mockImplementation(() => {});
     const { getByText, getAllByText } = render(<KnowledgeView />);
-    // A couple of the 15 fixed topic names render as cards.
     expect(getByText('Algorithms / LC')).toBeTruthy();
     expect(getByText('Graph Theory')).toBeTruthy();
     // The card's name button drills into that topic.
@@ -91,7 +98,6 @@ describe('KnowledgeView', () => {
 
   it('renders the seeded question prompt on the study screen, and Reveal fires knowledgeActions.reveal', () => {
     seedQuestions();
-    kgLogOpen.value = true;
     kgOverview.value = false;
     const revealSpy = vi.spyOn(knowledgeActions, 'reveal').mockImplementation(() => {});
     const { getByText } = render(<KnowledgeView />);
@@ -102,7 +108,6 @@ describe('KnowledgeView', () => {
 
   it('fires knowledgeActions.rate with the FSRS grade once the card is revealed', () => {
     seedQuestions();
-    kgLogOpen.value = true;
     kgOverview.value = false;
     kgRevealed.value = { q1: true };
     const rateSpy = vi.spyOn(knowledgeActions, 'rate').mockImplementation(() => {});
@@ -140,7 +145,6 @@ describe('KnowledgeView', () => {
 
   it('fires knowledgeActions.setTimeFilter when a question-length filter is tapped', () => {
     seedQuestions();
-    kgLogOpen.value = true;
     kgOverview.value = false;
     const filterSpy = vi.spyOn(knowledgeActions, 'setTimeFilter').mockImplementation(() => {});
     const { getByText } = render(<KnowledgeView />);
@@ -150,7 +154,6 @@ describe('KnowledgeView', () => {
 
   it('escapes an HTML-injection payload in the prompt to inert TEXT (never a live element)', () => {
     seedQuestions([{ ...QUESTION, id: 'q1', prompt: '<img src=x onerror="alert(1)">' }]);
-    kgLogOpen.value = true;
     kgOverview.value = false;
     const { container } = render(<KnowledgeView />);
     // Preact auto-escapes text children, so the payload survives as visible text…
@@ -161,7 +164,6 @@ describe('KnowledgeView', () => {
 
   it('renders gym rows and fires knowledgeActions.toggleGymDone with the row key in gym mode', () => {
     seedQuestions();
-    kgLogOpen.value = true;
     kgOverview.value = false;
     kgGym.value = true;
     const gymSpy = vi.spyOn(knowledgeActions, 'toggleGymDone').mockImplementation(() => {});
