@@ -3,7 +3,7 @@
  * VM builder (app.ts) + renderKnowledgeHTML/Body/Card to JSX. The single top-left
  * back button walks up one level (handled by App's back-stack).
  */
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { DATA } from '@/core/data/index';
 import type { KnowledgeViewModel, KnowledgeItem, GymLink } from '@/features/knowledge/types';
 import { masterySeries, questionsSolvedSeries, xpSeries, studyDaysSeries, currentStreak } from '@/ui/charts/progress';
@@ -11,7 +11,7 @@ import { ProgControls, Carousel, Chart, ViewLogCta } from '@/ui/components/Chart
 import { SecHero } from '@/ui/components/SecHero';
 import { kg, core, dueItems, allTargetItems, todayPathItems, knowledgeActions, loadKnowledge, goHome } from '@/ui/actions';
 import { knowledgeGrowth } from '@/features/knowledge/knowledgeSelectors';
-import { kgLoaded, kgLogOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, progPeriod, dataRev } from '@/ui/store';
+import { kgLoaded, kgLogOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgOverview, progPeriod, dataRev } from '@/ui/store';
 import { dstr } from '@/app/bootstrap';
 import type { Mastery } from '@/core/types';
 
@@ -123,7 +123,7 @@ function KnowledgeProgress() {
           <Chart opts={{ kind: 'bar', title: 'Study days', points: studyDaysSeries(K, period), summary: 'sum', color: 'var(--protein)' }} />
         </Carousel>
       </div>
-      <ViewLogCta label="Browse all topics" onClick={() => knowledgeActions.toggleLog?.()} />
+      <ViewLogCta label="Browse all topics" onClick={() => knowledgeActions.browseTopics()} />
     </>
   );
 }
@@ -311,8 +311,8 @@ function KnowledgeBody({ vm }: { vm: KnowledgeViewModel }) {
   const isReal = vm.topicId !== '__review__' && vm.topicId !== '__target__';
   return (
     <>
-      <button class="backbtn" onClick={() => (vm.gymMode ? knowledgeActions.toggleGym() : knowledgeActions.toggleLog?.())}>
-        {vm.gymMode ? '‹ Questions' : '‹ Progress'}
+      <button class="backbtn" onClick={() => (vm.gymMode ? knowledgeActions.toggleGym() : knowledgeActions.backToTopics())}>
+        {vm.gymMode ? '‹ Questions' : '‹ Topics'}
       </button>
       <TopicHead vm={vm} />
       {vm.dueCount > 0 && vm.topicId !== '__review__' && vm.topicId !== '__today__' && !vm.gymMode && (
@@ -375,6 +375,234 @@ function KnowledgeBody({ vm }: { vm: KnowledgeViewModel }) {
   );
 }
 
+/* ── Browse all topics (Airbnb-style gallery) ──────────────────────────── */
+
+type Domain = 'Theory' | 'Systems' | 'ML' | 'Career';
+
+// topics.json carries no domain — the curriculum grouping is fixed content.
+const TOPIC_DOMAIN: Record<string, Domain> = {
+  algorithms: 'Theory', graph: 'Theory', probstats: 'Theory',
+  cpp: 'Systems', concurrency: 'Systems', comparch: 'Systems', databases: 'Systems',
+  sysdesign: 'Systems', networking: 'Systems', linux: 'Systems', distributed: 'Systems', compilers: 'Systems',
+  mlfund: 'ML', gpu: 'ML',
+  behavioral: 'Career',
+};
+// domain → tint (CSS var). Theory violet · Systems teal · ML amber · Career green.
+const DOMAIN_TINT: Record<Domain, string> = { Theory: 'var(--protein)', Systems: 'var(--teal)', ML: 'var(--fuel)', Career: 'var(--ok)' };
+const DOMAIN_ORDER: Domain[] = ['Theory', 'Systems', 'ML', 'Career'];
+// oversized ghost mono code stamped on each cover (no photos — CSP).
+const TOPIC_CODE: Record<string, string> = {
+  algorithms: 'ALG', graph: 'GRF', probstats: 'PRB', cpp: 'C++', concurrency: 'CNC',
+  comparch: 'ARC', databases: 'DB', sysdesign: 'SYS', networking: 'NET', linux: 'LNX',
+  distributed: 'DST', compilers: 'CMP', mlfund: 'ML', gpu: 'GPU', behavioral: 'BEH',
+};
+
+/** Mastery ramp — never colour-only: always a colour AND a word. */
+function masteryTone(pct: number): { color: string; word: string; aria: string } {
+  if (pct >= 60) return { color: 'var(--ok)', word: 'Solid', aria: 'solid grasp' };
+  if (pct >= 25) return { color: 'var(--fuel)', word: 'Building', aria: 'building fluency' };
+  return { color: 'var(--deficit)', word: 'Early', aria: 'just getting started' };
+}
+
+interface OverviewTopic {
+  id: string; name: string; domain: Domain; code: string;
+  count: number; mastered: number; percent: number; due: number;
+}
+
+/** Derive the per-topic gallery rows from the live stores (reads via callers under dataRev). */
+function overviewTopics(): OverviewTopic[] {
+  const K = kg();
+  const dueByTopic: Record<string, number> = {};
+  dueItems().forEach((it: Any) => { dueByTopic[it.topic] = (dueByTopic[it.topic] || 0) + 1; });
+  return KG_TOPICS.map((tp: Any): OverviewTopic => {
+    const arr: Any[] = kgItems.value[tp.id] || [];
+    const mastered = arr.filter((it) => (K.mastery?.[it.id] || 0) >= 4).length;
+    const domain = TOPIC_DOMAIN[tp.id] ?? 'Systems';
+    return {
+      id: tp.id, name: tp.name, domain, code: TOPIC_CODE[tp.id] ?? tp.id.slice(0, 3).toUpperCase(),
+      count: arr.length, mastered, percent: arr.length ? Math.round((100 * mastered) / arr.length) : 0,
+      due: dueByTopic[tp.id] || 0,
+    };
+  });
+}
+
+/** Compact mastery ring: SVG arc + % inside (status word lives beside it). */
+function MasteryRing({ pct }: { pct: number }) {
+  const r = 28;
+  const C = 2 * Math.PI * r;
+  const off = C * (1 - pct / 100);
+  const tone = masteryTone(pct);
+  return (
+    <svg class="tov-ring" viewBox="0 0 68 68" aria-hidden="true">
+      <circle cx="34" cy="34" r={r} fill="none" stroke="rgba(255,255,255,.10)" stroke-width="6" />
+      <circle
+        cx="34" cy="34" r={r} fill="none" stroke={tone.color} stroke-width="6" stroke-linecap="round"
+        stroke-dasharray={C.toFixed(1)} stroke-dashoffset={off.toFixed(1)} transform="rotate(-90 34 34)"
+      />
+      <text class="tov-ring-pct" x="34" y="35" text-anchor="middle" dominant-baseline="middle" font-size="19" fill="var(--text)">{pct}</text>
+    </svg>
+  );
+}
+
+/**
+ * Living-curriculum cue, compact — a spark on mastered topics (deeper questions
+ * ready), a subtle up-tick on climbers. Kept to one glyph so tiles stay dense.
+ */
+function FrontierMark({ pct }: { pct: number }) {
+  if (pct >= 60)
+    return (
+      <span class="tov-fmark ready" title="Deeper questions ready to generate" aria-label="deeper questions ready to generate">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l1.6 5.2L19 10l-5.4 1.8L12 17l-1.6-5.2L5 10l5.4-1.8L12 3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" /></svg>
+      </span>
+    );
+  if (pct >= 40)
+    return (
+      <span class="tov-fmark near" title="Nearing a deeper question set" aria-label="nearing a deeper question set">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </span>
+    );
+  return null;
+}
+
+/** Dense, equal-height listing tile: whole card is the drill-in button. */
+function TopicCard({ t }: { t: OverviewTopic }) {
+  const tint = DOMAIN_TINT[t.domain];
+  const tone = masteryTone(t.percent);
+  const dueLabel = t.due > 0 ? `${t.due} due for review` : 'all caught up';
+  return (
+    <article class="tov-card">
+      <button
+        class="tov-cardlink"
+        style={`--tint:${tint}`}
+        onClick={() => knowledgeActions.selectTopic(t.id)}
+        aria-label={`${t.name}, ${t.domain}. ${t.count} questions, ${dueLabel}. Mastery ${t.percent} percent, ${tone.aria}.`}
+      >
+        <span class="tov-top">
+          <span class="tov-dom" style={`color:${tint}`}><span class="tov-swatch" style={`background:${tint}`} aria-hidden="true" />{t.domain}</span>
+          <FrontierMark pct={t.percent} />
+          <span class="tov-spacer" />
+          {t.due > 0 ? (
+            <span class="tov-badge" aria-hidden="true"><span class="tov-pulse" />{t.due}</span>
+          ) : (
+            <span class="tov-badge clear" aria-hidden="true">✓</span>
+          )}
+        </span>
+        <span class="tov-mid">
+          <MasteryRing pct={t.percent} />
+          <span class="tov-nameblock">
+            <span class="tov-name">{t.name}</span>
+            <span class="tov-meta">{t.count} q<span class="tov-open"> · growing</span></span>
+          </span>
+        </span>
+        <span class="tov-mastery">
+          <span class="tov-track"><span style={`width:${t.percent}%;background:${tone.color}`} /></span>
+          <span class="tov-word" style={`color:${tone.color}`}>{tone.word}</span>
+        </span>
+      </button>
+    </article>
+  );
+}
+
+type SortKey = 'recommended' | 'due' | 'mlow' | 'mhigh' | 'alpha' | 'qty';
+
+function sortTopics(a: OverviewTopic, b: OverviewTopic, key: SortKey): number {
+  switch (key) {
+    case 'due': return b.due - a.due || a.percent - b.percent;
+    case 'mlow': return a.percent - b.percent;
+    case 'mhigh': return b.percent - a.percent;
+    case 'alpha': return a.name.localeCompare(b.name);
+    case 'qty': return b.count - a.count;
+    default: // review priority: due first, then weakest, then most questions
+      return Number(b.due > 0) - Number(a.due > 0) || b.due - a.due || a.percent - b.percent || b.count - a.count;
+  }
+}
+
+function TopicsOverview() {
+  dataRev.value; // leaf-subscription: re-derive on any store mutation
+  const [domain, setDomain] = useState<'all' | Domain>('all');
+  const [dueOnly, setDueOnly] = useState(false);
+  const [weakOnly, setWeakOnly] = useState(false);
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<SortKey>('recommended');
+
+  const all = overviewTopics();
+  const totalQ = all.reduce((n, t) => n + t.count, 0);
+  const totalDue = all.reduce((n, t) => n + t.due, 0);
+  const totalMastered = all.reduce((n, t) => n + t.mastered, 0);
+  const overallPct = totalQ ? Math.round((100 * totalMastered) / totalQ) : 0;
+  const domainCount: Record<Domain, number> = { Theory: 0, Systems: 0, ML: 0, Career: 0 };
+  all.forEach((t) => { domainCount[t.domain]++; });
+
+  const q = query.trim().toLowerCase();
+  const list = all
+    .filter((t) => {
+      if (domain !== 'all' && t.domain !== domain) return false;
+      if (dueOnly && t.due === 0) return false;
+      if (weakOnly && t.percent >= 25) return false;
+      if (q && !(t.name + ' ' + t.domain).toLowerCase().includes(q)) return false;
+      return true;
+    })
+    .sort((a, b) => sortTopics(a, b, sort));
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+  return (
+    <div class="ktopics">
+      <div class="tov-barrow">
+        <button class="backbtn" onClick={() => knowledgeActions.toggleLog?.()}>‹ Progress</button>
+        <form class="tov-search" role="search" onSubmit={(e) => e.preventDefault()}>
+          <svg class="tov-mag" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" /><path d="m20 20-3.2-3.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+          <label class="tov-sr" for="tov-q">Search topics</label>
+          <input id="tov-q" type="search" placeholder="Search topics…" autocomplete="off"
+            value={query} onInput={(e) => setQuery((e.target as HTMLInputElement).value)} />
+        </form>
+        <label class="tov-sr" for="tov-sort">Sort topics</label>
+        <select class="tov-sort" id="tov-sort" aria-label="Sort topics" value={sort} onChange={(e) => setSort((e.target as HTMLSelectElement).value as SortKey)}>
+          <option value="recommended">Review priority</option>
+          <option value="due">Most due</option>
+          <option value="mlow">Mastery ↑</option>
+          <option value="mhigh">Mastery ↓</option>
+          <option value="alpha">Name A–Z</option>
+          <option value="qty">Most questions</option>
+        </select>
+      </div>
+
+      <header class="tov-hero">
+        <h1 class="tov-title">{greeting}, Albert. Where to <span class="tov-warm">next?</span></h1>
+        <p class="tov-lede">
+          <b>{totalDue} due</b> across {all.length} topics · {totalQ} questions and growing · <b>{overallPct}% mastery</b>
+        </p>
+      </header>
+
+      <div class="tov-chips" role="group" aria-label="Filter topics">
+        <button class="tov-chip" aria-pressed={domain === 'all'} onClick={() => setDomain('all')}>All <span class="tov-cnt">{all.length}</span></button>
+        {DOMAIN_ORDER.map((d) => (
+          <button class="tov-chip" aria-pressed={domain === d} onClick={() => setDomain(d)}>
+            <span class="tov-swatch" style={`background:${DOMAIN_TINT[d]}`} aria-hidden="true" />{d} <span class="tov-cnt">{domainCount[d]}</span>
+          </button>
+        ))}
+        <button class="tov-chip toggle" aria-pressed={dueOnly} onClick={() => setDueOnly((v) => !v)}>Due now</button>
+        <button class="tov-chip toggle" aria-pressed={weakOnly} onClick={() => setWeakOnly((v) => !v)}>Needs work</button>
+      </div>
+
+      {list.length ? (
+        <>
+          <div class="tov-grid">
+            {list.map((t) => <TopicCard t={t} />)}
+          </div>
+          <div class="tov-horizon" role="note" aria-label="Your curriculum keeps growing">
+            <svg class="tov-hspark" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l1.6 5.2L19 10l-5.4 1.8L12 17l-1.6-5.2L5 10l5.4-1.8L12 3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" /></svg>
+            <span><b>Your curriculum keeps growing.</b> Master a topic and Meridian writes deeper questions — new concepts surface as you climb.</span>
+          </div>
+        </>
+      ) : (
+        <div class="tov-empty"><b>No topics match.</b> Try clearing a filter or searching something broader.</div>
+      )}
+    </div>
+  );
+}
+
 export function KnowledgeView() {
   useEffect(() => {
     if (!kgLoaded.value) void loadKnowledge();
@@ -382,5 +610,6 @@ export function KnowledgeView() {
   dataRev.value; // re-derive
   if (!kgLoaded.value) return <div class="empty">Loading…</div>;
   if (!kgLogOpen.value) return <KnowledgeProgress />;
+  if (kgOverview.value) return <TopicsOverview />;
   return <KnowledgeBody vm={knowledgeVM()} />;
 }

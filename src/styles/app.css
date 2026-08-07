@@ -817,3 +817,70 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .rate.grade4 button.g2:hover,.rate.grade4 button.g2:focus-visible{border-color:var(--fuel);color:var(--fuel);outline:none}
 .rate.grade4 button.g3:hover,.rate.grade4 button.g3:focus-visible{border-color:var(--teal);color:var(--teal);outline:none}
 .rate.grade4 button.g4:hover,.rate.grade4 button.g4:focus-visible{border-color:var(--ok);color:var(--ok);outline:none}
+
+/* ── Knowledge · Browse all topics (Airbnb-style gallery) ─────────────── */
+.tov-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+/* bar row: back · search · sort — all controls on one slim line */
+.tov-barrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.tov-search{display:flex;align-items:center;gap:8px;flex:1 1 140px;min-width:120px;background:var(--surface-1);border:1px solid var(--line-2);border-radius:var(--r-pill);padding:0 13px;height:38px;transition:border-color var(--dur) var(--ease)}
+.tov-search:focus-within{border-color:rgba(124,201,236,.5)}
+.tov-mag{width:15px;height:15px;flex:none;color:var(--dim)}
+.tov-search input{flex:1;min-width:0;background:transparent;border:0;color:var(--text);font-family:var(--sans);font-size:14px;height:38px}
+.tov-search input::placeholder{color:var(--dim)}
+.tov-search input:focus{outline:none}
+.tov-sort{flex:none;background:var(--surface-1);color:var(--text);border:1px solid var(--line-2);border-radius:var(--r-pill);padding:0 30px 0 13px;height:38px;font-family:var(--sans);font-size:13px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238FA3BE' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 10px center}
+/* hero — one tight line + a one-line summary */
+.tov-hero{margin-bottom:10px}
+.tov-title{font-size:clamp(20px,4.6vw,28px);line-height:1.08;letter-spacing:-.02em;margin:0 0 4px;font-weight:800}
+.tov-warm{color:var(--fuel)}
+.tov-lede{font-size:13px;color:var(--muted);margin:0}
+.tov-lede b{color:var(--text);font-weight:600}
+/* category chips — slim single scroller */
+.tov-chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:10px;margin-bottom:4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tov-chips::-webkit-scrollbar{display:none}
+.tov-chip{flex:none;display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid var(--line-2);color:var(--muted);font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;font-weight:600;padding:0 12px;min-height:36px;border-radius:9px;cursor:pointer;white-space:nowrap;transition:background var(--dur) var(--ease),color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+.tov-swatch{width:8px;height:8px;border-radius:2px;flex:none}
+.tov-chip:hover{background:var(--surface-1);color:var(--text)}
+.tov-chip[aria-pressed="true"]{background:var(--text);color:#0b0f17;border-color:var(--text)}
+.tov-chip.toggle[aria-pressed="true"]{background:rgba(124,201,236,.16);color:var(--teal);border-color:rgba(124,201,236,.55)}
+.tov-cnt{font-size:10.5px;color:var(--dim)}
+.tov-chip[aria-pressed="true"] .tov-cnt{color:inherit;opacity:.7}
+/* dense uniform grid — 2→3→4→5 cols, equal-height rows */
+.tov-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;grid-auto-rows:1fr;padding:2px 0 8px}
+@media(min-width:520px){.tov-grid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:760px){.tov-grid{grid-template-columns:repeat(4,1fr)}}
+@media(min-width:1040px){.tov-grid{grid-template-columns:repeat(5,1fr)}}
+.tov-card{display:flex;height:100%}
+.tov-cardlink{display:flex;flex-direction:column;gap:6px;width:100%;height:100%;padding:10px 11px 11px;border:1px solid var(--line);border-left:3px solid var(--tint,var(--line-2));border-radius:12px;background:var(--surface-1);cursor:pointer;color:inherit;text-align:left;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),transform .14s var(--ease)}
+.tov-cardlink:hover{background:var(--surface-2);border-color:var(--line-2);border-left-color:var(--tint);transform:translateY(-2px)}
+/* top row: domain · growth mark · due badge */
+.tov-top{display:flex;align-items:center;gap:6px}
+.tov-dom{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tov-spacer{flex:1}
+.tov-fmark{display:inline-flex;flex:none}
+.tov-fmark svg{width:12px;height:12px}
+.tov-fmark.ready{color:var(--teal)}
+.tov-fmark.near{color:var(--dim)}
+.tov-badge{flex:none;display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.02em;color:var(--teal);background:rgba(124,201,236,.14);border-radius:var(--r-pill);padding:2px 8px;line-height:1.5}
+.tov-pulse{width:6px;height:6px;border-radius:50%;background:var(--teal);flex:none}
+.tov-badge.clear{color:var(--ok);background:rgba(59,185,140,.13)}
+/* mid row: ring + name/count */
+.tov-mid{display:flex;align-items:center;gap:10px;min-width:0}
+.tov-ring{width:46px;height:46px;flex:none}
+.tov-ring-pct{font-family:var(--mono);font-weight:800;letter-spacing:-.03em}
+.tov-nameblock{display:flex;flex-direction:column;gap:1px;min-width:0}
+.tov-name{font-size:13.5px;line-height:1.2;letter-spacing:-.01em;font-weight:700;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tov-meta{font-size:11px;color:var(--muted)}
+.tov-open{color:var(--dim)}
+/* bottom row: mastery track + word (never colour-only) */
+.tov-mastery{margin-top:auto;display:flex;align-items:center;gap:8px}
+.tov-track{flex:1;height:5px;background:var(--surface-3);border-radius:var(--r-pill);overflow:hidden}
+.tov-track>span{display:block;height:100%;border-radius:var(--r-pill)}
+.tov-word{flex:none;font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:700}
+/* horizon — slim growth end-cap strip */
+.tov-horizon{display:flex;align-items:center;gap:10px;border:1px dashed var(--line-2);border-radius:12px;padding:10px 13px;margin-bottom:8px;color:var(--muted);font-size:12px;line-height:1.4;background:repeating-linear-gradient(-45deg,transparent 0 10px,rgba(255,255,255,.012) 10px 20px)}
+.tov-horizon b{color:var(--text);font-weight:600}
+.tov-hspark{width:16px;height:16px;flex:none;color:var(--fuel)}
+.tov-empty{padding:32px 20px;text-align:center;color:var(--muted)}
+.tov-empty b{color:var(--text)}
+.tov-search input:focus-visible,.tov-chip:focus-visible,.tov-cardlink:focus-visible,.tov-sort:focus-visible{outline:2px solid var(--teal);outline-offset:2px;border-radius:8px}

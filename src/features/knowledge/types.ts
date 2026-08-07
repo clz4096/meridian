@@ -65,4 +65,8 @@ export interface KnowledgeActions {
   setChartScale?(scale: string): void;
   /** Expand/collapse the questions/study section below the charts. */
   toggleLog?(): void;
+  /** Open the Browse-all-topics overview gallery (above the per-topic body). */
+  browseTopics(): void;
+  /** Return from a topic's questions to the Browse-all-topics overview. */
+  backToTopics(): void;
 }

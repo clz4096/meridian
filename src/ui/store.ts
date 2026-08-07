@@ -47,6 +47,7 @@ export const kgTarget = signal('all');
 export const kgRevealed = signal<Record<string, boolean>>({});
 export const kgItems = signal<Record<string, KnowledgeItem[]>>({}); // fetched question bank
 export const kgLogOpen = signal(false);
+export const kgOverview = signal(true); // Browse-all-topics gallery sits above the per-topic question body
 
 // ── meal UI state ──
 export const sgLoaded = signal(false);

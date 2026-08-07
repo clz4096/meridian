@@ -10,7 +10,7 @@ import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { KnowledgeView } from '@/features/knowledge/KnowledgeTab';
 import { knowledgeActions } from '@/ui/actions';
 import { appState } from '@/app/bootstrap';
-import { kgLoaded, kgLogOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed } from '@/ui/store';
+import { kgLoaded, kgLogOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgOverview } from '@/ui/store';
 import type { KnowledgeItem } from '@/features/knowledge/types';
 
 const QUESTION: KnowledgeItem = {
@@ -41,6 +41,7 @@ afterEach(() => {
   localStorage.clear();
   kgLoaded.value = false;
   kgLogOpen.value = false;
+  kgOverview.value = true;
   kgGym.value = false;
   kgTopic.value = 'algorithms';
   kgTime.value = 'all';
@@ -67,16 +68,31 @@ describe('KnowledgeView', () => {
     expect(startSpy).toHaveBeenCalledOnce();
   });
 
-  it('fires knowledgeActions.toggleLog when the "Browse all topics" CTA is tapped', () => {
-    const toggleSpy = vi.spyOn(knowledgeActions as Required<typeof knowledgeActions>, 'toggleLog').mockImplementation(() => {});
+  it('fires knowledgeActions.browseTopics when the "Browse all topics" CTA is tapped', () => {
+    const browseSpy = vi.spyOn(knowledgeActions, 'browseTopics').mockImplementation(() => {});
     const { getByText } = render(<KnowledgeView />);
     fireEvent.click(getByText('Browse all topics'));
-    expect(toggleSpy).toHaveBeenCalledOnce();
+    expect(browseSpy).toHaveBeenCalledOnce();
+  });
+
+  it('renders the Browse-all-topics overview (topic names visible) and tapping a topic fires selectTopic', () => {
+    seedQuestions();
+    kgLogOpen.value = true;
+    kgOverview.value = true; // gallery sits above the per-topic body
+    const selectSpy = vi.spyOn(knowledgeActions, 'selectTopic').mockImplementation(() => {});
+    const { getByText, getAllByText } = render(<KnowledgeView />);
+    // A couple of the 15 fixed topic names render as cards.
+    expect(getByText('Algorithms / LC')).toBeTruthy();
+    expect(getByText('Graph Theory')).toBeTruthy();
+    // The card's name button drills into that topic.
+    fireEvent.click(getAllByText('Algorithms / LC')[0]);
+    expect(selectSpy).toHaveBeenCalledWith('algorithms');
   });
 
   it('renders the seeded question prompt on the study screen, and Reveal fires knowledgeActions.reveal', () => {
     seedQuestions();
     kgLogOpen.value = true;
+    kgOverview.value = false;
     const revealSpy = vi.spyOn(knowledgeActions, 'reveal').mockImplementation(() => {});
     const { getByText } = render(<KnowledgeView />);
     expect(getByText('What is a hash map?')).toBeTruthy();
@@ -87,6 +103,7 @@ describe('KnowledgeView', () => {
   it('fires knowledgeActions.rate with the FSRS grade once the card is revealed', () => {
     seedQuestions();
     kgLogOpen.value = true;
+    kgOverview.value = false;
     kgRevealed.value = { q1: true };
     const rateSpy = vi.spyOn(knowledgeActions, 'rate').mockImplementation(() => {});
     const { container } = render(<KnowledgeView />);
@@ -100,6 +117,7 @@ describe('KnowledgeView', () => {
   it('fires knowledgeActions.setTimeFilter when a question-length filter is tapped', () => {
     seedQuestions();
     kgLogOpen.value = true;
+    kgOverview.value = false;
     const filterSpy = vi.spyOn(knowledgeActions, 'setTimeFilter').mockImplementation(() => {});
     const { getByText } = render(<KnowledgeView />);
     fireEvent.click(getByText('Quick · 5m'));
@@ -109,6 +127,7 @@ describe('KnowledgeView', () => {
   it('escapes an HTML-injection payload in the prompt to inert TEXT (never a live element)', () => {
     seedQuestions([{ ...QUESTION, id: 'q1', prompt: '<img src=x onerror="alert(1)">' }]);
     kgLogOpen.value = true;
+    kgOverview.value = false;
     const { container } = render(<KnowledgeView />);
     // Preact auto-escapes text children, so the payload survives as visible text…
     expect(container.innerHTML).toContain('&lt;img');
@@ -119,6 +138,7 @@ describe('KnowledgeView', () => {
   it('renders gym rows and fires knowledgeActions.toggleGymDone with the row key in gym mode', () => {
     seedQuestions();
     kgLogOpen.value = true;
+    kgOverview.value = false;
     kgGym.value = true;
     const gymSpy = vi.spyOn(knowledgeActions, 'toggleGymDone').mockImplementation(() => {});
     const { container } = render(<KnowledgeView />);
