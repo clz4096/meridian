@@ -418,7 +418,36 @@ export function buildPlan(
   config: ProgressionConfig = DEFAULT_CONFIG,
 ): ExercisePlan | null {
   const previous = lastSession(state, exercise, date);
-  if (!previous) return null;
+  if (!previous) {
+    // First time on an Away-mode home substitute: no logged history to progress
+    // from, but an approved starting weight exists. Seed a full first session —
+    // a top set plus three straight back-off sets at the same starting weight, so
+    // it's a real 4-set workout (not one lonely set). Once the sub has real logged
+    // sets, the normal path below runs and it progresses like any other lift.
+    const seed = overrides.away?.start[exercise];
+    if (!seed) return null;
+    const step = inferIncrement(state, exercise, config);
+    return {
+      exercise,
+      cardio: false,
+      warms: [],
+      top: { weight: seed.weight, reps: seed.reps },
+      backs: [
+        { weight: seed.weight, reps: seed.reps },
+        { weight: seed.weight, reps: seed.reps },
+        { weight: seed.weight, reps: seed.reps },
+      ],
+      bumped: false,
+      deload: false,
+      autoDeload: false,
+      repHigh: repCeiling(state, exercise, config),
+      atMinimum: false,
+      incr: step,
+      lastTopWeight: seed.weight,
+      lastTopReps: seed.reps,
+      lastDate: null,
+    };
+  }
 
   const repHigh = repCeiling(state, exercise, config);
 
@@ -808,11 +837,18 @@ export function selectWorkoutView(
   const isPast = date < today;
   const performedToday = loggedExercises(state, date);
 
+  // In Away mode a substitute accrues its own logged history, so it would
+  // otherwise surface in `allExercises` as its own card — but it is only ever
+  // meant to appear THROUGH its gym slot. Drop substitute names from the
+  // forward-looking list; the gym lift's slot carries them.
+  const subNames = overrides.away ? new Set(Object.values(overrides.away.swap)) : null;
+
   const exercises =
     isPast && performedToday.length > 0
       ? performedToday
       : allExercises(state)
           .filter((ex) => {
+            if (subNames?.has(ex)) return false;
             if (split === 'all') return true;
             const s = exerciseSplit(state, ex, config);
             return s === split || s === 'both';
@@ -823,9 +859,13 @@ export function selectWorkoutView(
   const performed: Record<string, WorkoutSet[]> = {};
   const completed: Record<string, boolean> = {};
   for (const ex of exercises) {
-    plans[ex] = buildPlan(state, ex, date, overrides, config);
-    performed[ex] = setsOn(state, ex, date);
-    completed[ex] = isExerciseComplete(state, ex, date, today, overrides, config);
+    // In Away mode the slot's ACTIVE exercise is the dumbbell substitute: its
+    // plan/history/completion drive the card, while the slot's list position,
+    // split, order and grouping stay keyed by the gym lift `ex` (unchanged).
+    const active = overrides.away?.swap[ex] ?? ex;
+    plans[ex] = buildPlan(state, active, date, overrides, config);
+    performed[ex] = setsOn(state, active, date);
+    completed[ex] = isExerciseComplete(state, active, date, today, overrides, config);
   }
 
   return {

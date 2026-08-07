@@ -8,10 +8,10 @@
  * components (Preact keeps DOM identity across renders).
  */
 import { RestTimer } from '@/ui/restTimer';
-import { selectWorkoutView, inferIncrement, restSeconds } from '@/features/workout/workoutSelectors';
+import { buildPlan, inferIncrement, restSeconds } from '@/features/workout/workoutSelectors';
 import type { WorkoutActions } from '@/features/workout/types';
 import { shiftDate } from '@/core/util';
-import type { SetType, Mastery } from '@/core/types';
+import { DEFAULT_CONFIG, type SetType, type Mastery, type SessionOverrides } from '@/core/types';
 import { dueCards } from '@/features/knowledge/knowledgeSelectors';
 import { scheduleFsrs, queuedEntry, type Grade } from '@/features/knowledge/fsrs';
 import type { KnowledgeActions } from '@/features/knowledge/types';
@@ -51,6 +51,12 @@ export const restTimer = new RestTimer({
 /* ── static build-time content ── */
 const EX_VIDEO: Record<string, string> = DATA.exVideo;
 const EX_SWAP: Record<string, string> = DATA.exSwap;
+const AWAY_START = DATA.awayStart;
+/** Approved starting prescription for a home substitute, or null if none. */
+export const awayStartFor = (sub: string) => AWAY_START[sub] ?? null;
+/** The Away-mode selector override (swap + start seeds) when home mode is on, else undefined. */
+const awayOverride = (): SessionOverrides['away'] | undefined =>
+  st.awayMode.value ? { swap: EX_SWAP, start: AWAY_START } : undefined;
 
 /* ── workout helpers ── */
 const yt = (q: string): string =>
@@ -93,10 +99,17 @@ export const workoutActions: WorkoutActions = {
     const td = st.wkDate.value ?? dstr();
     if (!W.days[td]) W.days[td] = [];
     const m = exMeta(ex);
-    W.days[td].push({ id: uid(), ex, muscle: m.muscle || '', group: m.group || '', type, weight, reps });
+    // In Away mode WorkoutTab passes the substitute's own name as `ex`, so its
+    // sets accrue under the sub (the machine lift is never polluted). Seed the
+    // muscle from the approved starting map the first time, before the sub has
+    // any logged history of its own to read a muscle from.
+    const muscle = m.muscle || AWAY_START[ex]?.muscle || '';
+    W.days[td].push({ id: uid(), ex, muscle, group: m.group || '', type, weight, reps });
     appState.markWorkoutDirty();
-    // auto-complete: tick the exercise once every prescribed set is in
-    const planned = selectWorkoutView(W, td, dstr(), { deload: st.wkDeload.value }).plans[ex];
+    // auto-complete: tick the exercise once every prescribed set is in. Build the
+    // plan WITH the away override so a first-time sub's `need` reflects its seeded
+    // (top-set-only) plan rather than falling through to null → 1.
+    const planned = buildPlan(W, ex, td, { deload: st.wkDeload.value, away: awayOverride() }, DEFAULT_CONFIG);
     const need = planned && !planned.cardio ? planned.warms.length + 1 + planned.backs.length : 1;
     if (W.days[td].filter((s: Store) => s.ex === ex).length >= need) {
       if (!W.done) W.done = {};

@@ -536,6 +536,73 @@ describe('back-off set floor (missing-sets regression)', () => {
   });
 });
 
+describe('Away-mode home substitute', () => {
+  // Leg Press (gym machine) → Goblet Squat (dumbbell sub), approved start 30 × 10.
+  const away = {
+    swap: { 'Leg Press': 'Goblet Squat' },
+    start: { 'Goblet Squat': { weight: 30, reps: 10, muscle: 'quads' } },
+  };
+
+  it('buildPlan seeds a no-history sub from its approved start weight', () => {
+    const s = stateOf([]); // no history at all
+    // no away override → nothing to progress from
+    expect(buildPlan(s, 'Goblet Squat', D(5))).toBeNull();
+    // with the seed → a full first session (top + 3 straight back-offs) at the approved load
+    const plan = buildPlan(s, 'Goblet Squat', D(5), { away })!;
+    expect(plan).not.toBeNull();
+    expect(plan.cardio).toBe(false);
+    expect(plan.top).toEqual({ weight: 30, reps: 10 });
+    expect(plan.warms).toEqual([]);
+    expect(plan.backs).toEqual([
+      { weight: 30, reps: 10 },
+      { weight: 30, reps: 10 },
+      { weight: 30, reps: 10 },
+    ]);
+    expect(plan.bumped).toBe(false);
+    expect(plan.deload).toBe(false);
+    expect(plan.lastTopWeight).toBe(30);
+    expect(plan.lastTopReps).toBe(10);
+    expect(plan.lastDate).toBeNull();
+    expect(plan.incr).toBeGreaterThan(0);
+  });
+
+  it('once the sub has its own logged history it progresses normally, ignoring the seed', () => {
+    // sub already trained at 40 (heavier than the 30 seed) → real history wins
+    const s = stateOf([{ date: D(0), ex: 'Goblet Squat', weight: 40, reps: 10, muscle: 'quads' }]);
+    const plan = buildPlan(s, 'Goblet Squat', D(3), { away })!;
+    expect(plan.lastTopWeight).toBe(40);
+    expect(plan.top.weight).toBeGreaterThanOrEqual(40);
+  });
+
+  it('selectWorkoutView routes the gym slot to its substitute (plan/performed/completed)', () => {
+    const s = stateOf([
+      { date: D(0), ex: 'Leg Press', weight: 200, reps: 8, muscle: 'quads' }, // machine history
+      { date: D(0), ex: 'Goblet Squat', weight: 35, reps: 10, muscle: 'quads' }, // the sub's prior session
+      { date: D(2), ex: 'Goblet Squat', weight: 40, reps: 10, muscle: 'quads' }, // today's sub set
+    ]);
+    const view = selectWorkoutView(s, D(2), D(2), { split: 'all', away });
+    // the list position/slot stays the gym lift…
+    expect(view.exercises).toContain('Leg Press');
+    // …and the substitute never appears as its own separate card
+    expect(view.exercises).not.toContain('Goblet Squat');
+    // …but plan + performed for that slot are the substitute's, not the machine's
+    expect(view.plans['Leg Press']!.exercise).toBe('Goblet Squat');
+    expect(view.plans['Leg Press']!.lastTopWeight).toBe(35); // progresses off the sub's own history, not the machine's 200
+    expect(view.performed['Leg Press']!.map((x) => x.ex)).toEqual(['Goblet Squat']);
+    expect(view.performed['Leg Press']![0]!.weight).toBe(40);
+    expect(view.completed['Leg Press']).toBe(true); // the one logged top set meets the plan
+  });
+
+  it('a first-time sub seeds its slot even with no sub history, driven off the gym slot', () => {
+    const s = stateOf([{ date: D(0), ex: 'Leg Press', weight: 200, reps: 8, muscle: 'quads' }]);
+    const view = selectWorkoutView(s, D(2), D(2), { split: 'all', away });
+    expect(view.exercises).toContain('Leg Press');
+    // no Goblet Squat history yet → seeded starting plan from the approved weight
+    expect(view.plans['Leg Press']!.top).toEqual({ weight: 30, reps: 10 });
+    expect(view.performed['Leg Press']).toEqual([]);
+  });
+});
+
 describe('estimated 1RM (Epley)', () => {
   it('matches the Epley formula and floors non-positive input to 0', () => {
     expect(e1rm(100, 1)).toBeCloseTo(103.333, 2);

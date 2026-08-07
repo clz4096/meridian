@@ -349,4 +349,14 @@ export interface SessionOverrides {
   deload?: Record<string, boolean>;
   /** split the user manually selected, overriding the suggestion */
   split?: Split | 'all';
+  /**
+   * Away (home) mode: each machine lift's slot is driven by its dumbbell
+   * substitute. `swap` maps gym exercise → sub name; `start` holds each sub's
+   * approved starting prescription, used to seed a plan the first time the sub
+   * is trained (before it has any logged history of its own).
+   */
+  away?: {
+    swap: Record<string, string>;
+    start: Record<string, { weight: number; reps: number; muscle?: string }>;
+  };
 }
