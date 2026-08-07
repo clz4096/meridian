@@ -121,7 +121,6 @@ describe('KnowledgeView', () => {
 
   it('shows the belonging headline + trail band, and the topic switcher fires selectTopic', () => {
     seedQuestions();
-    kgLogOpen.value = true;
     kgOverview.value = false;
     const selectSpy = vi.spyOn(knowledgeActions, 'selectTopic').mockImplementation(() => {});
     const { getByText } = render(<KnowledgeView />);
@@ -135,7 +134,6 @@ describe('KnowledgeView', () => {
 
   it('fires knowledgeActions.answerWithAI when the AI-answer button is tapped', () => {
     seedQuestions();
-    kgLogOpen.value = true;
     kgOverview.value = false;
     const aiSpy = vi.spyOn(knowledgeActions, 'answerWithAI').mockImplementation(() => {});
     const { getByText } = render(<KnowledgeView />);
