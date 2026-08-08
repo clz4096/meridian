@@ -1,6 +1,6 @@
 /**
- * KnowledgeView component test. Asserts the gallery landing (Today's-path bar +
- * hero + topic cards + Progress doorways), then exercises the study body via
+ * KnowledgeView component test. Asserts the gate lands on the Rail by default
+ * (detail lives in KnowledgeRail.test.tsx), then exercises the study body via
  * kgOverview=false: a seeded question renders, Reveal / the 4 FSRS grade buttons /
  * filters / gym rows are each wired to the matching knowledgeActions method, and
  * untrusted question text is escaped to inert TEXT (injection safety). Also covers
@@ -53,25 +53,19 @@ afterEach(() => {
 });
 
 describe('KnowledgeView', () => {
-  it('lands on the card gallery by default — Today’s-path bar + topic cards', () => {
-    const { getByText } = render(<KnowledgeView />);
-    expect(getByText('Today’s path')).toBeTruthy();
-    // A couple of the 15 fixed topic names render as cards on the landing gallery.
+  it('lands on the Rail by default — the three fixed sections + topic tiles (via the gate)', () => {
+    const { container, getByText } = render(<KnowledgeView />);
+    const heads = Array.from(container.querySelectorAll('.rail-section-h')).map((h) => h.textContent);
+    expect(heads).toEqual(['Foundations', 'Systems', 'Frontier']);
+    // A couple of the 15 fixed topic names render as rail tiles.
     expect(getByText('Algorithms / LC')).toBeTruthy();
     expect(getByText('Graph Theory')).toBeTruthy();
   });
 
-  it('fires knowledgeActions.startToday when the Today’s-path bar is tapped', () => {
-    const startSpy = vi.spyOn(knowledgeActions, 'startToday').mockImplementation(() => {});
-    const { getByText } = render(<KnowledgeView />);
-    fireEvent.click(getByText('Today’s path'));
-    expect(startSpy).toHaveBeenCalledOnce();
-  });
-
-  it('fires knowledgeActions.openProgress from the gallery’s "See progress" doorway', () => {
+  it('fires knowledgeActions.openProgress when the Rail’s header meter is tapped', () => {
     const progSpy = vi.spyOn(knowledgeActions, 'openProgress').mockImplementation(() => {});
-    const { getByText } = render(<KnowledgeView />);
-    fireEvent.click(getByText('See progress →'));
+    const { container } = render(<KnowledgeView />);
+    fireEvent.click(container.querySelector('.rail-meter') as HTMLElement);
     expect(progSpy).toHaveBeenCalledOnce();
   });
 
