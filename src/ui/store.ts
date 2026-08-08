@@ -46,8 +46,8 @@ export const kgGym = signal(false);
 export const kgTarget = signal('all');
 export const kgRevealed = signal<Record<string, boolean>>({});
 export const kgItems = signal<Record<string, KnowledgeItem[]>>({}); // fetched question bank
-export const kgLogOpen = signal(false);
-export const kgOverview = signal(true); // Browse-all-topics gallery sits above the per-topic question body
+export const kgProgressOpen = signal(false); // secondary charts/trends view, opened on demand from the gallery
+export const kgOverview = signal(true); // the card gallery is the default landing; false = a topic's study body
 
 // ── meal UI state ──
 export const sgLoaded = signal(false);
