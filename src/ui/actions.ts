@@ -11,9 +11,10 @@ import { RestTimer } from '@/ui/restTimer';
 import { buildPlan, inferIncrement, restSeconds } from '@/features/workout/workoutSelectors';
 import type { WorkoutActions } from '@/features/workout/types';
 import { shiftDate } from '@/core/util';
-import { DEFAULT_CONFIG, type SetType, type Mastery, type SessionOverrides } from '@/core/types';
+import { DEFAULT_CONFIG, type SetType, type SessionOverrides } from '@/core/types';
 import { dueCards } from '@/features/knowledge/knowledgeSelectors';
 import { scheduleFsrs, queuedEntry, type Grade } from '@/features/knowledge/fsrs';
+import { GRADE_MASTERY } from '@/features/knowledge/ascent';
 import type { KnowledgeActions } from '@/features/knowledge/types';
 import { fetchQuestionBank } from '@/features/knowledge/questionBank';
 import { aiCall, estimateMacros } from '@/services/ai';
@@ -277,9 +278,6 @@ function scheduleCard(id: string, grade: Grade): void {
   K.srs[id] = scheduleFsrs(K.srs[id] as never, grade, new Date(dstr() + 'T00:00:00Z')) as never;
 }
 
-/** A grade (Again/Hard/Good/Easy) → the 1–5 mastery the charts + log still read. */
-const GRADE_MASTERY: Record<Grade, Mastery> = { 1: 1, 2: 3, 3: 4, 4: 5 };
-
 /**
  * "Today's path" — the growth queue: everything due for review (FSRS), then up
  * to `newCap` brand-new questions you haven't seen. Due first (most overdue),
@@ -293,6 +291,42 @@ export function todayPathItems(newCap = 10): Store[] {
     (it) => !seen.has(it.id) && K.srs?.[it.id] === undefined && K.mastery?.[it.id] === undefined,
   );
   return [...due, ...fresh.slice(0, Math.max(0, newCap))];
+}
+
+/** The frozen deck + counts for one Ascent session (see AscentSession.tsx). */
+export interface TodaySession {
+  /** the session deck: due-first (most overdue), then fresh — total ≤ cap. */
+  items: Store[];
+  /** how many of `items` are due reviews. */
+  dueN: number;
+  /** how many of `items` are brand-new. */
+  newN: number;
+  /** real backlog NOT in today's deck — due beyond the cap + fresh beyond the new
+   *  allowance — surfaced as the summit's "+N waiting for tomorrow". */
+  overflow: number;
+}
+
+/**
+ * Snapshot today's session at Begin: due reviews take priority up to `cap`, then
+ * up to `newCap` fresh questions fill the remaining room (never exceeding `cap`).
+ * Overflow is the genuine backlog left over, so the "+N tomorrow" line is honest.
+ */
+export function todaySession(cap = 20, newCap = 10): TodaySession {
+  const due = dueItems();
+  const seen = new Set(due.map((i) => i.id));
+  const K = kg();
+  const fresh = allKGItems().filter(
+    (it) => !seen.has(it.id) && K.srs?.[it.id] === undefined && K.mastery?.[it.id] === undefined,
+  );
+  const dueTake = due.slice(0, Math.max(0, cap));
+  const room = Math.max(0, cap - dueTake.length);
+  const newTake = fresh.slice(0, Math.min(Math.max(0, newCap), room));
+  return {
+    items: [...dueTake, ...newTake],
+    dueN: dueTake.length,
+    newN: newTake.length,
+    overflow: due.length - dueTake.length + (fresh.length - newTake.length),
+  };
 }
 
 /* ── knowledge actions ── */

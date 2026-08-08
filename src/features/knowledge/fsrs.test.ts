@@ -5,7 +5,7 @@
  * losing history, and the forgetting curve decays over time.
  */
 import { describe, it, expect } from 'vitest';
-import { scheduleFsrs, readFsrs, queuedEntry, retrievability, type FsrsEntry } from './fsrs';
+import { scheduleFsrs, readFsrs, queuedEntry, retrievability, previewIntervals, humanizeDays, type FsrsEntry } from './fsrs';
 
 const D = (s: string): Date => new Date(s + 'T00:00:00Z');
 const gap = (from: string, to: string): number => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
@@ -81,5 +81,43 @@ describe('fsrs · helpers', () => {
     expect(r0).toBeGreaterThan(r10);
     expect(r10).toBeLessThan(1);
     expect(r10).toBeGreaterThan(0.5);
+  });
+});
+
+describe('fsrs · humanizeDays', () => {
+  it('formats day counts into compact honest labels', () => {
+    expect(humanizeDays(0)).toBe('today');
+    expect(humanizeDays(1)).toBe('1d');
+    expect(humanizeDays(6)).toBe('6d');
+    expect(humanizeDays(7)).toBe('1w');
+    expect(humanizeDays(21)).toBe('3w');
+    expect(humanizeDays(30)).toBe('1mo');
+    expect(humanizeDays(365)).toBe('1y');
+  });
+});
+
+describe('fsrs · previewIntervals', () => {
+  it('a new card: Hard ≤ Good ≤ Easy in days, and Again sits at the ~1d floor', () => {
+    const p = previewIntervals(undefined, D('2026-08-06'));
+    // monotonic across the three passing grades
+    expect(p[2].days).toBeLessThanOrEqual(p[3].days);
+    expect(p[3].days).toBeLessThanOrEqual(p[4].days);
+    // Again does NOT re-show intra-day (enable_short_term:false) — ~1 day out
+    expect(p[1].days).toBeGreaterThanOrEqual(1);
+    expect(p[1].days).toBeLessThanOrEqual(1);
+    expect(p[1].hint).toBe('1d');
+  });
+
+  it('a review card: Again resets short, passing grades stay monotone', () => {
+    const good = scheduleFsrs(scheduleFsrs(undefined, 3, D('2026-08-06')), 3, D('2026-08-10'));
+    const p = previewIntervals(good, D('2026-08-20'));
+    expect(p[1].days).toBeLessThanOrEqual(p[2].days); // Again is the shortest
+    expect(p[2].days).toBeLessThanOrEqual(p[3].days);
+    expect(p[3].days).toBeLessThanOrEqual(p[4].days);
+    // every preview is a real future interval with a label
+    for (const g of [1, 2, 3, 4] as const) {
+      expect(p[g].days).toBeGreaterThanOrEqual(0);
+      expect(typeof p[g].hint).toBe('string');
+    }
   });
 });

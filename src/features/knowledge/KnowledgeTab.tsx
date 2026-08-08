@@ -11,6 +11,7 @@ import { ProgControls, Carousel, Chart } from '@/ui/components/Charts';
 import { SecHero } from '@/ui/components/SecHero';
 import { kg, core, dueItems, allTargetItems, todayPathItems, knowledgeActions, loadKnowledge, goHome } from '@/ui/actions';
 import { knowledgeGrowth } from '@/features/knowledge/knowledgeSelectors';
+import { AscentSession } from '@/features/knowledge/AscentSession';
 import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgOverview, progPeriod, dataRev } from '@/ui/store';
 import { dstr } from '@/app/bootstrap';
 import type { Mastery } from '@/core/types';
@@ -794,6 +795,7 @@ export function KnowledgeView() {
   dataRev.value; // re-derive
   if (!kgLoaded.value) return <div class="empty">Loading…</div>;
   if (kgProgressOpen.value) return <KnowledgeProgress />; // secondary charts/trends
+  if (!kgOverview.value && kgTopic.value === '__today__') return <AscentSession />; // guided daily session
   if (!kgOverview.value) return <KnowledgeBody vm={knowledgeVM()} />; // per-topic study
   return <TopicsOverview />; // card gallery = default landing
 }
