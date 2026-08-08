@@ -117,6 +117,37 @@ export function queuedEntry(date: string): FsrsEntry {
   return { due: date, stability: 0.5, difficulty: 5, reps: 0, lapses: 0, state: 1, lastReview: '' };
 }
 
+/**
+ * A whole-day interval as a compact, honest label: "1d", "5d", "2w", "3mo",
+ * "1y". Used for the per-grade next-interval hint under each grade button.
+ */
+export function humanizeDays(n: number): string {
+  if (n <= 0) return 'today';
+  if (n < 7) return n + 'd';
+  if (n < 30) return Math.round(n / 7) + 'w';
+  if (n < 365) return Math.round(n / 30) + 'mo';
+  return Math.round(n / 365) + 'y';
+}
+
+/**
+ * The REAL next interval FSRS would schedule for each of the four grades, as of
+ * `now`. Pure: `(prev entry, now) -> per-grade {days, hint}`. This is what lets
+ * the session show honest pacing instead of the prototype's hardcoded strings.
+ *
+ * Note: with `enable_short_term:false`, Again does NOT re-show intra-day — it
+ * schedules ~1 day out ("back tomorrow"), so the day counts are monotone across
+ * Hard ≤ Good ≤ Easy with Again sitting at the short floor.
+ */
+export function previewIntervals(prev: FsrsEntry | undefined, now: Date): Record<Grade, { days: number; hint: string }> {
+  const out = {} as Record<Grade, { days: number; hint: string }>;
+  for (const g of [1, 2, 3, 4] as Grade[]) {
+    const next = scheduleFsrs(prev, g, now);
+    const days = Math.max(0, Math.round((parse(next.due).getTime() - now.getTime()) / 86_400_000));
+    out[g] = { days, hint: humanizeDays(days) };
+  }
+  return out;
+}
+
 /** Current recall probability (0..1) for an entry as of `today` — FSRS forgetting curve. */
 export function retrievability(raw: unknown, today: string): number {
   const e = readFsrs(raw);
