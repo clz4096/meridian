@@ -11,7 +11,7 @@
  * touch document.getElementById — harmlessly no-op when the element is absent.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, restTimer, openSection, goHome, handleBack, sg, kg, core, wk } from '@/ui/actions';
+import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, restTimer, openSection, goHome, handleBack, todaySession, sg, kg, core, wk } from '@/ui/actions';
 import { appState, dstr } from '@/app/bootstrap';
 import { selectWorkoutView } from '@/features/workout/workoutSelectors';
 import defaultWorkout from '@/core/data/defaultWorkout.json';
@@ -216,5 +216,73 @@ describe('navigation (Today home + hybrid nav)', () => {
     expect(handleBack()).toBe(true);
     expect(currentTab.value).toBe('today');
     expect(handleBack()).toBe(false);
+  });
+});
+
+/**
+ * todaySession — the frozen daily deck: due reviews take priority up to the cap,
+ * fresh questions fill the remaining room, and overflow is the honest backlog
+ * left for tomorrow. Seeds a single synthetic topic with N due + M unseen items.
+ */
+describe('todaySession', () => {
+  function seed(dueN: number, freshN: number): void {
+    const items: Array<{ id: string; prompt: string; reveal: string; mins: number; flow: 'flip'; src: { book: string; ref: string } }> = [];
+    const srs: Record<string, unknown> = {};
+    for (let i = 0; i < dueN; i++) {
+      const id = 'due' + i;
+      items.push({ id, prompt: 'p', reveal: 'r', mins: 5, flow: 'flip', src: { book: 'clrs', ref: 'x' } });
+      srs[id] = { due: today, ivl: 1, ease: 2.5, n: 1 }; // due on/before today
+    }
+    for (let i = 0; i < freshN; i++) {
+      const id = 'new' + i;
+      items.push({ id, prompt: 'p', reveal: 'r', mins: 5, flow: 'flip', src: { book: 'clrs', ref: 'x' } });
+      // no srs, no mastery → unseen
+    }
+    kgItems.value = { synthetic: items } as never;
+    Object.assign(kg(), { mastery: {}, srs, log: [], gymDone: {} });
+  }
+
+  it('due fills first, fresh fills the remaining room, total ≤ cap', () => {
+    seed(5, 30);
+    const s = todaySession(20, 10);
+    expect(s.dueN).toBe(5);
+    expect(s.newN).toBe(10); // min(newCap 10, room 15)
+    expect(s.items).toHaveLength(15);
+    // overflow = due beyond cap (0) + fresh not shown (30 - 10 = 20)
+    expect(s.overflow).toBe(20);
+  });
+
+  it('caps due at the daily cap and pushes the rest to overflow (no room for new)', () => {
+    seed(25, 15);
+    const s = todaySession(20, 10);
+    expect(s.dueN).toBe(20);
+    expect(s.newN).toBe(0); // cap exhausted by due
+    expect(s.items).toHaveLength(20);
+    // overflow = due beyond cap (5) + all fresh (15)
+    expect(s.overflow).toBe(20);
+  });
+
+  it('at the exact boundary (due === cap) shows 0 new and only fresh overflow', () => {
+    seed(20, 4);
+    const s = todaySession(20, 10);
+    expect(s.dueN).toBe(20);
+    expect(s.newN).toBe(0);
+    expect(s.overflow).toBe(4); // 0 due-overflow + 4 fresh
+  });
+
+  it('an empty bank yields an empty deck and zero overflow', () => {
+    seed(0, 0);
+    const s = todaySession(20, 10);
+    expect(s.items).toHaveLength(0);
+    expect(s.overflow).toBe(0);
+  });
+
+  it('places every due card before any fresh card in the deck', () => {
+    seed(3, 5);
+    const s = todaySession(20, 10);
+    const dueIdx = s.items.map((it, i) => ({ i, due: it.id.startsWith('due') }));
+    const lastDue = Math.max(...dueIdx.filter((x) => x.due).map((x) => x.i));
+    const firstFresh = Math.min(...dueIdx.filter((x) => !x.due).map((x) => x.i));
+    expect(lastDue).toBeLessThan(firstFresh);
   });
 });
