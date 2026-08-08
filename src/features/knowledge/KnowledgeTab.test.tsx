@@ -90,14 +90,35 @@ describe('KnowledgeView', () => {
     expect(selectSpy).toHaveBeenCalledWith('algorithms');
   });
 
-  it('renders the seeded question prompt on the study screen, and Reveal fires knowledgeActions.reveal', () => {
+  it('renders the seeded question prompt on the topic screen, and Reveal fires knowledgeActions.reveal', () => {
     seedQuestions();
     kgOverview.value = false;
     const revealSpy = vi.spyOn(knowledgeActions, 'reveal').mockImplementation(() => {});
-    const { getByText } = render(<KnowledgeView />);
+    const { getByText, container } = render(<KnowledgeView />);
     expect(getByText('What is a hash map?')).toBeTruthy();
-    fireEvent.click(getByText('Show answer'));
+    fireEvent.click(container.querySelector('.tpc-reveal') as HTMLElement);
     expect(revealSpy).toHaveBeenCalledWith('q1');
+  });
+
+  it('renders the topic screen’s calm column — header, tucked effort + 🎧 Gym, cards with an honest effort chip, and NO "Studying for"', () => {
+    seedQuestions();
+    kgOverview.value = false;
+    const { container, getByText, queryByText } = render(<KnowledgeView />);
+    expect(container.querySelector('.tpc-head')).toBeTruthy(); // ‹ back · topic · mastery% · N due
+    expect(container.querySelector('.tpc-effort')).toBeTruthy(); // the Effort filter
+    expect(container.querySelector('.tpc-gym')).toBeTruthy(); // the 🎧 Gym entry
+    expect(getByText(/5 min/)).toBeTruthy(); // effort chip = honest length, never a difficulty badge
+    expect(queryByText('Studying for')).toBeNull(); // the target filter is cut
+    expect(queryByText(/Your trail up/)).toBeNull(); // the trail band is cut
+  });
+
+  it('the 🎧 Gym entry fires knowledgeActions.toggleGym', () => {
+    seedQuestions();
+    kgOverview.value = false;
+    const gymSpy = vi.spyOn(knowledgeActions, 'toggleGym').mockImplementation(() => {});
+    const { container } = render(<KnowledgeView />);
+    fireEvent.click(container.querySelector('.tpc-gym') as HTMLElement);
+    expect(gymSpy).toHaveBeenCalledOnce();
   });
 
   it('fires knowledgeActions.rate with the FSRS grade once the card is revealed', () => {
@@ -113,17 +134,17 @@ describe('KnowledgeView', () => {
     expect(rateSpy).toHaveBeenCalledWith('q1', 4);
   });
 
-  it('shows the belonging headline + trail band, and the topic switcher fires selectTopic', () => {
-    seedQuestions();
+  it('the "Review N due →" row launches the focused review — startReview(topicId)', () => {
+    kgItems.value = { algorithms: [QUESTION] };
+    appState.set('csgraph', { mastery: {}, gymDone: {}, srs: { q1: { due: '2000-01-01' } }, log: [] });
     kgOverview.value = false;
-    const selectSpy = vi.spyOn(knowledgeActions, 'selectTopic').mockImplementation(() => {});
-    const { getByText } = render(<KnowledgeView />);
-    // Base Camp hero: belonging progress + the forward-looking trail.
-    expect(getByText(/You.*ve mastered/)).toBeTruthy();
-    expect(getByText(/Your trail up/)).toBeTruthy();
-    // The Switch menu lists every topic; picking a different one drills into it.
-    fireEvent.click(getByText('Graph Theory'));
-    expect(selectSpy).toHaveBeenCalledWith('graph');
+    const spy = vi.spyOn(knowledgeActions, 'startReview').mockImplementation(() => {});
+    const { container } = render(<KnowledgeView />);
+    const row = container.querySelector('.tpc-review') as HTMLElement;
+    expect(row).toBeTruthy();
+    expect(row.textContent).toContain('1 due');
+    fireEvent.click(row);
+    expect(spy).toHaveBeenCalledWith('algorithms');
   });
 
   it('fires knowledgeActions.answerWithAI when the AI-answer button is tapped', () => {
@@ -140,7 +161,7 @@ describe('KnowledgeView', () => {
     kgOverview.value = false;
     const filterSpy = vi.spyOn(knowledgeActions, 'setTimeFilter').mockImplementation(() => {});
     const { getByText } = render(<KnowledgeView />);
-    fireEvent.click(getByText('Quick · 5m'));
+    fireEvent.click(getByText('5m'));
     expect(filterSpy).toHaveBeenCalledWith('5');
   });
 

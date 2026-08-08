@@ -329,6 +329,29 @@ export function todaySession(cap = 20, newCap = 10): TodaySession {
   };
 }
 
+/** kgTopic sentinel that scopes an Ascent session to ONE topic's due deck. */
+export const REVIEW_PREFIX = '__review__:';
+
+/**
+ * A capped, topic-scoped review deck for the Ascent engine — this topic's due
+ * items only, capped at min(due, cap). Same TodaySession shape as todaySession()
+ * so `AscentSession` runs it unchanged (one engine, one query, scoped).
+ */
+export function topicReviewSession(topicId: string, cap = 10): TodaySession {
+  const due = dueItems().filter((it) => it.topic === topicId);
+  const items = due.slice(0, Math.min(due.length, cap));
+  return { items, dueN: items.length, newN: 0, overflow: due.length - items.length };
+}
+
+/**
+ * The Ascent deck for the CURRENT kgTopic: a capped topic review when kgTopic is
+ * a `__review__:<id>` sentinel, otherwise the interleaved "Today's path".
+ */
+export function sessionForTopic(): TodaySession {
+  const t = st.kgTopic.value;
+  return t.startsWith(REVIEW_PREFIX) ? topicReviewSession(t.slice(REVIEW_PREFIX.length)) : todaySession();
+}
+
 /* ── knowledge actions ── */
 export const knowledgeActions: KnowledgeActions = {
   selectTopic(id) {
@@ -370,14 +393,27 @@ export const knowledgeActions: KnowledgeActions = {
     st.kgGym.value = false;
     st.bump();
   },
-  startReview() {
-    st.kgTopic.value = '__review__';
+  startReview(topicId) {
+    // Focused review = a capped Ascent session scoped to THIS topic's due deck.
+    st.kgTopic.value = REVIEW_PREFIX + topicId;
     st.kgTime.value = 'all';
     st.kgOverview.value = false;
     st.kgProgressOpen.value = false;
     st.kgGym.value = false;
     st.kgRevealed.value = {};
-    pushState(); // drill into the review study body; back returns to the gallery
+    pushState(); // drill into the review session; back returns to the topic
+    st.bump();
+  },
+  exitSession() {
+    // A topic review returns to its topic screen; Today's path returns to the Rail.
+    const t = st.kgTopic.value;
+    if (t.startsWith(REVIEW_PREFIX)) {
+      st.kgTopic.value = t.slice(REVIEW_PREFIX.length);
+      st.kgOverview.value = false;
+    } else {
+      st.kgOverview.value = true;
+    }
+    st.kgGym.value = false;
     st.bump();
   },
   startToday() {

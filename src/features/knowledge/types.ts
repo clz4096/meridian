@@ -49,9 +49,12 @@ export interface KnowledgeActions {
   setTimeFilter(value: string): void;
   setTarget(value: string): void;
   studyAllTagged(): void;
-  startReview(): void;
+  /** Launch the focused review — a capped Ascent session over `topicId`'s due deck. */
+  startReview(topicId: string): void;
   /** Start "Today's path" — the FSRS growth queue (due reviews + new questions). */
   startToday(): void;
+  /** Exit an Ascent session: a topic review → its topic screen; Today's path → the Rail. */
+  exitSession(): void;
   toggleGym(): void;
   toggleGymDone(key: string): void;
   reveal(id: string): void;

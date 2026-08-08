@@ -70,12 +70,13 @@ describe('KnowledgeRail', () => {
     expect(algoTile.className).toContain('rail-done');
   });
 
-  it('Study fires selectTopic(currentId) — the current topic', () => {
+  it('the single "Continue → Today’s path" CTA fires startToday — and there is no Study button', () => {
     seed({ items: { algorithms: [Q('a1')] }, dueIds: ['a1'] });
-    const spy = vi.spyOn(knowledgeActions, 'selectTopic').mockImplementation(() => {});
-    const { getByText } = render(<KnowledgeRail />);
-    fireEvent.click(getByText('Study'));
-    expect(spy).toHaveBeenCalledWith('algorithms');
+    const startSpy = vi.spyOn(knowledgeActions, 'startToday').mockImplementation(() => {});
+    const { container, queryByText } = render(<KnowledgeRail />);
+    expect(queryByText('Study')).toBeNull(); // the second CTA is gone
+    fireEvent.click(container.querySelector('.rail-btn-continue') as HTMLElement);
+    expect(startSpy).toHaveBeenCalledOnce();
   });
 
   it('a tile tap fires selectTopic(topic.id)', () => {
@@ -91,14 +92,6 @@ describe('KnowledgeRail', () => {
     const spy = vi.spyOn(knowledgeActions, 'openProgress').mockImplementation(() => {});
     const { container } = render(<KnowledgeRail />);
     fireEvent.click(container.querySelector('.rail-meter') as HTMLElement);
-    expect(spy).toHaveBeenCalledOnce();
-  });
-
-  it('the "Today’s path" link fires startToday', () => {
-    seed({ items: { algorithms: [Q('a1')] }, dueIds: ['a1'] });
-    const spy = vi.spyOn(knowledgeActions, 'startToday').mockImplementation(() => {});
-    const { getByText } = render(<KnowledgeRail />);
-    fireEvent.click(getByText(/Today’s path/));
     expect(spy).toHaveBeenCalledOnce();
   });
 

@@ -11,7 +11,7 @@
  * touch document.getElementById — harmlessly no-op when the element is absent.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, restTimer, openSection, goHome, handleBack, todaySession, sg, kg, core, wk } from '@/ui/actions';
+import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, restTimer, openSection, goHome, handleBack, todaySession, topicReviewSession, sessionForTopic, REVIEW_PREFIX, sg, kg, core, wk } from '@/ui/actions';
 import { appState, dstr } from '@/app/bootstrap';
 import { selectWorkoutView } from '@/features/workout/workoutSelectors';
 import defaultWorkout from '@/core/data/defaultWorkout.json';
@@ -284,5 +284,61 @@ describe('todaySession', () => {
     const lastDue = Math.max(...dueIdx.filter((x) => x.due).map((x) => x.i));
     const firstFresh = Math.min(...dueIdx.filter((x) => !x.due).map((x) => x.i));
     expect(lastDue).toBeLessThan(firstFresh);
+  });
+});
+
+/**
+ * topicReviewSession — the focused-review deck: ONE topic's due items only, capped
+ * at min(due, 10). sessionForTopic routes a `__review__:<id>` kgTopic to it, and
+ * everything else to the interleaved todaySession — one engine, one query, scoped.
+ */
+describe('topicReviewSession / sessionForTopic', () => {
+  function seedTopic(topic: string, dueN: number): void {
+    const items: Array<{ id: string; prompt: string; reveal: string; mins: number; flow: 'flip'; src: { book: string; ref: string } }> = [];
+    const srs: Record<string, unknown> = {};
+    for (let i = 0; i < dueN; i++) {
+      const id = topic + '-due' + i;
+      items.push({ id, prompt: 'p', reveal: 'r', mins: 5, flow: 'flip', src: { book: 'clrs', ref: 'x' } });
+      srs[id] = { due: today, ivl: 1, ease: 2.5, n: 1 };
+    }
+    const map = { ...kgItems.value } as Record<string, unknown>;
+    map[topic] = items;
+    kgItems.value = map as never;
+    Object.assign(kg(), { mastery: {}, srs, log: [], gymDone: {} });
+  }
+
+  it('caps the deck at min(due, 10) and scopes it to the topic, with the rest as overflow', () => {
+    kgItems.value = {};
+    seedTopic('algorithms', 13);
+    const s = topicReviewSession('algorithms', 10);
+    expect(s.items).toHaveLength(10); // min(13, 10)
+    expect(s.dueN).toBe(10);
+    expect(s.newN).toBe(0); // a review deck carries no fresh cards
+    expect(s.overflow).toBe(3);
+    expect(s.items.every((it) => it.id.startsWith('algorithms-'))).toBe(true); // topic-scoped
+  });
+
+  it('returns only the topic’s own due items even when other topics are due', () => {
+    kgItems.value = {};
+    seedTopic('algorithms', 2);
+    seedTopic('graph', 4); // seedTopic replaces the srs, so re-add algorithms dues
+    Object.assign(kg(), {
+      mastery: {},
+      srs: { 'algorithms-due0': { due: today }, 'algorithms-due1': { due: today }, 'graph-due0': { due: today }, 'graph-due1': { due: today }, 'graph-due2': { due: today }, 'graph-due3': { due: today } },
+      log: [],
+      gymDone: {},
+    });
+    const s = topicReviewSession('graph', 10);
+    expect(s.items).toHaveLength(4);
+    expect(s.items.every((it) => it.id.startsWith('graph-'))).toBe(true);
+  });
+
+  it('sessionForTopic routes a __review__:<id> sentinel to the capped topic deck', () => {
+    kgItems.value = {};
+    seedTopic('algorithms', 5);
+    kgTopic.value = REVIEW_PREFIX + 'algorithms';
+    const s = sessionForTopic();
+    expect(s.items).toHaveLength(5);
+    expect(s.newN).toBe(0);
   });
 });

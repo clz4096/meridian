@@ -136,11 +136,8 @@ export function KnowledgeRail() {
               {current.due > 0 && <span class="rail-sn-due">{current.due} due</span>}
             </div>
             <div class="rail-sn-actions">
-              <button type="button" class="rail-btn-study" onClick={() => knowledgeActions.selectTopic(current.id)}>
-                Study
-              </button>
-              <button type="button" class="rail-path-link" onClick={() => knowledgeActions.startToday()}>
-                Today’s path →
+              <button type="button" class="rail-btn-continue" onClick={() => knowledgeActions.startToday()}>
+                Continue <span aria-hidden="true">→</span> Today’s path
               </button>
             </div>
           </>

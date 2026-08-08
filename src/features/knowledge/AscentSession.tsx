@@ -22,8 +22,8 @@
  */
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { signal, type Signal } from '@preact/signals';
-import { dataRev } from '@/ui/store';
-import { kg, knowledgeActions, todaySession, type TodaySession } from '@/ui/actions';
+import { dataRev, kgTopic } from '@/ui/store';
+import { kg, knowledgeActions, sessionForTopic, REVIEW_PREFIX, type TodaySession } from '@/ui/actions';
 import { dstr } from '@/app/bootstrap';
 import { readFsrs, previewIntervals, humanizeDays, type Grade } from '@/features/knowledge/fsrs';
 import { ascentLedger, bandOf, MWORD, MCOLOR, GRADE_MASTERY, type AscentHistory } from '@/features/knowledge/ascent';
@@ -77,7 +77,7 @@ function fireReceipt(S: AscSt, text: string, reduced: boolean): void {
 }
 
 function begin(S: AscSt): void {
-  const sess = todaySession(); // snapshot: the deck is frozen here for the run
+  const sess = sessionForTopic(); // snapshot: the deck is frozen here for the run
   S.deckRef.current = sess.items as DeckItem[];
   S.sessRef.current = sess;
   S.history.length = 0;
@@ -177,17 +177,22 @@ export function AscentSession() {
 
   const stRef = useRef<AscSt>();
   if (!stRef.current) {
-    const empty = todaySession().items.length === 0;
+    // A topic review (`__review__:<id>`) launches straight into its capped deck —
+    // no Start panel; "Today's path" keeps the Start → Begin intro. Same engine.
+    const isReview = kgTopic.value.startsWith(REVIEW_PREFIX);
+    const sess = sessionForTopic();
+    const deck = sess.items as DeckItem[];
+    const empty = deck.length === 0;
     stRef.current = {
-      screen: signal<Screen>(empty ? 'caught' : 'start'),
+      screen: signal<Screen>(empty ? 'caught' : isReview ? 'card' : 'start'),
       cursor: signal(0),
       cardPhase: signal<CardPhase>(''),
       revealed: signal(false),
       receipt: signal(''),
       note: signal(''),
       completed: signal(0),
-      deckRef: { current: [] },
-      sessRef: { current: null },
+      deckRef: { current: isReview ? deck : [] },
+      sessRef: { current: isReview ? sess : null },
       history: [],
       locked: { current: false },
       receiptTimer: { current: undefined },
@@ -257,7 +262,7 @@ export function AscentSession() {
   return (
     <div class="asc-app">
       {screen === 'start' && (
-        <button class="asc-back asc-back-float" onClick={() => knowledgeActions.backToTopics()} aria-label="Back to topics">
+        <button class="asc-back asc-back-float" onClick={() => knowledgeActions.exitSession()} aria-label="Back to topics">
           <span class="asc-chev" aria-hidden="true">‹</span> Back
         </button>
       )}
@@ -265,7 +270,7 @@ export function AscentSession() {
         <div class="asc-topbar">
           <div class="asc-track-row">
             {screen === 'card' && (
-              <button class="asc-back" onClick={() => knowledgeActions.backToTopics()} aria-label="Back to topics">
+              <button class="asc-back" onClick={() => knowledgeActions.exitSession()} aria-label="Back to topics">
                 <span class="asc-chev" aria-hidden="true">‹</span> Back
               </button>
             )}
@@ -299,7 +304,7 @@ export function AscentSession() {
 }
 
 function StartPanel({ S }: { S: AscSt }) {
-  const count = todaySession().items.length;
+  const count = sessionForTopic().items.length;
   return (
     <div class="asc-panel" key="start">
       <div class="asc-eyebrow">Today’s path</div>
@@ -418,7 +423,7 @@ function SummitPanel({ S }: { S: AscSt }) {
           <span class="asc-plus">+{overflow}</span> waiting for tomorrow
         </div>
       )}
-      <button class="asc-cta ghost" style="margin-top:10px" onClick={() => knowledgeActions.backToTopics()}>
+      <button class="asc-cta ghost" style="margin-top:10px" onClick={() => knowledgeActions.exitSession()}>
         Back to topics
       </button>
     </div>
@@ -426,7 +431,7 @@ function SummitPanel({ S }: { S: AscSt }) {
 }
 
 function CaughtPanel() {
-  const backlog = todaySession().overflow;
+  const backlog = sessionForTopic().overflow;
   return (
     <div class="asc-panel" key="caught">
       <div class="asc-eyebrow">Rest day</div>
@@ -435,7 +440,7 @@ function CaughtPanel() {
       <div class="asc-frontier-hint">
         <span class="asc-pulse" /> frontier &nbsp;·&nbsp; {backlog > 0 ? `+${backlog} forming for tomorrow` : 'new questions forming'}
       </div>
-      <button class="asc-cta ghost" style="margin-top:14px" onClick={() => knowledgeActions.backToTopics()}>
+      <button class="asc-cta ghost" style="margin-top:14px" onClick={() => knowledgeActions.exitSession()}>
         Back to topics
       </button>
     </div>
