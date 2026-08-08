@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ascent · Today's path</title>
+<style>
+  :root{
+    --bg:#070B14; --surface-1:#171C24; --surface-2:#1E242E; --surface-3:#272E3A;
+    --text:#DCE6F2; --muted:#8FA3BE; --dim:#727D8E; --faint:#5C7291;
+    --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --teal:#7CC9EC; --fuel:#E0A64B; --ok:#3BB98C; --deficit:#D8654F; --protein:#A78BEA;
+    --hub:#F2B25C;
+    --m-new:#5C6678; --m-shaky:#D8654F; --m-learning:#E0A64B; --m-solid:#6BBF73; --m-mastered:#4FB0A5;
+    --r-8:8px; --r-12:12px; --r-16:16px; --r-999:999px;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --ease:cubic-bezier(.22,.61,.36,1);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(242,178,92,.06), transparent 60%),
+      var(--bg);
+    color:var(--text); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    overflow:hidden;
+  }
+  button{font-family:inherit; color:inherit; cursor:pointer}
+  :focus-visible{outline:2px solid var(--hub); outline-offset:2px; border-radius:6px}
+
+  .app{position:fixed; inset:0; display:flex; flex-direction:column; height:100dvh; max-width:640px; margin:0 auto}
+
+  /* ---- top bar (counter · rail · receipt) ---- */
+  .topbar{padding:16px 20px 8px; flex:0 0 auto}
+  .topbar.hidden{visibility:hidden}
+  .track-row{display:flex; align-items:center; gap:12px}
+  .counter{font-family:var(--mono); font-size:12px; letter-spacing:.06em; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums}
+  .counter b{color:var(--text); font-weight:600}
+  .rail-wrap{position:relative; flex:1; height:22px; display:flex; align-items:center}
+  .rail{position:relative; width:100%; height:3px; border-radius:var(--r-999); background:var(--line); overflow:visible}
+  .rail-fill{position:absolute; left:0; top:0; height:100%; width:0%; border-radius:var(--r-999);
+    background:linear-gradient(90deg,#C98C3A,var(--hub)); box-shadow:0 0 10px rgba(242,178,92,.5);
+    transition:width .5s var(--ease)}
+  .frontier{position:absolute; top:50%; width:5px; height:5px; border-radius:50%;
+    background:var(--hub); opacity:.28; transform:translate(-50%,-50%);
+    transition:left .5s var(--ease); filter:blur(.2px)}
+  .frontier::after{content:""; position:absolute; inset:-4px; border-radius:50%; border:1px solid rgba(242,178,92,.18)}
+  .receipt-slot{height:20px; margin-top:8px; display:flex; align-items:center}
+  .receipt{font-family:var(--mono); font-size:11.5px; letter-spacing:.04em; color:var(--hub);
+    background:rgba(242,178,92,.10); border:1px solid rgba(242,178,92,.28);
+    padding:3px 9px; border-radius:var(--r-999); opacity:0; transform:translateY(3px);
+    transition:opacity .3s var(--ease), transform .3s var(--ease)}
+  .receipt.show{opacity:1; transform:translateY(0)}
+
+  /* ---- stage ---- */
+  .stage{flex:1 1 auto; display:grid; place-items:center; padding:8px 20px 24px; min-height:0; position:relative}
+
+  .card{
+    width:100%; max-width:520px; background:var(--surface-1);
+    border:1px solid var(--line); border-radius:var(--r-16);
+    padding:22px 22px 20px; display:flex; flex-direction:column; gap:14px;
+    max-height:100%; overflow:auto;
+    box-shadow:0 18px 50px -24px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.02);
+    transition:transform .42s var(--ease), opacity .42s var(--ease);
+    will-change:transform,opacity;
+  }
+  .card::-webkit-scrollbar{width:0}
+  .card.recede{transform:translateY(-14px) scale(.94); opacity:0}
+  .card.enter{transform:translateY(20px) scale(.97); opacity:0}
+
+  .pill-row{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .pill{display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--muted);
+    background:var(--surface-2); border:1px solid var(--line); padding:5px 10px 5px 8px; border-radius:var(--r-999)}
+  .dot{width:8px; height:8px; border-radius:50%; flex:0 0 auto; transition:background .35s var(--ease), box-shadow .35s var(--ease)}
+  .pill .topic{color:var(--text); font-weight:600}
+  .pill .sep{color:var(--dim)}
+  .pill .mword{text-transform:capitalize; font-family:var(--mono); font-size:11px; letter-spacing:.02em}
+  .flowtag{font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim)}
+
+  .prompt{font-size:19px; line-height:1.42; color:var(--text); letter-spacing:-.01em; margin:2px 0 0}
+  .src{font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.02em}
+
+  textarea{width:100%; min-height:88px; resize:vertical; background:var(--surface-2);
+    color:var(--text); border:1px solid var(--line-2); border-radius:var(--r-12);
+    padding:12px 14px; font-family:var(--sans); font-size:15px; line-height:1.45}
+  textarea::placeholder{color:var(--dim)}
+  textarea:focus{border-color:var(--faint); outline:none}
+
+  /* answer reveal — stacks in beneath */
+  .answer-wrap{display:grid; grid-template-rows:0fr; transition:grid-template-rows .42s var(--ease)}
+  .answer-wrap.open{grid-template-rows:1fr}
+  .answer-inner{overflow:hidden; min-height:0}
+  .answer{border-top:1px dashed var(--line-2); margin-top:2px; padding-top:14px;
+    display:flex; gap:10px}
+  .answer .bar{flex:0 0 auto; width:3px; border-radius:var(--r-999); background:linear-gradient(var(--ok),rgba(59,185,140,.15))}
+  .answer .label{font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ok); margin-bottom:6px}
+  .answer .body{font-size:14.5px; line-height:1.5; color:#C6D3E4}
+
+  .actions{margin-top:2px}
+  .btn-reveal{width:100%; min-height:48px; background:var(--surface-3); color:var(--text);
+    border:1px solid var(--line-2); border-radius:var(--r-12); font-size:15px; font-weight:600;
+    letter-spacing:.01em; display:flex; align-items:center; justify-content:center; gap:9px;
+    transition:background .18s var(--ease), border-color .18s var(--ease)}
+  .btn-reveal:hover{background:#2E3644; border-color:var(--faint)}
+  .btn-reveal .k{font-family:var(--mono); font-size:11px; color:var(--dim); border:1px solid var(--line); padding:1px 6px; border-radius:6px}
+
+  .grades{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+  .grade{min-height:60px; padding:8px 4px 7px; background:var(--surface-2);
+    border:1px solid var(--line-2); border-radius:var(--r-12);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+    transition:transform .12s var(--ease), background .16s var(--ease), border-color .16s var(--ease)}
+  .grade:hover{background:var(--surface-3)}
+  .grade:active{transform:scale(.96)}
+  .grade .g{font-size:14px; font-weight:650}
+  .grade .hint{font-family:var(--mono); font-size:10.5px; color:var(--dim); font-variant-numeric:tabular-nums}
+  .grade .key{position:absolute; }
+  .grade .knum{font-family:var(--mono); font-size:9.5px; color:var(--faint)}
+  .grade[data-g="again"]{border-color:rgba(216,101,79,.5)}   .grade[data-g="again"] .g{color:#EA8A76}
+  .grade[data-g="hard"]{border-color:rgba(224,166,75,.42)}   .grade[data-g="hard"] .g{color:#E7B769}
+  .grade[data-g="good"]{border-color:rgba(107,191,115,.42)}  .grade[data-g="good"] .g{color:#84CC8B}
+  .grade[data-g="easy"]{border-color:rgba(79,176,165,.42)}   .grade[data-g="easy"] .g{color:#6BC4BA}
+
+  .again-note{font-size:12.5px; color:var(--muted); text-align:center; margin-top:2px; min-height:16px}
+  .again-note svg{vertical-align:-2px; margin-right:5px}
+
+  /* ---- panels (start / summit / caught) ---- */
+  .panel{width:100%; max-width:460px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:14px;
+    animation:rise .5s var(--ease) both}
+  @keyframes rise{from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:translateY(0)}}
+  .eyebrow{font-family:var(--mono); font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--hub); opacity:.85}
+  .panel h1{font-size:26px; font-weight:680; letter-spacing:-.02em; margin:0}
+  .bignum{font-family:var(--mono); font-size:15px; color:var(--text); font-variant-numeric:tabular-nums}
+  .bignum b{color:var(--hub); font-weight:600}
+  .lede{font-size:15px; line-height:1.5; color:var(--muted); max-width:360px; margin:0}
+  .meta{font-family:var(--mono); font-size:11.5px; letter-spacing:.03em; color:var(--dim)}
+  .cta{min-height:52px; padding:0 34px; border-radius:var(--r-999); border:1px solid rgba(242,178,92,.5);
+    background:linear-gradient(180deg, rgba(242,178,92,.22), rgba(242,178,92,.10)); color:#F6D6A2;
+    font-size:16px; font-weight:650; letter-spacing:.01em; margin-top:6px;
+    box-shadow:0 8px 30px -12px rgba(242,178,92,.5); transition:transform .12s var(--ease), background .18s}
+  .cta:hover{background:linear-gradient(180deg, rgba(242,178,92,.3), rgba(242,178,92,.14))}
+  .cta:active{transform:translateY(1px) scale(.99)}
+  .cta.ghost{background:var(--surface-2); border-color:var(--line-2); color:var(--text); box-shadow:none; font-weight:600}
+  .cta.ghost:hover{background:var(--surface-3)}
+
+  .summit-mark{width:54px; height:54px; margin-bottom:2px}
+  .ledger{font-family:var(--mono); font-size:14px; color:var(--text); letter-spacing:.01em; line-height:1.9;
+    background:var(--surface-1); border:1px solid var(--line); border-radius:var(--r-12); padding:14px 18px; width:100%}
+  .ledger .c-solid{color:var(--m-solid)} .ledger .c-shaky{color:var(--m-shaky)} .ledger .c-learn{color:var(--m-learning)}
+  .ledger .sep{color:var(--dim)}
+  .overflow{font-family:var(--mono); font-size:12px; color:var(--faint); letter-spacing:.03em}
+  .overflow .plus{color:var(--hub); opacity:.7}
+
+  .demo-toggle{position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.05em; color:var(--dim);
+    background:transparent; border:1px dashed var(--line-2); border-radius:var(--r-999); padding:5px 12px}
+  .demo-toggle:hover{color:var(--muted); border-color:var(--faint)}
+
+  .frontier-hint{display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11px; color:var(--faint)}
+  .frontier-hint .pulse{width:6px; height:6px; border-radius:50%; background:var(--hub); opacity:.5;
+    box-shadow:0 0 0 0 rgba(242,178,92,.4); animation:pulse 2.6s var(--ease) infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(242,178,92,.35)} 70%{box-shadow:0 0 0 9px rgba(242,178,92,0)} 100%{box-shadow:0 0 0 0 rgba(242,178,92,0)}}
+
+  .hidden{display:none !important}
+
+  @media (max-width:400px){
+    .prompt{font-size:17.5px}
+    .grade .g{font-size:13px}
+    .stage{padding:6px 14px 18px}
+    .topbar{padding:14px 16px 6px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition-duration:.001ms !important; animation-duration:.001ms !important; animation-iteration-count:1 !important}
+    .card.recede,.card.enter{transform:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- top bar -->
+  <div class="topbar hidden" id="topbar">
+    <div class="track-row">
+      <div class="counter"><b id="cur">00</b> / <span id="total">00</span></div>
+      <div class="rail-wrap">
+        <div class="rail">
+          <div class="rail-fill" id="railFill"></div>
+          <div class="frontier" id="frontier" title="new questions forming"></div>
+        </div>
+      </div>
+    </div>
+    <div class="receipt-slot"><span class="receipt" id="receipt"></span></div>
+  </div>
+
+  <!-- stage -->
+  <div class="stage" id="stage">
+
+    <!-- START -->
+    <div class="panel" id="startPanel">
+      <div class="eyebrow">Today's path</div>
+      <h1>Today's climb</h1>
+      <div class="bignum"><b id="startCount">8</b> cards</div>
+      <p class="lede">Due reviews across your topics, newest concepts mixed in.</p>
+      <div class="meta">Interleaved automatically · capped at 20 / day</div>
+      <button class="cta" id="beginBtn">Begin the climb</button>
+    </div>
+
+    <!-- LOOP card mounts here -->
+    <article class="card hidden" id="card"></article>
+
+    <!-- SUMMIT -->
+    <div class="panel hidden" id="summitPanel">
+      <svg class="summit-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <path d="M4 40 L20 12 L28 26 L34 18 L44 40 Z" stroke="#F2B25C" stroke-width="1.6" stroke-linejoin="round" fill="rgba(242,178,92,.08)"/>
+        <circle cx="20" cy="12" r="2.4" fill="#F2B25C"/>
+      </svg>
+      <div class="eyebrow">Summit</div>
+      <h1>Done for today.</h1>
+      <div class="ledger" id="ledger"></div>
+      <div class="meta">next due in <b style="color:var(--text)">8h</b></div>
+      <div class="overflow" id="overflow"></div>
+      <button class="cta ghost" id="backBtn" style="margin-top:10px">Back to topics</button>
+    </div>
+
+    <!-- CAUGHT UP -->
+    <div class="panel hidden" id="caughtPanel">
+      <div class="eyebrow">Rest day</div>
+      <h1>Nothing due today.</h1>
+      <p class="lede">New questions are forming.</p>
+      <div class="frontier-hint"><span class="pulse"></span> frontier &nbsp;·&nbsp; +3 forming for tomorrow</div>
+      <button class="cta ghost" id="caughtBack" style="margin-top:14px">Back to topics</button>
+    </div>
+
+  </div>
+
+  <button class="demo-toggle" id="demoToggle">demo: caught up</button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var MASTERY = ['new','shaky','learning','solid','mastered'];
+  var MCOLOR = {new:'#5C6678',shaky:'#D8654F',learning:'#E0A64B',solid:'#6BBF73',mastered:'#4FB0A5'};
+
+  // score→tier bands: new 0-19 · shaky 20-39 · learning 40-59 · solid 60-84 · mastered 85+
+  function tierOf(s){ if(s>=85)return 4; if(s>=60)return 3; if(s>=40)return 2; if(s>=20)return 1; return 0; }
+  function tierName(s){ return MASTERY[tierOf(s)]; }
+
+  var GRADES = [
+    {id:'again', label:'Again', hint:'<10m', d:-16, again:true},
+    {id:'hard',  label:'Hard',  hint:'1d',   d:+4,  again:true},
+    {id:'good',  label:'Good',  hint:'4d',   d:+14},
+    {id:'easy',  label:'Easy',  hint:'9d',   d:+26}
+  ];
+
+  // ---- deck: 8 cards, interleaved topics, mixed flow, varied mastery ----
+  // score chosen so a Good on cards 1/6/7 crosses a tier boundary (promotion receipt).
+  var CARDS = [
+    { topic:'Algorithms', flow:'flip', score:52,   // learning → Good crosses to solid
+      prompt:'When does the two-pointer technique apply, and what property of the input makes it valid?',
+      src:'CSES §8.1 Two pointers · p.87',
+      answer:'Two pointers works when the array is sorted (or has some monotonic property) and you are searching for a pair/triple satisfying a condition. Validity rests on monotonicity: moving the left pointer right only increases the sum, moving the right pointer left only decreases it — so at each step you eliminate an entire row or column of the search space without checking it. That turns O(n²) into O(n).' },
+
+    { topic:'Graph Theory', flow:'full', score:31,  // shaky
+      prompt:'BFS vs DFS on an unweighted graph: which gives shortest paths from a source, and why?',
+      src:'CSES §12 Graph traversal · p.121',
+      answer:'BFS gives shortest paths (fewest edges) from the source. It explores in expanding layers of equal distance, so the first time a vertex is dequeued it is reached by a minimum-length path — the FIFO queue enforces non-decreasing distance. DFS follows one branch to exhaustion and can reach a vertex by a longer route first, so its tree depth is not a distance. Both are O(V+E); only BFS has the layer invariant.' },
+
+    { topic:'Algorithms', flow:'flip', score:71,   // solid → Good stays solid (no promo)
+      prompt:'Fixed-size sliding window: state the invariant and why it is O(n) not O(nk).',
+      src:'CSES §8.2 Sliding window · p.89',
+      answer:'The invariant is that the window always holds exactly k consecutive elements and you maintain its aggregate incrementally. Each step adds the entering element and removes the leaving one in O(1), so every element is added once and removed once — 2n operations total, hence O(n). Recomputing the aggregate from scratch each step would be the O(nk) naive version.' },
+
+    { topic:'C++ / Systems', flow:'full', score:14, // new
+      prompt:'RAII: what invariant does it guarantee, and why does it make exception-safe cleanup automatic?',
+      src:'C++ Core Guidelines · R.1 / E.6',
+      answer:'RAII ties a resource’s lifetime to an object’s scope: acquisition happens in the constructor, release in the destructor. The guarantee is that a fully-constructed object is always destroyed exactly once as its scope exits — including during stack unwinding from a thrown exception. So cleanup needs no explicit try/finally: the compiler runs destructors in reverse construction order on every path out, making leaks and double-frees a non-issue.' },
+
+    { topic:'Algorithms', flow:'full', score:24,   // shaky → Good crosses to learning (promo)
+      prompt:'Variable-size sliding window (e.g. longest substring satisfying a constraint): describe the loop shape and when you shrink.',
+      src:'CSES §8.2 Sliding window · p.89',
+      answer:'Outer loop expands the right edge one element at a time, always adding to the window state. An inner while loop shrinks from the left as long as the window VIOLATES the constraint. After shrinking, the window is valid, so record the answer. Each pointer only moves forward across the whole run, so it is O(n) despite the nested loop. The tell: "longest/shortest subarray such that ..." with a constraint monotone in window size.' },
+
+    { topic:'Machine Learning', flow:'flip', score:44, // learning → Good stays learning (58, no promo)
+      prompt:'Bias–variance tradeoff: what does each term measure, and how does model capacity move them?',
+      src:'ESL Ch.2 · p.37',
+      answer:'Bias is error from wrong assumptions — a too-simple model that systematically misses the signal (underfits). Variance is sensitivity to the particular training sample — a too-flexible model that fits noise and fails to generalize (overfits). Raising capacity lowers bias but raises variance; expected test error is bias² + variance + irreducible noise, minimized at an intermediate capacity, not the extremes.' },
+
+    { topic:'Algorithms', flow:'full', score:55,   // learning → Good crosses to solid (promo)
+      prompt:'Binary search on the ANSWER: what problem shape signals it, and what must be true of the predicate?',
+      src:'Skiena Ch.4 Sorting and searching · p.115',
+      answer:'The signal is "minimize the maximum ..." or "find the smallest capacity/speed/time such that X is feasible" — you are searching the answer space, not an array. The predicate feasible(x) must be MONOTONE: if x works, every larger x works (or vice versa). Then binary search the value range, calling feasible() as the test, giving O(log(range) × cost of check). Getting the monotonicity argument right is the whole problem; the search itself is boilerplate.' },
+
+    { topic:'Graph Theory', flow:'flip', score:10, // new
+      prompt:'Topological sort: what does it require of the graph, and name one way to detect it can’t be done.',
+      src:'CSES §16 Topological sorting · p.149',
+      answer:'It requires a DAG — a directed graph with no cycles — and produces an ordering where every edge points forward. If a cycle exists no valid order can exist. Detection falls out of the algorithm: Kahn’s (repeatedly remove in-degree-0 nodes) leaves nodes stranded if a cycle remains, so if you output fewer than V nodes there is a cycle. DFS-based topo sort detects it via a back edge (a gray node revisited during recursion).' }
+  ];
+
+  var M = CARDS.length;
+  var TOMORROW_OVERFLOW = 13; // surfaced only at summit
+
+  // session state
+  var session = null, idx = 0, revealed = false, locked = false;
+
+  // els
+  var $=function(id){return document.getElementById(id)};
+  var topbar=$('topbar'), stage=$('stage'), cardEl=$('card');
+  var railFill=$('railFill'), frontier=$('frontier'), receipt=$('receipt');
+  var curEl=$('cur'), totalEl=$('total');
+  var startPanel=$('startPanel'), summitPanel=$('summitPanel'), caughtPanel=$('caughtPanel');
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  function pad(n){ return (n<10?'0':'')+n; }
+
+  function startSession(){
+    session = CARDS.map(function(c){ return {topic:c.topic,flow:c.flow,prompt:c.prompt,src:c.src,answer:c.answer,
+      score:c.score, startTier:tierOf(c.score), tier:tierOf(c.score), grade:null}; });
+    idx=0; revealed=false; locked=false;
+    startPanel.classList.add('hidden'); summitPanel.classList.add('hidden'); caughtPanel.classList.add('hidden');
+    cardEl.classList.remove('hidden');
+    topbar.classList.remove('hidden');
+    totalEl.textContent = pad(M);
+    setRail(0);
+    receipt.classList.remove('show');
+    renderCard(true);
+  }
+
+  function setRail(completed){
+    var pct = (completed/M)*100;
+    railFill.style.width = pct + '%';
+    // frontier dot rides just past the filled end — terrain ahead
+    var fp = Math.min(pct + 4, 99.5);
+    frontier.style.left = fp + '%';
+    frontier.style.opacity = completed>=M ? '0' : '0.28';
+  }
+
+  function renderCard(first){
+    var c = session[idx];
+    curEl.textContent = pad(idx+1);
+    var mword = MASTERY[c.tier];
+    var mcolor = MCOLOR[mword];
+    var isAttempt = (c.flow==='full');
+
+    cardEl.innerHTML =
+      '<div class="pill-row">'+
+        '<span class="pill">'+
+          '<span class="dot" id="mdot" style="background:'+mcolor+'; box-shadow:0 0 8px '+mcolor+'66"></span>'+
+          '<span class="topic">'+c.topic+'</span>'+
+          '<span class="sep">·</span>'+
+          '<span class="mword" id="mword" style="color:'+mcolor+'">'+mword+'</span>'+
+        '</span>'+
+        '<span class="flowtag">'+(isAttempt?'attempt':'flip')+'</span>'+
+      '</div>'+
+      '<p class="prompt">'+c.prompt+'</p>'+
+      '<div class="src">'+c.src+'</div>'+
+      (isAttempt ? '<textarea id="ans" placeholder="Write your answer…" aria-label="Your answer"></textarea>' : '')+
+      '<div class="answer-wrap" id="ansWrap"><div class="answer-inner"><div class="answer">'+
+        '<div class="bar"></div>'+
+        '<div><div class="label">Model answer</div><div class="body">'+c.answer+'</div></div>'+
+      '</div></div></div>'+
+      '<div class="actions" id="actions">'+
+        '<button class="btn-reveal" id="revealBtn">Reveal <span class="k">R</span></button>'+
+      '</div>';
+
+    revealed=false;
+    // entrance
+    if(!first && !reduceMotion){
+      cardEl.classList.add('enter');
+      // force reflow then release
+      void cardEl.offsetWidth;
+      requestAnimationFrame(function(){ cardEl.classList.remove('enter'); });
+    }
+    $('revealBtn').addEventListener('click', doReveal);
+    // reset scroll to top of card
+    cardEl.scrollTop = 0;
+    locked=false;
+  }
+
+  function doReveal(){
+    if(revealed || locked) return;
+    revealed=true;
+    $('ansWrap').classList.add('open');
+    var actions=$('actions');
+    actions.innerHTML =
+      '<div class="grades" id="grades">'+
+        GRADES.map(function(g){ return (
+          '<button class="grade" data-g="'+g.id+'" style="position:relative">'+
+            '<span class="g">'+g.label+'</span>'+
+            '<span class="hint">'+g.hint+'</span>'+
+            '<span class="knum" style="position:absolute;top:5px;right:7px">'+(GRADES.indexOf(g)+1)+'</span>'+
+          '</button>'); }).join('')+
+      '</div>'+
+      '<div class="again-note" id="againNote"></div>';
+    Array.prototype.forEach.call(actions.querySelectorAll('.grade'), function(b){
+      b.addEventListener('click', function(){ grade(b.getAttribute('data-g')); });
+    });
+    // keep the freshly revealed answer visible
+    requestAnimationFrame(function(){ cardEl.scrollTop = cardEl.scrollHeight; });
+  }
+
+  function grade(gid){
+    if(!revealed || locked) return;
+    locked=true;
+    var g = GRADES.filter(function(x){return x.id===gid})[0];
+    var c = session[idx];
+    var before = c.tier;
+    c.score = Math.max(0, Math.min(100, c.score + g.d));
+    c.tier = tierOf(c.score);
+    c.grade = gid;
+
+    // recolor mastery dot + word live
+    var mword = MASTERY[c.tier], mcolor = MCOLOR[mword];
+    var dot=$('mdot'), wordEl=$('mword');
+    if(dot){ dot.style.background=mcolor; dot.style.boxShadow='0 0 8px '+mcolor+'66'; }
+    if(wordEl){ wordEl.style.color=mcolor; wordEl.textContent=mword; }
+
+    // again/hard soft line
+    var note=$('againNote');
+    if(g.again && note){
+      note.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8FA3BE" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/></svg>you’ll see this again today.';
+    }
+
+    // promotion receipt if a boundary was crossed upward
+    if(c.tier > before){
+      showReceipt(MASTERY[before]+' → '+MASTERY[c.tier]+' ↑');
+    }
+
+    // rail advances one notch
+    setRail(idx+1);
+
+    // recede then advance
+    var delay = reduceMotion ? 120 : (g.again ? 620 : 420);
+    if(!reduceMotion) cardEl.classList.add('recede');
+    setTimeout(function(){
+      if(!reduceMotion) cardEl.classList.remove('recede');
+      idx++;
+      if(idx>=M){ summit(); }
+      else { renderCard(false); }
+    }, delay);
+  }
+
+  var receiptTimer=null;
+  function showReceipt(text){
+    receipt.textContent=text;
+    receipt.classList.add('show');
+    clearTimeout(receiptTimer);
+    receiptTimer=setTimeout(function(){ receipt.classList.remove('show'); }, reduceMotion?1400:1900);
+  }
+
+  function summit(){
+    cardEl.classList.add('hidden');
+    // compute ledger from session
+    var solid=0, shaky=0, promoted=0;
+    session.forEach(function(c){
+      if(c.tier>=3) solid++;               // solid or mastered
+      if(c.tier<=1) shaky++;               // new or shaky (needs work)
+      if(c.tier>c.startTier) promoted++;   // "newly learned" = crossed a boundary upward
+    });
+
+    $('ledger').innerHTML =
+      '<span class="c-solid">'+solid+' solid</span> <span class="sep">·</span> '+
+      '<span class="c-shaky">'+shaky+' shaky</span> <span class="sep">·</span> '+
+      '<span class="c-learn">'+promoted+' newly learned</span>';
+
+    $('overflow').innerHTML = '<span class="plus">+'+TOMORROW_OVERFLOW+'</span> waiting for tomorrow';
+
+    summitPanel.classList.remove('hidden');
+    // seat the rail fully
+    setRail(M);
+    receipt.classList.remove('show');
+  }
+
+  function toStart(){
+    topbar.classList.add('hidden');
+    cardEl.classList.add('hidden');
+    summitPanel.classList.add('hidden');
+    caughtPanel.classList.add('hidden');
+    startPanel.classList.remove('hidden');
+    $('startCount').textContent = M;
+  }
+
+  function toCaught(){
+    topbar.classList.add('hidden');
+    cardEl.classList.add('hidden');
+    startPanel.classList.add('hidden');
+    summitPanel.classList.add('hidden');
+    caughtPanel.classList.remove('hidden');
+  }
+
+  // wire up
+  $('beginBtn').addEventListener('click', startSession);
+  $('backBtn').addEventListener('click', toStart);
+  $('caughtBack').addEventListener('click', toStart);
+  $('demoToggle').addEventListener('click', function(){
+    if(!caughtPanel.classList.contains('hidden')) toStart(); else toCaught();
+  });
+
+  // keyboard: 1-4 grade, R reveal
+  document.addEventListener('keydown', function(e){
+    if(cardEl.classList.contains('hidden')) return;
+    var tag = document.activeElement && document.activeElement.tagName;
+    if(e.key==='r' || e.key==='R'){ if(!revealed && tag!=='TEXTAREA') { doReveal(); } return; }
+    if(['1','2','3','4'].indexOf(e.key)>-1){
+      if(!revealed) return;
+      if(tag==='TEXTAREA') return;
+      e.preventDefault();
+      grade(GRADES[parseInt(e.key,10)-1].id);
+    }
+  });
+
+  // init
+  $('startCount').textContent = M;
+})();
+</script>
+</body>
+</html>
