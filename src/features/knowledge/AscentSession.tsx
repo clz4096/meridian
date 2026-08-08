@@ -256,9 +256,19 @@ export function AscentSession() {
 
   return (
     <div class="asc-app">
+      {screen === 'start' && (
+        <button class="asc-back asc-back-float" onClick={() => knowledgeActions.backToTopics()} aria-label="Back to topics">
+          <span class="asc-chev" aria-hidden="true">‹</span> Back
+        </button>
+      )}
       {showTop && (
         <div class="asc-topbar">
           <div class="asc-track-row">
+            {screen === 'card' && (
+              <button class="asc-back" onClick={() => knowledgeActions.backToTopics()} aria-label="Back to topics">
+                <span class="asc-chev" aria-hidden="true">‹</span> Back
+              </button>
+            )}
             <div class="asc-counter">
               <b>{pad(cur)}</b> / <span>{pad(M)}</span>
             </div>

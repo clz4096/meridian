@@ -1093,6 +1093,15 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .asc-app button{font-family:inherit; color:inherit; cursor:pointer}
 .asc-app :focus-visible{outline:2px solid var(--hub); outline-offset:2px; border-radius:6px}
 
+/* ---- back control (added: the session must be exitable) ---- */
+.asc-back{display:inline-flex; align-items:center; gap:2px; flex:0 0 auto;
+  background:none; border:0; color:var(--muted); font:600 13px var(--sans); cursor:pointer;
+  padding:8px 10px 8px 4px; margin:-8px 6px -8px -4px; /* tap area without growing the top bar */
+  opacity:.72; transition:opacity .18s var(--ease), color .18s var(--ease)}
+.asc-back .asc-chev{font-size:18px; line-height:1; margin-top:-1px}
+.asc-back:hover,.asc-back:focus-visible{opacity:1; color:var(--text)}
+.asc-back-float{position:absolute; top:calc(12px + env(safe-area-inset-top)); left:14px; z-index:6; margin:0; padding:8px 12px}
+
 /* ---- top bar (counter · rail · receipt) ---- */
 .asc-topbar{padding:16px 20px 8px; flex:0 0 auto}
 .asc-topbar.asc-hidden{visibility:hidden}
