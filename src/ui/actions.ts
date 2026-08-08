@@ -360,6 +360,7 @@ export const knowledgeActions: KnowledgeActions = {
     st.kgProgressOpen.value = false;
     st.kgGym.value = false;
     st.kgRevealed.value = {};
+    st.kgGraded.value = {};
     pushState(); // gallery → study is a drill-in; back returns to the gallery
     st.bump();
   },
@@ -414,6 +415,8 @@ export const knowledgeActions: KnowledgeActions = {
       st.kgOverview.value = true;
     }
     st.kgGym.value = false;
+    st.kgRevealed.value = {};
+    st.kgGraded.value = {};
     st.bump();
   },
   startToday() {
@@ -454,14 +457,17 @@ export const knowledgeActions: KnowledgeActions = {
     K.mastery[id] = mastery;
     scheduleCard(id, g);
     const it = allKGItems().find((x) => x.id === id);
-    K.log.push({ id: uid(), qid: id, at: Date.now(), rating: mastery, date: dstr(), topic: st.kgTopic.value });
+    // Tag with the item's REAL topic, never the composite review sentinel (__review__:<id>).
+    const t = st.kgTopic.value;
+    const realTopic = (it as { topic?: string } | undefined)?.topic || (t.startsWith(REVIEW_PREFIX) ? t.slice(REVIEW_PREFIX.length) : t);
+    K.log.push({ id: uid(), qid: id, at: Date.now(), rating: mastery, date: dstr(), topic: realTopic });
     appState.markKnowledgeDirty();
     core().entries.push({
       id: uid(),
       date: dstr(),
       stream: 'kg',
       problem: it ? it.prompt.slice(0, 42) + '…' : id,
-      topic: st.kgTopic.value,
+      topic: realTopic,
       status: mastery >= 4 ? 'solved' : 'attempted',
       score: mastery,
       xp: mastery * 4,
@@ -906,6 +912,7 @@ export function handleBack(): boolean {
   if (st.currentTab.value === 'meal' && st.sgLogOpen.value) { st.sgLogOpen.value = false; st.bump(); return true; }
   if (st.currentTab.value === 'knowledge' && st.kgGym.value) { st.kgGym.value = false; st.bump(); return true; } // gym → questions
   if (st.currentTab.value === 'knowledge' && st.kgProgressOpen.value) { st.kgProgressOpen.value = false; st.bump(); return true; } // Progress → gallery
+  if (st.currentTab.value === 'knowledge' && st.kgTopic.value.startsWith(REVIEW_PREFIX)) { knowledgeActions.exitSession(); return true; } // focused review → its topic (mirror the in-session Back)
   if (st.currentTab.value === 'knowledge' && !st.kgOverview.value) { st.kgOverview.value = true; st.bump(); return true; } // study → gallery
   if (st.currentTab.value !== 'today') { goHome(); return true; } // gallery → hub
   return false;

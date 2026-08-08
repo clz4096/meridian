@@ -11,7 +11,7 @@ import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { KnowledgeView } from '@/features/knowledge/KnowledgeTab';
 import { knowledgeActions } from '@/ui/actions';
 import { appState } from '@/app/bootstrap';
-import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgOverview } from '@/ui/store';
+import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgGraded, kgOverview } from '@/ui/store';
 import type { KnowledgeItem } from '@/features/knowledge/types';
 
 const QUESTION: KnowledgeItem = {
@@ -49,6 +49,7 @@ afterEach(() => {
   kgTarget.value = 'all';
   kgItems.value = {};
   kgRevealed.value = {};
+  kgGraded.value = {};
   appState.set('csgraph', {});
 });
 
@@ -132,6 +133,20 @@ describe('KnowledgeView', () => {
     // Grades are Again/Hard/Good/Easy = 1/2/3/4; index 3 => Easy => grade 4.
     fireEvent.click(buttons[3]);
     expect(rateSpy).toHaveBeenCalledWith('q1', 4);
+  });
+
+  it('grading a topic card LOCKS it — reviewed note, grade buttons gone (no re-log)', () => {
+    seedQuestions();
+    kgOverview.value = false;
+    kgRevealed.value = { q1: true };
+    vi.spyOn(knowledgeActions, 'rate').mockImplementation(() => {});
+    const { container } = render(<KnowledgeView />);
+    fireEvent.click((container.querySelector('#rate-q1') as HTMLElement).querySelectorAll('button')[2]); // Good
+    expect(kgGraded.value.q1).toBeTruthy(); // card marked reviewed → locked
+    const card = container.querySelector('#qc-q1') as HTMLElement;
+    expect(card.className).toContain('reviewed'); // dimmed
+    expect(container.querySelector('#rate-q1')).toBeNull(); // grade buttons gone — can't re-grade/re-log
+    expect(card.textContent).toContain('reviewed'); // the confirmation note
   });
 
   it('the "Review N due →" row launches the focused review — startReview(topicId)', () => {

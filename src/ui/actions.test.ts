@@ -15,7 +15,7 @@ import { mealActions, knowledgeActions, workoutActions, todosActions, scratchAct
 import { appState, dstr } from '@/app/bootstrap';
 import { selectWorkoutView } from '@/features/workout/workoutSelectors';
 import defaultWorkout from '@/core/data/defaultWorkout.json';
-import { dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems, currentTab } from '@/ui/store';
+import { dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems, kgOverview, currentTab } from '@/ui/store';
 
 const today = dstr();
 
@@ -340,5 +340,27 @@ describe('topicReviewSession / sessionForTopic', () => {
     const s = sessionForTopic();
     expect(s.items).toHaveLength(5);
     expect(s.newN).toBe(0);
+  });
+
+  it('exitSession returns a review to its TOPIC, and Today’s path to the Rail', () => {
+    kgOverview.value = false;
+    kgTopic.value = REVIEW_PREFIX + 'algorithms';
+    knowledgeActions.exitSession();
+    expect(kgTopic.value).toBe('algorithms'); // sentinel stripped → the topic screen
+    expect(kgOverview.value).toBe(false);
+    kgOverview.value = false;
+    kgTopic.value = '__today__';
+    knowledgeActions.exitSession();
+    expect(kgOverview.value).toBe(true); // Today’s path → the Rail
+  });
+
+  it('hardware/browser Back from a focused review returns to its TOPIC, not the Rail (BUG-1)', () => {
+    currentTab.value = 'knowledge';
+    kgOverview.value = false;
+    kgTopic.value = REVIEW_PREFIX + 'algorithms';
+    expect(handleBack()).toBe(true);
+    expect(kgTopic.value).toBe('algorithms'); // back landed on the topic
+    expect(kgOverview.value).toBe(false); // NOT collapsed to the Rail
+    currentTab.value = 'today';
   });
 });

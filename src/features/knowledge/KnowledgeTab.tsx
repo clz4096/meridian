@@ -13,7 +13,7 @@ import { kg, core, dueItems, allTargetItems, todayPathItems, knowledgeActions, l
 import { knowledgeGrowth } from '@/features/knowledge/knowledgeSelectors';
 import { AscentSession } from '@/features/knowledge/AscentSession';
 import { KnowledgeRail } from '@/features/knowledge/KnowledgeRail';
-import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgOverview, progPeriod, dataRev } from '@/ui/store';
+import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgGraded, kgOverview, progPeriod, dataRev } from '@/ui/store';
 import { dstr } from '@/app/bootstrap';
 import { previewIntervals, readFsrs, type Grade } from '@/features/knowledge/fsrs';
 
@@ -184,9 +184,10 @@ function TopicCard({ it, vm }: { it: KnowledgeItem; vm: KnowledgeViewModel }) {
   const m = (vm.mastery[it.id] ?? 0) as number;
   const full = it.flow !== 'flip';
   const open = vm.revealed[it.id] === true;
+  const graded = kgGraded.value[it.id];
   const preview = previewIntervals(readFsrs(K.srs?.[it.id]), now());
   return (
-    <article class="tpc-card" id={'qc-' + it.id}>
+    <article class={'tpc-card' + (graded ? ' reviewed' : '')} id={'qc-' + it.id}>
       <div class="tpc-qc-top">
         <span class="tpc-mchip">
           <span class="dot2" style={`background:${M_VAR[m]}`} aria-hidden="true" />
@@ -217,31 +218,47 @@ function TopicCard({ it, vm }: { it: KnowledgeItem; vm: KnowledgeViewModel }) {
           </div>
         </div>
       </div>
-      {open ? (
-        <div class="tpc-grades" id={'rate-' + it.id}>
-          {TPC_GRADES.map((gr) => (
-            <button class="tpc-grade" data-g={gr.id} aria-label={gr.label} onClick={() => knowledgeActions.rate(it.id, gr.g)}>
-              <span class="g">{gr.label}</span>
-              <span class="hint">{preview[gr.g].hint}</span>
-            </button>
-          ))}
+      {graded ? (
+        <div class="tpc-reviewed" aria-live="polite">
+          <span class="tpc-rv-check" aria-hidden="true">✓</span> reviewed · back in {graded}
         </div>
       ) : (
-        <button class="tpc-reveal" onClick={() => knowledgeActions.reveal(it.id)}>
-          Reveal <span class="k" aria-hidden="true">R</span>
-        </button>
+        <>
+          {open ? (
+            <div class="tpc-grades" id={'rate-' + it.id}>
+              {TPC_GRADES.map((gr) => (
+                <button
+                  class="tpc-grade"
+                  data-g={gr.id}
+                  aria-label={gr.label}
+                  onClick={() => {
+                    knowledgeActions.rate(it.id, gr.g);
+                    kgGraded.value = { ...kgGraded.value, [it.id]: preview[gr.g].hint }; // lock this card (no re-log)
+                  }}
+                >
+                  <span class="g">{gr.label}</span>
+                  <span class="hint">{preview[gr.g].hint}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button class="tpc-reveal" onClick={() => knowledgeActions.reveal(it.id)}>
+              Reveal <span class="k" aria-hidden="true">R</span>
+            </button>
+          )}
+          <div class="tpc-ai-row">
+            <button class="tpc-ai" onClick={() => knowledgeActions.answerWithAI(it.id)}>
+              <SparkIcon />AI answer
+            </button>
+            {full && (
+              <button class="tpc-ai" onClick={() => knowledgeActions.gradeWithAI(it.id)}>
+                <SparkIcon />AI grade
+              </button>
+            )}
+          </div>
+          <div id={'ai-' + it.id} class="tpc-ai-note" />
+        </>
       )}
-      <div class="tpc-ai-row">
-        <button class="tpc-ai" onClick={() => knowledgeActions.answerWithAI(it.id)}>
-          <SparkIcon />AI answer
-        </button>
-        {full && (
-          <button class="tpc-ai" onClick={() => knowledgeActions.gradeWithAI(it.id)}>
-            <SparkIcon />AI grade
-          </button>
-        )}
-      </div>
-      <div id={'ai-' + it.id} class="tpc-ai-note" />
     </article>
   );
 }

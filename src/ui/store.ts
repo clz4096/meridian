@@ -45,6 +45,8 @@ export const kgTime = signal('all');
 export const kgGym = signal(false);
 export const kgTarget = signal('all');
 export const kgRevealed = signal<Record<string, boolean>>({});
+/** Topic-screen cards graded this visit (id → next-interval hint) — locks the card so re-tapping can't re-log. */
+export const kgGraded = signal<Record<string, string>>({});
 export const kgItems = signal<Record<string, KnowledgeItem[]>>({}); // fetched question bank
 export const kgProgressOpen = signal(false); // secondary charts/trends view, opened on demand from the gallery
 export const kgOverview = signal(true); // the card gallery is the default landing; false = a topic's study body

@@ -104,10 +104,10 @@ function doReveal(S: AscSt): void {
  */
 function doGrade(S: AscSt, g: Grade, reduced: boolean): void {
   if (!S.revealed.value || S.locked.current) return;
-  S.locked.current = true;
   const deck = S.deckRef.current;
   const item = deck[S.cursor.value];
-  if (!item) return;
+  if (!item) return; // guard BEFORE locking, so a bad index can't permanently brick the session
+  S.locked.current = true;
 
   const K = kg();
   const beforeM = (K.mastery?.[item.id] ?? 0) as number;
