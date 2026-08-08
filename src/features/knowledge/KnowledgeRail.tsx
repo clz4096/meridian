@@ -17,6 +17,7 @@
  * Leaf-subscription: `dataRev.value` is read at the top so any store mutation
  * (a grade, a sync) re-derives the rail.
  */
+import { Fragment } from 'preact';
 import { dataRev } from '@/ui/store';
 import { knowledgeActions } from '@/ui/actions';
 import { overviewTopics, type OverviewTopic } from '@/features/knowledge/KnowledgeTab';
@@ -104,6 +105,7 @@ export function KnowledgeRail() {
   let currentIndex = ordered.findIndex((t) => t.percent < 60);
   if (currentIndex === -1) currentIndex = Math.max(0, total - 1);
   const current = ordered[currentIndex];
+  const curMastery = current ? masteryOf(current.percent) : null;
 
   const stateAt = (idx: number): TileState => (idx < currentIndex ? 'done' : idx === currentIndex ? 'current' : 'upcoming');
 
@@ -128,8 +130,8 @@ export function KnowledgeRail() {
             <div class="rail-sn-topic">{current.name}</div>
             <div class="rail-sn-meta">
               <span class="rail-sn-mastery">
-                <span class="rail-m-dot" style={`background:${masteryOf(current.percent).color}`} />
-                {masteryOf(current.percent).word}
+                <span class="rail-m-dot" style={`background:${curMastery!.color}`} />
+                {curMastery!.word}
               </span>
               {current.due > 0 && <span class="rail-sn-due">{current.due} due</span>}
             </div>
@@ -155,14 +157,14 @@ export function KnowledgeRail() {
         {(() => {
           let idx = 0;
           return sections.map((sec) => (
-            <>
+            <Fragment key={sec.name}>
               <div class="rail-section-h">{sec.name}</div>
               {sec.topics.map((t) => {
                 const state = stateAt(idx);
                 idx += 1;
-                return <Tile t={t} state={state} onSelect={() => knowledgeActions.selectTopic(t.id)} />;
+                return <Tile key={t.id} t={t} state={state} onSelect={() => knowledgeActions.selectTopic(t.id)} />;
               })}
-            </>
+            </Fragment>
           ));
         })()}
       </div>

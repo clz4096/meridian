@@ -7,7 +7,7 @@
  * starts the Ascent session; and with nothing due the card collapses to the calm
  * "you're current" line (no CTA).
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { KnowledgeRail } from '@/features/knowledge/KnowledgeRail';
 import { knowledgeActions } from '@/ui/actions';
@@ -107,6 +107,24 @@ describe('KnowledgeRail', () => {
     seed({ items: { algorithms: [Q('a1')], graph: [Q('g1')] }, masteryById: { a1: 5, g1: 4 } });
     const { getByText } = render(<KnowledgeRail />);
     expect(getByText('2 of 15 topics solid')).toBeTruthy();
+  });
+
+  it('with every topic ≥60% solid, the DEEPEST (last) topic is the current tile (fallback)', () => {
+    // No topic is <60, so the "first <60" search returns -1 → deepest topic is current.
+    const ALL = ['algorithms', 'graph', 'probstats', 'cpp', 'comparch', 'concurrency', 'linux', 'databases', 'networking', 'distributed', 'sysdesign', 'compilers', 'mlfund', 'gpu', 'behavioral'];
+    const items: Record<string, KnowledgeItem[]> = {};
+    const masteryById: Record<string, number> = {};
+    ALL.forEach((id) => {
+      const q = id + '-q';
+      items[id] = [Q(q)];
+      masteryById[q] = 5; // 100% → solid, so nothing is the "first <60" frontier
+    });
+    seed({ items, masteryById });
+    const { container, getByText } = render(<KnowledgeRail />);
+    const currents = container.querySelectorAll('.rail-tile.rail-current');
+    expect(currents.length).toBe(1); // exactly one current, never zero or two
+    expect((currents[0] as HTMLElement).querySelector('.rail-t-name')?.textContent).toBe('Behavioral'); // the deepest tile
+    expect(getByText('15 of 15 topics solid')).toBeTruthy();
   });
 
   it('collapses to the calm "you’re current — nothing due" line when nothing is due', () => {
