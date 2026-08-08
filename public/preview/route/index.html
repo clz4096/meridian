@@ -74,14 +74,8 @@ button{font-family:inherit; color:inherit; cursor:pointer}
 
 /* ---------- spine ---------- */
 .spine{position:relative; padding-left:2px; margin-bottom:8px}
-.rail, .rail-fill{position:absolute; left:21px; width:2px; border-radius:2px}
-.rail{top:26px; bottom:24px; background:var(--line-2)}
-.rail-fill{
-  bottom:24px; height:0;
-  background:linear-gradient(180deg, var(--hub), rgba(242,178,92,.35));
-  box-shadow:0 0 10px rgba(242,178,92,.5);
-  transition:height .85s cubic-bezier(.4,.1,.2,1);
-}
+/* subtle vertical connector — no altitude/fill, just threads the camps */
+.rail{position:absolute; left:21px; width:2px; border-radius:2px; top:26px; bottom:24px; background:var(--line-2)}
 
 .frontier{position:relative; display:flex; gap:12px; align-items:flex-start; padding:4px 0 10px}
 .frontier .node-rail{width:40px; flex:none; display:flex; justify-content:center; padding-top:2px}
@@ -223,9 +217,8 @@ button{font-family:inherit; color:inherit; cursor:pointer}
     </div>
   </section>
 
-  <section class="spine" id="spine" aria-label="Your route — camps from the frontier down to foundations">
+  <section class="spine" id="spine" aria-label="Your route — current camp, then what's next, with finished camps at the bottom">
     <div class="rail" aria-hidden="true"></div>
-    <div class="rail-fill" id="railfill" aria-hidden="true"></div>
     <div id="spine-body"></div>
   </section>
 
@@ -256,110 +249,114 @@ const MASTERY = {
 // --- topic sets (reused across states, tuned per state) ---
 function t(title, mastery, due){ return {title, mastery, due:due||0}; }
 
-const CAMPS_MID = [
-  { num:5, name:"Career", state:"ahead",
-    fill:{word:"ahead", color:"var(--m-new)"},
-    topics:[ t("Behavioral","new") ] },
-  { num:4, name:"Machine Learning", state:"ahead",
-    fill:{word:"ahead", color:"var(--m-new)"},
-    topics:[ t("ML Fundamentals","new"), t("GPUs / TPUs","new") ] },
-  { num:3, name:"Applied Systems", state:"here",
-    fill:{word:"climbing", color:"var(--hub)"},
-    milestone:'<b>Applied Systems</b> — 1 of 5 solid · summit unlocks the ML frontier.',
+// camp factory
+function camp(o){ o.type = "camp"; return o; }
+const FRONTIER = { type:"frontier", title:"New terrain forming", sub:"unlocks as you master ML" };
+
+// Spine reads TOP → BOTTOM: current camp first, then what's next flowing down,
+// then the frontier, then finished camps (dimmed) at the bottom.
+const SPINE_MID = [
+  camp({ num:3, name:"Applied Systems", state:"here",
+    fill:{word:"in progress", color:"var(--hub)"},
+    milestone:'<b>Applied</b> — 1 of 5 solid · finish it to unlock Machine Learning.',
     topics:[
       t("Databases","solid",1),
       t("System Design","learning",2),
       t("Networking","learning",2),
       t("Distributed Systems","shaky",4),
       t("Compilers","new"),
-    ] },
-  { num:2, name:"Core Systems", state:"climbed",
+    ] }),
+  camp({ num:4, name:"Machine Learning", state:"ahead",
+    fill:{word:"next up", color:"var(--m-new)"},
+    topics:[ t("ML Fundamentals","new"), t("GPUs / TPUs","new") ] }),
+  camp({ num:5, name:"Career", state:"ahead",
+    fill:{word:"later", color:"var(--m-new)"},
+    topics:[ t("Behavioral","new") ] }),
+  FRONTIER,
+  camp({ num:2, name:"Core Systems", state:"climbed",
     fill:{word:"solid", color:"var(--m-solid)"},
-    milestone:'<b>Core Systems</b> — 4 of 4 solid · summit reached, Applied unlocked.',
+    milestone:'<b>Core Systems</b> — 4 of 4 solid · done.',
     topics:[
       t("C++","mastered"), t("Concurrency / Parallel","solid",1),
       t("Comp Arch / Assembly","solid"), t("Linux / Systems","solid"),
-    ] },
-  { num:1, name:"Foundations", state:"climbed",
+    ] }),
+  camp({ num:1, name:"Foundations", state:"climbed",
     fill:{word:"mastered", color:"var(--m-mastered)"},
     topics:[
       t("Algorithms / LC","mastered"), t("Graph Theory","solid",1), t("Prob & Stats","solid"),
-    ] },
+    ] }),
 ];
 
-const CAMPS_CAUGHT = [
-  { num:5, name:"Career", state:"ahead", fill:{word:"ahead", color:"var(--m-new)"},
-    topics:[ t("Behavioral","new") ] },
-  { num:4, name:"Machine Learning", state:"ahead", fill:{word:"ahead", color:"var(--m-new)"},
-    topics:[ t("ML Fundamentals","new"), t("GPUs / TPUs","new") ] },
-  { num:3, name:"Applied Systems", state:"here", fill:{word:"climbing", color:"var(--hub)"},
-    milestone:'<b>Applied Systems</b> — 2 of 5 solid · summit unlocks the ML frontier.',
+const SPINE_CAUGHT = [
+  camp({ num:3, name:"Applied Systems", state:"here",
+    fill:{word:"in progress", color:"var(--hub)"},
+    milestone:'<b>Applied</b> — 2 of 5 solid · finish it to unlock Machine Learning.',
     topics:[
       t("Databases","solid"), t("System Design","solid"), t("Networking","learning"),
       t("Distributed Systems","learning"), t("Compilers","new"),
-    ] },
-  { num:2, name:"Core Systems", state:"climbed", fill:{word:"solid", color:"var(--m-solid)"},
-    milestone:'<b>Core Systems</b> — 4 of 4 solid · summit reached.',
+    ] }),
+  camp({ num:4, name:"Machine Learning", state:"ahead", fill:{word:"next up", color:"var(--m-new)"},
+    topics:[ t("ML Fundamentals","new"), t("GPUs / TPUs","new") ] }),
+  camp({ num:5, name:"Career", state:"ahead", fill:{word:"later", color:"var(--m-new)"},
+    topics:[ t("Behavioral","new") ] }),
+  FRONTIER,
+  camp({ num:2, name:"Core Systems", state:"climbed", fill:{word:"solid", color:"var(--m-solid)"},
+    milestone:'<b>Core Systems</b> — 4 of 4 solid · done.',
     topics:[ t("C++","mastered"), t("Concurrency / Parallel","solid"),
-      t("Comp Arch / Assembly","solid"), t("Linux / Systems","solid") ] },
-  { num:1, name:"Foundations", state:"climbed", fill:{word:"mastered", color:"var(--m-mastered)"},
-    topics:[ t("Algorithms / LC","mastered"), t("Graph Theory","solid"), t("Prob & Stats","solid") ] },
+      t("Comp Arch / Assembly","solid"), t("Linux / Systems","solid") ] }),
+  camp({ num:1, name:"Foundations", state:"climbed", fill:{word:"mastered", color:"var(--m-mastered)"},
+    topics:[ t("Algorithms / LC","mastered"), t("Graph Theory","solid"), t("Prob & Stats","solid") ] }),
 ];
 
-const CAMPS_FRESH = [
-  { num:1, name:"Foundations", state:"here", fill:{word:"starting", color:"var(--hub)"},
-    topics:[ t("Algorithms / LC","new",3), t("Graph Theory","new"), t("Prob & Stats","new") ] },
+const SPINE_FRESH = [
+  camp({ num:1, name:"Foundations", state:"here", fill:{word:"in progress", color:"var(--hub)"},
+    topics:[ t("Algorithms / LC","new",3), t("Graph Theory","new"), t("Prob & Stats","new") ] }),
+  { type:"ghost", text:"Camps 2–5 open up as you finish Foundations." },
+  { type:"frontier", title:"New terrain forming", sub:"the route grows as you go" },
 ];
 
 const STATES = {
   mid: {
-    status:{ alt:"Camp 3 of 5 · 61% up the route", tail:"12 due · 🔥9 · 91% retention" },
-    frontier:{ show:true, title:"New terrain forming", sub:"unlocks as you master ML" },
-    ghost:null,
+    status:{ alt:"Camp 3 of 5 · 61% of the route", tail:"12 due · 🔥9 · 91% retention" },
     nm:{
       eyebrow:"Study next",
       recHTML:'<b>Distributed Systems</b>',
       lead:null,
       reasonMastery:"shaky",
-      reasonHTML:'· 4 due, and it unlocks the Applied summit.',
+      reasonHTML:'· 4 due, and it’s the last thing before Applied is done.',
       primary:"Start Today’s Path (12 due)", primaryDisabled:false,
     },
-    camps:CAMPS_MID,
+    spine:SPINE_MID,
   },
   fresh: {
-    status:{ alt:"Camp 1 of 5 · roping in", tail:"3 due · 🔥1 · new" },
-    frontier:{ show:true, title:"The route reveals itself", sub:"camps form as you climb" },
-    ghost:"Camps 2–5 are still unroped — reach a summit to extend the line.",
+    status:{ alt:"Camp 1 of 5 · just getting started", tail:"3 due · 🔥1 · new" },
     nm:{
       eyebrow:"Start here",
       lead:"Start here:",
       recHTML:'<b>Algorithms / LC</b>',
       reasonMastery:"new",
-      reasonHTML:'· your first hold. Everything above builds on it.',
+      reasonHTML:'· your first topic. Everything else builds on it.',
       primary:"Start Today’s Path (3 due)", primaryDisabled:false,
     },
-    camps:CAMPS_FRESH,
+    spine:SPINE_FRESH,
   },
   caught: {
-    status:{ alt:"Camp 3 of 5 · 61% up the route", tail:"all caught up ✓ · 🔥9 · 94% retention" },
-    frontier:{ show:true, title:"New terrain forming", sub:"unlocks as you master ML" },
-    ghost:null,
+    status:{ alt:"Camp 3 of 5 · 61% of the route", tail:"all caught up ✓ · 🔥9 · 94% retention" },
     nm:{
       eyebrow:"Push forward",
       lead:"Nothing due —",
       recHTML:'push forward: <b>Distributed Systems</b>',
       reasonMastery:"learning",
-      reasonHTML:'· solidify it and the Applied summit is one hold away.',
+      reasonHTML:'· solidify it and Applied is one topic from done.',
       primary:"Queue clear", primaryDisabled:true,
     },
-    camps:CAMPS_CAUGHT,
+    spine:SPINE_CAUGHT,
   },
 };
 
 // ---------- render ----------
 const $ = s => document.querySelector(s);
 const spineBody = $("#spine-body");
-const railFill = $("#railfill");
 let current = "mid";
 let openNum = null; // which camp is expanded
 
@@ -393,82 +390,83 @@ function render(){
   pb.textContent = nm.primary;
   pb.disabled = !!nm.primaryDisabled;
 
-  // spine
+  // spine — renders top → bottom: current camp, then ahead, then frontier, then finished camps
   spineBody.innerHTML = "";
-
-  // frontier node (top of the rope)
-  if(S.frontier.show){
-    const f = document.createElement("div");
-    f.className = "frontier";
-    f.innerHTML =
-      `<div class="node-rail"><span class="fnode"></span></div>` +
-      `<div class="ftext"><div class="ftitle">✦ ${S.frontier.title}</div>` +
-      `<div class="fsub">${S.frontier.sub}</div></div>`;
-    spineBody.appendChild(f);
-  }
-  if(S.ghost){
-    const g = document.createElement("div");
-    g.className = "ghostline";
-    g.textContent = S.ghost;
-    spineBody.appendChild(g);
-  }
-
-  S.camps.forEach(c => {
-    const isOpen = (c.num === openNum);
-    const node = document.createElement("div");
-    node.className = "node " + c.state;
-
-    const solidCount = c.topics.filter(x => x==="solid" || x.mastery==="solid" || x.mastery==="mastered").length;
-    const sub = c.state==="here"
-      ? `${c.topics.length} topics · you're climbing`
-      : `${c.topics.length} topics`;
-
-    const dotInner = c.state==="climbed" ? CHECK : "";
-    const dotColor = c.fill.color;
-
-    const camp = document.createElement("div");
-    camp.className = "camp" + (isOpen ? " open" : "");
-
-    const meta = c.state==="here"
-      ? `<span class="youare">← you're here</span>`
-      : `<span class="chip"><span class="cdot" style="background:${c.fill.color}"></span>${c.fill.word}</span>`;
-
-    camp.innerHTML =
-      `<button class="camp-head" aria-expanded="${isOpen}" aria-controls="topics-${c.num}">
-         <span>
-           <span class="camp-title"><span class="camp-num">C${c.num}</span> ${c.name}</span>
-           <span class="camp-sub">${sub}</span>
-         </span>
-         <span class="camp-meta">${meta}${CHEV}</span>
-       </button>
-       <div class="topics" id="topics-${c.num}"><div class="topics-inner">${topicsHTML(c)}</div></div>`;
-
-    node.innerHTML =
-      `<div class="node-rail"><span class="dot" style="background:${dotColor}">${dotInner}</span></div>`;
-    node.appendChild(camp);
-    spineBody.appendChild(node);
-
-    // wire expand/collapse
-    const head = camp.querySelector(".camp-head");
-    const topics = camp.querySelector(".topics");
-    head.addEventListener("click", () => toggleCamp(c.num));
-    setTopicsHeight(topics, isOpen);
-
-    // milestone banner between this camp and the next (lower) one
-    if(c.milestone){
-      const mb = document.createElement("div");
-      mb.className = "milestone";
-      mb.innerHTML = c.milestone;
-      spineBody.appendChild(mb);
+  S.spine.forEach(item => {
+    if(item.type === "frontier"){ renderFrontier(item); return; }
+    if(item.type === "ghost"){
+      const g = document.createElement("div");
+      g.className = "ghostline";
+      g.textContent = item.text;
+      spineBody.appendChild(g);
+      return;
     }
+    renderCamp(item);
   });
 
   // wire topic rows
   spineBody.querySelectorAll(".trow").forEach(r => {
     r.addEventListener("click", () => toast(`Drilling into <span class="tk">${r.dataset.title}</span> — coming soon`));
   });
+}
 
-  requestAnimationFrame(updateRailFill);
+function renderFrontier(item){
+  const f = document.createElement("div");
+  f.className = "frontier";
+  f.innerHTML =
+    `<div class="node-rail"><span class="fnode"></span></div>` +
+    `<div class="ftext"><div class="ftitle">✦ ${item.title}</div>` +
+    `<div class="fsub">${item.sub}</div></div>`;
+  spineBody.appendChild(f);
+}
+
+function renderCamp(c){
+  const isOpen = (c.num === openNum);
+  const node = document.createElement("div");
+  node.className = "node " + c.state;
+
+  const sub = c.state==="here"
+    ? `${c.topics.length} topics · you're here`
+    : `${c.topics.length} topics`;
+
+  const dotInner = c.state==="climbed" ? CHECK : "";
+  const dotColor = c.fill.color;
+
+  const camp = document.createElement("div");
+  camp.className = "camp" + (isOpen ? " open" : "");
+
+  const meta = c.state==="here"
+    ? `<span class="youare">you're here</span>`
+    : `<span class="chip"><span class="cdot" style="background:${c.fill.color}"></span>${c.fill.word}</span>`;
+
+  camp.innerHTML =
+    `<button class="camp-head" aria-expanded="${isOpen}" aria-controls="topics-${c.num}">
+       <span>
+         <span class="camp-title"><span class="camp-num">C${c.num}</span> ${c.name}</span>
+         <span class="camp-sub">${sub}</span>
+       </span>
+       <span class="camp-meta">${meta}${CHEV}</span>
+     </button>
+     <div class="topics" id="topics-${c.num}"><div class="topics-inner">${topicsHTML(c)}</div></div>`;
+
+  node.innerHTML =
+    `<div class="node-rail"><span class="dot" style="background:${dotColor}">${dotInner}</span></div>`;
+  node.appendChild(camp);
+  spineBody.appendChild(node);
+
+  // wire expand/collapse
+  const head = camp.querySelector(".camp-head");
+  const topics = camp.querySelector(".topics");
+  head.addEventListener("click", () => toggleCamp(c.num));
+  setTopicsHeight(topics, isOpen);
+
+  // milestone banner directly under this camp
+  if(c.milestone){
+    const mb = document.createElement("div");
+    mb.className = "milestone";
+    mb.innerHTML = c.milestone;
+    spineBody.appendChild(mb);
+  }
 }
 
 function topicsHTML(c){
@@ -503,19 +501,6 @@ function toggleCamp(num){
     head.setAttribute("aria-expanded", open);
     setTopicsHeight(camp.querySelector(".topics"), open);
   });
-  requestAnimationFrame(updateRailFill);
-}
-
-function updateRailFill(){
-  const here = spineBody.querySelector(".node.here .dot");
-  const spine = $("#spine");
-  if(!here){ railFill.style.height = "0px"; return; }
-  const sRect = spine.getBoundingClientRect();
-  const dRect = here.getBoundingClientRect();
-  const dotCenter = (dRect.top + dRect.height/2) - sRect.top;
-  const bottomInset = 24;
-  const h = Math.max(0, spine.clientHeight - bottomInset - dotCenter);
-  railFill.style.height = h + "px";
 }
 
 // ---------- interactions ----------
@@ -542,16 +527,18 @@ document.querySelectorAll(".demo button").forEach(b => {
     current = b.dataset.state;
     document.querySelectorAll(".demo button").forEach(x =>
       x.setAttribute("aria-pressed", String(x === b)));
-    // default open camp = the "here" camp for this state
-    openNum = (STATES[current].camps.find(c => c.state==="here") || {}).num ?? null;
+    openNum = hereNum(current); // default open camp = the current ("here") camp
     render();
   });
 });
 
-window.addEventListener("resize", () => requestAnimationFrame(updateRailFill));
+function hereNum(state){
+  const c = STATES[state].spine.find(i => i.type==="camp" && i.state==="here");
+  return c ? c.num : null;
+}
 
 // init: current camp expanded
-openNum = (STATES[current].camps.find(c => c.state==="here") || {}).num ?? null;
+openNum = hereNum(current);
 render();
 </script>
 </body>
