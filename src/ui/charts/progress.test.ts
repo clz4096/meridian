@@ -156,9 +156,16 @@ describe('study series', () => {
     expect(s[0].value).toBe(2); // l2 (5) + l3 (4); l1 (3) not solved
   });
 
-  it('tracks cumulative mastery % over time', () => {
-    const s = masterySeries(kg, 'week');
-    // week1 (Jul 13+15): q1 3→4, q2 5 → both mastered of 2 = 100%. week2 (Jul 20): +q3=2 → 2 of 3 = 67%.
+  it('tracks cumulative mastery % of the WHOLE curriculum over time', () => {
+    // 2 questions reach mastery (q1 3→4, q2 5); q3 stays at 2. Against a 10-question
+    // curriculum that's 2/10 = 20% both weeks — NOT 100%/67% of just-attempted.
+    const s = masterySeries(kg, 'week', 10);
+    expect(s.map((p) => p.value)).toEqual([20, 20]);
+  });
+
+  it('falls back to attempted-count when total is unknown (0)', () => {
+    // Back-compat: no/zero total → old denominator (mastered of attempted).
+    const s = masterySeries(kg, 'week', 0);
     expect(s.map((p) => p.value)).toEqual([100, 67]);
   });
 

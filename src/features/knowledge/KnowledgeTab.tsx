@@ -9,7 +9,7 @@ import type { KnowledgeViewModel, KnowledgeItem, GymLink } from '@/features/know
 import { masterySeries, questionsSolvedSeries, xpSeries, studyDaysSeries, currentStreak } from '@/ui/charts/progress';
 import { ProgControls, Carousel, Chart } from '@/ui/components/Charts';
 import { SecHero } from '@/ui/components/SecHero';
-import { kg, core, dueItems, allTargetItems, todayPathItems, knowledgeActions, loadKnowledge } from '@/ui/actions';
+import { kg, core, dueItems, allTargetItems, todayPathItems, allKGItems, knowledgeActions, loadKnowledge } from '@/ui/actions';
 import { knowledgeGrowth } from '@/features/knowledge/knowledgeSelectors';
 import { AscentSession } from '@/features/knowledge/AscentSession';
 import { KnowledgeRail } from '@/features/knowledge/KnowledgeRail';
@@ -85,8 +85,11 @@ function KnowledgeProgress() {
   const today = dstr();
   const streak = currentStreak(K, today);
   const g = knowledgeGrowth(K, today);
-  const masteryPct = g.seen ? Math.round((100 * g.solid) / g.seen) : 0;
-  const sub = streak > 0 ? `🔥 ${streak}-day streak` : g.seen ? `${g.solid} solid` : 'nothing yet';
+  // Mastery % is share of the WHOLE curriculum mastered — not of the handful
+  // attempted (dividing by g.seen read ~99% after a few well-rated answers).
+  const total = allKGItems().length;
+  const masteryPct = total ? Math.round((100 * g.solid) / total) : 0;
+  const sub = streak > 0 ? `🔥 ${streak}-day streak` : g.seen ? `${g.solid} of ${total} mastered` : 'nothing yet';
   const retentionTxt = g.retention == null ? '—' : `${Math.round(g.retention * 100)}%`;
   return (
     <>
@@ -102,7 +105,7 @@ function KnowledgeProgress() {
       <div class="prog">
         <ProgControls />
         <Carousel keepKey="knowledge">
-          <Chart opts={{ kind: 'line', title: 'Mastery %', points: masterySeries(K, period), unit: '%', color: 'var(--ok)' }} />
+          <Chart opts={{ kind: 'line', title: 'Mastery %', points: masterySeries(K, period, total), unit: '%', color: 'var(--ok)' }} />
           <Chart opts={{ kind: 'bar', title: 'Questions solved', points: questionsSolvedSeries(K, period), summary: 'sum', color: 'var(--teal)' }} />
           <Chart opts={{ kind: 'bar', title: 'XP earned', points: xpSeries(C, period, 'kg'), summary: 'sum', color: 'var(--fuel)' }} />
           <Chart opts={{ kind: 'bar', title: 'Study days', points: studyDaysSeries(K, period), summary: 'sum', color: 'var(--protein)' }} />

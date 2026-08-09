@@ -240,17 +240,21 @@ export function questionsSolvedSeries(kg: KnowledgeState, period: Period): Point
 }
 
 /**
- * Mastery % over time: replaying the log, the share of *attempted* questions at
- * recall ≥ 4 as of the end of each active bucket (a cumulative snapshot).
+ * Mastery % over time: replaying the log, the share of the *whole curriculum*
+ * (`total` questions) at recall ≥ 4 as of the end of each active bucket (a
+ * cumulative snapshot). Dividing by attempted-count instead read ~99% after a
+ * few well-rated answers; `total` is the honest denominator. Falls back to the
+ * attempted count if `total` is unknown (0), preserving the old behaviour.
  */
-export function masterySeries(kg: KnowledgeState, period: Period): Point[] {
+export function masterySeries(kg: KnowledgeState, period: Period, total = 0): Point[] {
   const log = [...(kg.log ?? [])].sort((a, b) => toNum(a.at, 0) - toNum(b.at, 0));
   const latest = new Map<string, number>();
   const byBucket = new Map<string, number>();
   for (const l of log) {
     latest.set(l.qid, toNum(l.rating, 0));
     const mastered = [...latest.values()].filter((r) => r >= 4).length;
-    byBucket.set(bucketKey(dateOfMillis(l.at), period), Math.round((100 * mastered) / latest.size));
+    const denom = total > 0 ? total : latest.size;
+    byBucket.set(bucketKey(dateOfMillis(l.at), period), Math.round((100 * mastered) / denom));
   }
   return [...byBucket.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
