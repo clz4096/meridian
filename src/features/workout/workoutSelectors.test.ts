@@ -25,6 +25,7 @@ import {
   e1rm,
   exerciseScore,
   exerciseSplit,
+  habitualStaples,
   inferIncrement,
   isCompound,
   isOptional,
@@ -35,12 +36,15 @@ import {
   selectWorkoutView,
   sessionEffort,
   splitOfDate,
+  STAPLE_WINDOW,
   suggestSplit,
   trainedDaysInWeek,
   weeklyWorkingSets,
+  weekGrade,
   weekStrength,
   WEEK_TRAINING_TARGET,
 } from '@/features/workout/workoutSelectors';
+import defaultWorkoutData from '@/core/data/defaultWorkout.json';
 import { addTombstone, pruneTombstones, sameId, shiftDate, toNum } from '@/core/util';
 
 const RUNS = Number(process.env.FC_RUNS ?? 150);
@@ -919,5 +923,161 @@ describe('weekStrength — reality check (must NOT over-read as Strong)', () => 
     expect(dayGrade(s, D(6))).toBe('weak');
     expect(weekStrength(s, D(6))).not.toBe('strong');
     expect(weekStrength(s, D(6))).toBe('weak');
+  });
+});
+
+/* ================================================================== */
+/* Habitual-staple model + new-model regression coverage              */
+/* ================================================================== */
+
+describe('habitualStaples — behavioural, not the full roster', () => {
+  // Three upper lifts done every session; an "Overhead Press" done once and
+  // abandoned. Staples are the habitual lifts, not everything ever logged.
+  const seeds = [0, 3, 6].flatMap((d) => [
+    { date: D(d), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' as Muscle },
+    { date: D(d), ex: 'Lat Pulldown', weight: 120, reps: 5, muscle: 'back' as Muscle },
+    { date: D(d), ex: 'Tricep Pushdown (Rope)', weight: 40, reps: 8, muscle: 'triceps' as Muscle },
+  ]);
+  const abandoned = { date: D(0), ex: 'Overhead Press', weight: 60, reps: 5, muscle: 'shoulders' as Muscle };
+  // an upper session ON the query day, so splitOfDate resolves to 'upper'
+  const query = { date: D(9), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' as Muscle };
+
+  it('K (the same-split window) is 4', () => expect(STAPLE_WINDOW).toBe(4));
+
+  it('keeps lifts in ≥50% of the recent same-split sessions, drops one-offs', () => {
+    const s = stateOf([...seeds, abandoned, query]);
+    expect(habitualStaples(s, D(9)).sort()).toEqual(['Bench Press', 'Lat Pulldown', 'Tricep Pushdown (Rope)']);
+    // Overhead Press appeared in 1 of the 3 recent upper sessions (33%) → not a staple
+    expect(habitualStaples(s, D(9))).not.toContain('Overhead Press');
+  });
+
+  it('optional and cardio lifts are never staples', () => {
+    const s = stateOf([
+      ...[0, 3, 6].flatMap((d) => [
+        { date: D(d), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' as Muscle },
+        { date: D(d), ex: 'Hammer Curl (Dumbbell)', weight: 30, reps: 10, muscle: 'biceps' as Muscle },
+        { date: D(d), ex: 'Treadmill', weight: 0, reps: 0, muscle: 'cardio' as Muscle, type: 'cardio' as SetType },
+      ]),
+      { date: D(9), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' as Muscle },
+    ]);
+    expect(habitualStaples(s, D(9))).toEqual(['Bench Press']);
+  });
+
+  it('no prior same-split history → no staples', () => {
+    expect(habitualStaples(stateOf([{ date: D(9), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' }]), D(9))).toEqual([]);
+  });
+});
+
+describe('dayGrade under the staple model (subset of a seeded roster)', () => {
+  // Roster of 3 habitual upper lifts + an abandoned Overhead Press (once, at D(0)).
+  const seeds = [
+    ...[0, 3, 6].flatMap((d) => [
+      { date: D(d), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' as Muscle },
+      { date: D(d), ex: 'Lat Pulldown', weight: 120, reps: 5, muscle: 'back' as Muscle },
+      { date: D(d), ex: 'Tricep Pushdown (Rope)', weight: 40, reps: 8, muscle: 'triceps' as Muscle },
+    ]),
+    { date: D(0), ex: 'Overhead Press', weight: 60, reps: 5, muscle: 'shoulders' as Muscle },
+  ];
+  const hit = {
+    bench: { date: D(9), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' as Muscle },
+    lat: { date: D(9), ex: 'Lat Pulldown', weight: 120, reps: 5, muscle: 'back' as Muscle },
+    tri: { date: D(9), ex: 'Tricep Pushdown (Rope)', weight: 40, reps: 8, muscle: 'triceps' as Muscle },
+  };
+
+  it('a focused day hitting all its staples grades Strong', () => {
+    expect(dayGrade(stateOf([...seeds, hit.bench, hit.lat, hit.tri]), D(9))).toBe('strong');
+  });
+
+  it('skipping a staple pulls the day down (Strong → Moderate)', () => {
+    // Tricep is a staple but has no top set today → weak for that slot; [3,3,1] → 2.33 → moderate
+    expect(dayGrade(stateOf([...seeds, hit.bench, hit.lat]), D(9))).toBe('moderate');
+  });
+
+  it('an abandoned roster lift does NOT count against the day', () => {
+    // Overhead Press (in the seeded roster but not habitual) is neither a staple
+    // nor logged today, so it never drags the grade — the day stays Strong.
+    const s = stateOf([...seeds, hit.bench, hit.lat, hit.tri]);
+    expect(habitualStaples(s, D(9))).not.toContain('Overhead Press');
+    expect(dayGrade(s, D(9))).toBe('strong');
+  });
+
+  it('a one-off brand-new lift logged today is excluded, not counted against you', () => {
+    // Face Pull is logged for the first time (no target) → dropped from the average;
+    // the staples were all hit, so the day is still Strong.
+    const s = stateOf([
+      ...seeds,
+      hit.bench,
+      hit.lat,
+      hit.tri,
+      { date: D(9), ex: 'Face Pull', weight: 50, reps: 12, muscle: 'shoulders' },
+    ]);
+    expect(dayGrade(s, D(9))).toBe('strong');
+  });
+});
+
+describe('ungradable days vs cardio-only days', () => {
+  it('a day whose only strength work is a first-timer is ungradable (null), NOT weak', () => {
+    // brand-new Leg Press, no prior history → no target → the day cannot be graded
+    const s = stateOf([{ date: D(0), ex: 'Leg Press', weight: 140, reps: 8, muscle: 'quads' }]);
+    expect(dayGrade(s, D(0))).toBeNull();
+  });
+
+  it('a cardio-only day is a weak lifting day', () => {
+    const s = stateOf([{ date: D(0), ex: 'Treadmill', weight: 0, reps: 0, muscle: 'cardio', type: 'cardio' }]);
+    expect(dayGrade(s, D(0))).toBe('weak');
+  });
+});
+
+describe('weekGrade — median + frequency cap (pure)', () => {
+  const W = 'weak' as const;
+  const M = 'moderate' as const;
+  const S = 'strong' as const;
+
+  it('even-count median ties DOWN to the lower grade, symmetrically', () => {
+    expect(weekGrade([W, W, M, S], 4)).toBe('weak'); // central (weak,moderate) = 1½ → weak
+    expect(weekGrade([M, M, S, S], 4)).toBe('moderate'); // central (moderate,strong) = 2½ → moderate
+    expect(weekGrade([W, W, S, S], 4)).toBe('moderate'); // central (weak,strong) = 2 → moderate
+    expect(weekGrade([S, S, S, S], 4)).toBe('strong'); // exact integer median unaffected
+  });
+
+  it('frequency cap: ≥4 keeps the median, 2–3 pulls down a band, ≤1 floors at weak', () => {
+    expect(weekGrade([S, S, S, S], 4)).toBe('strong');
+    expect(weekGrade([S, S, S], 3)).toBe('moderate'); // median strong, 3 trained → down one
+    expect(weekGrade([S, S], 2)).toBe('moderate');
+    expect(weekGrade([S], 1)).toBe('weak'); // one good day is not a strong week
+    expect(weekGrade([], 0)).toBe('rest');
+  });
+
+  it('ungradable (null) days drop from the median but still count for the cap', () => {
+    expect(weekGrade([S, null, S, null], 4)).toBe('strong'); // 4 trained, 2 gradable strong → strong
+    expect(weekGrade([S, null], 2)).toBe('moderate'); // graded [S] median strong, 2 trained → down → moderate
+    expect(weekGrade([null], 1)).toBe('rest'); // the lone training day was ungradable → rest
+    expect(weekGrade([null, null, null], 3)).toBe('rest'); // nothing gradable all week
+  });
+});
+
+describe('week strength on the REAL seeded default program', () => {
+  const real = (): WorkoutState => ({
+    settings: {},
+    days: (defaultWorkoutData as unknown as { days: WorkoutState['days'] }).days,
+    bw: {},
+    rpe: {},
+    done: {},
+    sessionDone: {},
+    incr: {},
+  });
+
+  it('Strong is reachable — a full habitual session grades Strong (not universally weak)', () => {
+    expect(dayGrade(real(), '2026-07-05')).toBe('strong');
+    expect(dayGrade(real(), '2026-07-09')).toBe('strong');
+  });
+
+  it('the real focused Leg Press day (2026-07-22, a first-timer) is ungradable, NOT forced weak', () => {
+    // This was the shipped bug: under the old full-roster slate this day read weak.
+    expect(dayGrade(real(), '2026-07-22')).toBeNull();
+  });
+
+  it('a full training week reads Strong end-to-end', () => {
+    expect(weekStrength(real(), '2026-07-09')).toBe('strong');
   });
 });

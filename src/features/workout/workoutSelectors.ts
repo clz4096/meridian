@@ -845,16 +845,19 @@ export function bodyweightTrend(state: WorkoutState): number | null {
  */
 
 export type StrengthGrade = 'weak' | 'moderate' | 'strong';
-/** A week with zero training days is `rest`, not a strength grade. */
+/** A week with zero gradable training is `rest`, not a strength grade. */
 export type WeekStrength = StrengthGrade | 'rest';
 
 /** Ordinal value of a grade, for averaging and taking a median. */
 const GRADE_VALUE: Record<StrengthGrade, number> = { weak: 1, moderate: 2, strong: 3 };
+const GRADE_BY_VALUE: Record<number, StrengthGrade> = { 1: 'weak', 2: 'moderate', 3: 'strong' };
 
 /**
- * Band a 1..3 score into a grade. §4 thresholds, with a deliberate dead zone
- * between 2.33 and 2.34 so the boundaries read exactly as specified:
+ * Band a continuous 1..3 score into a grade. The partition is total — every
+ * value lands in exactly one band:
  *   avg < 1.67 → weak · 1.67 ≤ avg < 2.34 → moderate · avg ≥ 2.34 → strong.
+ * Used for a DAY's average of per-lift scores. The WEEK grade takes a median of
+ * whole grades instead and rounds it to an ordinal (see `weekStrength`).
  */
 export function bandScore(avg: number): StrengthGrade {
   if (avg >= 2.34) return 'strong';
@@ -874,8 +877,8 @@ export function bandScore(avg: number): StrengthGrade {
  *   - a planned lift with NO logged top set that day → Weak (skipping hurts)
  *
  * Returns `null` when the slot is ungradable — the lift is cardio, or there is
- * no prior history to progress from so there is no target — so `dayGrade` can
- * skip it rather than invent a score.
+ * no prior history to progress from so there is no target (a first-timer) — so
+ * the day average skips it rather than inventing a score.
  */
 export function exerciseScore(
   state: WorkoutState,
@@ -886,7 +889,7 @@ export function exerciseScore(
 ): StrengthGrade | null {
   if (isCardio(state, exercise)) return null;
   const plan = buildPlan(state, exercise, date, overrides, config);
-  if (!plan || plan.cardio) return null; // no target to grade against
+  if (!plan || plan.cardio) return null; // no target to grade against (first-timer)
   const actual = topSetOf(setsOn(state, exercise, date));
   if (!actual) return 'weak'; // planned but never topped out → a skipped slot
   const hitWeight = toNum(actual.weight) >= plan.top.weight;
@@ -896,48 +899,88 @@ export function exerciseScore(
   return 'moderate';
 }
 
+/** How many recent same-split sessions define a lift's "habitual" status. */
+export const STAPLE_WINDOW = 4;
+
 /**
- * The non-optional, non-cardio lifts that were *planned* for a date's split.
+ * The lifter's *habitual* lifts for a date's split — the "staples".
  *
- * A day's grade must punish skipping a planned lift, so the slate can't be "what
- * you logged" — it's the split's roster. We read which half was trained
- * (`splitOfDate`, else the alternation due that day) and take every known lift
- * of that split. Optional accessories and cardio are dropped; first-time lifts
- * with no target fall out later via `exerciseScore` returning null.
+ * The grade must punish skipping a lift you normally do, but must NOT punish
+ * not-doing a lift that merely sits in the seeded default program. So the slate
+ * is behavioural, not the full roster: a lift is a staple when it appears in at
+ * least half of the last `STAPLE_WINDOW` (4) same-split sessions STRICTLY BEFORE
+ * `date`. We read the day's split (`splitOfDate`, else the alternation due that
+ * day), collect the recent session dates of that same split, and keep the
+ * non-optional, non-cardio lifts that clear the ≥50% bar. With no prior
+ * same-split history there are no staples (nothing is habitual yet).
  */
-export function plannedStrengthSlate(
+export function habitualStaples(
   state: WorkoutState,
   date: string,
   config: ProgressionConfig = DEFAULT_CONFIG,
 ): string[] {
-  const split = splitOfDate(state, date, config) ?? suggestSplit(state, date, config).due;
-  return allExercises(state).filter((ex) => {
-    if (isCardio(state, ex) || isOptional(ex)) return false;
-    const s = exerciseSplit(state, ex, config);
-    return s === split || s === 'both';
-  });
+  const daySplit = splitOfDate(state, date, config) ?? suggestSplit(state, date, config).due;
+  const priorSameSplit = sortedDates(state)
+    .filter((d) => d < date && splitOfDate(state, d, config) === daySplit)
+    .slice(-STAPLE_WINDOW);
+  const sessions = priorSameSplit.length;
+  if (sessions === 0) return [];
+  const seen = new Map<string, number>();
+  for (const d of priorSameSplit) {
+    for (const ex of loggedExercises(state, d)) {
+      if (isCardio(state, ex) || isOptional(ex)) continue;
+      seen.set(ex, (seen.get(ex) ?? 0) + 1);
+    }
+  }
+  const staples: string[] = [];
+  for (const [ex, count] of seen) if (count / sessions >= 0.5) staples.push(ex);
+  return staples;
 }
 
 /**
- * Grade a whole day: the average of its planned lifts' per-exercise scores,
- * banded by §4. A day whose only gradable work is cardio (no strength lift in
- * the slate scored) is Weak, not empty — logging only a treadmill session is a
- * weak lifting day, not a rest day.
+ * Grade a whole day.
+ *
+ * The graded set is the day's staples UNION the non-optional, non-cardio lifts
+ * actually topped out that day. Each is scored by `exerciseScore`, so a skipped
+ * staple (no top set) is Weak, a hit staple/lift is graded against its target,
+ * and a first-timer with no target drops out (null). The day grade is the band
+ * of those scores' average.
+ *
+ * Returns `null` when the day is *ungradable*: it was trained, but its only
+ * strength work was first-timers with no target — that day must not be forced
+ * to Weak and drag the week down, so the week median simply skips it. A day
+ * whose only work is cardio, by contrast, is a genuinely Weak lifting day.
  */
 export function dayGrade(
   state: WorkoutState,
   date: string,
   overrides: SessionOverrides = {},
   config: ProgressionConfig = DEFAULT_CONFIG,
-): StrengthGrade {
+): StrengthGrade | null {
+  const dead = tombstoneIds(state);
+  const graded = new Set(habitualStaples(state, date, config));
+  const logged = loggedExercises(state, date);
+  for (const ex of logged) {
+    if (isCardio(state, ex) || isOptional(ex)) continue;
+    if (topSetOf(setsOn(state, ex, date))) graded.add(ex);
+  }
+
   const scores: number[] = [];
-  for (const ex of plannedStrengthSlate(state, date, config)) {
+  for (const ex of graded) {
     const s = exerciseScore(state, ex, date, overrides, config);
     if (s) scores.push(GRADE_VALUE[s]);
   }
-  if (scores.length === 0) return 'weak';
-  const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-  return bandScore(avg);
+  if (scores.length > 0) {
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    return bandScore(avg);
+  }
+
+  // Nothing scored. Distinguish "trained but ungradable" from "cardio-only".
+  const live = (state.days?.[date] ?? []).some((s) => !dead.has(toId(s.id)));
+  if (!live) return null; // not a training day at all
+  const hasStrength = logged.some((ex) => !isCardio(state, ex) && !isOptional(ex));
+  if (hasStrength) return null; // only first-timers / no targets → ungradable, skip it
+  return 'weak'; // cardio-only (or accessory-only) training day is a weak lifting day
 }
 
 /** Days with at least one live (non-tombstoned) set in the 7 days ending at `today`. */
@@ -956,23 +999,55 @@ function dropBand(g: StrengthGrade): StrengthGrade {
   return g === 'strong' ? 'moderate' : 'weak';
 }
 
-/** Median of an ordinal list (average of the two middles when even). */
-function median(values: number[]): number {
+/**
+ * Median grade VALUE of an ordinal list of grade values (1/2/3).
+ *
+ * For an even count the two central grades are averaged and a half-step ties
+ * DOWN to the lower (more conservative) grade — so [weak, moderate] → weak and
+ * [moderate, strong] → moderate, symmetrically. This avoids running a
+ * half-integer (1.5, 2.5) through the continuous day-band thresholds, which
+ * would band 1.5→weak but 2.5→strong asymmetrically.
+ */
+function medianGradeValue(values: number[]): number {
   const xs = [...values].sort((a, b) => a - b);
   const mid = Math.floor(xs.length / 2);
-  return xs.length % 2 ? xs[mid]! : (xs[mid - 1]! + xs[mid]!) / 2;
+  if (xs.length % 2) return xs[mid]!;
+  return Math.floor((xs[mid - 1]! + xs[mid]!) / 2);
 }
 
 /** Target training days a week; falling short pulls the week grade down. */
 export const WEEK_TRAINING_TARGET = 4;
 
 /**
+ * Combine a week's per-day grades into the week grade — the pure median+cap
+ * rule, isolated from data access so it can be unit-tested directly.
+ *
+ * `trainedDays` is the count of training days (ungradable ones included), which
+ * drives the frequency cap; `dayGrades` are those days' grades with `null` for
+ * ungradable (all-new-lift) days, which are dropped from the median. Median of
+ * the remaining grades, then the cap: ≥ 4 trained days keeps the median; 2–3
+ * pulls it down one band; ≤ 1 floors at Weak. Nothing gradable → `rest`.
+ */
+export function weekGrade(
+  dayGrades: ReadonlyArray<StrengthGrade | null>,
+  trainedDays: number,
+): WeekStrength {
+  if (trainedDays <= 0) return 'rest';
+  const graded = dayGrades.filter((g): g is StrengthGrade => g !== null);
+  // ≤ 1 training day floors at Weak; a lone ungradable day has no grade → rest.
+  if (trainedDays === 1) return graded.length === 0 ? 'rest' : 'weak';
+  if (graded.length === 0) return 'rest';
+  const base = GRADE_BY_VALUE[medianGradeValue(graded.map((g) => GRADE_VALUE[g]))]!;
+  return trainedDays < WEEK_TRAINING_TARGET ? dropBand(base) : base;
+}
+
+/**
  * The at-a-glance week strength grade over the 7 days ending at `today`.
  *
- * Median of the trained days' grades, then a frequency cap: the median rewards
- * how you lifted, the cap accounts for how often. With ≥ 4 trained days the
- * median stands; 2–3 days pulls it down one band; ≤ 1 day floors at Weak (one
- * good session is not a strong week). Zero trained days is `rest`.
+ * Grades each training day, then folds them with `weekGrade`. Ungradable days (a
+ * legitimate all-new-lift session) are excluded from the median but still count
+ * as training days for the frequency cap. Zero trained days, or a week with
+ * nothing gradable, is `rest`.
  */
 export function weekStrength(
   state: WorkoutState,
@@ -983,10 +1058,12 @@ export function weekStrength(
   const days = trainedDaysInWeek(state, today);
   const n = days.length;
   if (n === 0) return 'rest';
-  const base = bandScore(median(days.map((d) => GRADE_VALUE[dayGrade(state, d, overrides, config)])));
-  if (n <= 1) return 'weak';
-  if (n < WEEK_TRAINING_TARGET) return dropBand(base);
-  return base;
+  // ≤ 1 training day floors before touching the median (see weekGrade).
+  if (n === 1) return dayGrade(state, days[0]!, overrides, config) === null ? 'rest' : 'weak';
+  return weekGrade(
+    days.map((d) => dayGrade(state, d, overrides, config)),
+    n,
+  );
 }
 
 /* ================================================================== */

@@ -828,8 +828,15 @@ export const scratchActions = {
 export function hubStats(): HubStat[] {
   const today = dstr();
   const K = kg();
-  const attempted = Object.keys(K.mastery ?? {}).length;
-  const mastered = Object.values(K.mastery ?? {}).filter((r: Store) => Number(r) >= 4).length;
+  // Scope mastery to ids that still exist in the question bank so a stale mastery
+  // row (a retired question) can't inflate the numerator past the denominator and
+  // push the percentage over 100. Before the bank has loaded, fall back to the
+  // raw mastery keys rather than flashing 0.
+  const validIds = new Set(allKGItems().map((it) => String(it.id)));
+  const masteryRows = Object.entries(K.mastery ?? {});
+  const scoped = validIds.size ? masteryRows.filter(([id]) => validIds.has(id)) : masteryRows;
+  const attempted = scoped.length;
+  const mastered = scoped.filter(([, r]) => Number(r) >= 4).length;
   const masteryPct = attempted ? Math.round((100 * mastered) / attempted) : 0;
   const W = wk();
   // Week strength is a qualitative grade of how the training week actually went
@@ -852,7 +859,7 @@ export function hubStats(): HubStat[] {
     { key: 'todos', label: 'Todos', desc: 'Reminders & tasks', value: String(openTodos), unit: openTodos === 1 ? ' open' : ' open', sub: dueToday ? `${dueToday} due today` : openTodos ? 'to do' : 'all clear', tone: dueToday ? 'kcal' : '' },
     { key: 'scratch', label: 'Scratchpad', desc: 'Ideas & experiments', value: String(notes), unit: notes === 1 ? ' note' : ' notes', sub: 'captured', tone: '' },
     { key: 'knowledge', label: 'Knowledge', desc: 'Study & spaced review', value: String(masteryPct), unit: '%', sub: 'mastery', tone: 'cyan' },
-    { key: 'workout', label: 'Workout', desc: 'Training log & progression', value: wkWord, unit: '', sub: `${wkTrained} of ${WEEK_TRAINING_TARGET} days`, tone: wkGrade === 'strong' ? 'ok' : '' },
+    { key: 'workout', label: 'Workout', desc: 'Training log & progression', value: wkWord, unit: '', sub: `${wkTrained} of ${WEEK_TRAINING_TARGET} days`, tone: wkGrade === 'strong' ? 'ok' : wkGrade === 'weak' ? 'kcal' : '' },
     { key: 'meal', label: 'Food & Body', desc: 'Calories & bodyweight', value: todayCal.toLocaleString('en-US'), unit: ' kcal', sub: todayCal ? 'today' : 'not logged', tone: 'kcal' },
     { key: 'data', label: 'Data', desc: 'Sync, storage & export', value: cloudEnabled() ? (dirty ? 'Unsaved' : 'Synced') : 'Local', unit: '', sub: `${kb} KB`, tone: !cloudEnabled() || dirty ? '' : 'ok', dot: cloudEnabled() && !dirty },
   ];
