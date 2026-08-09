@@ -131,6 +131,46 @@ describe('AscentSession — data moments', () => {
   });
 });
 
+describe('AscentSession — capped topic review', () => {
+  /** Seed `n` DUE (overdue) flip cards under `topic` + a blank knowledge/core store. */
+  function seedDue(topic: string, n: number): void {
+    const items: KnowledgeItem[] = [];
+    const srs: Record<string, unknown> = {};
+    for (let i = 0; i < n; i++) {
+      items.push({ id: topic + i, prompt: 'Prompt ' + i, reveal: 'Answer ' + i, mins: 5, flow: 'flip', src: { book: 'clrs', ref: 'p' + i } });
+      srs[topic + i] = { due: '2000-01-01' }; // overdue → due today
+    }
+    kgItems.value = { [topic]: items };
+    appState.set('csgraph', { mastery: {}, srs, log: [], gymDone: {} });
+    appState.set('core', { entries: [], schedule: {}, todos: [], scratch: [], _del: {} });
+  }
+
+  it('launches STRAIGHT into the capped one-up deck (no Start panel) and finishes on "Done for today."', () => {
+    vi.useFakeTimers();
+    seedDue('t', 3);
+    kgTopic.value = '__review__:t';
+    const { container, getByText, queryByText } = render(<AscentSession />);
+    // Focused review skips the "Begin the climb" intro — the first card is already up.
+    expect(queryByText('Begin the climb')).toBeNull();
+    expect(container.querySelector('.asc-card')).toBeTruthy();
+    // Finish line shows the capped total (03).
+    expect(container.querySelector('.asc-counter')!.textContent).toContain('03');
+    // Grade all three → the summit's "Done for today." done-state.
+    for (let i = 0; i < 3; i++) {
+      beginRevealGrade(container, 'good');
+      act(() => { vi.advanceTimersByTime(420); });
+    }
+    expect(getByText('Done for today.')).toBeTruthy();
+  });
+
+  it('caps the deck at min(due, 10) even when more of the topic is due', () => {
+    seedDue('t', 13);
+    kgTopic.value = '__review__:t';
+    const { container } = render(<AscentSession />);
+    expect(container.querySelector('.asc-counter')!.textContent).toContain('10'); // 01 / 10
+  });
+});
+
 describe('AscentSession — reduced motion', () => {
   it('skips the recede/enter transform classes but still advances the cursor', () => {
     (window as unknown as { matchMedia: unknown }).matchMedia = vi.fn().mockReturnValue({

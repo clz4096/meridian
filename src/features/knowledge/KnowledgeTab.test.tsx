@@ -1,6 +1,6 @@
 /**
- * KnowledgeView component test. Asserts the gallery landing (Today's-path bar +
- * hero + topic cards + Progress doorways), then exercises the study body via
+ * KnowledgeView component test. Asserts the gate lands on the Rail by default
+ * (detail lives in KnowledgeRail.test.tsx), then exercises the study body via
  * kgOverview=false: a seeded question renders, Reveal / the 4 FSRS grade buttons /
  * filters / gym rows are each wired to the matching knowledgeActions method, and
  * untrusted question text is escaped to inert TEXT (injection safety). Also covers
@@ -11,7 +11,7 @@ import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { KnowledgeView } from '@/features/knowledge/KnowledgeTab';
 import { knowledgeActions } from '@/ui/actions';
 import { appState } from '@/app/bootstrap';
-import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgOverview } from '@/ui/store';
+import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgGraded, kgOverview } from '@/ui/store';
 import type { KnowledgeItem } from '@/features/knowledge/types';
 
 const QUESTION: KnowledgeItem = {
@@ -49,29 +49,24 @@ afterEach(() => {
   kgTarget.value = 'all';
   kgItems.value = {};
   kgRevealed.value = {};
+  kgGraded.value = {};
   appState.set('csgraph', {});
 });
 
 describe('KnowledgeView', () => {
-  it('lands on the card gallery by default — Today’s-path bar + topic cards', () => {
-    const { getByText } = render(<KnowledgeView />);
-    expect(getByText('Today’s path')).toBeTruthy();
-    // A couple of the 15 fixed topic names render as cards on the landing gallery.
+  it('lands on the Rail by default — the three fixed sections + topic tiles (via the gate)', () => {
+    const { container, getByText } = render(<KnowledgeView />);
+    const heads = Array.from(container.querySelectorAll('.rail-section-h')).map((h) => h.textContent);
+    expect(heads).toEqual(['Foundations', 'Systems', 'Frontier']);
+    // A couple of the 15 fixed topic names render as rail tiles.
     expect(getByText('Algorithms / LC')).toBeTruthy();
     expect(getByText('Graph Theory')).toBeTruthy();
   });
 
-  it('fires knowledgeActions.startToday when the Today’s-path bar is tapped', () => {
-    const startSpy = vi.spyOn(knowledgeActions, 'startToday').mockImplementation(() => {});
-    const { getByText } = render(<KnowledgeView />);
-    fireEvent.click(getByText('Today’s path'));
-    expect(startSpy).toHaveBeenCalledOnce();
-  });
-
-  it('fires knowledgeActions.openProgress from the gallery’s "See progress" doorway', () => {
+  it('fires knowledgeActions.openProgress when the Rail’s header meter is tapped', () => {
     const progSpy = vi.spyOn(knowledgeActions, 'openProgress').mockImplementation(() => {});
-    const { getByText } = render(<KnowledgeView />);
-    fireEvent.click(getByText('See progress →'));
+    const { container } = render(<KnowledgeView />);
+    fireEvent.click(container.querySelector('.rail-meter') as HTMLElement);
     expect(progSpy).toHaveBeenCalledOnce();
   });
 
@@ -96,14 +91,35 @@ describe('KnowledgeView', () => {
     expect(selectSpy).toHaveBeenCalledWith('algorithms');
   });
 
-  it('renders the seeded question prompt on the study screen, and Reveal fires knowledgeActions.reveal', () => {
+  it('renders the seeded question prompt on the topic screen, and Reveal fires knowledgeActions.reveal', () => {
     seedQuestions();
     kgOverview.value = false;
     const revealSpy = vi.spyOn(knowledgeActions, 'reveal').mockImplementation(() => {});
-    const { getByText } = render(<KnowledgeView />);
+    const { getByText, container } = render(<KnowledgeView />);
     expect(getByText('What is a hash map?')).toBeTruthy();
-    fireEvent.click(getByText('Show answer'));
+    fireEvent.click(container.querySelector('.tpc-reveal') as HTMLElement);
     expect(revealSpy).toHaveBeenCalledWith('q1');
+  });
+
+  it('renders the topic screen’s calm column — header, tucked effort + 🎧 Gym, cards with an honest effort chip, and NO "Studying for"', () => {
+    seedQuestions();
+    kgOverview.value = false;
+    const { container, getByText, queryByText } = render(<KnowledgeView />);
+    expect(container.querySelector('.tpc-head')).toBeTruthy(); // ‹ back · topic · mastery% · N due
+    expect(container.querySelector('.tpc-effort')).toBeTruthy(); // the Effort filter
+    expect(container.querySelector('.tpc-gym')).toBeTruthy(); // the 🎧 Gym entry
+    expect(getByText(/5 min/)).toBeTruthy(); // effort chip = honest length, never a difficulty badge
+    expect(queryByText('Studying for')).toBeNull(); // the target filter is cut
+    expect(queryByText(/Your trail up/)).toBeNull(); // the trail band is cut
+  });
+
+  it('the 🎧 Gym entry fires knowledgeActions.toggleGym', () => {
+    seedQuestions();
+    kgOverview.value = false;
+    const gymSpy = vi.spyOn(knowledgeActions, 'toggleGym').mockImplementation(() => {});
+    const { container } = render(<KnowledgeView />);
+    fireEvent.click(container.querySelector('.tpc-gym') as HTMLElement);
+    expect(gymSpy).toHaveBeenCalledOnce();
   });
 
   it('fires knowledgeActions.rate with the FSRS grade once the card is revealed', () => {
@@ -119,17 +135,31 @@ describe('KnowledgeView', () => {
     expect(rateSpy).toHaveBeenCalledWith('q1', 4);
   });
 
-  it('shows the belonging headline + trail band, and the topic switcher fires selectTopic', () => {
+  it('grading a topic card LOCKS it — reviewed note, grade buttons gone (no re-log)', () => {
     seedQuestions();
     kgOverview.value = false;
-    const selectSpy = vi.spyOn(knowledgeActions, 'selectTopic').mockImplementation(() => {});
-    const { getByText } = render(<KnowledgeView />);
-    // Base Camp hero: belonging progress + the forward-looking trail.
-    expect(getByText(/You.*ve mastered/)).toBeTruthy();
-    expect(getByText(/Your trail up/)).toBeTruthy();
-    // The Switch menu lists every topic; picking a different one drills into it.
-    fireEvent.click(getByText('Graph Theory'));
-    expect(selectSpy).toHaveBeenCalledWith('graph');
+    kgRevealed.value = { q1: true };
+    vi.spyOn(knowledgeActions, 'rate').mockImplementation(() => {});
+    const { container } = render(<KnowledgeView />);
+    fireEvent.click((container.querySelector('#rate-q1') as HTMLElement).querySelectorAll('button')[2]); // Good
+    expect(kgGraded.value.q1).toBeTruthy(); // card marked reviewed → locked
+    const card = container.querySelector('#qc-q1') as HTMLElement;
+    expect(card.className).toContain('reviewed'); // dimmed
+    expect(container.querySelector('#rate-q1')).toBeNull(); // grade buttons gone — can't re-grade/re-log
+    expect(card.textContent).toContain('reviewed'); // the confirmation note
+  });
+
+  it('the "Review N due →" row launches the focused review — startReview(topicId)', () => {
+    kgItems.value = { algorithms: [QUESTION] };
+    appState.set('csgraph', { mastery: {}, gymDone: {}, srs: { q1: { due: '2000-01-01' } }, log: [] });
+    kgOverview.value = false;
+    const spy = vi.spyOn(knowledgeActions, 'startReview').mockImplementation(() => {});
+    const { container } = render(<KnowledgeView />);
+    const row = container.querySelector('.tpc-review') as HTMLElement;
+    expect(row).toBeTruthy();
+    expect(row.textContent).toContain('1 due');
+    fireEvent.click(row);
+    expect(spy).toHaveBeenCalledWith('algorithms');
   });
 
   it('fires knowledgeActions.answerWithAI when the AI-answer button is tapped', () => {
@@ -146,7 +176,7 @@ describe('KnowledgeView', () => {
     kgOverview.value = false;
     const filterSpy = vi.spyOn(knowledgeActions, 'setTimeFilter').mockImplementation(() => {});
     const { getByText } = render(<KnowledgeView />);
-    fireEvent.click(getByText('Quick · 5m'));
+    fireEvent.click(getByText('5m'));
     expect(filterSpy).toHaveBeenCalledWith('5');
   });
 

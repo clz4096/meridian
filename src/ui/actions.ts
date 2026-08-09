@@ -329,6 +329,29 @@ export function todaySession(cap = 20, newCap = 10): TodaySession {
   };
 }
 
+/** kgTopic sentinel that scopes an Ascent session to ONE topic's due deck. */
+export const REVIEW_PREFIX = '__review__:';
+
+/**
+ * A capped, topic-scoped review deck for the Ascent engine — this topic's due
+ * items only, capped at min(due, cap). Same TodaySession shape as todaySession()
+ * so `AscentSession` runs it unchanged (one engine, one query, scoped).
+ */
+export function topicReviewSession(topicId: string, cap = 10): TodaySession {
+  const due = dueItems().filter((it) => it.topic === topicId);
+  const items = due.slice(0, Math.min(due.length, cap));
+  return { items, dueN: items.length, newN: 0, overflow: due.length - items.length };
+}
+
+/**
+ * The Ascent deck for the CURRENT kgTopic: a capped topic review when kgTopic is
+ * a `__review__:<id>` sentinel, otherwise the interleaved "Today's path".
+ */
+export function sessionForTopic(): TodaySession {
+  const t = st.kgTopic.value;
+  return t.startsWith(REVIEW_PREFIX) ? topicReviewSession(t.slice(REVIEW_PREFIX.length)) : todaySession();
+}
+
 /* ── knowledge actions ── */
 export const knowledgeActions: KnowledgeActions = {
   selectTopic(id) {
@@ -337,6 +360,7 @@ export const knowledgeActions: KnowledgeActions = {
     st.kgProgressOpen.value = false;
     st.kgGym.value = false;
     st.kgRevealed.value = {};
+    st.kgGraded.value = {};
     pushState(); // gallery → study is a drill-in; back returns to the gallery
     st.bump();
   },
@@ -370,14 +394,29 @@ export const knowledgeActions: KnowledgeActions = {
     st.kgGym.value = false;
     st.bump();
   },
-  startReview() {
-    st.kgTopic.value = '__review__';
+  startReview(topicId) {
+    // Focused review = a capped Ascent session scoped to THIS topic's due deck.
+    st.kgTopic.value = REVIEW_PREFIX + topicId;
     st.kgTime.value = 'all';
     st.kgOverview.value = false;
     st.kgProgressOpen.value = false;
     st.kgGym.value = false;
     st.kgRevealed.value = {};
-    pushState(); // drill into the review study body; back returns to the gallery
+    pushState(); // drill into the review session; back returns to the topic
+    st.bump();
+  },
+  exitSession() {
+    // A topic review returns to its topic screen; Today's path returns to the Rail.
+    const t = st.kgTopic.value;
+    if (t.startsWith(REVIEW_PREFIX)) {
+      st.kgTopic.value = t.slice(REVIEW_PREFIX.length);
+      st.kgOverview.value = false;
+    } else {
+      st.kgOverview.value = true;
+    }
+    st.kgGym.value = false;
+    st.kgRevealed.value = {};
+    st.kgGraded.value = {};
     st.bump();
   },
   startToday() {
@@ -418,14 +457,17 @@ export const knowledgeActions: KnowledgeActions = {
     K.mastery[id] = mastery;
     scheduleCard(id, g);
     const it = allKGItems().find((x) => x.id === id);
-    K.log.push({ id: uid(), qid: id, at: Date.now(), rating: mastery, date: dstr(), topic: st.kgTopic.value });
+    // Tag with the item's REAL topic, never the composite review sentinel (__review__:<id>).
+    const t = st.kgTopic.value;
+    const realTopic = (it as { topic?: string } | undefined)?.topic || (t.startsWith(REVIEW_PREFIX) ? t.slice(REVIEW_PREFIX.length) : t);
+    K.log.push({ id: uid(), qid: id, at: Date.now(), rating: mastery, date: dstr(), topic: realTopic });
     appState.markKnowledgeDirty();
     core().entries.push({
       id: uid(),
       date: dstr(),
       stream: 'kg',
       problem: it ? it.prompt.slice(0, 42) + '…' : id,
-      topic: st.kgTopic.value,
+      topic: realTopic,
       status: mastery >= 4 ? 'solved' : 'attempted',
       score: mastery,
       xp: mastery * 4,
@@ -870,6 +912,7 @@ export function handleBack(): boolean {
   if (st.currentTab.value === 'meal' && st.sgLogOpen.value) { st.sgLogOpen.value = false; st.bump(); return true; }
   if (st.currentTab.value === 'knowledge' && st.kgGym.value) { st.kgGym.value = false; st.bump(); return true; } // gym → questions
   if (st.currentTab.value === 'knowledge' && st.kgProgressOpen.value) { st.kgProgressOpen.value = false; st.bump(); return true; } // Progress → gallery
+  if (st.currentTab.value === 'knowledge' && st.kgTopic.value.startsWith(REVIEW_PREFIX)) { knowledgeActions.exitSession(); return true; } // focused review → its topic (mirror the in-session Back)
   if (st.currentTab.value === 'knowledge' && !st.kgOverview.value) { st.kgOverview.value = true; st.bump(); return true; } // study → gallery
   if (st.currentTab.value !== 'today') { goHome(); return true; } // gallery → hub
   return false;
