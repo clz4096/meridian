@@ -828,9 +828,11 @@ export const scratchActions = {
 export function hubStats(): HubStat[] {
   const today = dstr();
   const K = kg();
-  const attempted = Object.keys(K.mastery ?? {}).length;
+  // Mastery % is share of the WHOLE curriculum mastered — NOT of the handful
+  // attempted (dividing by attempted read 100% after a couple mastered answers).
+  const totalQ = allKGItems().length;
   const mastered = Object.values(K.mastery ?? {}).filter((r: Store) => Number(r) >= 4).length;
-  const masteryPct = attempted ? Math.round((100 * mastered) / attempted) : 0;
+  const masteryPct = totalQ ? Math.round((100 * mastered) / totalQ) : 0;
   const W = wk();
   const wkd = (W.days ?? {}) as Record<string, Store[]>;
   const [ty, tm, td] = today.split('-').map(Number);

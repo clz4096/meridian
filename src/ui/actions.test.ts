@@ -11,7 +11,7 @@
  * touch document.getElementById — harmlessly no-op when the element is absent.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, restTimer, openSection, goHome, handleBack, todaySession, topicReviewSession, sessionForTopic, REVIEW_PREFIX, sg, kg, core, wk } from '@/ui/actions';
+import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, restTimer, openSection, goHome, handleBack, todaySession, topicReviewSession, sessionForTopic, REVIEW_PREFIX, hubStats, sg, kg, core, wk } from '@/ui/actions';
 import { appState, dstr } from '@/app/bootstrap';
 import { selectWorkoutView } from '@/features/workout/workoutSelectors';
 import defaultWorkout from '@/core/data/defaultWorkout.json';
@@ -49,6 +49,22 @@ describe('meal addMeal', () => {
     mealActions.addMeal('', 0, 0);
     expect(sg().days[today]).toBeUndefined();
     expect(dirty).not.toHaveBeenCalled();
+  });
+});
+
+describe('hubStats knowledge tile — mastery % of the whole curriculum', () => {
+  it('a beginner who mastered 1 of 20 curriculum questions reads ~5%, NOT 100%', () => {
+    // Reality check: a known beginner state must not read near-full mastery.
+    kgItems.value = { algorithms: Array.from({ length: 20 }, (_, i) => ({ id: `q${i}`, mins: 5 })) as never };
+    Object.assign(kg(), { mastery: { q0: 5 }, srs: {}, log: [], gymDone: {} });
+    const tile = hubStats().find((s) => s.key === 'knowledge')!;
+    expect(tile.value).toBe('5'); // 1 / 20, not 1 / 1 attempted
+  });
+
+  it('zero mastered reads 0%', () => {
+    kgItems.value = { algorithms: Array.from({ length: 20 }, (_, i) => ({ id: `q${i}`, mins: 5 })) as never };
+    Object.assign(kg(), { mastery: {}, srs: {}, log: [], gymDone: {} });
+    expect(hubStats().find((s) => s.key === 'knowledge')!.value).toBe('0');
   });
 });
 
