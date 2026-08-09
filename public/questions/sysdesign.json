@@ -8,7 +8,7 @@
    "book": "sysdesign",
    "ref": "Matching engine design"
   },
-  "reveal": "Required operations: add order, cancel order by id, and match incoming orders against the best price \u2014 all needing best-price access in O(1) and price-level updates in O(log n) or better. Standard design: a sorted map from price \u2192 price level (bids descending, asks ascending), where each price level holds a FIFO queue of orders preserving time priority; plus a hash map from order id \u2192 a pointer/iterator into that queue so cancels are O(1) without scanning. Best bid/ask is the first entry of each map. Production systems replace the sorted map with an array indexed by price ticks, since the price range is bounded \u2014 turning O(log n) into O(1).",
+  "reveal": "Required operations: add order, cancel order by id, and match incoming orders against the best price — all needing best-price access in O(1) and price-level updates in O(log n) or better. Standard design: a sorted map from price → price level (bids descending, asks ascending), where each price level holds a FIFO queue of orders preserving time priority; plus a hash map from order id → a pointer/iterator into that queue so cancels are O(1) without scanning. Best bid/ask is the first entry of each map. Production systems replace the sorted map with an array indexed by price ticks, since the price range is bounded — turning O(log n) into O(1).",
   "tags": [
    "sysdesign",
    "hft"
@@ -23,7 +23,7 @@
    "book": "sysdesign",
    "ref": "Matching engine design"
   },
-  "reveal": "A single-threaded loop consumes a sequenced input stream: for each incoming order, walk the opposite side from the best price, matching while the price crosses and quantity remains, emitting fills; any residual rests on the book (or is cancelled for IOC/FOK). It must be fully DETERMINISTIC \u2014 the same input sequence must always produce the same output \u2014 because that is what allows a hot standby to replay the same input and hold identical state for instant failover, and what makes the system auditable and replayable for debugging. Determinism is why matching is single-threaded: parallelism would introduce ordering nondeterminism for a component that is rarely the bottleneck anyway.",
+  "reveal": "A single-threaded loop consumes a sequenced input stream: for each incoming order, walk the opposite side from the best price, matching while the price crosses and quantity remains, emitting fills; any residual rests on the book (or is cancelled for IOC/FOK). It must be fully DETERMINISTIC — the same input sequence must always produce the same output — because that is what allows a hot standby to replay the same input and hold identical state for instant failover, and what makes the system auditable and replayable for debugging. Determinism is why matching is single-threaded: parallelism would introduce ordering nondeterminism for a component that is rarely the bottleneck anyway.",
   "tags": [
    "sysdesign",
    "hft"
@@ -38,7 +38,7 @@
    "book": "sysdesign",
    "ref": "Market data systems"
   },
-  "reveal": "Wire \u2192 NIC (hardware timestamp) \u2192 kernel-bypass receive on a pinned core \u2192 decode the binary protocol \u2192 normalize into an internal format \u2192 publish to consumers via a lock-free SPSC/SPMC ring buffer per consumer \u2192 strategy. Queues sit between decode and each consumer, and they must be BOUNDED with an explicit overflow policy. Failure modes: sequence gaps (detect via sequence numbers, request replay), a slow consumer backing up the pipeline (drop and signal rather than block the feed), burst overload at market open, and silent data staleness \u2014 so a heartbeat and a staleness alarm are mandatory.",
+  "reveal": "Wire → NIC (hardware timestamp) → kernel-bypass receive on a pinned core → decode the binary protocol → normalize into an internal format → publish to consumers via a lock-free SPSC/SPMC ring buffer per consumer → strategy. Queues sit between decode and each consumer, and they must be BOUNDED with an explicit overflow policy. Failure modes: sequence gaps (detect via sequence numbers, request replay), a slow consumer backing up the pipeline (drop and signal rather than block the feed), burst overload at market open, and silent data staleness — so a heartbeat and a staleness alarm are mandatory.",
   "tags": [
    "sysdesign",
    "hft"
@@ -53,7 +53,7 @@
    "book": "sysdesign",
    "ref": "Rate limiting"
   },
-  "reveal": "TOKEN BUCKET refills tokens at a fixed rate up to a capacity; each request spends one. It allows bursts up to the bucket size, which is usually what you want. LEAKY BUCKET drains at a constant rate, smoothing output completely but rejecting bursts. FIXED WINDOW counters are simplest but permit double the limit at a window boundary; SLIDING WINDOW LOG stores timestamps for exactness at high memory cost, and sliding window COUNTER interpolates between two fixed windows as a good compromise. Distributed enforcement needs shared state \u2014 typically Redis with an atomic Lua script, or per-node limits with a safety margin.",
+  "reveal": "TOKEN BUCKET refills tokens at a fixed rate up to a capacity; each request spends one. It allows bursts up to the bucket size, which is usually what you want. LEAKY BUCKET drains at a constant rate, smoothing output completely but rejecting bursts. FIXED WINDOW counters are simplest but permit double the limit at a window boundary; SLIDING WINDOW LOG stores timestamps for exactness at high memory cost, and sliding window COUNTER interpolates between two fixed windows as a good compromise. Distributed enforcement needs shared state — typically Redis with an atomic Lua script, or per-node limits with a safety margin.",
   "tags": [
    "sysdesign",
    "systems"
@@ -68,7 +68,7 @@
    "book": "sysdesign",
    "ref": "Distributed ID generation"
   },
-  "reveal": "Random UUIDv4s are unique but have poor locality: as a primary key they scatter B-tree inserts across the whole index, hurting write throughput and cache behaviour, and they are 128 bits. SNOWFLAKE packs a 64-bit integer as timestamp | machine id | per-millisecond sequence \u2014 giving IDs that are unique without coordination, roughly time-SORTABLE (so inserts append to the index), and compact. The catches: it needs unique machine ids assigned somehow, and clock skew or NTP stepping backwards can produce duplicates, so implementations refuse to issue IDs while the clock is behind the last-seen timestamp.",
+  "reveal": "Random UUIDv4s are unique but have poor locality: as a primary key they scatter B-tree inserts across the whole index, hurting write throughput and cache behaviour, and they are 128 bits. SNOWFLAKE packs a 64-bit integer as timestamp | machine id | per-millisecond sequence — giving IDs that are unique without coordination, roughly time-SORTABLE (so inserts append to the index), and compact. The catches: it needs unique machine ids assigned somehow, and clock skew or NTP stepping backwards can produce duplicates, so implementations refuse to issue IDs while the clock is behind the last-seen timestamp.",
   "tags": [
    "sysdesign",
    "distributed"
@@ -83,7 +83,7 @@
    "book": "sysdesign",
    "ref": "Classic system design"
   },
-  "reveal": "Generate a unique 64-bit id (counter or Snowflake), then base62-encode it into a short string \u2014 giving ~3.5 trillion codes in 7 characters, no collision checking needed. Store id \u2192 long URL in a key-value store. The workload is overwhelmingly READS, so the path is: CDN/edge cache \u2192 an in-memory cache (the popular tail is tiny relative to the corpus) \u2192 datastore only on a miss. Redirects should be 302 if you need analytics on every hit, 301 if you want browsers to cache and cut load. Custom aliases need a uniqueness check; expiry needs a TTL sweep.",
+  "reveal": "Generate a unique 64-bit id (counter or Snowflake), then base62-encode it into a short string — giving ~3.5 trillion codes in 7 characters, no collision checking needed. Store id → long URL in a key-value store. The workload is overwhelmingly READS, so the path is: CDN/edge cache → an in-memory cache (the popular tail is tiny relative to the corpus) → datastore only on a miss. Redirects should be 302 if you need analytics on every hit, 301 if you want browsers to cache and cut load. Custom aliases need a uniqueness check; expiry needs a TTL sweep.",
   "tags": [
    "sysdesign"
   ]
@@ -97,7 +97,7 @@
    "book": "sysdesign",
    "ref": "Classic system design"
   },
-  "reveal": "FAN-OUT ON WRITE pushes each new post into every follower\u2019s precomputed timeline: reads are a single cheap lookup, but a celebrity with 50 million followers makes one write catastrophically expensive. FAN-OUT ON READ assembles the timeline at request time by merging the posts of everyone you follow: writes are trivial, reads are expensive and hard to cache. Real systems go HYBRID \u2014 fan out on write for ordinary accounts, and for high-follower accounts merge their posts in at read time. The decision is driven entirely by the follower-count distribution, which is heavy-tailed.",
+  "reveal": "FAN-OUT ON WRITE pushes each new post into every follower’s precomputed timeline: reads are a single cheap lookup, but a celebrity with 50 million followers makes one write catastrophically expensive. FAN-OUT ON READ assembles the timeline at request time by merging the posts of everyone you follow: writes are trivial, reads are expensive and hard to cache. Real systems go HYBRID — fan out on write for ordinary accounts, and for high-follower accounts merge their posts in at read time. The decision is driven entirely by the follower-count distribution, which is heavy-tailed.",
   "tags": [
    "sysdesign",
    "distributed"
@@ -112,7 +112,7 @@
    "book": "sysdesign",
    "ref": "Classic system design"
   },
-  "reveal": "Clients hold a persistent connection (WebSocket) to a gateway; a session registry maps user \u2192 gateway node so a message can be routed to the right connection. Messages are written to durable storage FIRST, then pushed \u2014 so an offline user simply fetches everything after their last-acknowledged message id on reconnect. Ordering within a conversation comes from a per-conversation monotonic sequence number assigned server-side (client clocks are untrustworthy); clients sort by it and can detect gaps. Delivery is at-least-once with client-side deduplication on message id, since exactly-once delivery is not achievable.",
+  "reveal": "Clients hold a persistent connection (WebSocket) to a gateway; a session registry maps user → gateway node so a message can be routed to the right connection. Messages are written to durable storage FIRST, then pushed — so an offline user simply fetches everything after their last-acknowledged message id on reconnect. Ordering within a conversation comes from a per-conversation monotonic sequence number assigned server-side (client clocks are untrustworthy); clients sort by it and can detect gaps. Delivery is at-least-once with client-side deduplication on message id, since exactly-once delivery is not achievable.",
   "tags": [
    "sysdesign",
    "distributed"
@@ -127,7 +127,7 @@
    "book": "sysdesign",
    "ref": "Observability"
   },
-  "reveal": "The four golden signals: LATENCY (and specifically the tail \u2014 p99/p99.9, not the mean, since averages hide the pain), TRAFFIC (requests per second), ERRORS (rate and type, including silent failures like empty responses), and SATURATION (how close resources are to their limit \u2014 queue depth, connection pool usage, CPU). Vanity metrics are things like total lifetime requests or average response time, which look reassuring and change nothing. The operating rule: alert on symptoms users feel (latency, errors), graph causes (saturation) for diagnosis, and always measure percentiles.",
+  "reveal": "The four golden signals: LATENCY (and specifically the tail — p99/p99.9, not the mean, since averages hide the pain), TRAFFIC (requests per second), ERRORS (rate and type, including silent failures like empty responses), and SATURATION (how close resources are to their limit — queue depth, connection pool usage, CPU). Vanity metrics are things like total lifetime requests or average response time, which look reassuring and change nothing. The operating rule: alert on symptoms users feel (latency, errors), graph causes (saturation) for diagnosis, and always measure percentiles.",
   "tags": [
    "sysdesign",
    "systems"
@@ -142,7 +142,7 @@
    "book": "sysdesign",
    "ref": "Capacity planning"
   },
-  "reveal": "Convert to per-second, then apply a peak multiplier. 10M daily users \u00d7 say 20 requests = 200M requests/day; divided by 86,400 \u2248 2,300 rps average; peak is typically 2\u20133\u00d7 average, so plan for ~7,000 rps. Storage: requests \u00d7 bytes stored per request \u00d7 retention. Bandwidth: rps \u00d7 average payload. Then sanity-check against known limits \u2014 a single modern server handles thousands of simple rps, a database maybe 10k reads/sec from cache and far fewer writes. The point is not precision, it is an order of magnitude that tells you whether this is one box or a hundred.",
+  "reveal": "Convert to per-second, then apply a peak multiplier. 10M daily users × say 20 requests = 200M requests/day; divided by 86,400 ≈ 2,300 rps average; peak is typically 2–3× average, so plan for ~7,000 rps. Storage: requests × bytes stored per request × retention. Bandwidth: rps × average payload. Then sanity-check against known limits — a single modern server handles thousands of simple rps, a database maybe 10k reads/sec from cache and far fewer writes. The point is not precision, it is an order of magnitude that tells you whether this is one box or a hundred.",
   "tags": [
    "sysdesign"
   ]
@@ -156,7 +156,7 @@
    "book": "sysdesign",
    "ref": "Interview method"
   },
-  "reveal": "Requirements and constraints, explicitly. Functional: what exactly must it do, and what is out of scope. Non-functional: expected scale (users, rps, data volume), read/write ratio, latency target, consistency requirement (can a read be stale?), availability target, and durability. Then do a rough capacity estimate so the numbers drive the design. Only then sketch the high-level components, and only after that go deep on the one or two pieces that are actually hard. Jumping straight to boxes and arrows without pinning the requirements is the most common failure \u2014 it produces a design that cannot be evaluated.",
+  "reveal": "Requirements and constraints, explicitly. Functional: what exactly must it do, and what is out of scope. Non-functional: expected scale (users, rps, data volume), read/write ratio, latency target, consistency requirement (can a read be stale?), availability target, and durability. Then do a rough capacity estimate so the numbers drive the design. Only then sketch the high-level components, and only after that go deep on the one or two pieces that are actually hard. Jumping straight to boxes and arrows without pinning the requirements is the most common failure — it produces a design that cannot be evaluated.",
   "tags": [
    "sysdesign"
   ]
@@ -170,10 +170,260 @@
    "book": "sysdesign",
    "ref": "Reliability patterns"
   },
-  "reveal": "Fail fast and shed load rather than queue indefinitely \u2014 a request the user has already abandoned costs you capacity for nothing. Patterns: LOAD SHEDDING (reject a fraction early with a clear 429/503), CIRCUIT BREAKER (stop calling a failing dependency for a cooldown so it can recover, and to avoid piling up threads), BULKHEAD (separate resource pools per dependency so one slow service cannot exhaust all threads), TIMEOUTS on every call with retry plus exponential backoff and JITTER, and GRACEFUL DEGRADATION (serve stale cached data or a reduced feature set instead of an error). The unifying idea: bounded queues and explicit behaviour when they are full.",
+  "reveal": "Fail fast and shed load rather than queue indefinitely — a request the user has already abandoned costs you capacity for nothing. Patterns: LOAD SHEDDING (reject a fraction early with a clear 429/503), CIRCUIT BREAKER (stop calling a failing dependency for a cooldown so it can recover, and to avoid piling up threads), BULKHEAD (separate resource pools per dependency so one slow service cannot exhaust all threads), TIMEOUTS on every call with retry plus exponential backoff and JITTER, and GRACEFUL DEGRADATION (serve stale cached data or a reduced feature set instead of an error). The unifying idea: bounded queues and explicit behaviour when they are full.",
   "tags": [
    "sysdesign",
    "distributed"
+  ]
+ },
+ {
+  "id": "sd-cap-15",
+  "mins": 15,
+  "flow": "full",
+  "src": {
+   "book": "ddia",
+   "ref": "Consistency & consensus (CAP/PACELC)"
+  },
+  "prompt": "State the CAP theorem precisely, and why PACELC is the more useful framing.",
+  "reveal": "CAP: when a network PARTITION occurs, a distributed system must choose between CONSISTENCY (every read sees the latest write, i.e. linearizability) and AVAILABILITY (every request gets a non-error response) - you cannot have both while partitioned. The common misreading is 'pick 2 of 3'; partition tolerance is not optional on a real network, so the real choice is C vs A DURING a partition. PACELC states it honestly: if Partitioned choose A or C, Else (normal operation) choose between LATENCY and CONSISTENCY. That 'else' is what matters in practice - even with no partition, synchronous replication for strong consistency costs latency. So Dynamo/Cassandra are PA/EL (available + low latency) while a single-leader SQL store is PC/EC.",
+  "tags": [
+   "sysdesign",
+   "distributed"
+  ]
+ },
+ {
+  "id": "sd-consistency-15",
+  "mins": 15,
+  "flow": "full",
+  "src": {
+   "book": "ddia",
+   "ref": "Consistency models"
+  },
+  "prompt": "Contrast linearizable, causal, and eventual consistency. When is each the right choice?",
+  "reveal": "LINEARIZABLE (strong): a single real-time order of operations; once a write completes, every later read everywhere sees it. Easiest to reason about, but needs coordination (consensus/quorum) so it costs latency and availability under partition. EVENTUAL: replicas converge if writes stop, but a read may be stale and replicas may disagree meanwhile - cheap and always available, fine for like-counts, feeds, DNS. CAUSAL sits between: causally-related operations (a reply after its post) are seen in order everywhere, while concurrent unrelated ops may be seen in any order - it is the STRONGEST model achievable while staying available under partition, and matches intuition (no reply before its post). Rule: pick the weakest model the feature tolerates - strong where money/uniqueness is at stake, causal for messaging/collaboration, eventual for counters and caches.",
+  "tags": [
+   "sysdesign",
+   "distributed"
+  ]
+ },
+ {
+  "id": "sd-taillatency-15",
+  "mins": 15,
+  "flow": "full",
+  "src": {
+   "book": "ddia",
+   "ref": "Describing performance (percentiles)"
+  },
+  "prompt": "Why report p99/p99.9 latency instead of the mean, and what is tail amplification?",
+  "reveal": "The mean hides the users who suffer: a service can have a 10ms mean and a 1s p99, and the p99 decides whether the slowest 1% - often your most active users, who issue the most requests - have a bad time. SLOs are written on percentiles, not averages. TAIL AMPLIFICATION: a request that fans out to many backends is only as fast as its SLOWEST dependency, so if each backend is slow 1% of the time, a parent hitting 100 of them is slow about 63% of the time (1 - 0.99^100). Mitigations: hedged/backup requests (send a duplicate to another replica after a short delay, take the first to return), reduce fan-out, and keep every backend's own tail tight. You cannot average your way out of a tail problem.",
+  "tags": [
+   "sysdesign"
+  ]
+ },
+ {
+  "id": "sd-loadbalancer-15",
+  "mins": 15,
+  "flow": "full",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Load balancing"
+  },
+  "prompt": "Compare L4 and L7 load balancing, and how a load balancer picks a backend.",
+  "reveal": "L4 (transport) balances on IP/port without reading the payload - fast and protocol-agnostic, but it cannot route on URL or terminate TLS; it just forwards packets to a chosen backend (NAT or direct-server-return). L7 (application) parses HTTP, so it can route by path/header/cookie, terminate TLS, retry idempotent requests, and do sticky sessions - at higher per-request cost. Backend selection: round-robin, least-connections (better when request cost is uneven), or consistent hashing (a given key/user lands on the same backend for cache locality, and adding/removing a backend only remaps ~1/N of keys). Every LB must HEALTH-CHECK backends and stop routing to unhealthy ones, and the LB itself must be redundant (otherwise it is the single point of failure) - usually a floating VIP or DNS with several LB IPs.",
+  "tags": [
+   "sysdesign"
+  ]
+ },
+ {
+  "id": "sd-caching-15",
+  "mins": 15,
+  "flow": "full",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Caching strategies"
+  },
+  "prompt": "Compare cache-aside, write-through, and write-back. What is a cache stampede and how do you prevent it?",
+  "reveal": "CACHE-ASIDE (lazy): app reads cache, on miss reads the DB and populates it; writes go to the DB and invalidate the entry. Simple and the default, but a race can leave a stale entry. WRITE-THROUGH: writes hit cache and DB synchronously - reads always warm, writes slower. WRITE-BACK: writes hit the cache and flush to the DB later - fast writes, but data loss if the cache dies before flush. Invalidation is the hard part: prefer short TTLs plus explicit invalidation on write. A CACHE STAMPEDE (thundering herd) is when a hot key expires and thousands of concurrent misses hammer the DB at once; prevent it with a per-key lock / single-flight so only one request recomputes while others wait, probabilistic early recomputation before expiry, or stale-while-revalidate (serve the old value while one worker refreshes).",
+  "tags": [
+   "sysdesign"
+  ]
+ },
+ {
+  "id": "sd-replication-30",
+  "mins": 30,
+  "flow": "full",
+  "src": {
+   "book": "ddia",
+   "ref": "Replication (single-leader)"
+  },
+  "prompt": "Explain single-leader replication: sync vs async, replication lag, and the read anomalies it causes.",
+  "reveal": "One leader takes all writes and streams a replication log to followers that apply it; reads can hit any replica to scale reads. SYNCHRONOUS (leader waits for a follower ack) guarantees that follower is current but blocks writes if it is slow/down; ASYNCHRONOUS is the usual choice (leader acks immediately) but can lose recently-acked writes on failover. The gap is REPLICATION LAG, which creates anomalies: READ-YOUR-WRITES (you post, then read a lagging replica and your post is missing - fix by reading your own writes from the leader), MONOTONIC READS (successive reads hit different replicas and time seems to go backward - fix by pinning a user to one replica), and CONSISTENT PREFIX (causally-ordered writes seen out of order). Failover means electing a new leader (consensus) and risks split-brain and lost async writes.",
+  "tags": [
+   "sysdesign",
+   "distributed"
+  ]
+ },
+ {
+  "id": "sd-sharding-30",
+  "mins": 30,
+  "flow": "full",
+  "src": {
+   "book": "ddia",
+   "ref": "Partitioning / sharding"
+  },
+  "prompt": "How do you shard a dataset? Compare hash vs range partitioning, and explain hotspots, rebalancing, and secondary indexes.",
+  "reveal": "RANGE partitioning (each shard owns a contiguous sorted range) keeps range scans efficient but creates HOTSPOTS under skew (all of today's writes hit the 'latest timestamp' shard). HASH partitioning spreads load evenly but destroys range-scan locality. A single hot key (a celebrity) still needs application-level splitting - append a random suffix to spread it, then scatter-gather reads. REBALANCING: never use hash mod N directly (adding a node remaps almost everything); instead assign a FIXED large number of virtual partitions to nodes (move whole partitions), or use consistent hashing (a new node steals ~1/N of keys from neighbours). SECONDARY INDEXES are the hard part: a local (document-partitioned) index makes writes cheap but reads scatter-gather across all shards; a global (term-partitioned) index makes reads cheap but every write must update a remote index shard.",
+  "tags": [
+   "sysdesign",
+   "distributed"
+  ]
+ },
+ {
+  "id": "sd-queues-15",
+  "mins": 15,
+  "flow": "full",
+  "src": {
+   "book": "ddia",
+   "ref": "Streams vs message queues"
+  },
+  "prompt": "Contrast a traditional message queue with a log-based stream (Kafka). What delivery guarantees are realistic?",
+  "reveal": "A traditional QUEUE (RabbitMQ/SQS) deletes a message once acked and fans work to competing consumers - good for task distribution, but the message is gone after processing and cross-consumer order is not preserved. A LOG (Kafka) is an append-only, partitioned, retained sequence; consumers track an OFFSET and can replay, multiple consumer groups read the same log independently, and order is preserved WITHIN a partition - good for event sourcing and stream processing. Delivery: exactly-once is largely a myth across a network - you get AT-LEAST-ONCE (ack after processing, so a crash mid-ack redelivers, so consumers must be IDEMPOTENT) or AT-MOST-ONCE (ack before processing, so possible loss). BACKPRESSURE: bound the queue and define behaviour when full (block the producer, shed, or spill) - an unbounded queue just moves the failure to OOM and hides the real overload.",
+  "tags": [
+   "sysdesign",
+   "distributed"
+  ]
+ },
+ {
+  "id": "sd-consensus-30",
+  "mins": 30,
+  "flow": "full",
+  "src": {
+   "book": "ddia",
+   "ref": "Consensus (Raft/quorums)"
+  },
+  "prompt": "What problem does consensus (Raft/Paxos) solve, and where do you actually need it?",
+  "reveal": "Consensus gets a group of nodes to AGREE on a single value, or an ordered log of values, despite crashes and delays - equivalently it provides linearizable operations and a total order. Raft: elect a LEADER (wins votes from a majority for a term), the leader appends entries to its log and replicates them, and an entry COMMITS once a MAJORITY (quorum) has it, so it survives any minority failure. Quorums overlap - any two majorities share a node - which is why no two conflicting decisions can commit. You need consensus far less than people reach for it: for LEADER ELECTION, cluster MEMBERSHIP/config changes, distributed locks and uniqueness constraints, and as the backbone of strongly-consistent stores (etcd, ZooKeeper, Spanner). For the bulk data path, prefer cheap single-leader replication and reserve consensus for the metadata that must never diverge.",
+  "tags": [
+   "sysdesign",
+   "distributed"
+  ]
+ },
+ {
+  "id": "sd-storage-15",
+  "mins": 15,
+  "flow": "full",
+  "src": {
+   "book": "ddia",
+   "ref": "Storage engines (LSM vs B-tree)"
+  },
+  "prompt": "Compare B-trees and LSM-trees as storage engines. Which for read-heavy vs write-heavy?",
+  "reveal": "B-TREE (most SQL engines): a balanced on-disk tree updated IN PLACE; a write seeks to the page and rewrites it (plus a write-ahead log for crash safety). Predictable, great for reads and range scans, one copy of each key - but writes are random I/O and pages fragment. LSM-TREE (Cassandra, RocksDB): writes go to an in-memory memtable + append-only log, then flush as sorted immutable SSTables that background COMPACTION merges. Writes are sequential and fast (high ingest), but a read may check several SSTables (mitigated by Bloom filters) and compaction competes for I/O (WRITE AMPLIFICATION and latency spikes). Rule of thumb: write-heavy / high-ingest -> LSM; read-heavy with range queries and predictable latency -> B-tree.",
+  "tags": [
+   "sysdesign"
+  ]
+ },
+ {
+  "id": "sd-idempotency-15",
+  "mins": 15,
+  "flow": "full",
+  "src": {
+   "book": "ddia",
+   "ref": "Idempotency / exactly-once"
+  },
+  "prompt": "How do you make a non-idempotent operation (e.g. 'charge a card') safe to retry?",
+  "reveal": "The client generates an IDEMPOTENCY KEY (a UUID) for the logical operation and sends it on every retry; the server records the key with its result on first success, and on any retry with a seen key returns the STORED result instead of re-executing. The record-and-execute must be ATOMIC (insert the key in the same transaction as the effect, or put a unique constraint on the key so a duplicate insert fails) - otherwise a crash between executing and recording still double-charges. This is why 'exactly-once' is really 'at-least-once delivery + idempotent processing.' Related tools: natural idempotency (PUT with a client-chosen id instead of POST), dedup windows on a message id, and conditional writes (compare-and-set) so a stale retry cannot clobber newer state.",
+  "tags": [
+   "sysdesign",
+   "distributed"
+  ]
+ },
+ {
+  "id": "sd-cqrs-15",
+  "mins": 15,
+  "flow": "full",
+  "src": {
+   "book": "ddia",
+   "ref": "Dual writes / outbox / CQRS"
+  },
+  "prompt": "What is the dual-write problem, and how do the outbox pattern and CQRS address it?",
+  "reveal": "DUAL WRITE: an operation must update two systems (the DB and a search index, or the DB and Kafka); write them separately and a crash between the two leaves them inconsistent, with no cheap reliable cross-system transaction. The OUTBOX pattern: write the business change AND an outbox event row in the SAME local DB transaction (atomic), then a separate relay reads the outbox and publishes to the bus at-least-once, marking rows sent - the DB is the single source of truth and an event can never be lost or emitted without its change. CQRS (Command Query Responsibility Segregation) separates the write model from read models built by consuming those events, so reads can be denormalized/precomputed for speed - at the cost of eventual consistency between the write and read sides, which you must surface honestly in the UX.",
+  "tags": [
+   "sysdesign",
+   "distributed"
+  ]
+ },
+ {
+  "id": "sd-multiregion-30",
+  "mins": 30,
+  "flow": "full",
+  "src": {
+   "book": "ddia",
+   "ref": "Multi-region / conflict resolution"
+  },
+  "prompt": "Design for multiple regions. Contrast active-passive and active-active, and how you resolve write conflicts.",
+  "reveal": "ACTIVE-PASSIVE: one region takes all writes, others are warm read replicas / standby; simple and conflict-free, but cross-region write latency for far users and a failover gap (and possible lost async writes) if the primary dies. ACTIVE-ACTIVE: every region accepts local writes (low latency, survives a region loss) - but two regions can now write the same key concurrently, so you must RESOLVE CONFLICTS: last-write-wins (simple, silently loses data), version vectors / CRDTs (auto-merge commutative data like counters and sets), or app-level merge. Route users to the nearest healthy region (geo-DNS/anycast), pin strongly-consistent data (money, uniqueness) to a single region or behind cross-region consensus (Spanner-style, paying the latency), and let the rest be eventually consistent. Honest tradeoff: active-active buys latency and availability with the complexity of conflict resolution.",
+  "tags": [
+   "sysdesign",
+   "distributed"
+  ]
+ },
+ {
+  "id": "sd-writeheavy-15",
+  "mins": 15,
+  "flow": "full",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Read-heavy vs write-heavy"
+  },
+  "prompt": "How does a read-heavy design differ from a write-heavy one?",
+  "reveal": "READ-HEAVY (feeds, catalogs, ~100:1 reads:writes): add read replicas and aggressive CACHING, denormalize and precompute (fan-out on write, materialized views) so a read is a cheap lookup, and accept eventual consistency on the read path - the scaling lever is caches and replicas. WRITE-HEAVY (metrics, logs, event ingestion): the bottleneck is durable write throughput, so batch and buffer writes, prefer an LSM/append-only store over a B-tree, partition by write key to spread load, and often make writes async through a log/queue that absorbs bursts. Fan-out on READ (compute the feed at read time) when writes dominate, so you are not amplifying every write. The first question to ask about any design is the read/write ratio - it changes almost every subsequent choice.",
+  "tags": [
+   "sysdesign"
+  ]
+ },
+ {
+  "id": "sd-mlserving-30",
+  "mins": 30,
+  "flow": "full",
+  "src": {
+   "book": "roofline",
+   "ref": "Inference serving as a system"
+  },
+  "prompt": "Treat a model as a system component: design a low-latency inference service. What are the SYSTEMS concerns (not the ML)?",
+  "reveal": "The model is one expensive, occasionally-slow, stateful DEPENDENCY - design around it like any other. LATENCY: batch requests to use the accelerator efficiently (dynamic/continuous batching trades a few ms of queueing for throughput) and keep the KV cache warm for decoding. CAPACITY/COST: GPUs are the scarce, expensive resource - autoscale on queue depth and token throughput (not CPU), right-size the instance, and consider quantization or a smaller distilled model on the latency-critical path. VERSIONING: models are artifacts - pin versions, canary + shadow traffic, and roll back instantly (a bad model is an incident). RELIABILITY: define a FALLBACK when the model is slow or down (cached/previous answer, a cheaper model, or a graceful non-AI path) - never let it be an unbounded hard dependency. Then feed pipeline, feature freshness, and monitoring (latency tail, token cost, quality drift). Interview point: it is a systems question wearing ML clothes - talk serving, cost, versioning, and failure, not embeddings.",
+  "tags": [
+   "sysdesign",
+   "mlsys"
+  ]
+ },
+ {
+  "id": "sd-opsmaturity-15",
+  "mins": 15,
+  "flow": "full",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Interview meta - operational maturity (2026)"
+  },
+  "prompt": "The 2026 bar: what operational concerns must a senior design address proactively to not read as 'never operated a system'?",
+  "reveal": "Operational maturity moved from bonus to a senior-bar REQUIREMENT - a design that stops at the happy-path boxes loses points. Volunteer, unprompted: OBSERVABILITY (what you monitor - the golden signals, structured logs, tracing across services, the specific alerts), the 3AM DEBUG story (how on-call diagnoses a latency spike or error surge with what you built), FAILURE handling (what happens when a dependency, a node, or an entire REGION goes down, and whether the system degrades gracefully or falls over), DEPLOYMENT (canary, rollback, migrations without downtime), and COST at scale (the dollar shape at 10x, and where it is wasteful). If you have run production, tell that story explicitly - it is the strongest signal that you can own technical direction without making a mess.",
+  "tags": [
+   "sysdesign",
+   "interview"
+  ]
+ },
+ {
+  "id": "sd-rightsizing-15",
+  "mins": 15,
+  "flow": "full",
+  "src": {
+   "book": "sysdesign",
+   "ref": "Interview meta - right-sizing (2026)"
+  },
+  "prompt": "Why is over-engineering now a severe failure signal, and how do you show right-sizing?",
+  "reveal": "Reaching for Kafka, six microservices, and multi-region on a problem a single database and a cache would solve signals the opposite of seniority: that you cannot tell when complexity is warranted. The rubric rewards RIGHT-SIZING - build the simplest thing that meets the stated requirements, then say explicitly what you would change at 10x and 100x (and what breaks first). That makes the tradeoff reasoning visible, which is the actual thing being tested. Start monolith-plus-managed-services unless requirements force distribution; add a queue when there is a real async/burst need, sharding when one node genuinely cannot hold the data or load, and microservices when team/deploy boundaries (not diagrams) demand them. 'Here's the simplest version, and here's the trigger that would make me add X' beats a maximal architecture every time.",
+  "tags": [
+   "sysdesign",
+   "interview"
   ]
  }
 ]
