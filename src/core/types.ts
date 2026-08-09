@@ -186,6 +186,14 @@ export interface KnowledgeState {
   log: Array<{ id: EntityId; qid: string; at: Millis; rating: Mastery }>;
   /** "topic|c|3" -> watched/read */
   gymDone: Record<string, boolean>;
+  /**
+   * Monotonic "reset epoch". Knowledge has no per-id tombstones, so a reset
+   * bumps this to `Date.now()` and empties the store; the merge discards any
+   * side whose epoch is older than the newest one, letting a reset PROPAGATE
+   * and stick across devices instead of being union-resurrected. Absent/0 for
+   * a store that has never been reset.
+   */
+  resetAt?: Millis;
 }
 
 /* ------------------------------------------------------------------ */

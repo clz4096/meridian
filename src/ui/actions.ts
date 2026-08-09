@@ -739,10 +739,11 @@ export const dataActions: DataActions = {
   async resetKnowledge() {
     if (!host.confirm('Erase ALL knowledge progress (mastery, reviews, history) and overwrite it in the cloud? If you use another device, reset it there too. This cannot be undone.')) return;
     dmsg('Resetting knowledge…');
-    // Wipe the knowledge store only. No markDirty (that would arm an autosave that
-    // could race the force-push); the facade bridges the change to the engine by
-    // diffing live state.
-    appState.set('csgraph', { mastery: {}, srs: {}, log: [], gymDone: {} });
+    // Wipe the knowledge store, stamping a reset epoch so the wipe PROPAGATES to
+    // other devices (phone + browser) through the merge instead of being
+    // union-resurrected. No markDirty (that would arm an autosave that could race
+    // the force-push); the facade bridges the change by diffing live state.
+    appState.set('csgraph', { mastery: {}, srs: {}, log: [], gymDone: {}, resetAt: Date.now() });
     st.kgGraded.value = {};
     st.bump();
     // forcePush (not save) so the wipe OVERWRITES the cloud instead of the union

@@ -124,12 +124,25 @@ export function mergeCore(local: CoreState, remote: CoreState, _localWins: boole
   };
 }
 
+const EMPTY_KNOWLEDGE: KnowledgeState = { mastery: {}, srs: {}, log: [], gymDone: {} };
+
 export function mergeKnowledge(local: KnowledgeState, remote: KnowledgeState, localWins: boolean): KnowledgeState {
+  // Reset epoch: a "Reset knowledge" bumps `resetAt` and empties the store. Since
+  // knowledge has no per-id tombstones, the union would otherwise resurrect the
+  // other device's stale entries. Discard any side older than the newest epoch so
+  // the wipe propagates and sticks; sides AT the same epoch union normally (so a
+  // fresh answer made after the reset survives). Both 0 → ordinary union.
+  const lEpoch = toNum(local.resetAt, 0);
+  const rEpoch = toNum(remote.resetAt, 0);
+  const epoch = Math.max(lEpoch, rEpoch);
+  const l = lEpoch === epoch ? local : EMPTY_KNOWLEDGE;
+  const r = rEpoch === epoch ? remote : EMPTY_KNOWLEDGE;
   return {
-    mastery: mergeScalarMap(local.mastery, remote.mastery, localWins),
-    srs: mergeScalarMap(local.srs, remote.srs, localWins),
-    gymDone: mergeScalarMap(local.gymDone, remote.gymDone, localWins),
-    log: unionById(local.log, remote.log, new Set()),
+    ...(epoch > 0 ? { resetAt: epoch as KnowledgeState['resetAt'] } : {}),
+    mastery: mergeScalarMap(l.mastery, r.mastery, localWins),
+    srs: mergeScalarMap(l.srs, r.srs, localWins),
+    gymDone: mergeScalarMap(l.gymDone, r.gymDone, localWins),
+    log: unionById(l.log, r.log, new Set()),
   };
 }
 

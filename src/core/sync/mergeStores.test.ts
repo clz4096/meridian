@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import type { MealState, WorkoutState } from '@/core/types';
 import {
-  mergeCore, mergeMeals, mergeScalarMap, mergeStore, mergeWorkout, sanitizeStore, unionById,
+  mergeCore, mergeKnowledge, mergeMeals, mergeScalarMap, mergeStore, mergeWorkout, sanitizeStore, unionById,
 } from '@/core/sync/mergeStores';
 import { DEFAULT_CONFIG } from '@/core/types';
 import { shiftDate } from '@/core/util';
@@ -194,5 +194,40 @@ describe('mergeCore unions the nested todos + scratch', () => {
     const m = mergeCore(local as never, remote as never, true);
     expect(m.todos ?? []).toEqual([]);
     expect(m._del?.t1).toBe(999);
+  });
+});
+
+describe('mergeKnowledge reset epoch propagates a wipe across devices', () => {
+  const polluted = { mastery: { q1: 4, q2: 5 }, srs: { q1: { due: 'x' } }, log: [{ id: 'l1', qid: 'q1', at: 1, rating: 4 }], gymDone: { g: true } };
+  const wiped = (at: number) => ({ mastery: {}, srs: {}, log: [], gymDone: {}, resetAt: at });
+
+  it('a higher reset epoch (empty) discards the other side’s stale entries', () => {
+    const m1 = mergeKnowledge(wiped(1000) as never, polluted as never, true);
+    expect(m1.mastery).toEqual({});
+    expect(m1.srs).toEqual({});
+    expect(m1.log).toEqual([]);
+    expect(m1.resetAt).toBe(1000);
+    // order-independent: polluted on the other side is still wiped
+    const m2 = mergeKnowledge(polluted as never, wiped(1000) as never, false);
+    expect(m2.mastery).toEqual({});
+    expect(m2.log).toEqual([]);
+    expect(m2.resetAt).toBe(1000);
+  });
+
+  it('sides at the same epoch union normally (a fresh answer after the reset survives)', () => {
+    const a = { mastery: { q9: 4 }, srs: {}, log: [{ id: 'l9', qid: 'q9', at: 5, rating: 4 }], gymDone: {}, resetAt: 1000 };
+    const b = { mastery: { q8: 5 }, srs: {}, log: [{ id: 'l8', qid: 'q8', at: 6, rating: 5 }], gymDone: {}, resetAt: 1000 };
+    const m = mergeKnowledge(a as never, b as never, true);
+    expect(m.mastery).toEqual({ q9: 4, q8: 5 });
+    expect(m.log.map((e) => String(e.id)).sort()).toEqual(['l8', 'l9']);
+    expect(m.resetAt).toBe(1000);
+  });
+
+  it('two never-reset sides union as before (backward compatible)', () => {
+    const a = { mastery: { q1: 4 }, srs: {}, log: [], gymDone: {} };
+    const b = { mastery: { q2: 5 }, srs: {}, log: [], gymDone: {} };
+    const m = mergeKnowledge(a as never, b as never, true);
+    expect(m.mastery).toEqual({ q1: 4, q2: 5 });
+    expect(m.resetAt).toBeUndefined();
   });
 });
