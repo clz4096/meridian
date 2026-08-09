@@ -95,15 +95,15 @@ async function syncPull(): Promise<boolean> {
  * can be made to stick. Bridges the live stores → engine → both local backends
  * exactly like syncSave, so localStorage AND IndexedDB get the clean copy.
  */
-async function syncForcePush(): Promise<{ cloud: SaveResult['cloud']; cloudError?: SaveResult['cloudError'] }> {
+async function syncForcePush(only?: readonly StoreKey[]): Promise<{ cloud: SaveResult['cloud']; cloudError?: SaveResult['cloudError'] }> {
   if (!engine || !setup) throw new Error('sync not initialised');
   for (const key of Object.keys(STORAGE_KEYS) as StoreKey[]) {
     const live = setup.read(key);
     if (JSON.stringify(live) !== JSON.stringify(engine.getStore(key))) engine.edit(key, () => live);
   }
-  const result = await engine.forcePush();
+  const result = await engine.forcePush(only);
   for (const key of Object.keys(STORAGE_KEYS) as StoreKey[]) setup.write(key, engine.getStore(key));
-  setup.onStatus?.({ localOk: true, localFailed: [], cloud: result.cloud, cloudError: result.cloudError });
+  setup.onStatus?.({ localOk: result.cloud !== 'skipped', localFailed: [], cloud: result.cloud, cloudError: result.cloudError });
   return result;
 }
 
@@ -119,7 +119,7 @@ export const sync = {
   save: syncSave,
   pull: syncPull,
   discard: syncDiscard,
-  forcePush: syncForcePush,
+  forcePush: (only?: readonly StoreKey[]) => syncForcePush(only),
   push: (force = false) => engine?.push(force) ?? Promise.resolve({ cloud: 'skipped' as const }),
   anyDirty: () => engine?.anyDirty() ?? false,
   isDirtyCloud: (key: StoreKey) => engine?.isDirtyCloud(key) ?? false,

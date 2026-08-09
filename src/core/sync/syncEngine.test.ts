@@ -238,6 +238,28 @@ describe('forcePush — repair path that defeats the grow-only union', () => {
     expect(engine.isDirtyCloud('csgraph')).toBe(true);
     expect(idsOf(engine.getStore('csgraph'))).toEqual(['real1']);
   });
+
+  it('scoped forcePush(["csgraph"]) overwrites only knowledge, preserving the cloud’s other stores', async () => {
+    const { engine, cloud } = makeEngine();
+    cloud.seedFromOtherDevice('overload', [{ id: 'w-fromphone' }], 5); // another device's workout
+    cloud.seedFromOtherDevice('csgraph', [{ id: 'phantom' }], 6); // polluted knowledge
+    engine.edit('csgraph', () => ({ items: [{ id: 'real1' }], _del: {} }));
+
+    const res = await engine.forcePush(['csgraph']);
+    expect(res.cloud).toBe('synced');
+    expect(idsOf(cloud.current()!.csgraph)).toEqual(['real1']); // knowledge overwritten
+    expect(idsOf(cloud.current()!.overload)).toEqual(['w-fromphone']); // workout NOT clobbered
+  });
+
+  it('aborts the cloud write when the local write fails (no half-repair)', async () => {
+    const { engine, storage, cloud } = makeEngine();
+    engine.edit('csgraph', () => ({ items: [{ id: 'real1' }], _del: {} }));
+    storage.failWrites = true;
+    const res = await engine.forcePush(['csgraph']);
+    expect(res.cloud).toBe('skipped'); // never overwrite the cloud from an unpersisted state
+    expect(cloud.writes).toBe(0);
+    expect(engine.isDirtyCloud('csgraph')).toBe(true);
+  });
 });
 
 describe('discard reverts to the last persisted state', () => {

@@ -317,11 +317,17 @@ export class SyncEngine {
    * Same write-path invariants as `push()`: sanitize before serialising; a
    * failed cloud write never clears `pendingCloud`.
    */
-  async forcePush(): Promise<{ cloud: SaveResult['cloud']; cloudError?: SaveResult['cloudError'] }> {
+  async forcePush(only: readonly StoreKey[] = STORE_KEYS): Promise<{ cloud: SaveResult['cloud']; cloudError?: SaveResult['cloudError'] }> {
     const now = this.clock.now();
+    if (now < this.backoffUntil) {
+      return { cloud: 'throttled', cloudError: { kind: 'rate-limited', message: 'backing off' } };
+    }
+    const authoritative = new Set(only);
 
-    // Persist local first so the durable local copy matches what we publish.
-    for (const key of STORE_KEYS) {
+    // Persist local first (only the stores we're overwriting), so the durable
+    // local copy matches what we publish.
+    const localFailed: StoreKey[] = [];
+    for (const key of only) {
       const revAtCapture = this.rev[key];
       this.stores[key] = this.sanitize(key, this.stores[key], now);
       const payload = JSON.stringify(this.stores[key]);
@@ -332,24 +338,36 @@ export class SyncEngine {
         verified = false;
       }
       if (verified && this.rev[key] === revAtCapture) this.pendingLocal[key] = false;
+      else if (!verified) localFailed.push(key);
+    }
+    // Never overwrite the cloud with state we could not durably persist locally —
+    // otherwise a reboot reads the stale local copy and the union folds the old
+    // data straight back into the "clean" cloud. Same guard `save()` uses.
+    if (localFailed.length) {
+      return { cloud: 'skipped', cloudError: { kind: 'unknown', message: 'local write failed: ' + localFailed.join(', ') } };
     }
 
-    // Read the cloud ONLY for its rev — never fold it into local.
+    // Read the cloud for its rev AND to preserve the stores we are NOT overwriting
+    // — a scoped forcePush (e.g. knowledge-only reset) must not clobber another
+    // device's workout/meal edits. Never fold the remote into local.
     const read = await this.cloud.read();
     if (!read.ok && read.kind === 'rate-limited') {
       this.backoffUntil = now + this.rateLimitBackoff;
       return { cloud: 'failed', cloudError: { kind: 'rate-limited', message: read.message ?? 'rate limited' } };
     }
-    const cloudRev = read.ok && read.payload ? read.payload.rev : this.baseRev;
+    const remote = read.ok && read.payload ? read.payload : null;
+    const cloudRev = remote ? remote.rev : this.baseRev;
+    const pick = (key: StoreKey): StoreData =>
+      authoritative.has(key) ? this.stores[key] : (remote?.[key] ?? this.stores[key]);
 
     const revsAtCapture: Record<StoreKey, number> = { ...this.rev };
     const payload: CloudPayload = {
       rev: cloudRev + 1,
       syncedAt: now,
-      core: this.stores.core,
-      overload: this.stores.overload,
-      surplus: this.stores.surplus,
-      csgraph: this.stores.csgraph,
+      core: pick('core'),
+      overload: pick('overload'),
+      surplus: pick('surplus'),
+      csgraph: pick('csgraph'),
     };
 
     const write = await this.cloud.write(payload);
@@ -362,7 +380,7 @@ export class SyncEngine {
     this.baseRev = write.rev ?? payload.rev;
     this.lastPushAt = now;
     this.lastFingerprint = JSON.stringify(this.stores);
-    for (const key of STORE_KEYS) {
+    for (const key of only) {
       if (this.rev[key] === revsAtCapture[key]) this.pendingCloud[key] = false;
     }
     return { cloud: 'synced' };

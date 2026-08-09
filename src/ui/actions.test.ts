@@ -70,11 +70,10 @@ describe('hubStats knowledge tile — mastery % of the whole curriculum', () => 
 });
 
 describe('dataActions.resetKnowledge', () => {
-  it('zeros csgraph, drops kg-stream XP rows, and force-pushes (not save)', async () => {
+  it('wipes csgraph, force-pushes ONLY csgraph (not save), and reloads on success', async () => {
     Object.assign(kg(), { mastery: { q1: 5, q2: 4 }, srs: { q1: { due: 'x' } }, log: [{ id: 'l', qid: 'q1', rating: 3 }], gymDone: { g: true } });
-    Object.assign(core(), { schedule: {}, entries: [{ id: 'e1', stream: 'kg', xp: 12 }, { id: 'e2', stream: 'overload', xp: 8 }], todos: [], scratch: [], _del: {} });
     vi.spyOn(host, 'confirm').mockReturnValue(true);
-    vi.spyOn(host, 'reload').mockImplementation(() => {});
+    const reload = vi.spyOn(host, 'reload').mockImplementation(() => {});
     const force = vi.spyOn(sync, 'forcePush').mockResolvedValue({ cloud: 'synced' });
     const save = vi.spyOn(sync, 'save');
 
@@ -84,9 +83,25 @@ describe('dataActions.resetKnowledge', () => {
     expect(kg().srs).toEqual({});
     expect(kg().log).toEqual([]);
     expect(kg().gymDone).toEqual({});
-    expect(core().entries).toEqual([{ id: 'e2', stream: 'overload', xp: 8 }]); // kg row gone, others intact
-    expect(force).toHaveBeenCalledOnce();
-    expect(save).not.toHaveBeenCalled(); // must overwrite, not union-merge
+    expect(force).toHaveBeenCalledWith(['csgraph']); // scoped — must not clobber other stores
+    expect(save).not.toHaveBeenCalled(); // overwrite, not union-merge
+    expect(reload).toHaveBeenCalled();
+  });
+
+  it('does NOT reload when the cloud overwrite fails — a boot pull would re-union the old data', async () => {
+    host.setItem('meridian_supabase_url', 'https://x.supabase.co');
+    host.setItem('meridian_supabase_key', 'k'); // cloudEnabled() → true, so failure is real (not cloud-off)
+    Object.assign(kg(), { mastery: { q1: 5 }, srs: {}, log: [], gymDone: {} });
+    vi.spyOn(host, 'confirm').mockReturnValue(true);
+    const reload = vi.spyOn(host, 'reload').mockImplementation(() => {});
+    vi.spyOn(sync, 'forcePush').mockResolvedValue({ cloud: 'failed', cloudError: { kind: 'offline', message: 'x' } });
+
+    await dataActions.resetKnowledge();
+
+    expect(kg().mastery).toEqual({}); // local is wiped
+    expect(reload).not.toHaveBeenCalled(); // but we do NOT reload into the union path
+    host.setItem('meridian_supabase_url', '');
+    host.setItem('meridian_supabase_key', '');
   });
 
   it('does nothing when the confirm is declined', async () => {

@@ -737,31 +737,32 @@ export const dataActions: DataActions = {
     out.set('cloud: ' + (cloudEnabled() ? 'configured' : 'not configured') + '\n' + 'payload: ' + metrics.kilobytes + 'KB\n' + 'revision: ' + sync.baseRev() + '\n' + 'unsynced stores: ' + (dirtyList.length ? dirtyList.join(', ') : 'none') + '\n' + 'tombstones: ' + metrics.counts.tombstones + ' (cap 500)');
   },
   async resetKnowledge() {
-    if (!host.confirm('Erase ALL knowledge progress (mastery, reviews, history) on this device and overwrite the cloud? This cannot be undone.')) return;
+    if (!host.confirm('Erase ALL knowledge progress (mastery, reviews, history) and overwrite it in the cloud? If you use another device, reset it there too. This cannot be undone.')) return;
     dmsg('Resetting knowledge…');
-    // Zero the knowledge store, and drop knowledge-stream XP rows from core so
-    // XP stays consistent with zeroed mastery.
+    // Wipe the knowledge store only. No markDirty (that would arm an autosave that
+    // could race the force-push); the facade bridges the change to the engine by
+    // diffing live state.
     appState.set('csgraph', { mastery: {}, srs: {}, log: [], gymDone: {} });
-    const C = core();
-    appState.set('core', { ...C, entries: (C.entries || []).filter((e: Store) => e.stream !== 'kg') });
-    appState.markDirty();
-    appState.markKnowledgeDirty();
     st.kgGraded.value = {};
     st.bump();
-    // forcePush (not save) so the wiped state overwrites the cloud instead of
-    // union-merging the old entries back — knowledge has no delete path.
-    const r = await sync.forcePush();
-    dmsg(
-      r.cloud === 'synced' ? '✓ Knowledge reset. Reloading…'
-        : r.cloud === 'skipped' ? '✓ Reset on this device (cloud is off). Reloading…'
-        : 'Reset locally, but the cloud overwrite failed: ' + ((r.cloudError && r.cloudError.message) || r.cloud) + '. Reloading…',
-      r.cloud === 'failed',
-    );
-    host.reload(900);
+    // forcePush (not save) so the wipe OVERWRITES the cloud instead of the union
+    // folding the old entries back — knowledge has no delete path. Scoped to
+    // csgraph so it can't clobber another device's workout/meal edits.
+    const cloudOff = !cloudEnabled();
+    const r = await sync.forcePush(['csgraph']);
+    if (r.cloud === 'synced' || cloudOff) {
+      dmsg(cloudOff ? '✓ Reset on this device (cloud is off). Reloading…' : '✓ Knowledge reset. Reloading…');
+      host.reload(900);
+    } else {
+      // Do NOT reload: the cloud still holds the old data, and a boot-time pull
+      // would union it right back. Local is clean; retry when the cloud is
+      // reachable rather than re-publishing the pollution.
+      dmsg('Couldn’t reach the cloud — reset NOT completed (reloading now would re-sync the old data). Check your connection and tap Reset again.', true);
+    }
   },
   async overwriteCloud() {
     if (!cloudEnabled()) return dmsg('Cloud sync is off — nothing to overwrite.', true);
-    if (!host.confirm('Make THIS device authoritative and OVERWRITE the cloud with its current data? Other devices will be replaced on their next sync.')) return;
+    if (!host.confirm('Make THIS device authoritative and OVERWRITE the cloud with ALL of its data (workout, meals, knowledge, schedule)? Other devices will be replaced on their next sync.')) return;
     dmsg('Overwriting cloud…');
     const r = await sync.forcePush();
     dmsg(r.cloud === 'synced' ? '✓ Cloud overwritten from this device.' : 'Overwrite failed: ' + ((r.cloudError && r.cloudError.message) || r.cloud), r.cloud === 'failed');
