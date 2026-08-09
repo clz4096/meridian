@@ -18,12 +18,16 @@ import {
 } from '@/core/types';
 import {
   allExercises,
+  bandScore,
   buildPlan,
+  dayGrade,
   daysSinceLast,
   e1rm,
+  exerciseScore,
   exerciseSplit,
   inferIncrement,
   isCompound,
+  isOptional,
   isSessionComplete,
   isStalled,
   repCeiling,
@@ -32,7 +36,10 @@ import {
   sessionEffort,
   splitOfDate,
   suggestSplit,
+  trainedDaysInWeek,
   weeklyWorkingSets,
+  weekStrength,
+  WEEK_TRAINING_TARGET,
 } from '@/features/workout/workoutSelectors';
 import { addTombstone, pruneTombstones, sameId, shiftDate, toNum } from '@/core/util';
 
@@ -723,5 +730,194 @@ describe('time off (layoff) handling — graduated', () => {
     expect(long.autoDeload).toBe(true);
     expect(long.top.weight).toBeLessThan(short.top.weight);
     expect(long.top.weight).toBeLessThan(135);
+  });
+});
+
+/* ================================================================== */
+/* Week strength grade                                                 */
+/* ================================================================== */
+
+describe('exerciseScore — top set vs planned target', () => {
+  // One prior session (100×5) sets a HOLD target of 100×5 for D(3); the actual
+  // top set logged on D(3) is graded against it. Compound Bench, 3-day cadence,
+  // one prior session → no bump, no layoff, no stall: the target is a clean hold.
+  const hist = { date: D(0), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' as Muscle };
+  const score = (weight: number, reps: number) =>
+    exerciseScore(
+      stateOf([hist, { date: D(3), ex: 'Bench Press', weight, reps, muscle: 'chest' }]),
+      'Bench Press',
+      D(3),
+    );
+
+  it('hit both weight and reps → strong', () => expect(score(100, 5)).toBe('strong'));
+  it('exceed both → strong', () => expect(score(105, 6)).toBe('strong'));
+  it('miss both → weak', () => expect(score(95, 4)).toBe('weak'));
+  it('hit weight only → moderate', () => expect(score(100, 4)).toBe('moderate'));
+  it('hit reps only → moderate', () => expect(score(95, 5)).toBe('moderate'));
+
+  it('a planned lift with no logged top set that day → weak', () => {
+    // history exists (so there IS a target) but nothing was logged on D(3)
+    expect(exerciseScore(stateOf([hist]), 'Bench Press', D(3))).toBe('weak');
+  });
+
+  it('is ungradable (null) with no prior history and for cardio', () => {
+    // first-ever session: no target to grade against
+    expect(exerciseScore(stateOf([{ ...hist, date: D(3) }]), 'Bench Press', D(3))).toBeNull();
+    // cardio is excluded entirely
+    const cardio = stateOf([{ date: D(0), ex: 'Treadmill', weight: 0, reps: 0, muscle: 'cardio', type: 'cardio' }]);
+    expect(exerciseScore(cardio, 'Treadmill', D(0))).toBeNull();
+  });
+});
+
+describe('optional accessories', () => {
+  it('the three grip/forearm lifts are flagged optional; core lifts are not', () => {
+    expect(isOptional('Hammer Curl (Dumbbell)')).toBe(true);
+    expect(isOptional('Wrist Curl (Dumbbell)')).toBe(true);
+    expect(isOptional('Reverse Wrist Curl (Dumbbell)')).toBe(true);
+    expect(isOptional('Bench Press')).toBe(false);
+    expect(isOptional('Bicep Curl (Dumbbell)')).toBe(false);
+  });
+
+  it('an optional lift is excluded from the day average', () => {
+    // Bench (upper) hits its target → strong; a weak optional Hammer Curl is present
+    // that same upper day. If optionals counted, the day would drop to moderate;
+    // because Hammer Curl is optional, the day stays strong.
+    const s = stateOf([
+      { date: D(0), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' },
+      { date: D(0), ex: 'Hammer Curl (Dumbbell)', weight: 30, reps: 10, muscle: 'biceps' },
+      { date: D(3), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' }, // hits hold target → strong
+      { date: D(3), ex: 'Hammer Curl (Dumbbell)', weight: 20, reps: 4, muscle: 'biceps' }, // would be weak
+    ]);
+    expect(dayGrade(s, D(3))).toBe('strong');
+  });
+});
+
+describe('dayGrade — average of planned strength lifts', () => {
+  it('averages the per-lift scores and bands them (weak+moderate+strong → moderate)', () => {
+    // three upper lifts with hold targets of X; actuals hit both / one / neither.
+    const s = stateOf([
+      // seeds (targets)
+      { date: D(0), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' },
+      { date: D(0), ex: 'Lat Pulldown', weight: 120, reps: 5, muscle: 'back' },
+      { date: D(0), ex: 'Bicep Curl (Dumbbell)', weight: 30, reps: 8, muscle: 'biceps' },
+      // the graded day
+      { date: D(3), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' }, // strong (3)
+      { date: D(3), ex: 'Lat Pulldown', weight: 120, reps: 4, muscle: 'back' }, // moderate (2): weight only
+      { date: D(3), ex: 'Bicep Curl (Dumbbell)', weight: 25, reps: 6, muscle: 'biceps' }, // weak (1)
+    ]);
+    // (3 + 2 + 1) / 3 = 2.0 → moderate
+    expect(dayGrade(s, D(3))).toBe('moderate');
+  });
+
+  it('a cardio-only day grades weak (not empty)', () => {
+    const s = stateOf([{ date: D(0), ex: 'Treadmill', weight: 0, reps: 0, muscle: 'cardio', type: 'cardio' }]);
+    expect(dayGrade(s, D(0))).toBe('weak');
+  });
+});
+
+describe('bandScore — §4 boundaries', () => {
+  it('bands at exactly 1.67 and 2.34', () => {
+    expect(bandScore(1.66)).toBe('weak');
+    expect(bandScore(1.67)).toBe('moderate'); // lower moderate boundary
+    expect(bandScore(2.33)).toBe('moderate');
+    expect(bandScore(2.34)).toBe('strong'); // lower strong boundary
+    expect(bandScore(1)).toBe('weak');
+    expect(bandScore(3)).toBe('strong');
+  });
+});
+
+describe('weekStrength — median of day grades, then frequency cap', () => {
+  // Roster is exactly one upper lift (Bench) and one lower lift (Leg Press), so
+  // each day's planned slate is a single lift and day grades are easy to reason
+  // about. Seeds sit BEFORE the 7-day window (today = D(6), window [D(0), D(6)]),
+  // so they set targets without counting as trained days. All gaps are ≤ 4 days,
+  // below the layoff thresholds, so targets are clean holds.
+
+  it('§5 ex.1 — three Strong lift days + a cardio day, 4 trained of 4 → Strong', () => {
+    const s = stateOf([
+      { date: D(-3), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' }, // seed
+      { date: D(-1), ex: 'Leg Press', weight: 200, reps: 5, muscle: 'quads' }, // seed
+      { date: D(0), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' }, // strong
+      { date: D(2), ex: 'Leg Press', weight: 200, reps: 5, muscle: 'quads' }, // strong
+      { date: D(4), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' }, // strong (target from D(0))
+      { date: D(6), ex: 'Treadmill', weight: 0, reps: 0, muscle: 'cardio', type: 'cardio' }, // weak
+    ]);
+    expect(trainedDaysInWeek(s, D(6))).toEqual([D(0), D(2), D(4), D(6)]);
+    // median([3,3,3,1]) = 3 → strong; 4 trained = target → no cap
+    expect(weekStrength(s, D(6))).toBe('strong');
+  });
+
+  it('§5 ex.2 — one Strong lift, 1 trained of 4 → not Strong (floors at Weak)', () => {
+    const s = stateOf([
+      { date: D(-3), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' }, // seed (out of window)
+      { date: D(0), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' }, // strong day
+    ]);
+    expect(trainedDaysInWeek(s, D(6))).toEqual([D(0)]);
+    expect(dayGrade(s, D(0))).toBe('strong');
+    expect(weekStrength(s, D(6))).not.toBe('strong');
+    expect(weekStrength(s, D(6))).toBe('weak'); // ≤1 training day floors at Weak
+  });
+
+  it('§5 ex.3 — one treadmill day → Weak', () => {
+    const s = stateOf([{ date: D(0), ex: 'Treadmill', weight: 0, reps: 0, muscle: 'cardio', type: 'cardio' }]);
+    expect(weekStrength(s, D(6))).toBe('weak');
+  });
+
+  it('2–3 trained days pull the median down one band', () => {
+    // two Strong lift days; median = Strong, but < 4 trained → one band down = Moderate
+    const s = stateOf([
+      { date: D(-3), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' }, // seed
+      { date: D(-1), ex: 'Leg Press', weight: 200, reps: 5, muscle: 'quads' }, // seed
+      { date: D(0), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' }, // strong
+      { date: D(2), ex: 'Leg Press', weight: 200, reps: 5, muscle: 'quads' }, // strong
+    ]);
+    expect(trainedDaysInWeek(s, D(6)).length).toBe(2);
+    expect(weekStrength(s, D(6))).toBe('moderate');
+  });
+
+  it('no trained days in the window → rest', () => {
+    const s = stateOf([{ date: D(-3), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' }]);
+    expect(trainedDaysInWeek(s, D(6))).toEqual([]);
+    expect(weekStrength(s, D(6))).toBe('rest');
+  });
+
+  it('exposes the training-day target as 4', () => {
+    expect(WEEK_TRAINING_TARGET).toBe(4);
+  });
+});
+
+describe('weekStrength — reality check (must NOT over-read as Strong)', () => {
+  it('a realistic beginner week that mostly MISSES its targets reads Weak, never Strong', () => {
+    // Two upper lifts (Bench, Lat Pulldown) and two lower lifts (Leg Press, Leg
+    // Extension). Seeds set solid targets; every in-window session comes in UNDER
+    // target on both weight and reps — the beginner is grinding and falling short.
+    // The grade must reflect that, not read full-strength on weak data (the class
+    // of bug that shipped before). 4-day gaps keep targets as clean holds.
+    const s = stateOf([
+      // seeds (targets), before the window
+      { date: D(-4), ex: 'Bench Press', weight: 100, reps: 5, muscle: 'chest' },
+      { date: D(-4), ex: 'Lat Pulldown', weight: 120, reps: 5, muscle: 'back' },
+      { date: D(-2), ex: 'Leg Press', weight: 200, reps: 5, muscle: 'quads' },
+      { date: D(-2), ex: 'Leg Extension', weight: 90, reps: 5, muscle: 'quads' },
+      // Upper day 1 — misses both lifts
+      { date: D(0), ex: 'Bench Press', weight: 92, reps: 4, muscle: 'chest' },
+      { date: D(0), ex: 'Lat Pulldown', weight: 110, reps: 4, muscle: 'back' },
+      // Lower day 1 — misses both lifts
+      { date: D(2), ex: 'Leg Press', weight: 185, reps: 4, muscle: 'quads' },
+      { date: D(2), ex: 'Leg Extension', weight: 85, reps: 4, muscle: 'quads' },
+      // Upper day 2 — keeps sliding (targets now the D(0) numbers)
+      { date: D(4), ex: 'Bench Press', weight: 88, reps: 3, muscle: 'chest' },
+      { date: D(4), ex: 'Lat Pulldown', weight: 100, reps: 3, muscle: 'back' },
+      // Lower day 2 — keeps sliding (targets now the D(2) numbers)
+      { date: D(6), ex: 'Leg Press', weight: 170, reps: 3, muscle: 'quads' },
+      { date: D(6), ex: 'Leg Extension', weight: 80, reps: 3, muscle: 'quads' },
+    ]);
+    expect(trainedDaysInWeek(s, D(6))).toEqual([D(0), D(2), D(4), D(6)]);
+    expect(dayGrade(s, D(0))).toBe('weak');
+    expect(dayGrade(s, D(2))).toBe('weak');
+    expect(dayGrade(s, D(4))).toBe('weak');
+    expect(dayGrade(s, D(6))).toBe('weak');
+    expect(weekStrength(s, D(6))).not.toBe('strong');
+    expect(weekStrength(s, D(6))).toBe('weak');
   });
 });

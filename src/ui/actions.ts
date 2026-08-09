@@ -8,7 +8,7 @@
  * components (Preact keeps DOM identity across renders).
  */
 import { RestTimer } from '@/ui/restTimer';
-import { buildPlan, inferIncrement, restSeconds } from '@/features/workout/workoutSelectors';
+import { buildPlan, inferIncrement, restSeconds, weekStrength, trainedDaysInWeek, WEEK_TRAINING_TARGET } from '@/features/workout/workoutSelectors';
 import type { WorkoutActions } from '@/features/workout/types';
 import { shiftDate } from '@/core/util';
 import { DEFAULT_CONFIG, type SetType, type SessionOverrides } from '@/core/types';
@@ -832,13 +832,13 @@ export function hubStats(): HubStat[] {
   const mastered = Object.values(K.mastery ?? {}).filter((r: Store) => Number(r) >= 4).length;
   const masteryPct = attempted ? Math.round((100 * mastered) / attempted) : 0;
   const W = wk();
-  const wkd = (W.days ?? {}) as Record<string, Store[]>;
-  const [ty, tm, td] = today.split('-').map(Number);
-  const base = new Date(ty!, (tm ?? 1) - 1, td!);
-  base.setDate(base.getDate() - 6);
-  const pad = (n: number): string => String(n).padStart(2, '0');
-  const weekAgo = `${base.getFullYear()}-${pad(base.getMonth() + 1)}-${pad(base.getDate())}`;
-  const wkDays = Object.keys(wkd).filter((d) => d >= weekAgo && d <= today && (wkd[d]?.length ?? 0) > 0).length;
+  // Week strength is a qualitative grade of how the training week actually went
+  // (median day grade vs each lift's planned target, capped by frequency) — a
+  // pure selector over the log, never a stored value. The honest trained-day
+  // count stays as the subtext.
+  const wkGrade = weekStrength(W, today);
+  const wkTrained = trainedDaysInWeek(W, today).length;
+  const wkWord = wkGrade === 'rest' ? 'Rest' : wkGrade.charAt(0).toUpperCase() + wkGrade.slice(1);
   const G = sg();
   const todayCal = ((G.days?.[today] ?? []) as Store[]).reduce((a: number, m: Store) => a + (+m.cal || 0), 0);
   const dirty = (['core', 'overload', 'surplus', 'csgraph'] as StoreKey[]).some((k) => sync.isDirtyCloud(k));
@@ -852,7 +852,7 @@ export function hubStats(): HubStat[] {
     { key: 'todos', label: 'Todos', desc: 'Reminders & tasks', value: String(openTodos), unit: openTodos === 1 ? ' open' : ' open', sub: dueToday ? `${dueToday} due today` : openTodos ? 'to do' : 'all clear', tone: dueToday ? 'kcal' : '' },
     { key: 'scratch', label: 'Scratchpad', desc: 'Ideas & experiments', value: String(notes), unit: notes === 1 ? ' note' : ' notes', sub: 'captured', tone: '' },
     { key: 'knowledge', label: 'Knowledge', desc: 'Study & spaced review', value: String(masteryPct), unit: '%', sub: 'mastery', tone: 'cyan' },
-    { key: 'workout', label: 'Workout', desc: 'Training log & progression', value: String(wkDays), unit: wkDays === 1 ? ' day' : ' days', sub: 'this week', tone: '' },
+    { key: 'workout', label: 'Workout', desc: 'Training log & progression', value: wkWord, unit: '', sub: `${wkTrained} of ${WEEK_TRAINING_TARGET} days`, tone: wkGrade === 'strong' ? 'ok' : '' },
     { key: 'meal', label: 'Food & Body', desc: 'Calories & bodyweight', value: todayCal.toLocaleString('en-US'), unit: ' kcal', sub: todayCal ? 'today' : 'not logged', tone: 'kcal' },
     { key: 'data', label: 'Data', desc: 'Sync, storage & export', value: cloudEnabled() ? (dirty ? 'Unsaved' : 'Synced') : 'Local', unit: '', sub: `${kb} KB`, tone: !cloudEnabled() || dirty ? '' : 'ok', dot: cloudEnabled() && !dirty },
   ];
