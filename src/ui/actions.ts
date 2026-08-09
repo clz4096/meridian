@@ -736,6 +736,36 @@ export const dataActions: DataActions = {
     const dirtyList = (['core', 'overload', 'surplus', 'csgraph'] as StoreKey[]).filter((k) => sync.isDirtyCloud(k));
     out.set('cloud: ' + (cloudEnabled() ? 'configured' : 'not configured') + '\n' + 'payload: ' + metrics.kilobytes + 'KB\n' + 'revision: ' + sync.baseRev() + '\n' + 'unsynced stores: ' + (dirtyList.length ? dirtyList.join(', ') : 'none') + '\n' + 'tombstones: ' + metrics.counts.tombstones + ' (cap 500)');
   },
+  async resetKnowledge() {
+    if (!host.confirm('Erase ALL knowledge progress (mastery, reviews, history) on this device and overwrite the cloud? This cannot be undone.')) return;
+    dmsg('Resetting knowledge…');
+    // Zero the knowledge store, and drop knowledge-stream XP rows from core so
+    // XP stays consistent with zeroed mastery.
+    appState.set('csgraph', { mastery: {}, srs: {}, log: [], gymDone: {} });
+    const C = core();
+    appState.set('core', { ...C, entries: (C.entries || []).filter((e: Store) => e.stream !== 'kg') });
+    appState.markDirty();
+    appState.markKnowledgeDirty();
+    st.kgGraded.value = {};
+    st.bump();
+    // forcePush (not save) so the wiped state overwrites the cloud instead of
+    // union-merging the old entries back — knowledge has no delete path.
+    const r = await sync.forcePush();
+    dmsg(
+      r.cloud === 'synced' ? '✓ Knowledge reset. Reloading…'
+        : r.cloud === 'skipped' ? '✓ Reset on this device (cloud is off). Reloading…'
+        : 'Reset locally, but the cloud overwrite failed: ' + ((r.cloudError && r.cloudError.message) || r.cloud) + '. Reloading…',
+      r.cloud === 'failed',
+    );
+    host.reload(900);
+  },
+  async overwriteCloud() {
+    if (!cloudEnabled()) return dmsg('Cloud sync is off — nothing to overwrite.', true);
+    if (!host.confirm('Make THIS device authoritative and OVERWRITE the cloud with its current data? Other devices will be replaced on their next sync.')) return;
+    dmsg('Overwriting cloud…');
+    const r = await sync.forcePush();
+    dmsg(r.cloud === 'synced' ? '✓ Cloud overwritten from this device.' : 'Overwrite failed: ' + ((r.cloudError && r.cloudError.message) || r.cloud), r.cloud === 'failed');
+  },
 };
 
 /* ── todos (nested in the core store) ── */

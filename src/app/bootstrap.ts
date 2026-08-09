@@ -89,6 +89,24 @@ async function syncPull(): Promise<boolean> {
   return res.applied;
 }
 
+/**
+ * Overwrite the cloud with this device's local state, bypassing push()'s
+ * fold-in merge — the only way a cleaned store (knowledge has no delete path)
+ * can be made to stick. Bridges the live stores → engine → both local backends
+ * exactly like syncSave, so localStorage AND IndexedDB get the clean copy.
+ */
+async function syncForcePush(): Promise<{ cloud: SaveResult['cloud']; cloudError?: SaveResult['cloudError'] }> {
+  if (!engine || !setup) throw new Error('sync not initialised');
+  for (const key of Object.keys(STORAGE_KEYS) as StoreKey[]) {
+    const live = setup.read(key);
+    if (JSON.stringify(live) !== JSON.stringify(engine.getStore(key))) engine.edit(key, () => live);
+  }
+  const result = await engine.forcePush();
+  for (const key of Object.keys(STORAGE_KEYS) as StoreKey[]) setup.write(key, engine.getStore(key));
+  setup.onStatus?.({ localOk: true, localFailed: [], cloud: result.cloud, cloudError: result.cloudError });
+  return result;
+}
+
 async function syncDiscard(): Promise<{ restored: StoreKey[]; skipped: StoreKey[] }> {
   if (!engine || !setup) return { restored: [], skipped: [] };
   const res = await engine.discard();
@@ -101,6 +119,7 @@ export const sync = {
   save: syncSave,
   pull: syncPull,
   discard: syncDiscard,
+  forcePush: syncForcePush,
   push: (force = false) => engine?.push(force) ?? Promise.resolve({ cloud: 'skipped' as const }),
   anyDirty: () => engine?.anyDirty() ?? false,
   isDirtyCloud: (key: StoreKey) => engine?.isDirtyCloud(key) ?? false,

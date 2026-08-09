@@ -191,6 +191,55 @@ describe('no spurious data loss', () => {
   });
 });
 
+describe('forcePush — repair path that defeats the grow-only union', () => {
+  it('overwrites the cloud WITHOUT folding its stale entries back in', async () => {
+    const { engine, cloud } = makeEngine();
+    // The cloud holds polluted/stale rows another device (or a leak) put there.
+    cloud.seedFromOtherDevice('csgraph', [{ id: 'phantom1' }, { id: 'phantom2' }], 5);
+    // Local has been cleaned to a single real row.
+    engine.edit('csgraph', () => ({ items: [{ id: 'real1' }], _del: {} }));
+
+    const res = await engine.forcePush();
+    expect(res.cloud).toBe('synced');
+    // The whole point: the cloud now equals local — no union, phantoms gone.
+    expect(idsOf(cloud.current()!.csgraph)).toEqual(['real1']);
+    expect(cloud.currentRev()).toBe(6); // cloudRev(5) + 1, monotonic
+    expect(engine.isDirtyCloud('csgraph')).toBe(false);
+
+    // A normal pull afterwards must not resurrect the phantoms.
+    await engine.pull();
+    expect(idsOf(engine.getStore('csgraph'))).toEqual(['real1']);
+  });
+
+  it('contrast: a normal save/push DOES fold the stale entries back in', async () => {
+    const { engine, cloud } = makeEngine();
+    cloud.seedFromOtherDevice('csgraph', [{ id: 'phantom1' }], 5);
+    engine.edit('csgraph', () => ({ items: [{ id: 'real1' }], _del: {} }));
+    await engine.save(); // push() folds the cloud in → union
+    expect(idsOf(cloud.current()!.csgraph)).toEqual(['phantom1', 'real1']);
+  });
+
+  it('persists local and clears pendingLocal', async () => {
+    const { engine, storage, cloud } = makeEngine();
+    cloud.seedFromOtherDevice('csgraph', [{ id: 'phantom' }], 9);
+    engine.edit('csgraph', () => ({ items: [{ id: 'real1' }], _del: {} }));
+    await engine.forcePush();
+    expect(engine.isDirtyLocal('csgraph')).toBe(false);
+    expect(idsOf(JSON.parse((await storage.get('csgraph'))!))).toEqual(['real1']);
+    expect(cloud.currentRev()).toBe(10);
+  });
+
+  it('a failed forcePush never clears pendingCloud and leaves local intact', async () => {
+    const { engine, cloud } = makeEngine();
+    engine.edit('csgraph', () => ({ items: [{ id: 'real1' }], _del: {} }));
+    cloud.failMode = 'server';
+    const res = await engine.forcePush();
+    expect(res.cloud).toBe('failed');
+    expect(engine.isDirtyCloud('csgraph')).toBe(true);
+    expect(idsOf(engine.getStore('csgraph'))).toEqual(['real1']);
+  });
+});
+
 describe('discard reverts to the last persisted state', () => {
   it('restores what storage holds, not an in-memory snapshot', async () => {
     const { engine } = makeEngine();

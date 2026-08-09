@@ -11,8 +11,9 @@
  * touch document.getElementById — harmlessly no-op when the element is absent.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, restTimer, openSection, goHome, handleBack, todaySession, topicReviewSession, sessionForTopic, REVIEW_PREFIX, hubStats, sg, kg, core, wk } from '@/ui/actions';
-import { appState, dstr } from '@/app/bootstrap';
+import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, dataActions, restTimer, openSection, goHome, handleBack, todaySession, topicReviewSession, sessionForTopic, REVIEW_PREFIX, hubStats, sg, kg, core, wk } from '@/ui/actions';
+import { appState, dstr, sync } from '@/app/bootstrap';
+import { host } from '@/ui/host';
 import { selectWorkoutView } from '@/features/workout/workoutSelectors';
 import defaultWorkout from '@/core/data/defaultWorkout.json';
 import { dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems, kgOverview, currentTab } from '@/ui/store';
@@ -65,6 +66,38 @@ describe('hubStats knowledge tile — mastery % of the whole curriculum', () => 
     kgItems.value = { algorithms: Array.from({ length: 20 }, (_, i) => ({ id: `q${i}`, mins: 5 })) as never };
     Object.assign(kg(), { mastery: {}, srs: {}, log: [], gymDone: {} });
     expect(hubStats().find((s) => s.key === 'knowledge')!.value).toBe('0');
+  });
+});
+
+describe('dataActions.resetKnowledge', () => {
+  it('zeros csgraph, drops kg-stream XP rows, and force-pushes (not save)', async () => {
+    Object.assign(kg(), { mastery: { q1: 5, q2: 4 }, srs: { q1: { due: 'x' } }, log: [{ id: 'l', qid: 'q1', rating: 3 }], gymDone: { g: true } });
+    Object.assign(core(), { schedule: {}, entries: [{ id: 'e1', stream: 'kg', xp: 12 }, { id: 'e2', stream: 'overload', xp: 8 }], todos: [], scratch: [], _del: {} });
+    vi.spyOn(host, 'confirm').mockReturnValue(true);
+    vi.spyOn(host, 'reload').mockImplementation(() => {});
+    const force = vi.spyOn(sync, 'forcePush').mockResolvedValue({ cloud: 'synced' });
+    const save = vi.spyOn(sync, 'save');
+
+    await dataActions.resetKnowledge();
+
+    expect(kg().mastery).toEqual({});
+    expect(kg().srs).toEqual({});
+    expect(kg().log).toEqual([]);
+    expect(kg().gymDone).toEqual({});
+    expect(core().entries).toEqual([{ id: 'e2', stream: 'overload', xp: 8 }]); // kg row gone, others intact
+    expect(force).toHaveBeenCalledOnce();
+    expect(save).not.toHaveBeenCalled(); // must overwrite, not union-merge
+  });
+
+  it('does nothing when the confirm is declined', async () => {
+    Object.assign(kg(), { mastery: { q1: 5 }, srs: {}, log: [], gymDone: {} });
+    vi.spyOn(host, 'confirm').mockReturnValue(false);
+    const force = vi.spyOn(sync, 'forcePush').mockResolvedValue({ cloud: 'synced' });
+
+    await dataActions.resetKnowledge();
+
+    expect(kg().mastery).toEqual({ q1: 5 });
+    expect(force).not.toHaveBeenCalled();
   });
 });
 

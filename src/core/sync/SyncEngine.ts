@@ -298,6 +298,76 @@ export class SyncEngine {
     return { cloud: 'synced' };
   }
 
+  /* ---------------- forcePush (repair / overwrite) ---------------- */
+
+  /**
+   * Overwrite the cloud with THIS device's local state, bypassing the fold-in
+   * merge that `push()` performs.
+   *
+   * `push()` reads the cloud and merges it into local before writing, and the
+   * reference merge is grow-only for stores without tombstones (knowledge:
+   * `mastery`/`srs`/`log` union and can never lose a key). So a cleaned-up local
+   * state can never be made to stick through the normal path — the cloud's stale
+   * entries fold right back in. `forcePush` is the deliberate escape hatch: it
+   * reads the cloud SOLELY to learn its current rev (to write `rev + 1` and stay
+   * monotonic), and writes local wholesale WITHOUT merging. This makes the
+   * calling device authoritative — callers must warn the user that other devices
+   * will be replaced on their next sync.
+   *
+   * Same write-path invariants as `push()`: sanitize before serialising; a
+   * failed cloud write never clears `pendingCloud`.
+   */
+  async forcePush(): Promise<{ cloud: SaveResult['cloud']; cloudError?: SaveResult['cloudError'] }> {
+    const now = this.clock.now();
+
+    // Persist local first so the durable local copy matches what we publish.
+    for (const key of STORE_KEYS) {
+      const revAtCapture = this.rev[key];
+      this.stores[key] = this.sanitize(key, this.stores[key], now);
+      const payload = JSON.stringify(this.stores[key]);
+      let verified = false;
+      try {
+        if (await this.storage.set(key, payload)) verified = (await this.storage.get(key)) === payload;
+      } catch {
+        verified = false;
+      }
+      if (verified && this.rev[key] === revAtCapture) this.pendingLocal[key] = false;
+    }
+
+    // Read the cloud ONLY for its rev — never fold it into local.
+    const read = await this.cloud.read();
+    if (!read.ok && read.kind === 'rate-limited') {
+      this.backoffUntil = now + this.rateLimitBackoff;
+      return { cloud: 'failed', cloudError: { kind: 'rate-limited', message: read.message ?? 'rate limited' } };
+    }
+    const cloudRev = read.ok && read.payload ? read.payload.rev : this.baseRev;
+
+    const revsAtCapture: Record<StoreKey, number> = { ...this.rev };
+    const payload: CloudPayload = {
+      rev: cloudRev + 1,
+      syncedAt: now,
+      core: this.stores.core,
+      overload: this.stores.overload,
+      surplus: this.stores.surplus,
+      csgraph: this.stores.csgraph,
+    };
+
+    const write = await this.cloud.write(payload);
+    if (!write.ok) {
+      if (write.kind === 'rate-limited') this.backoffUntil = now + this.rateLimitBackoff;
+      // INVARIANT: a failed push must never clear pendingCloud.
+      return { cloud: 'failed', cloudError: { kind: write.kind ?? 'unknown', message: write.message ?? 'push failed' } };
+    }
+
+    this.baseRev = write.rev ?? payload.rev;
+    this.lastPushAt = now;
+    this.lastFingerprint = JSON.stringify(this.stores);
+    for (const key of STORE_KEYS) {
+      if (this.rev[key] === revsAtCapture[key]) this.pendingCloud[key] = false;
+    }
+    return { cloud: 'synced' };
+  }
+
   /* ---------------- discard ---------------- */
 
   /**

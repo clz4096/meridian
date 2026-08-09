@@ -38,4 +38,6 @@ export interface DataActions {
   importSingle(store: string, text: string): void;
   restoreSnapshot(): void;
   showDiagnostics(): void;
+  resetKnowledge(): void;
+  overwriteCloud(): void;
 }

@@ -215,6 +215,13 @@ export function DataView() {
           <button class="dadv-btn danger" onClick={discard}>
             Discard unsaved changes<small>revert edits since the last save</small>
           </button>
+          <div class="dadv-sec">Danger zone</div>
+          <button class="dadv-btn danger" onClick={dataActions.resetKnowledge}>
+            Reset knowledge progress<small>erase all mastery, reviews &amp; history, then overwrite the cloud</small>
+          </button>
+          <button class="dadv-btn danger" onClick={dataActions.overwriteCloud}>
+            Overwrite cloud from this device<small>make this device authoritative — replaces other devices on their next sync</small>
+          </button>
         </div>
       </details>
     </>
