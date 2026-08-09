@@ -6,10 +6,10 @@
   "prompt": "Why is a cache line typically 64 bytes, not 1 byte? State the principle it exploits.",
   "src": {
    "book": "csapp",
-   "ref": "\u00a76.2\u20136.4 The memory hierarchy & cache memories",
+   "ref": "§6.2–6.4 The memory hierarchy & cache memories",
    "page": 632
   },
-  "reveal": "Spatial locality: programs tend to access data near data they just used. Fetching a 64-byte line amortizes the fixed cost of a memory access across neighbors you\u2019ll likely need next, so sequential access gets many hits per miss. A 1-byte line would waste that latency on every element.",
+  "reveal": "Spatial locality: programs tend to access data near data they just used. Fetching a 64-byte line amortizes the fixed cost of a memory access across neighbors you’ll likely need next, so sequential access gets many hits per miss. A 1-byte line would waste that latency on every element.",
   "tags": [
    "systems",
    "hft"
@@ -25,7 +25,7 @@
    "ref": "Ch.4 The Processor (pipelining)",
    "page": 325
   },
-  "reveal": "Pipelining overlaps the stages (fetch/decode/execute/mem/writeback) of consecutive instructions so throughput approaches one instruction per cycle. Hazards stall it: data hazards (an instruction needs a result not yet ready), control hazards (branches whose direction isn\u2019t known yet), and structural hazards (two instructions want the same unit).",
+  "reveal": "Pipelining overlaps the stages (fetch/decode/execute/mem/writeback) of consecutive instructions so throughput approaches one instruction per cycle. Hazards stall it: data hazards (an instruction needs a result not yet ready), control hazards (branches whose direction isn’t known yet), and structural hazards (two instructions want the same unit).",
   "tags": [
    "systems",
    "hft"
@@ -41,7 +41,7 @@
    "ref": "Ch.3 Instruction-Level Parallelism & its exploitation",
    "page": 200
   },
-  "reveal": "The CPU guesses a branch\u2019s direction and speculatively executes down that path to keep the pipeline full. A mispredict means flushing all speculated work and refetching \u2014 tens of cycles lost. Processing a sorted array is faster because the data-dependent branch (e.g. if x < threshold) becomes highly predictable (long runs of the same outcome), so the predictor is almost always right; on shuffled data it mispredicts constantly.",
+  "reveal": "The CPU guesses a branch’s direction and speculatively executes down that path to keep the pipeline full. A mispredict means flushing all speculated work and refetching — tens of cycles lost. Processing a sorted array is faster because the data-dependent branch (e.g. if x < threshold) becomes highly predictable (long runs of the same outcome), so the predictor is almost always right; on shuffled data it mispredicts constantly.",
   "tags": [
    "systems",
    "hft"
@@ -54,10 +54,10 @@
   "prompt": "Walk through what happens on a memory access from virtual address to data, including the TLB and a page fault. Why does the TLB exist?",
   "src": {
    "book": "csapp",
-   "ref": "Ch.9 Virtual Memory (\u00a79.6 address translation)",
+   "ref": "Ch.9 Virtual Memory (§9.6 address translation)",
    "page": 838
   },
-  "reveal": "The CPU issues a virtual address. The MMU splits it into a page number + offset and must translate the page number to a physical frame via the page table \u2014 but walking the page table is itself memory accesses. The TLB caches recent translations, so a TLB hit gives the frame in ~1 cycle. On a TLB miss the MMU walks the page table; if the page isn\u2019t resident, a page fault traps to the OS, which loads the page from disk, updates the table, and restarts the instruction. The TLB exists because without it every memory access would cost several extra accesses just to translate.",
+  "reveal": "The CPU issues a virtual address. The MMU splits it into a page number + offset and must translate the page number to a physical frame via the page table — but walking the page table is itself memory accesses. The TLB caches recent translations, so a TLB hit gives the frame in ~1 cycle. On a TLB miss the MMU walks the page table; if the page isn’t resident, a page fault traps to the OS, which loads the page from disk, updates the table, and restarts the instruction. The TLB exists because without it every memory access would cost several extra accesses just to translate.",
   "tags": [
    "systems",
    "hft"
@@ -67,13 +67,13 @@
   "id": "ca-riscv-15",
   "mins": 15,
   "flow": "full",
-  "prompt": "Why is RISC-V\u2019s load/store architecture significant? Contrast with a memory-operand (CISC) design and say why it matters for pipelining.",
+  "prompt": "Why is RISC-V’s load/store architecture significant? Contrast with a memory-operand (CISC) design and say why it matters for pipelining.",
   "src": {
    "book": "cod",
    "ref": "Ch.2 Instructions: Language of the Computer (RISC-V)",
    "page": 101
   },
-  "reveal": "In a load/store ISA, arithmetic instructions operate only on registers; memory is touched solely by explicit load/store instructions. This keeps instructions fixed-length and single-purpose, which makes decoding and pipelining regular \u2014 every instruction takes a predictable path through the stages. CISC instructions that can read memory operands directly have variable latency and complexity, complicating the pipeline. RISC-V\u2019s regularity is also why it\u2019s attractive for custom accelerators (e.g. Tenstorrent\u2019s baby cores).",
+  "reveal": "In a load/store ISA, arithmetic instructions operate only on registers; memory is touched solely by explicit load/store instructions. This keeps instructions fixed-length and single-purpose, which makes decoding and pipelining regular — every instruction takes a predictable path through the stages. CISC instructions that can read memory operands directly have variable latency and complexity, complicating the pipeline. RISC-V’s regularity is also why it’s attractive for custom accelerators (e.g. Tenstorrent’s baby cores).",
   "tags": [
    "systems",
    "hft"
@@ -83,12 +83,12 @@
   "id": "ca-syscall-15",
   "mins": 15,
   "flow": "full",
-  "prompt": "What mechanically happens when user code makes a system call? Why can\u2019t a program just jump into kernel code?",
+  "prompt": "What mechanically happens when user code makes a system call? Why can’t a program just jump into kernel code?",
   "src": {
    "book": "cpuland",
-   "ref": "cpu.land \u2014 Rings & Syscalls"
+   "ref": "cpu.land — Rings & Syscalls"
   },
-  "reveal": "A privilege-level bit (rings) separates user (low privilege) from kernel (high). A syscall instruction raises the privilege level AND transfers control to a fixed, kernel-defined entry point \u2014 the caller cannot choose where it lands. The kernel dispatches on the syscall number, does the work, and returns, lowering privilege again. You can\u2019t jump directly into kernel code because the transition instruction hardwires the entry point and the MMU forbids user code from executing kernel pages \u2014 that controlled door is the basis of OS security.",
+  "reveal": "A privilege-level bit (rings) separates user (low privilege) from kernel (high). A syscall instruction raises the privilege level AND transfers control to a fixed, kernel-defined entry point — the caller cannot choose where it lands. The kernel dispatches on the syscall number, does the work, and returns, lowering privilege again. You can’t jump directly into kernel code because the transition instruction hardwires the entry point and the MMU forbids user code from executing kernel pages — that controlled door is the basis of OS security.",
   "tags": [
    "systems",
    "hft"
@@ -117,7 +117,7 @@
   "prompt": "Explain cache coherence and the MESI states. What does a write to a shared line actually trigger?",
   "src": {
    "book": "hp",
-   "ref": "\u00a76.4 / H&P Ch.5 (coherence)",
+   "ref": "§6.4 / H&P Ch.5 (coherence)",
    "page": 400
   },
   "reveal": "Coherence guarantees all cores see a consistent view of memory despite private caches. MESI labels each cache line: Modified (dirty, this core has the only copy), Exclusive (clean, only copy), Shared (clean, other cores may have it), Invalid (unusable). Writing to a SHARED line requires broadcasting an invalidate to every other core holding it, waiting for acknowledgement, then transitioning to Modified. That round trip is why a contended atomic costs far more than an uncontended one, and it is the exact mechanism behind false sharing.",
@@ -133,10 +133,10 @@
   "prompt": "State the rough latency of L1, L2, L3, DRAM, SSD, and network in cycles or nanoseconds. Why should you memorize these?",
   "src": {
    "book": "csapp",
-   "ref": "\u00a76.1 Storage technologies",
+   "ref": "§6.1 Storage technologies",
    "page": 609
   },
-  "reveal": "Roughly: L1 ~1 ns (~4 cycles), L2 ~4 ns, L3 ~15\u201340 ns, DRAM ~80\u2013100 ns, NVMe SSD ~100 \u00b5s, same-datacenter network round trip ~0.5 ms. Memorize them because they set the ORDER OF MAGNITUDE of every design decision: DRAM is ~100\u00d7 slower than L1, so an algorithm with poor locality can be 10\u2013100\u00d7 slower than its big-O suggests. Optimization is mostly about moving work up this hierarchy.",
+  "reveal": "Roughly: L1 ~1 ns (~4 cycles), L2 ~4 ns, L3 ~15–40 ns, DRAM ~80–100 ns, NVMe SSD ~100 µs, same-datacenter network round trip ~0.5 ms. Memorize them because they set the ORDER OF MAGNITUDE of every design decision: DRAM is ~100× slower than L1, so an algorithm with poor locality can be 10–100× slower than its big-O suggests. Optimization is mostly about moving work up this hierarchy.",
   "tags": [
    "systems",
    "hft"
@@ -152,7 +152,7 @@
    "ref": "H&P Ch.4 Data-level parallelism",
    "page": 314
   },
-  "reveal": "SIMD applies one instruction to multiple data elements in a wide register (AVX2 = 256 bits = 8 floats, AVX-512 = 16). Auto-vectorization is blocked by: loop-carried DEPENDENCIES (each iteration needs the previous result), possible ALIASING between pointers (the compiler cannot prove writes to one array do not affect another \u2014 fix with __restrict), unpredictable branches inside the loop, non-contiguous or unaligned access, function calls that cannot be inlined, and trip counts unknown at compile time. Checking the compiler\u2019s vectorization report (or godbolt) is the practical way to find out which one bit you.",
+  "reveal": "SIMD applies one instruction to multiple data elements in a wide register (AVX2 = 256 bits = 8 floats, AVX-512 = 16). Auto-vectorization is blocked by: loop-carried DEPENDENCIES (each iteration needs the previous result), possible ALIASING between pointers (the compiler cannot prove writes to one array do not affect another — fix with __restrict), unpredictable branches inside the loop, non-contiguous or unaligned access, function calls that cannot be inlined, and trip counts unknown at compile time. Checking the compiler’s vectorization report (or godbolt) is the practical way to find out which one bit you.",
   "tags": [
    "systems",
    "hft"
@@ -168,7 +168,7 @@
    "ref": "H&P Ch.3 / thread-level parallelism",
    "page": 200
   },
-  "reveal": "SMT exposes one physical core as two logical cores sharing execution units, caches, and TLB. It helps throughput-oriented, memory-bound workloads: when one thread stalls on a cache miss, the other uses the idle execution units \u2014 often 20\u201330% more throughput. It HURTS latency-critical work because the two siblings compete for L1/L2 and the branch predictor, so worst-case latency and jitter increase. HFT shops routinely disable it and pin one thread per physical core, trading throughput for predictability.",
+  "reveal": "SMT exposes one physical core as two logical cores sharing execution units, caches, and TLB. It helps throughput-oriented, memory-bound workloads: when one thread stalls on a cache miss, the other uses the idle execution units — often 20–30% more throughput. It HURTS latency-critical work because the two siblings compete for L1/L2 and the branch predictor, so worst-case latency and jitter increase. HFT shops routinely disable it and pin one thread per physical core, trading throughput for predictability.",
   "tags": [
    "systems",
    "hft"
@@ -184,7 +184,7 @@
    "ref": "H&P Ch.5 (multiprocessor memory)",
    "page": 400
   },
-  "reveal": "On a NUMA system each socket has its own local memory; accessing another socket\u2019s memory goes over an interconnect and costs roughly 1.5\u20132\u00d7 the latency with lower bandwidth. The punishing mistake is allocating memory on one socket and then running the thread that uses it on another \u2014 easy to do accidentally, since Linux allocates on FIRST TOUCH, not at malloc. Fixes: touch (initialize) memory from the thread that will use it, pin threads with taskset/numactl, and keep per-socket data structures rather than one shared global.",
+  "reveal": "On a NUMA system each socket has its own local memory; accessing another socket’s memory goes over an interconnect and costs roughly 1.5–2× the latency with lower bandwidth. The punishing mistake is allocating memory on one socket and then running the thread that uses it on another — easy to do accidentally, since Linux allocates on FIRST TOUCH, not at malloc. Fixes: touch (initialize) memory from the thread that will use it, pin threads with taskset/numactl, and keep per-socket data structures rather than one shared global.",
   "tags": [
    "systems",
    "hft"
@@ -197,7 +197,7 @@
   "prompt": "What is hardware prefetching, which access patterns does it recognize, and how do you help it?",
   "src": {
    "book": "csapp",
-   "ref": "\u00a76.5 Writing cache-friendly code",
+   "ref": "§6.5 Writing cache-friendly code",
    "page": 661
   },
   "reveal": "The prefetcher detects regular access patterns and fetches lines before you request them, hiding DRAM latency. It reliably recognizes sequential forward/backward streams and constant-stride access; it does NOT handle pointer chasing (linked lists, trees) or random access, because the next address is not predictable. Help it by traversing contiguous memory in order (array-of-structs vs struct-of-arrays matters), keeping strides small and constant, and processing data in the order it is laid out. For the unavoidable pointer-chasing case, software prefetch intrinsics (__builtin_prefetch) can help if you can compute the address far enough ahead.",
@@ -213,10 +213,10 @@
   "prompt": "What is branchless programming, give an example, and state when it is actually slower.",
   "src": {
    "book": "csapp",
-   "ref": "\u00a75 Optimizing program performance / branch prediction",
+   "ref": "§5 Optimizing program performance / branch prediction",
    "page": 523
   },
-  "reveal": "Branchless code replaces an unpredictable branch with arithmetic or a conditional move, so there is no mispredict to pay for. Example: max = a > b ? a : b compiles to a cmov; a summation that skips negatives can be written as sum += x & -(x > 0). It wins when the branch is genuinely UNPREDICTABLE (roughly 50/50 random data), where a mispredict costs 15\u201320 cycles. It LOSES when the branch is highly predictable \u2014 the predictor makes it nearly free, while the branchless version always executes both sides\u2019 work. Measure; do not assume.",
+  "reveal": "Branchless code replaces an unpredictable branch with arithmetic or a conditional move, so there is no mispredict to pay for. Example: max = a > b ? a : b compiles to a cmov; a summation that skips negatives can be written as sum += x & -(x > 0). It wins when the branch is genuinely UNPREDICTABLE (roughly 50/50 random data), where a mispredict costs 15–20 cycles. It LOSES when the branch is highly predictable — the predictor makes it nearly free, while the branchless version always executes both sides’ work. Measure; do not assume.",
   "tags": [
    "systems",
    "hft"
@@ -229,10 +229,10 @@
   "prompt": "What are huge pages, and what problem do they solve?",
   "src": {
    "book": "csapp",
-   "ref": "\u00a79.6 Address translation",
+   "ref": "§9.6 Address translation",
    "page": 838
   },
-  "reveal": "A standard page is 4 KB, so a large working set needs many page-table entries and the TLB (which caches translations) starts missing \u2014 each miss costs a page-table walk. Huge pages (2 MB or 1 GB) cover far more memory per TLB entry, cutting TLB misses dramatically for large contiguous data sets. This matters for databases, JVMs, and large in-memory structures. The cost is coarser granularity: more internal fragmentation and slower page faults, and transparent huge pages can introduce latency spikes from defragmentation, which is why latency-sensitive systems often use explicit hugepages instead.",
+  "reveal": "A standard page is 4 KB, so a large working set needs many page-table entries and the TLB (which caches translations) starts missing — each miss costs a page-table walk. Huge pages (2 MB or 1 GB) cover far more memory per TLB entry, cutting TLB misses dramatically for large contiguous data sets. This matters for databases, JVMs, and large in-memory structures. The cost is coarser granularity: more internal fragmentation and slower page faults, and transparent huge pages can introduce latency spikes from defragmentation, which is why latency-sensitive systems often use explicit hugepages instead.",
   "tags": [
    "systems",
    "hft"
@@ -245,9 +245,9 @@
   "prompt": "Why is a system call expensive, and what techniques avoid them in low-latency systems?",
   "src": {
    "book": "cpuland",
-   "ref": "cpu.land \u2014 syscalls; OS internals"
+   "ref": "cpu.land — syscalls; OS internals"
   },
-  "reveal": "A syscall traps into the kernel: privilege transition, register save/restore, possible TLB and cache pollution from kernel code, plus mitigations for speculative-execution vulnerabilities that added significant overhead. It costs hundreds of nanoseconds to microseconds \u2014 an eternity next to a cache hit. Avoidance techniques: batching (io_uring, sendmmsg), memory-mapped I/O, kernel BYPASS for networking (DPDK, Solarflare/Onload) where the NIC is mapped directly into user space, busy-polling instead of blocking, and vDSO for cheap calls like clock_gettime.",
+  "reveal": "A syscall traps into the kernel: privilege transition, register save/restore, possible TLB and cache pollution from kernel code, plus mitigations for speculative-execution vulnerabilities that added significant overhead. It costs hundreds of nanoseconds to microseconds — an eternity next to a cache hit. Avoidance techniques: batching (io_uring, sendmmsg), memory-mapped I/O, kernel BYPASS for networking (DPDK, Solarflare/Onload) where the NIC is mapped directly into user space, busy-polling instead of blocking, and vDSO for cheap calls like clock_gettime.",
   "tags": [
    "systems",
    "hft"
@@ -263,7 +263,7 @@
    "ref": "H&P Ch.5 / memory consistency",
    "page": 400
   },
-  "reveal": "A store buffer queues writes so the core need not wait for the cache line to arrive \u2014 essential for performance. The consequence is STORE-LOAD reordering: a later load can complete before an earlier store becomes globally visible, because the store is still sitting in the buffer. This is why the classic Dekker pattern fails on x86 \u2014 both threads write their own flag then read the other\u2019s, and both can read zero. x86 is otherwise strongly ordered (no store-store or load-load reordering), so this is the ONE reordering it permits; a memory fence (mfence, or a seq_cst atomic) drains the buffer and prevents it.",
+  "reveal": "A store buffer queues writes so the core need not wait for the cache line to arrive — essential for performance. The consequence is STORE-LOAD reordering: a later load can complete before an earlier store becomes globally visible, because the store is still sitting in the buffer. This is why the classic Dekker pattern fails on x86 — both threads write their own flag then read the other’s, and both can read zero. x86 is otherwise strongly ordered (no store-store or load-load reordering), so this is the ONE reordering it permits; a memory fence (mfence, or a seq_cst atomic) drains the buffer and prevents it.",
   "tags": [
    "systems",
    "hft"
@@ -278,7 +278,7 @@
    "book": "cpuland",
    "ref": "cpu.land / OS internals"
   },
-  "reveal": "Direct Memory Access lets a device (NIC, disk controller, GPU) transfer data to and from RAM WITHOUT the CPU copying it byte by byte \u2014 the CPU programs a descriptor and gets an interrupt on completion. Without DMA the CPU would spend all its time shuffling bytes. It matters because it makes zero-copy paths possible: with DMA plus memory mapping, a packet can land in user-space memory the application already owns. Note that DMA writes must be coherent with the CPU caches (or explicitly flushed on architectures without coherent DMA), which is a classic driver bug source.",
+  "reveal": "Direct Memory Access lets a device (NIC, disk controller, GPU) transfer data to and from RAM WITHOUT the CPU copying it byte by byte — the CPU programs a descriptor and gets an interrupt on completion. Without DMA the CPU would spend all its time shuffling bytes. It matters because it makes zero-copy paths possible: with DMA plus memory mapping, a packet can land in user-space memory the application already owns. Note that DMA writes must be coherent with the CPU caches (or explicitly flushed on architectures without coherent DMA), which is a classic driver bug source.",
   "tags": [
    "systems",
    "hft"
@@ -293,7 +293,7 @@
    "book": "cpuland",
    "ref": "cpu.land / OS internals"
   },
-  "reveal": "Interrupts are efficient when events are RARE \u2014 the CPU does other work until the device signals. But under high event rates the interrupt overhead (context save, handler dispatch, cache pollution) dominates and can cause an interrupt storm where the system does nothing but service interrupts. Polling burns a core but has lower and far more predictable latency. The hybrid (Linux NAPI): take the first interrupt, then DISABLE interrupts for that device and poll while traffic is heavy, re-enabling them when the queue drains \u2014 getting interrupt efficiency at low load and polling throughput at high load.",
+  "reveal": "Interrupts are efficient when events are RARE — the CPU does other work until the device signals. But under high event rates the interrupt overhead (context save, handler dispatch, cache pollution) dominates and can cause an interrupt storm where the system does nothing but service interrupts. Polling burns a core but has lower and far more predictable latency. The hybrid (Linux NAPI): take the first interrupt, then DISABLE interrupts for that device and poll while traffic is heavy, re-enabling them when the queue drains — getting interrupt efficiency at low load and polling throughput at high load.",
   "tags": [
    "systems",
    "hft"
@@ -306,10 +306,10 @@
   "prompt": "You have a struct with a bool, a pointer, and an int, in that order. What is its size on x86-64, and how do you shrink it?",
   "src": {
    "book": "csapp",
-   "ref": "\u00a73.9 Data alignment",
+   "ref": "§3.9 Data alignment",
    "page": 293
   },
-  "reveal": "Declared as {bool; void*; int;}: the bool takes 1 byte, then 7 bytes of padding so the 8-byte pointer is properly aligned, then 8 for the pointer, then 4 for the int, then 4 trailing bytes so the whole struct aligns to 8 \u2014 total 24 bytes. Reordering largest-to-smallest {void*; int; bool;} gives 8 + 4 + 1 + 3 trailing = 16 bytes, a 33% reduction. This matters because smaller structs fit more per 64-byte cache line, so array traversals pull in more useful data per fetch.",
+  "reveal": "Declared as {bool; void*; int;}: the bool takes 1 byte, then 7 bytes of padding so the 8-byte pointer is properly aligned, then 8 for the pointer, then 4 for the int, then 4 trailing bytes so the whole struct aligns to 8 — total 24 bytes. Reordering largest-to-smallest {void*; int; bool;} gives 8 + 4 + 1 + 3 trailing = 16 bytes, a 33% reduction. This matters because smaller structs fit more per 64-byte cache line, so array traversals pull in more useful data per fetch.",
   "tags": [
    "systems",
    "hft"
@@ -325,7 +325,7 @@
    "ref": "H&P Ch.3 ILP",
    "page": 200
   },
-  "reveal": "Superscalar means the core can ISSUE multiple instructions per cycle to different execution ports (a modern x86 core issues 4\u20136). Latency is how many cycles before the RESULT is available; throughput (reciprocal throughput) is how often you can START a new one. A multiply might have 4-cycle latency but 1-per-cycle throughput \u2014 so a chain of dependent multiplies runs at 1 per 4 cycles, while independent multiplies run at 1 per cycle. This is why breaking dependency chains (e.g. using several accumulators in a reduction loop) can give a 3\u20134\u00d7 speedup with identical instruction counts.",
+  "reveal": "Superscalar means the core can ISSUE multiple instructions per cycle to different execution ports (a modern x86 core issues 4–6). Latency is how many cycles before the RESULT is available; throughput (reciprocal throughput) is how often you can START a new one. A multiply might have 4-cycle latency but 1-per-cycle throughput — so a chain of dependent multiplies runs at 1 per 4 cycles, while independent multiplies run at 1 per cycle. This is why breaking dependency chains (e.g. using several accumulators in a reduction loop) can give a 3–4× speedup with identical instruction counts.",
   "tags": [
    "systems",
    "hft"
@@ -338,13 +338,178 @@
   "prompt": "Why is iterating a 2D array row-by-row much faster than column-by-column in C++?",
   "src": {
    "book": "csapp",
-   "ref": "\u00a76.5 Cache-friendly code",
+   "ref": "§6.5 Cache-friendly code",
    "page": 661
   },
-  "reveal": "C and C++ store 2D arrays in ROW-MAJOR order, so elements of a row are contiguous in memory. Row-wise traversal walks sequential addresses \u2014 each cache line fetch delivers ~16 useful ints, and the hardware prefetcher recognizes the stream. Column-wise traversal jumps by the row width each step, so every access touches a new cache line and most of each fetched line is discarded; for a large matrix this can be an order of magnitude slower despite identical instruction counts. Same total work, entirely different memory behavior.",
+  "reveal": "C and C++ store 2D arrays in ROW-MAJOR order, so elements of a row are contiguous in memory. Row-wise traversal walks sequential addresses — each cache line fetch delivers ~16 useful ints, and the hardware prefetcher recognizes the stream. Column-wise traversal jumps by the row width each step, so every access touches a new cache line and most of each fetched line is discarded; for a large matrix this can be an order of magnitude slower despite identical instruction counts. Same total work, entirely different memory behavior.",
   "tags": [
    "systems",
    "hft"
+  ]
+ },
+ {
+  "id": "ca-rings-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "How does an x86-64 CPU actually track whether it is in kernel or user mode, and where is that bit checked?",
+  "src": {
+   "book": "cpuland",
+   "ref": "cpu.land — Basics: privilege rings & the current privilege level"
+  },
+  "reveal": "The current privilege level (CPL) lives in the low 2 bits of the cs (code segment) register, encoding rings 0–3; Linux uses only ring 0 (kernel) and ring 3 (user). The CPU hardware checks the CPL on every privileged instruction and every memory access: in ring 3, instructions like hlt, lgdt/lidt, moves to CR0/CR3, wrmsr, cli/sti, and in/out are illegal and raise a #GP fault, and pages tagged supervisor-only are unreachable. Nothing in user code can raise its own CPL — only a controlled entry (interrupt/syscall) into predefined kernel code changes the ring. This hardware check, not the OS, is what makes isolation unforgeable.",
+  "tags": [
+   "comparch",
+   "systems"
+  ]
+ },
+ {
+  "id": "ca-syscall-abi-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Describe the x86-64 Linux syscall calling convention and why the modern SYSCALL instruction replaced int 0x80. How is it different from a normal function call?",
+  "src": {
+   "book": "cpuland",
+   "ref": "cpu.land — Multitasking/Exec: the SYSCALL instruction & syscall ABI"
+  },
+  "reveal": "The syscall NUMBER goes in rax and arguments in rdi, rsi, rdx, r10, r8, r9 — note r10, not rcx, because the SYSCALL instruction clobbers rcx (it stashes the return RIP there) and r11 (RFLAGS); the return value comes back in rax. SYSCALL jumps to a single fixed kernel entry whose address the kernel preloaded into the IA32_LSTAR MSR, so the caller cannot pick where it lands — unlike a call, the target is not an operand. The legacy int 0x80 path did the same via interrupt vector 0x80 but was much slower because it went through the full interrupt-descriptor machinery; SYSCALL/SYSRET is a streamlined fast path that skips it. It is not a normal call because it raises the privilege level, switches to the kernel stack, and follows a register ABI distinct from the System V C convention (which uses rcx as the 4th arg).",
+  "tags": [
+   "comparch",
+   "systems"
+  ]
+ },
+ {
+  "id": "ca-idt-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How does the CPU dispatch an interrupt, and what is the difference between a hardware interrupt, a software interrupt, and an exception?",
+  "src": {
+   "book": "cpuland",
+   "ref": "cpu.land — Multitasking: interrupts & the interrupt descriptor table"
+  },
+  "reveal": "Each interrupt has a vector number 0–255 that indexes the Interrupt Descriptor Table (IDT), whose base the kernel loaded into the IDTR with lidt; the indexed descriptor holds the handler address and the privilege/gate type. On an interrupt the CPU switches to kernel mode, saves the interrupted RIP/RSP/RFLAGS (on the kernel stack via the TSS), and jumps to that handler, returning with iret. Hardware interrupts are asynchronous, raised by devices (timer, NIC) through the APIC and unrelated to the current instruction; software interrupts are synchronous, triggered deliberately by an instruction (int 0x80); exceptions/faults (page fault #14, #GP #13, divide #0) are synchronous, raised by the CPU itself when an instruction cannot complete. All three funnel through the same IDT dispatch, which is why a page fault and a syscall look structurally alike to the kernel.",
+  "tags": [
+   "comparch",
+   "systems"
+  ]
+ },
+ {
+  "id": "ca-preempt-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How does an OS force a running program to give up the CPU, and where does the timeslice come from? What makes it 'preemptive'?",
+  "src": {
+   "book": "cpuland",
+   "ref": "cpu.land — Multitasking: timer interrupts, timeslices & preemption"
+  },
+  "reveal": "Before dropping to user mode the kernel arms a hardware timer (a PIT or the local-APIC timer) to fire after a timeslice (quantum). When it expires it raises a hardware interrupt that forcibly yanks control back to ring 0 regardless of what the program was doing — that involuntary seizure is what makes scheduling preemptive rather than cooperative. The handler runs the scheduler, which may save this task's context and load another's. Linux CFS sizes the quantum dynamically (roughly target latency ÷ runnable tasks) with a minimum granularity floor, so more threads means shorter slices — more responsiveness but more context-switch overhead. A CPU-bound loop that never syscalls still can't monopolize the core, precisely because the timer interrupt is out of its control.",
+  "tags": [
+   "comparch",
+   "systems"
+  ]
+ },
+ {
+  "id": "ca-ctxswitch-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "What state does a context switch save and restore, and why is switching between processes so much more expensive than the register copy alone suggests?",
+  "src": {
+   "book": "cpuland",
+   "ref": "cpu.land — Multitasking: context switching & page-table swap"
+  },
+  "reveal": "The direct cost is saving the outgoing task's architectural state — general-purpose registers, RIP, RSP, RFLAGS, and (lazily, via xsave) the FPU/SIMD state — into its kernel task struct and loading the next task's. The killer is the INDIRECT cost when switching between processes: the kernel reloads CR3 to install the new page table, which flushes the non-global TLB, so the new process starts with cold translations and eats page-table walks. The caches (L1/L2, branch predictor, prefetchers) are also now full of the wrong process's data, so both tasks run slow for a while after. That is why the true bill is microseconds, not the tens of nanoseconds the register copy costs, and why thread switches (same address space, no CR3 reload, no TLB flush) are cheaper than process switches — and why pinning and reducing switch frequency matter for latency.",
+  "tags": [
+   "comparch",
+   "systems"
+  ]
+ },
+ {
+  "id": "ca-boot-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Trace what happens from power-on to the kernel running, including the CPU mode transitions. Why doesn't the machine just boot straight into 64-bit mode?",
+  "src": {
+   "book": "cpuland",
+   "ref": "cpu.land — how the machine reaches kernel mode; x86 mode transitions"
+  },
+  "reveal": "At reset the CPU starts in real mode: 16-bit, ~1 MiB addressable, no paging and no protection, executing firmware (UEFI, or legacy BIOS) from flash at the reset vector. Firmware initializes hardware and hands off to a bootloader — UEFI runs an EFI executable from the EFI System Partition; legacy BIOS runs a boot sector (GRUB). The bootloader loads the kernel and steps the CPU up: real mode → protected mode (32-bit, segmentation and ring protection) → long mode (64-bit), where paging is mandatory and is turned on by enabling CR4.PAE, setting EFER.LME, building initial page tables in CR3, and setting CR0.PG. Only then does it jump to the kernel entry point (still in ring 0, where every CPU boots). It can't start in long mode because 64-bit mode REQUIRES paging and page tables that don't exist yet at power-on — the staged climb bootstraps the structures each mode depends on.",
+  "tags": [
+   "comparch",
+   "systems"
+  ]
+ },
+ {
+  "id": "ca-elfload-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Walk through what execve does to turn an ELF file on disk into a running process image. What gets mmap'd, and how is the stack set up before the first instruction?",
+  "src": {
+   "book": "cpuland",
+   "ref": "cpu.land — ELF: how Linux loads an executable"
+  },
+  "reveal": "execve replaces the current process image: the kernel reads the ELF header (magic 0x7F 'E' 'L' 'F', architecture, entry point e_entry) and walks the PROGRAM header table, not the section table. For each PT_LOAD segment it mmaps the file at the segment's virtual address p_vaddr, mapping filesz bytes from file offset p_offset with the segment's permissions (.text r-x, .data rw-); the extra memsz − filesz bytes are the .bss, zero-filled from an anonymous mapping rather than read from disk. It then builds a fresh user stack holding argc, argv, envp, and the auxiliary vector (auxv), zeroes the registers, and sets RIP to the entry point. If a PT_INTERP is present (dynamically linked), it instead maps the ELF interpreter (ld.so) and jumps THERE first, letting the dynamic linker load the .so dependencies and resolve symbols before transferring to the program. Because segments are mmap'd, pages fault in lazily on first touch rather than being read eagerly.",
+  "tags": [
+   "comparch",
+   "systems"
+  ]
+ },
+ {
+  "id": "ca-bss-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "Why does a 10 MB zero-initialized global array add essentially nothing to the size of the executable file on disk?",
+  "src": {
+   "book": "cpuland",
+   "ref": "cpu.land — ELF: .bss and SHT_NOBITS"
+  },
+  "reveal": "Zero-initialized (or uninitialized) globals live in .bss, which is marked SHT_NOBITS: the ELF file records only the section's SIZE, not its contents, because storing millions of literal zero bytes would be pointless. At load time the loader satisfies .bss from the difference between a PT_LOAD segment's memsz and its filesz, backing it with a fresh anonymous zero-filled mapping. So the array costs bytes in RAM at runtime but ~0 bytes on disk. Explicitly initialized globals go in .data and DO occupy file space — which is why initializing a large array to zero explicitly can bloat the binary versus leaving it in .bss.",
+  "tags": [
+   "comparch",
+   "systems"
+  ]
+ },
+ {
+  "id": "ca-pagewalk-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Why do x86-64 CPUs use a 4-level page table instead of one flat lookup table, and how does the MMU walk it to translate an address?",
+  "src": {
+   "book": "cpuland",
+   "ref": "cpu.land — Paging: multi-level page tables & the page-table walk"
+  },
+  "reveal": "A flat table mapping every 4 KiB page of the 48-bit address space would need 2^36 entries (~512 GiB per process) — and the full 64-bit space is astronomically larger. A hierarchical tree fixes this by only allocating lower tables for regions actually in use, so a sparse address space costs little. Translation splits the 48-bit virtual address into four 9-bit indexes plus a 12-bit page offset: the MMU starts at the table whose physical base is in CR3, uses bits 47–39 to pick an entry pointing to the next-level table, then bits 38–30, 29–21, and 20–12, and the final entry gives the physical frame; the 12-bit offset is added unchanged. That is up to four dependent memory reads PER translation, which is exactly why the TLB caches completed walks and why a TLB miss on a pointer-chasing workload is so costly. (5-level paging adds one more 9-bit index for a larger address space.)",
+  "tags": [
+   "comparch",
+   "systems"
+  ]
+ },
+ {
+  "id": "ca-tlbflush-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why does a context switch hurt the TLB, and what do global pages and PCIDs do about it?",
+  "src": {
+   "book": "cpuland",
+   "ref": "cpu.land — Paging: TLB, CR3 reload & flush"
+  },
+  "reveal": "The TLB caches virtual→physical translations, but those mappings are per-process, so a different process's entries are wrong. Historically, reloading CR3 to switch page tables flushed the whole (non-global) TLB, so the incoming process began with cold translations and paid page-table walks until it warmed up — pure overhead of switching. Two mitigations: the global (G) bit marks kernel pages that survive a CR3 reload, so kernel translations aren't re-walked on every syscall/switch; and PCIDs (process-context identifiers) TAG each TLB entry with an address-space id, so switching CR3 no longer flushes — entries from both processes coexist and each uses its own. PCIDs became especially important after Meltdown/KPTI split the user and kernel page tables, which otherwise doubled TLB pressure. INVLPG flushes a single entry when only one mapping changed.",
+  "tags": [
+   "comparch",
+   "systems"
+  ]
+ },
+ {
+  "id": "ca-mmio-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Contrast memory-mapped I/O with port I/O. Why must MMIO regions be marked uncacheable, and why do modern devices prefer MMIO?",
+  "src": {
+   "book": "cpuland",
+   "ref": "cpu.land — OS internals: how the CPU talks to devices"
+  },
+  "reveal": "In memory-mapped I/O (MMIO) a device's control/status registers are exposed at addresses in the PHYSICAL address space (e.g. PCIe BARs), so the CPU pokes them with ordinary load/store instructions — no special opcodes. Port I/O instead uses a SEPARATE 16-bit I/O address space reachable only by the dedicated, privileged IN/OUT instructions. MMIO regions must be mapped uncacheable and access must not be reordered, because a device register read/write has SIDE EFFECTS (clearing a status bit, kicking a DMA queue) — caching or coalescing would drop or duplicate those effects, so drivers use volatile accesses and barriers. Modern hardware favors MMIO because the I/O port space is tiny and legacy, while MMIO scales to large register/buffer regions, needs no special instructions, and composes with paging and DMA. The tradeoff is that each uncached MMIO access goes all the way to the device and is slow compared with a cache hit.",
+  "tags": [
+   "comparch",
+   "systems"
   ]
  }
 ]

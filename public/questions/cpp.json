@@ -6,9 +6,9 @@
   "prompt": "Define RAII in one sentence and name three resources it manages besides heap memory.",
   "src": {
    "book": "coreg",
-   "ref": "C.30\u2013C.33 / R.1 Manage resources automatically"
+   "ref": "C.30–C.33 / R.1 Manage resources automatically"
   },
-  "reveal": "RAII (Resource Acquisition Is Initialization): bind a resource\u2019s lifetime to an object\u2019s lifetime \u2014 acquire in the constructor, release in the destructor \u2014 so cleanup is automatic and exception-safe. Besides heap memory: file handles (std::fstream), locks (std::lock_guard), sockets, database connections, GPU buffers.",
+  "reveal": "RAII (Resource Acquisition Is Initialization): bind a resource’s lifetime to an object’s lifetime — acquire in the constructor, release in the destructor — so cleanup is automatic and exception-safe. Besides heap memory: file handles (std::fstream), locks (std::lock_guard), sockets, database connections, GPU buffers.",
   "tags": [
    "cpp",
    "hft"
@@ -23,7 +23,7 @@
    "book": "coreg",
    "ref": "F.18/F.19 & ES.56 (move semantics)"
   },
-  "reveal": "std::move is just a cast to an rvalue reference \u2014 it moves nothing itself; it marks an object as eligible to be moved from. A vector move copies only its three members (data pointer, size, capacity) and nulls the source, so the heap buffer is transferred, not duplicated \u2014 O(1). A copy must allocate a new buffer and copy every element \u2014 O(n). This is why unique_ptr is movable but not copyable: transferring sole ownership makes sense; duplicating it does not.",
+  "reveal": "std::move is just a cast to an rvalue reference — it moves nothing itself; it marks an object as eligible to be moved from. A vector move copies only its three members (data pointer, size, capacity) and nulls the source, so the heap buffer is transferred, not duplicated — O(1). A copy must allocate a new buffer and copy every element — O(n). This is why unique_ptr is movable but not copyable: transferring sole ownership makes sense; duplicating it does not.",
   "tags": [
    "cpp",
    "hft"
@@ -36,9 +36,9 @@
   "prompt": "unique_ptr vs shared_ptr vs weak_ptr: when each, and what problem does weak_ptr solve?",
   "src": {
    "book": "coreg",
-   "ref": "R.20\u2013R.24 (smart pointers & ownership)"
+   "ref": "R.20–R.24 (smart pointers & ownership)"
   },
-  "reveal": "unique_ptr = single exclusive owner, zero overhead vs a raw pointer \u2014 your default. shared_ptr = shared ownership via an atomic reference count; the object dies when the count hits zero (use only when ownership is genuinely shared \u2014 counting costs). weak_ptr = a non-owning observer of a shared_ptr that doesn\u2019t keep it alive; it breaks reference cycles (two shared_ptrs pointing at each other would never reach count zero \u2014 a leak). You lock() a weak_ptr to get a shared_ptr if the object still exists.",
+  "reveal": "unique_ptr = single exclusive owner, zero overhead vs a raw pointer — your default. shared_ptr = shared ownership via an atomic reference count; the object dies when the count hits zero (use only when ownership is genuinely shared — counting costs). weak_ptr = a non-owning observer of a shared_ptr that doesn’t keep it alive; it breaks reference cycles (two shared_ptrs pointing at each other would never reach count zero — a leak). You lock() a weak_ptr to get a shared_ptr if the object still exists.",
   "tags": [
    "cpp",
    "hft"
@@ -48,12 +48,12 @@
   "id": "cpp-rule-5",
   "mins": 5,
   "flow": "flip",
-  "prompt": "State the Rule of Zero and why it\u2019s preferred over the Rule of Five.",
+  "prompt": "State the Rule of Zero and why it’s preferred over the Rule of Five.",
   "src": {
    "book": "coreg",
    "ref": "C.20 (Rule of Zero) / C.21 (Rule of Five)"
   },
-  "reveal": "Rule of Zero: design classes so they need NO user-declared destructor, copy/move constructor, or copy/move assignment \u2014 by holding resources in types that already manage themselves (smart pointers, containers). Then the compiler-generated special members are correct. It\u2019s preferred because hand-written special members are error-prone; if you must write one (Rule of Five says write all five), you\u2019re usually better off wrapping the raw resource in an RAII type instead.",
+  "reveal": "Rule of Zero: design classes so they need NO user-declared destructor, copy/move constructor, or copy/move assignment — by holding resources in types that already manage themselves (smart pointers, containers). Then the compiler-generated special members are correct. It’s preferred because hand-written special members are error-prone; if you must write one (Rule of Five says write all five), you’re usually better off wrapping the raw resource in an RAII type instead.",
   "tags": [
    "cpp",
    "hft"
@@ -68,7 +68,7 @@
    "book": "coreg",
    "ref": "C.67 & the object model; see also bare-metal C++ on avoiding it"
   },
-  "reveal": "Each polymorphic class has a vtable (array of function pointers); each object holds a hidden vptr to its class\u2019s vtable. A virtual call dereferences the vptr, indexes the vtable, and calls through the pointer \u2014 one extra indirection, and it usually can\u2019t be inlined, which is the bigger cost. In hot or bare-metal code you often prefer compile-time polymorphism (templates/CRTP) to get the abstraction with zero runtime dispatch and no vtable.",
+  "reveal": "Each polymorphic class has a vtable (array of function pointers); each object holds a hidden vptr to its class’s vtable. A virtual call dereferences the vptr, indexes the vtable, and calls through the pointer — one extra indirection, and it usually can’t be inlined, which is the bigger cost. In hot or bare-metal code you often prefer compile-time polymorphism (templates/CRTP) to get the abstraction with zero runtime dispatch and no vtable.",
   "tags": [
    "cpp",
    "hft"
@@ -81,9 +81,9 @@
   "prompt": "On a bare-metal target with no heap and exceptions disabled, how do you get polymorphism and dynamic-like behavior? What must you avoid from the STL?",
   "src": {
    "book": "baremetal",
-   "ref": "Practical Guide to Bare-metal C++ \u2014 Compile-Time Polymorphism & Dynamic Memory"
+   "ref": "Practical Guide to Bare-metal C++ — Compile-Time Polymorphism & Dynamic Memory"
   },
-  "reveal": "Use compile-time polymorphism \u2014 templates and CRTP \u2014 so dispatch is resolved at compile time with zero runtime cost and no vtable/heap. Avoid STL facilities that allocate (std::vector, std::string, std::map) or that rely on exceptions/RTTI; prefer fixed-capacity containers, std::array, and static storage. Wrap hardware registers in typed volatile abstractions. The book\u2019s thesis: modern C++ abstractions cost nothing at runtime if you push them to compile time.",
+  "reveal": "Use compile-time polymorphism — templates and CRTP — so dispatch is resolved at compile time with zero runtime cost and no vtable/heap. Avoid STL facilities that allocate (std::vector, std::string, std::map) or that rely on exceptions/RTTI; prefer fixed-capacity containers, std::array, and static storage. Wrap hardware registers in typed volatile abstractions. The book’s thesis: modern C++ abstractions cost nothing at runtime if you push them to compile time.",
   "tags": [
    "cpp",
    "hft"
@@ -96,10 +96,10 @@
   "prompt": "Explain struct padding and alignment. Why can reordering fields shrink a struct, and how does this interact with cache lines?",
   "src": {
    "book": "csapp",
-   "ref": "CSAPP \u00a73.9 (data alignment); C++ Core Guidelines on layout",
+   "ref": "CSAPP §3.9 (data alignment); C++ Core Guidelines on layout",
    "page": 293
   },
-  "reveal": "The compiler inserts padding so each field sits at an address that is a multiple of its size (alignment), which the hardware requires or strongly prefers. A small field followed by a larger one forces padding; ordering fields largest-to-smallest minimizes the holes, shrinking the struct. Smaller, well-packed structs fit more per 64-byte cache line, so traversals pull in more useful data per fetch \u2014 layout is a cache decision.",
+  "reveal": "The compiler inserts padding so each field sits at an address that is a multiple of its size (alignment), which the hardware requires or strongly prefers. A small field followed by a larger one forces padding; ordering fields largest-to-smallest minimizes the holes, shrinking the struct. Smaller, well-packed structs fit more per 64-byte cache line, so traversals pull in more useful data per fetch — layout is a cache decision.",
   "tags": [
    "cpp",
    "hft"
@@ -114,7 +114,7 @@
    "book": "coreg",
    "ref": "F.19 Forwarding parameters; templates"
   },
-  "reveal": "Perfect forwarding preserves an argument\u2019s value category (lvalue/rvalue) and constness when passing it through a template wrapper. It relies on a FORWARDING reference T&& in a deduced context, plus reference collapsing: T& && collapses to T&, T&& && collapses to T&&. std::forward<T>(x) casts to T&& only when T was deduced as an rvalue, so lvalues stay lvalues \u2014 whereas std::move unconditionally casts to rvalue, which would steal from an lvalue the caller still owns. Rule: std::move for things you know are expiring, std::forward only inside templates on forwarding references.",
+  "reveal": "Perfect forwarding preserves an argument’s value category (lvalue/rvalue) and constness when passing it through a template wrapper. It relies on a FORWARDING reference T&& in a deduced context, plus reference collapsing: T& && collapses to T&, T&& && collapses to T&&. std::forward<T>(x) casts to T&& only when T was deduced as an rvalue, so lvalues stay lvalues — whereas std::move unconditionally casts to rvalue, which would steal from an lvalue the caller still owns. Rule: std::move for things you know are expiring, std::forward only inside templates on forwarding references.",
   "tags": [
    "cpp",
    "hft"
@@ -129,7 +129,7 @@
    "book": "coreg",
    "ref": "F.20 Return values"
   },
-  "reveal": "Copy elision lets the compiler construct the returned object directly in the caller\u2019s storage, skipping copy/move entirely. Since C++17, elision is GUARANTEED for prvalues (returning a temporary such as return Foo(...)), so no copy or move constructor need even exist. Named RVO (returning a local variable) is still optional but implemented by every real compiler. Returning std::move(x) is actively HARMFUL: it turns the expression into an xvalue, disabling NRVO and forcing a move that would otherwise have been elided entirely.",
+  "reveal": "Copy elision lets the compiler construct the returned object directly in the caller’s storage, skipping copy/move entirely. Since C++17, elision is GUARANTEED for prvalues (returning a temporary such as return Foo(...)), so no copy or move constructor need even exist. Named RVO (returning a local variable) is still optional but implemented by every real compiler. Returning std::move(x) is actively HARMFUL: it turns the expression into an xvalue, disabling NRVO and forcing a move that would otherwise have been elided entirely.",
   "tags": [
    "cpp",
    "hft"
@@ -144,7 +144,7 @@
    "book": "coreg",
    "ref": "ES.65 / STL container guarantees"
   },
-  "reveal": "vector: any reallocation (push_back beyond capacity, resize, reserve) invalidates ALL iterators, pointers, and references; erase invalidates everything at or after the erased position. deque: insertion at either END invalidates iterators but NOT references to elements; insertion in the middle invalidates everything. list/forward_list: only iterators to the erased element are invalidated \u2014 everything else survives, which is the reason to choose it. unordered_map: rehashing (on insert past max_load_factor) invalidates iterators but NOT references/pointers to elements; erase invalidates only the erased element.",
+  "reveal": "vector: any reallocation (push_back beyond capacity, resize, reserve) invalidates ALL iterators, pointers, and references; erase invalidates everything at or after the erased position. deque: insertion at either END invalidates iterators but NOT references to elements; insertion in the middle invalidates everything. list/forward_list: only iterators to the erased element are invalidated — everything else survives, which is the reason to choose it. unordered_map: rehashing (on insert past max_load_factor) invalidates iterators but NOT references/pointers to elements; erase invalidates only the erased element.",
   "tags": [
    "cpp",
    "hft"
@@ -159,7 +159,7 @@
    "book": "coreg",
    "ref": "ES.65 / container selection"
   },
-  "reveal": "vector \u2014 the default: contiguous memory, cache-friendly traversal, O(1) random access, amortized O(1) push_back. deque \u2014 when you need O(1) insertion at BOTH ends and stable references to existing elements, at the cost of a two-level indirection and worse traversal locality. list \u2014 rarely correct in modern C++; only when you need O(1) splice or guaranteed reference/iterator stability across arbitrary insertions and deletions. Even for frequent middle-insertion, vector often wins because memmove on contiguous data beats pointer chasing.",
+  "reveal": "vector — the default: contiguous memory, cache-friendly traversal, O(1) random access, amortized O(1) push_back. deque — when you need O(1) insertion at BOTH ends and stable references to existing elements, at the cost of a two-level indirection and worse traversal locality. list — rarely correct in modern C++; only when you need O(1) splice or guaranteed reference/iterator stability across arbitrary insertions and deletions. Even for frequent middle-insertion, vector often wins because memmove on contiguous data beats pointer chasing.",
   "tags": [
    "cpp",
    "hft"
@@ -174,7 +174,7 @@
    "book": "coreg",
    "ref": "C.35 / templates and hierarchies"
   },
-  "reveal": "The Curiously Recurring Template Pattern: class Derived : public Base<Derived>, so the base knows its derived type at COMPILE time and can static_cast<Derived*>(this) to call derived methods. It gives you polymorphic-looking code with zero runtime cost \u2014 no vtable, no indirect call, full inlining \u2014 which is why it appears in hot paths and bare-metal code. Limits: it is static, so you cannot store heterogeneous CRTP types in one container or choose the implementation at runtime; every instantiation generates separate code (binary bloat); and error messages are notoriously bad. C++20 concepts cover much of the same ground more readably.",
+  "reveal": "The Curiously Recurring Template Pattern: class Derived : public Base<Derived>, so the base knows its derived type at COMPILE time and can static_cast<Derived*>(this) to call derived methods. It gives you polymorphic-looking code with zero runtime cost — no vtable, no indirect call, full inlining — which is why it appears in hot paths and bare-metal code. Limits: it is static, so you cannot store heterogeneous CRTP types in one container or choose the implementation at runtime; every instantiation generates separate code (binary bloat); and error messages are notoriously bad. C++20 concepts cover much of the same ground more readably.",
   "tags": [
    "cpp",
    "hft"
@@ -189,7 +189,7 @@
    "book": "coreg",
    "ref": "I.27 / C.129 (opaque pointer)"
   },
-  "reveal": "PIMPL (pointer to implementation) moves a class\u2019s private members into a forward-declared struct held via a unique_ptr, so the header exposes only the public interface. It buys COMPILATION FIREWALL (changing private members does not recompile every translation unit that includes the header) and stable ABI (member layout changes do not break callers). Costs: an extra heap allocation per object, an indirection on every member access (bad for hot paths), and the destructor must be defined in the .cpp where Impl is complete \u2014 otherwise unique_ptr fails to compile on the incomplete type.",
+  "reveal": "PIMPL (pointer to implementation) moves a class’s private members into a forward-declared struct held via a unique_ptr, so the header exposes only the public interface. It buys COMPILATION FIREWALL (changing private members does not recompile every translation unit that includes the header) and stable ABI (member layout changes do not break callers). Costs: an extra heap allocation per object, an indirection on every member access (bad for hot paths), and the destructor must be defined in the .cpp where Impl is complete — otherwise unique_ptr fails to compile on the incomplete type.",
   "tags": [
    "cpp",
    "hft"
@@ -204,7 +204,7 @@
    "book": "coreg",
    "ref": "E.2 / E.6 (RAII and exception safety)"
   },
-  "reveal": "Four levels: NO-THROW (never fails \u2014 required of destructors and swap), STRONG (if it throws, the program state is unchanged \u2014 commit-or-rollback), BASIC (no leaks, invariants intact, but state may have changed), and NONE. Copy-and-swap achieves the STRONG guarantee for assignment: construct a complete copy first (any throw happens here, before you have touched *this), then swap it with *this using a no-throw swap; the old state dies with the temporary. It also gives you self-assignment safety and unifies copy and move assignment into one function.",
+  "reveal": "Four levels: NO-THROW (never fails — required of destructors and swap), STRONG (if it throws, the program state is unchanged — commit-or-rollback), BASIC (no leaks, invariants intact, but state may have changed), and NONE. Copy-and-swap achieves the STRONG guarantee for assignment: construct a complete copy first (any throw happens here, before you have touched *this), then swap it with *this using a no-throw swap; the old state dies with the temporary. It also gives you self-assignment safety and unifies copy and move assignment into one function.",
   "tags": [
    "cpp",
    "hft"
@@ -219,7 +219,7 @@
    "book": "coreg",
    "ref": "Con.2 Member functions should be const by default"
   },
-  "reveal": "A const member function promises not to modify the observable state; the compiler enforces BITWISE constness \u2014 it forbids modifying any non-static data member. LOGICAL constness is the weaker, semantic notion: the object appears unchanged to callers even if some internal bookkeeping changes. mutable bridges them: a mutable member can be modified inside a const function, which is legitimate for caches, memoization, and mutexes (locking a mutex in a const getter is the canonical example). Note const does NOT imply thread safety, but the standard library assumes const operations are safe to call concurrently.",
+  "reveal": "A const member function promises not to modify the observable state; the compiler enforces BITWISE constness — it forbids modifying any non-static data member. LOGICAL constness is the weaker, semantic notion: the object appears unchanged to callers even if some internal bookkeeping changes. mutable bridges them: a mutable member can be modified inside a const function, which is legitimate for caches, memoization, and mutexes (locking a mutex in a const getter is the canonical example). Note const does NOT imply thread safety, but the standard library assumes const operations are safe to call concurrently.",
   "tags": [
    "cpp",
    "hft"
@@ -234,7 +234,7 @@
    "book": "coreg",
    "ref": "ES.summary / P.1 (well-defined behavior)"
   },
-  "reveal": "Signed integer overflow; out-of-bounds array or container access; dereferencing null or dangling pointers; reading an uninitialized variable; data races; and violating strict aliasing (reading an object through an incompatible type). UB is worse than a wrong answer because the compiler is allowed to ASSUME it never happens and optimize accordingly \u2014 so a null check after a dereference may be deleted entirely, or a loop with signed overflow may be assumed infinite. The bug can manifest arbitrarily far from its cause, appear only under optimization, and change behavior between compilers.",
+  "reveal": "Signed integer overflow; out-of-bounds array or container access; dereferencing null or dangling pointers; reading an uninitialized variable; data races; and violating strict aliasing (reading an object through an incompatible type). UB is worse than a wrong answer because the compiler is allowed to ASSUME it never happens and optimize accordingly — so a null check after a dereference may be deleted entirely, or a loop with signed overflow may be assumed infinite. The bug can manifest arbitrarily far from its cause, appear only under optimization, and change behavior between compilers.",
   "tags": [
    "cpp",
    "hft"
@@ -249,7 +249,7 @@
    "book": "coreg",
    "ref": "F.52/F.53 (capture by reference in lambdas)"
   },
-  "reveal": "A lambda is syntactic sugar for a compiler-generated closure class with an operator(); captures become its data members. [=] copies each used variable into the closure; [&] stores references; [this] captures the raw this POINTER (not the object), so members are accessed through it. The dangling trap: any lambda that outlives its enclosing scope while holding [&] captures \u2014 or [this] after the object is destroyed \u2014 reads freed memory. This is common with lambdas stored in a thread pool or std::function. Prefer capturing by value for escaping lambdas, and use [*this] (C++17) to copy the object.",
+  "reveal": "A lambda is syntactic sugar for a compiler-generated closure class with an operator(); captures become its data members. [=] copies each used variable into the closure; [&] stores references; [this] captures the raw this POINTER (not the object), so members are accessed through it. The dangling trap: any lambda that outlives its enclosing scope while holding [&] captures — or [this] after the object is destroyed — reads freed memory. This is common with lambdas stored in a thread pool or std::function. Prefer capturing by value for escaping lambdas, and use [*this] (C++17) to copy the object.",
   "tags": [
    "cpp",
    "hft"
@@ -264,7 +264,7 @@
    "book": "coreg",
    "ref": "Con.5 / compile-time computation"
   },
-  "reveal": "constexpr means a function or variable CAN be evaluated at compile time given constant arguments \u2014 it may still run at runtime otherwise. consteval (C++20) means it MUST be evaluated at compile time; a runtime call is a compile error. constinit guarantees static initialization, eliminating the static-initialization-order fiasco. It matters for performance because work moved to compile time costs zero at runtime \u2014 lookup tables, dispatch tables, and unit conversions can be fully baked in, which is exactly the bare-metal and HFT philosophy of pushing abstraction to compile time.",
+  "reveal": "constexpr means a function or variable CAN be evaluated at compile time given constant arguments — it may still run at runtime otherwise. consteval (C++20) means it MUST be evaluated at compile time; a runtime call is a compile error. constinit guarantees static initialization, eliminating the static-initialization-order fiasco. It matters for performance because work moved to compile time costs zero at runtime — lookup tables, dispatch tables, and unit conversions can be fully baked in, which is exactly the bare-metal and HFT philosophy of pushing abstraction to compile time.",
   "tags": [
    "cpp",
    "hft"
@@ -279,7 +279,7 @@
    "book": "coreg",
    "ref": "T.10/T.11 (concepts); templates"
   },
-  "reveal": "SFINAE (Substitution Failure Is Not An Error) means an invalid substitution during template deduction silently removes that overload from consideration rather than being an error \u2014 exploited through std::enable_if_t<condition, T> in a return type or extra parameter to enable/disable overloads. It works but is unreadable and produces enormous errors. C++20 concepts replace it: template<std::integral T> void f(T), or requires-clauses, which express the same constraints declaratively, give clear diagnostics at the point of failure, and participate in overload resolution ordering (more constrained wins).",
+  "reveal": "SFINAE (Substitution Failure Is Not An Error) means an invalid substitution during template deduction silently removes that overload from consideration rather than being an error — exploited through std::enable_if_t<condition, T> in a return type or extra parameter to enable/disable overloads. It works but is unreadable and produces enormous errors. C++20 concepts replace it: template<std::integral T> void f(T), or requires-clauses, which express the same constraints declaratively, give clear diagnostics at the point of failure, and participate in overload resolution ordering (more constrained wins).",
   "tags": [
    "cpp",
    "hft"
@@ -294,7 +294,7 @@
    "book": "coreg",
    "ref": "C.120/C.129 (inheritance vs composition)"
   },
-  "reveal": "public inheritance models IS-A: the derived type is substitutable for the base (Liskov). protected exposes base members to further derived classes only. private inheritance models IMPLEMENTED-IN-TERMS-OF \u2014 no substitutability \u2014 and is essentially composition with the ability to override virtuals or exploit the empty base optimization. Composition is better in nearly every case that is not a genuine IS-A: it is looser coupling, testable, and avoids fragile-base-class problems. The Core Guidelines rule of thumb: use inheritance for interfaces and polymorphism, composition for reuse.",
+  "reveal": "public inheritance models IS-A: the derived type is substitutable for the base (Liskov). protected exposes base members to further derived classes only. private inheritance models IMPLEMENTED-IN-TERMS-OF — no substitutability — and is essentially composition with the ability to override virtuals or exploit the empty base optimization. Composition is better in nearly every case that is not a genuine IS-A: it is looser coupling, testable, and avoids fragile-base-class problems. The Core Guidelines rule of thumb: use inheritance for interfaces and polymorphism, composition for reuse.",
   "tags": [
    "cpp",
    "hft"
@@ -309,7 +309,7 @@
    "book": "coreg",
    "ref": "C.35 A base class destructor should be either public and virtual, or protected and non-virtual"
   },
-  "reveal": "If you delete a derived object through a base pointer and the base destructor is non-virtual, the behavior is UNDEFINED \u2014 in practice only the base destructor runs, so the derived part is never destroyed and its resources leak. Making it virtual routes the destruction through the vtable to the correct derived destructor, which then chains up. The alternative the guidelines offer: if the class is not meant to be deleted polymorphically, make the destructor protected and non-virtual, which makes such deletion a compile error.",
+  "reveal": "If you delete a derived object through a base pointer and the base destructor is non-virtual, the behavior is UNDEFINED — in practice only the base destructor runs, so the derived part is never destroyed and its resources leak. Making it virtual routes the destruction through the vtable to the correct derived destructor, which then chains up. The alternative the guidelines offer: if the class is not meant to be deleted polymorphically, make the destructor protected and non-virtual, which makes such deletion a compile error.",
   "tags": [
    "cpp",
    "hft"
@@ -324,7 +324,7 @@
    "book": "coreg",
    "ref": "Performance; std::string implementation"
   },
-  "reveal": "SSO stores short strings directly inside the string object\u2019s own storage (typically up to 15\u201322 bytes depending on implementation) instead of heap-allocating. It matters because a heap allocation is orders of magnitude more expensive than a stack write, and it introduces allocator contention across threads plus unpredictable latency spikes \u2014 unacceptable in a hot loop. The same idea appears in std::function (small callables stored inline) and in custom containers. In latency work, the general principle is to know exactly where allocations happen and eliminate them from the critical path.",
+  "reveal": "SSO stores short strings directly inside the string object’s own storage (typically up to 15–22 bytes depending on implementation) instead of heap-allocating. It matters because a heap allocation is orders of magnitude more expensive than a stack write, and it introduces allocator contention across threads plus unpredictable latency spikes — unacceptable in a hot loop. The same idea appears in std::function (small callables stored inline) and in custom containers. In latency work, the general principle is to know exactly where allocations happen and eliminate them from the critical path.",
   "tags": [
    "cpp",
    "hft"
@@ -343,6 +343,126 @@
   "tags": [
    "cpp",
    "hft"
+  ]
+ },
+ {
+  "id": "cpp-freestanding-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Freestanding vs hosted implementation: what does the C++ standard actually guarantee you get in a freestanding environment, and what disappears?",
+  "src": {
+   "book": "baremetal",
+   "ref": "freestanding vs hosted implementation"
+  },
+  "reveal": "A hosted implementation gives you the whole standard library and starts your program at main() atop a running C/C++ runtime and OS. A freestanding implementation (what you target bare-metal, -ffreestanding) mandates only the language-support and pure-utility headers that need no OS, heap, or exceptions: <cstddef>, <cstdint>, <limits>, <type_traits>, <initializer_list>, <utility>, <bit>, the lock-free part of <atomic>, etc.; C++17 widened this set and C++23 made much more of the library (<cstring>, <charconv>, <array>, <optional>, <expected>...) freestanding. It does NOT guarantee <iostream>, the allocating containers (<vector>, <string>, <map>), <thread>/<mutex>, <filesystem>, or anything assuming a heap or exceptions — and it doesn't even require the entry point to be main(). You supply your own startup code, any syscall/retarget stubs, and typically your own allocator or none at all.",
+  "tags": [
+   "cpp",
+   "embedded"
+  ]
+ },
+ {
+  "id": "cpp-noexcept-rtti-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why are C++ exceptions and RTTI usually compiled out (-fno-exceptions -fno-rtti) on a microcontroller, and how do you report errors instead?",
+  "src": {
+   "book": "baremetal",
+   "ref": "disabling exceptions and RTTI"
+  },
+  "reveal": "Exceptions cost you even on the happy path: the toolchain emits unwind/personality tables (.eh_frame, or .ARM.extab/.ARM.exidx on EABI) and landing-pad code that can add tens of KB of flash, and the throw path calls a runtime (__cxa_allocate_exception — typically malloc — then __cxa_throw and a stack unwinder) whose latency is unbounded and non-deterministic, which is fatal in a control loop or ISR. RTTI adds a type_info record plus mangled-name string for every polymorphic class (more flash), and dynamic_cast walks the hierarchy at runtime. With both off you report errors by value: a status enum / return code, std::optional or a std::expected-style result, an error callback, or an assert/fault handler for the truly unrecoverable. You also lose dynamic_cast and typeid, so designs lean on static polymorphism and closed tagged unions (variant + visitor). Note: a throw reached in code built -fno-exceptions calls std::terminate.",
+  "tags": [
+   "cpp",
+   "embedded"
+  ]
+ },
+ {
+  "id": "cpp-noheap-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Why is the general-purpose heap a hazard on an embedded target, and what allocation strategies replace it?",
+  "src": {
+   "book": "baremetal",
+   "ref": "avoiding dynamic memory allocation"
+  },
+  "reveal": "The general heap fails on three axes. Fragmentation: a long-running device mixing allocation sizes eventually can't satisfy a large request despite enough total free bytes, and with no MMU/OS there's nothing to compact it. Non-determinism: malloc/free latency depends on free-list state, so it's unbounded — unacceptable inside an ISR or a deadline-bound loop. Failure handling: out-of-memory has nowhere to unwind to without exceptions, and you often can't afford to test every call site. Replacements, roughly best-first: fully static allocation (globals, std::array sized at compile time) and the stack; fixed-capacity containers (etl / static_vector) that never touch the heap; object pools / free-lists of same-sized blocks (O(1) alloc-free, zero fragmentation); and arena/bump allocators that hand out memory by advancing a pointer and free everything at once (ideal for per-frame or per-request scratch). The rule: allocate up front during init, never in the steady-state hot or interrupt path.",
+  "tags": [
+   "cpp",
+   "embedded"
+  ]
+ },
+ {
+  "id": "cpp-volatile-mmio-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What does `volatile` guarantee for a memory-mapped hardware register, and what does it explicitly NOT give you?",
+  "src": {
+   "book": "baremetal",
+   "ref": "volatile and memory-mapped registers"
+  },
+  "reveal": "volatile tells the compiler an object can change outside the program's control and that each access is an observable side effect, so it must (a) not elide accesses it thinks are redundant — reading a status register twice really issues two loads; a store to a write-only register isn't dead-code-eliminated — and (b) not reorder volatile accesses relative to one another. That's exactly what MMIO needs: *reg becomes a real load/store at the peripheral. What it does NOT provide: atomicity (a volatile 64-bit access on a 32-bit core is still two bus transactions); ordering versus NON-volatile accesses, or any control over the order the CPU write-buffer/bus actually presents them to hardware (that needs a memory barrier — DMB/DSB); and — the classic myth — it is NOT a thread or inter-core synchronization primitive (use std::atomic for that). Real MMIO code often needs BOTH: volatile so the access is emitted, and a barrier so it's ordered/visible before you poke the next register.",
+  "tags": [
+   "cpp",
+   "embedded"
+  ]
+ },
+ {
+  "id": "cpp-isr-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What constraints govern writing an interrupt service routine in C++, and why do you keep ISRs tiny?",
+  "src": {
+   "book": "baremetal",
+   "ref": "interrupt service routines in C++"
+  },
+  "reveal": "An ISR fires asynchronously at (nearly) any instruction boundary, so it must be reentrancy-safe and fast. Constraints: the hardware vectors straight to it, so it takes no arguments and returns void, and typically needs extern \"C\" / [[gnu::interrupt]] for the right linkage and prologue-epilogue (and to keep it from being dead-stripped when only the vector table references it). It must call nothing non-reentrant or unbounded — no new/malloc, no printf, no lock that could deadlock against the code it interrupted, ideally nothing that can throw. Anything shared with mainline code must be std::atomic or touched inside a short interrupt-disable critical section; a plain shared flag must be volatile/atomic or the compiler hoists it out of the waiting loop. Keep it tiny because while it runs it blocks equal/lower-priority interrupts, inflating worst-case interrupt latency and jitter — the idiom is to do the minimum (clear the hardware flag, grab the byte, push to a lock-free ring buffer, set an atomic flag) and defer real work to a bottom-half in the main loop.",
+  "tags": [
+   "cpp",
+   "embedded"
+  ]
+ },
+ {
+  "id": "cpp-startup-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Walk the path from reset to main() on a bare-metal target: what lives in .text/.rodata/.data/.bss, and what must the C-runtime startup do before main runs?",
+  "src": {
+   "book": "baremetal",
+   "ref": "startup code, vector table, and the linker script"
+  },
+  "reveal": "The linker script maps sections onto memory: .text (code) and .rodata (constants — const lookup tables, string literals) live in non-volatile flash/ROM; .data (non-zero-initialized read-write globals) and .bss (zero-initialized globals) live in RAM. Because RAM is volatile, .data's initial values can't persist there across power cycles — they're stored in flash at the section's load address (LMA) and must be copied to the RAM virtual address (VMA) at boot. On reset a Cortex-M loads the initial stack pointer and the reset-handler address from the first two words of the vector table (at the vector-table base), then runs the reset handler / crt0, which: (1) copies the .data initializers from flash to RAM, (2) zero-fills .bss, (3) sets up stack/heap boundary symbols, (4) runs C++ static constructors by walking the .init_array table of function pointers, and only then (5) calls main(). This is why a global with a non-constant initializer costs both flash (the initializer image) and boot-time copy, whereas a zero- or constant-initialized (constinit) global lands in .bss (just zeroed) or .rodata — a concrete reason to prefer constinit/constexpr initialization.",
+  "tags": [
+   "cpp",
+   "embedded"
+  ]
+ },
+ {
+  "id": "cpp-staticpoly-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Beyond the extra indirection, what does runtime virtual dispatch specifically cost on a microcontroller, and what are your static-polymorphism options when you can't pay it?",
+  "src": {
+   "book": "baremetal",
+   "ref": "static polymorphism instead of virtual dispatch"
+  },
+  "reveal": "On a small core the vtable is far from free: every polymorphic class emits a vtable into flash, each object carries a vptr (bloating arrays of such objects and forcing a write at construction), and the indirect call defeats inlining and, on a Cortex-M0 with no cache or branch predictor, stalls the pipeline on every call. The vptr also frustrates placing const objects fully in ROM, and the indirect call is a devirtualization/LTO barrier. When you can't pay it, resolve dispatch at compile time: plain function templates parametrized on the type, CRTP (a template base that static_casts to the derived type), tag dispatch or `if constexpr` on a policy type, or a std::variant + visitor when you need a CLOSED set of runtime-selected types with no heap and no vtable. You trade away runtime choice of implementation and heterogeneous containers-through-a-base-pointer, and you get separate code per instantiation (bloat), in return for zero-overhead, fully inlinable, ROMable code.",
+  "tags": [
+   "cpp",
+   "embedded"
+  ]
+ },
+ {
+  "id": "cpp-comptime-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How do you use compile-time computation to move work off an embedded device, and what's the concrete win in flash, RAM, and cycles?",
+  "src": {
+   "book": "baremetal",
+   "ref": "constexpr / compile-time computation"
+  },
+  "reveal": "The idea is to spend the host compiler's cycles at build time so the device spends none at run time. Concretely: generate lookup tables (CRC tables, sine/gamma curves, unit conversions, protocol jump tables) from a constexpr function returning a std::array, so the finished table materializes as .rodata in flash — no boot-time computation, no RAM copy, and it's ROMable. consteval forces evaluation to happen at compile time (a runtime call is an error), guaranteeing you didn't accidentally leave the work on the device. constinit guarantees a global is constant-initialized (still mutable, so a non-zero one lands in .data and a zero-init one in .bss — only const/constexpr goes to .rodata) instead of needing a runtime constructor in .init_array — that shrinks boot time and dodges the static-init-order fiasco. The wins: fewer runtime cycles, smaller and more deterministic boot, and often less RAM because constant tables live in flash rather than being computed into RAM. The trade is compile time and binary size — a big constexpr table is real flash you spend — so size the tables deliberately.",
+  "tags": [
+   "cpp",
+   "embedded"
   ]
  }
 ]

@@ -126,5 +126,17 @@
  "playlist": {
   "t": "YouTube — core CS playlist",
   "u": "https://www.youtube.com/watch?v=sQqniayndb4&list=PLMrJAkhIeNNR3sNYvfgiKgcStwuPSts9V"
+ },
+ "skycak": {
+  "t": "Introduction to Algorithms and Machine Learning — Skycak (from-scratch; Math Academy Eurisko)",
+  "u": "https://justinmath.com/books/"
+ },
+ "fortnow": {
+  "t": "Foundations of Complexity — Lance Fortnow (Computational Complexity blog series)",
+  "u": "https://blog.computationalcomplexity.org/2024/01/foundations-of-complexity.html"
+ },
+ "infereng": {
+  "t": "Inference Engineering — Kiely/Baseten (VRAM, roofline, KV-cache, quantization, speculative decoding)",
+  "u": "https://inferenceengineering.tech/"
  }
 }
