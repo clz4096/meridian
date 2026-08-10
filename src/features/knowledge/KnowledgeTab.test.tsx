@@ -190,6 +190,41 @@ describe('KnowledgeView', () => {
     expect(container.querySelector('img[src="x"]')).toBeNull();
   });
 
+  it('builds the deep-link href and renders practice + Also rows on a TopicCard', () => {
+    // clrs's book url is a .pdf → page deep-links to #page=N; practice(single) + see(2).
+    seedQuestions([
+      {
+        ...QUESTION,
+        id: 'q1',
+        src: { book: 'clrs', ref: '§2.1 Insertion sort', page: 7 },
+        practice: { label: 'LC 15 · 3Sum', url: 'https://leetcode.com/problems/3sum/' },
+        see: [
+          { label: 'Fortnow · Foundations', url: 'https://blog.computationalcomplexity.org/x.html' },
+          { label: 'cpu.land', url: 'https://cpu.land/' },
+        ],
+      },
+    ]);
+    kgOverview.value = false;
+    const { container } = render(<KnowledgeView />);
+    const srcA = container.querySelector('.qsrc a') as HTMLAnchorElement;
+    expect(srcA.getAttribute('href')).toContain('#page=7');
+    expect(srcA.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(srcA.getAttribute('target')).toBe('_blank');
+    expect(container.querySelectorAll('.qpractice-link').length).toBe(1);
+    expect(container.querySelectorAll('.qsee a').length).toBe(2);
+  });
+
+  it('renders no practice/Also rows and identical source markup for a plain (no-new-fields) question', () => {
+    seedQuestions(); // QUESTION has no page/anchor/practice/see
+    kgOverview.value = false;
+    const { container } = render(<KnowledgeView />);
+    // backward-compat: the source is a plain book link (no #frag), no extras render.
+    const srcA = container.querySelector('.qsrc a') as HTMLAnchorElement;
+    expect(srcA.getAttribute('href')).not.toContain('#');
+    expect(container.querySelector('.qpractice')).toBeNull();
+    expect(container.querySelector('.qsee')).toBeNull();
+  });
+
   it('renders gym rows and fires knowledgeActions.toggleGymDone with the row key in gym mode', () => {
     seedQuestions();
     kgOverview.value = false;

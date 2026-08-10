@@ -505,6 +505,14 @@ body:has(.wk-finish):not(.resting) .savestat{bottom:calc(92px + env(safe-area-in
 .qsrc{font-family:var(--mono);font-size:11.5px;margin-top:9px}
 .qsrc a{color:var(--faint);text-decoration:none;border-bottom:1px dotted var(--line-2);padding-bottom:1px}
 .qsrc a:hover{color:var(--teal)}
+/* quiet practice-chip row (teal) + "Also:" secondary line under the source (TopicCard) */
+.qpractice{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:7px;font-family:var(--mono);font-size:11.5px}
+.qpractice-lead{color:var(--dim);letter-spacing:.04em}
+.qpractice-link{color:var(--teal);text-decoration:none}
+.qpractice-link:hover{text-decoration:underline}
+.qsee{margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--faint)}
+.qsee a{color:var(--faint);text-decoration:none;border-bottom:1px dotted var(--line-2)}
+.qsee a:hover{color:var(--teal)}
 .klink a{color:var(--teal)}
 .qvid{font-size:12px;margin-top:4px}.qvid a{color:var(--teal)}
 .qactions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
@@ -1158,6 +1166,17 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 
 .asc-prompt{font-size:19px; line-height:1.42; color:var(--text); letter-spacing:-.01em; margin:2px 0 0}
 .asc-src{font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.02em}
+/* linked source variant matches the plain .asc-src, just underlined/hover-teal */
+a.asc-src{display:inline-block; text-decoration:none; border-bottom:1px dotted var(--line-2); padding-bottom:1px}
+a.asc-src:hover{color:var(--teal)}
+/* quiet practice-chip row (teal) + "Also:" secondary line under the source (Ascent) */
+.asc-practice{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; font-family:var(--mono); font-size:11px; letter-spacing:.02em}
+.asc-practice-lead{color:var(--dim)}
+.asc-practice a{color:var(--teal); text-decoration:none}
+.asc-practice a:hover{text-decoration:underline}
+.asc-see{font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.02em}
+.asc-see a{color:var(--faint); text-decoration:none; border-bottom:1px dotted var(--line-2)}
+.asc-see a:hover{color:var(--teal)}
 
 .asc-app textarea{width:100%; min-height:88px; resize:vertical; background:var(--surface-2);
   color:var(--text); border:1px solid var(--line-2); border-radius:var(--r-12);
