@@ -12,6 +12,7 @@ import { SecHero } from '@/ui/components/SecHero';
 import { kg, core, dueItems, allTargetItems, todayPathItems, allKGItems, knowledgeActions, loadKnowledge } from '@/ui/actions';
 import { knowledgeGrowth } from '@/features/knowledge/knowledgeSelectors';
 import { AscentSession } from '@/features/knowledge/AscentSession';
+import { srcHref, practiceLinks, seeLinks } from '@/features/knowledge/source';
 import { KnowledgeRail } from '@/features/knowledge/KnowledgeRail';
 import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgGraded, kgOverview, progPeriod, dataRev } from '@/ui/store';
 import { dstr } from '@/app/bootstrap';
@@ -49,7 +50,9 @@ function knowledgeVM(): KnowledgeViewModel {
     }),
     items: shown.map((it) => {
       const b = KG_BOOKS[it.src.book] || {};
-      return { ...it, src: { ...it.src, title: b.t, url: b.u } };
+      // url override-first: a per-question `src.url` (chapter-PDF / sub-page) must
+      // survive the book-title merge — `?? b.u` reproduces today's url otherwise.
+      return { ...it, src: { ...it.src, title: b.t, url: it.src.url ?? b.u } };
     }),
     mastery: K.mastery,
     dueCount: dueItems().length,
@@ -160,14 +163,49 @@ function Reveal({ text }: { text: string }) {
 
 function QSrc({ src }: { src: KnowledgeItem['src'] }) {
   const label = src.title ? `${src.ref} — ${src.title}` : src.ref;
-  if (!src.url) return <div class="qsrc">{label}</div>;
-  const href = /\.pdf$/i.test(src.url) && src.page ? `${src.url}#page=${src.page}` : src.url;
+  // In the VM, src.url is already resolved to `it.src.url ?? book.u`, so passing it
+  // as the bookUrl arg keeps `base = src.url ?? bookUrl` equal to that value.
+  const href = srcHref(src, src.url);
+  if (!href) return <div class="qsrc">{label}</div>;
   return (
     <div class="qsrc">
-      <a href={href} target="_blank" rel="noopener">
+      <a href={href} target="_blank" rel="noopener noreferrer">
         {label} ↗
       </a>
     </div>
+  );
+}
+
+/** Quiet `Practice ›` chip row + "Also: …" secondary line under the source line. */
+function SourceExtras({ it }: { it: KnowledgeItem }) {
+  const practice = practiceLinks(it);
+  const see = seeLinks(it);
+  return (
+    <>
+      {practice.length > 0 && (
+        <div class="qpractice">
+          <span class="qpractice-lead">Practice ›</span>
+          {practice.map((p) => (
+            <a class="qpractice-link" href={p.url} target="_blank" rel="noopener noreferrer">
+              {p.label} ↗
+            </a>
+          ))}
+        </div>
+      )}
+      {see.length > 0 && (
+        <div class="qsee">
+          Also:{' '}
+          {see.map((s, i) => (
+            <>
+              {i > 0 && ' · '}
+              <a href={s.url} target="_blank" rel="noopener noreferrer">
+                {s.label}
+              </a>
+            </>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -202,6 +240,7 @@ function TopicCard({ it, vm }: { it: KnowledgeItem; vm: KnowledgeViewModel }) {
       </div>
       <p class="tpc-prompt">{it.prompt}</p>
       <QSrc src={it.src} />
+      <SourceExtras it={it} />
       {full && (
         <textarea class="ans dictxt" id={'ans-' + it.id} aria-label="Your answer" placeholder="Write your answer, then reveal to compare — active recall beats rereading." />
       )}

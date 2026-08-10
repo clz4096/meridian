@@ -5,13 +5,29 @@
  */
 import type { Mastery } from '@/core/types';
 
+/** An external practice problem (LeetCode or comparable) attached to a question. */
+export interface PracticeLink {
+  label: string;
+  url: string;
+}
+
+/** A secondary "further reading" link — the question keeps its primary `src`. */
+export interface SeeLink {
+  label: string;
+  url: string;
+}
+
 export interface KnowledgeItem {
   id: string;
   prompt: string;
   reveal: string;
   mins: number;
   flow: 'flip' | 'full';
-  src: { book: string; ref: string; page?: number; title?: string; url?: string };
+  src: { book: string; ref: string; page?: number; anchor?: string; title?: string; url?: string };
+  /** Optional practice link(s) — a single object or an array; normalize via `practiceLinks`. */
+  practice?: PracticeLink | PracticeLink[];
+  /** Optional secondary "further reading" links — normalize via `seeLinks`. */
+  see?: SeeLink[];
   tags?: string[];
 }
 

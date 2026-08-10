@@ -28,6 +28,7 @@ import { dstr } from '@/app/bootstrap';
 import { readFsrs, previewIntervals, humanizeDays, type Grade } from '@/features/knowledge/fsrs';
 import { ascentLedger, bandOf, MWORD, MCOLOR, GRADE_MASTERY, type AscentHistory } from '@/features/knowledge/ascent';
 import { daysBetween } from '@/features/knowledge/knowledgeSelectors';
+import { srcHref, practiceLinks, seeLinks } from '@/features/knowledge/source';
 import { DATA } from '@/core/data/index';
 import type { KnowledgeItem } from '@/features/knowledge/types';
 
@@ -330,6 +331,10 @@ function Card({ S, item, reduced, cardRef }: { S: AscSt; item: DeckItem; reduced
   const topic = TOPIC_NAME[item.topic] ?? item.topic;
   const book = BOOKS[item.src.book];
   const srcLabel = book && book.t ? `${item.src.ref} · ${book.t}` : item.src.ref;
+  // The main study surface never runs the VM merge — resolve the base book url here.
+  const href = srcHref(item.src, book?.u);
+  const practice = practiceLinks(item);
+  const see = seeLinks(item);
   const preview = previewIntervals(readFsrs(K.srs?.[item.id]), now());
   const revealed = S.revealed.value;
 
@@ -348,7 +353,36 @@ function Card({ S, item, reduced, cardRef }: { S: AscSt; item: DeckItem; reduced
       </div>
 
       <p class="asc-prompt">{item.prompt}</p>
-      <div class="asc-src">{srcLabel}</div>
+      {href ? (
+        <a class="asc-src" href={href} target="_blank" rel="noopener noreferrer">
+          {srcLabel} ↗
+        </a>
+      ) : (
+        <div class="asc-src">{srcLabel}</div>
+      )}
+      {practice.length > 0 && (
+        <div class="asc-practice">
+          <span class="asc-practice-lead">Practice ›</span>
+          {practice.map((p) => (
+            <a href={p.url} target="_blank" rel="noopener noreferrer">
+              {p.label} ↗
+            </a>
+          ))}
+        </div>
+      )}
+      {see.length > 0 && (
+        <div class="asc-see">
+          Also:{' '}
+          {see.map((s, i) => (
+            <>
+              {i > 0 && ' · '}
+              <a href={s.url} target="_blank" rel="noopener noreferrer">
+                {s.label}
+              </a>
+            </>
+          ))}
+        </div>
+      )}
 
       {isAttempt && <textarea placeholder="Write your answer…" aria-label="Your answer" />}
 

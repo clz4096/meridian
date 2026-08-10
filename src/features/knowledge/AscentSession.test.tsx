@@ -171,6 +171,49 @@ describe('AscentSession — capped topic review', () => {
   });
 });
 
+describe('AscentSession — source deep-links + practice/see (the MAIN surface)', () => {
+  /** Seed one flip card carrying the new fields, into the today deck. */
+  function seedRich(src: KnowledgeItem['src'], extra: Partial<KnowledgeItem> = {}): void {
+    const item: KnowledgeItem = { id: 'r0', prompt: 'Rich prompt', reveal: 'Rich answer', mins: 5, flow: 'flip', src, ...extra };
+    kgItems.value = { synthetic: [item] };
+    appState.set('csgraph', { mastery: {}, srs: {}, log: [], gymDone: {} });
+    appState.set('core', { entries: [], schedule: {}, todos: [], scratch: [], _del: {} });
+  }
+
+  it('wraps asc-src in an <a> with the anchor deep-link and renders practice + Also rows', () => {
+    // cpuland's book url is a non-.pdf web resource → anchor deep-link.
+    seedRich(
+      { book: 'cpuland', ref: '§ Fetch-execute', anchor: 'the-fetch-execute-cycle' },
+      {
+        practice: [
+          { label: 'LC 15 · 3Sum', url: 'https://leetcode.com/problems/3sum/' },
+          { label: 'LC 167', url: 'https://leetcode.com/problems/two-sum-ii/' },
+        ],
+        see: [{ label: 'Fortnow', url: 'https://blog.computationalcomplexity.org/x.html' }],
+      },
+    );
+    const { container, getByText } = render(<AscentSession />);
+    fireEvent.click(getByText('Begin the climb'));
+    const srcA = container.querySelector('a.asc-src') as HTMLAnchorElement;
+    expect(srcA).toBeTruthy();
+    expect(srcA.getAttribute('href')).toBe('https://cpu.land/#the-fetch-execute-cycle');
+    expect(srcA.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(container.querySelectorAll('.asc-practice a').length).toBe(2);
+    expect(container.querySelectorAll('.asc-see a').length).toBe(1);
+  });
+
+  it('keeps the plain <div class="asc-src"> for a book with no url (no link, no extras)', () => {
+    // sipser has no url in books.json → srcHref returns null → plain text, backward-compat.
+    seedRich({ book: 'sipser', ref: 'p42' });
+    const { container, getByText } = render(<AscentSession />);
+    fireEvent.click(getByText('Begin the climb'));
+    expect(container.querySelector('a.asc-src')).toBeNull();
+    expect(container.querySelector('div.asc-src')!.textContent).toContain('p42');
+    expect(container.querySelector('.asc-practice')).toBeNull();
+    expect(container.querySelector('.asc-see')).toBeNull();
+  });
+});
+
 describe('AscentSession — reduced motion', () => {
   it('skips the recede/enter transform classes but still advances the cursor', () => {
     (window as unknown as { matchMedia: unknown }).matchMedia = vi.fn().mockReturnValue({
