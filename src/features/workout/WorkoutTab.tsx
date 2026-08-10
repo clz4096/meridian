@@ -11,7 +11,7 @@ import { DEFAULT_CONFIG, type SetType, type ExercisePlan, type Split, type Worko
 import { shiftDate } from '@/core/util';
 import { domId } from '@/ui/html';
 import { ProgControls, Carousel, Chart, LiftPicker } from '@/ui/components/Charts';
-import { wk, currentBW, exVideo, displayExercise, exSwap, workoutActions, loadWorkout, goHome } from '@/ui/actions';
+import { wk, currentBW, exVideo, displayExercise, exSwap, workoutActions, loadWorkout } from '@/ui/actions';
 import { DATA } from '@/core/data/index';
 import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkShowAll, wkProgOpen, activeExercise, awayMode, progPeriod, progLift, dataRev } from '@/ui/store';
 import { dstr, dateLabel } from '@/app/bootstrap';
@@ -344,7 +344,7 @@ function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
 
   return (
     <div class={'ex' + (complete ? ' done' : '')}>
-      <button class="ex-top" onClick={() => (activeExercise.value = exercise)}>
+      <button class="ex-top" onClick={() => workoutActions.viewExercise(exercise)}>
         {complete && (
           <svg class="ex-check" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true">
             <path d="M5 12l4 4 10-10" />
@@ -452,15 +452,12 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
   return (
     <div class="exdetail" key={exercise}>
       <div class="exdetail-top">
-        <button class="backbtn" onClick={() => (activeExercise.value = null)}>
-          ‹ Exercises
-        </button>
         {next ? (
           <button class="exnext" onClick={() => (activeExercise.value = next)}>
             Next · {next} ›
           </button>
         ) : (
-          <button class="exnext" onClick={() => (activeExercise.value = null)}>
+          <button class="exnext" onClick={() => window.history.back()}>
             Done ✓
           </button>
         )}
@@ -534,10 +531,6 @@ export function WorkoutView() {
   }
   return (
     <>
-      <button class="backbtn" onClick={goHome}>
-        ‹ Back
-      </button>
-
       <WeekStrip state={W} today={today} selected={date} sundayFullBody={sundayFullBody} />
 
       {isRest ? (

@@ -70,14 +70,14 @@ describe('KnowledgeView', () => {
     expect(progSpy).toHaveBeenCalledOnce();
   });
 
-  it('renders the secondary Progress (charts) view when kgProgressOpen, back → gallery via browseTopics', () => {
+  it('renders the secondary Progress (charts) view when kgProgressOpen (back is now the chrome Back → handleBack)', () => {
     kgProgressOpen.value = true;
-    const browseSpy = vi.spyOn(knowledgeActions, 'browseTopics').mockImplementation(() => {});
-    const { getByText } = render(<KnowledgeView />);
+    const { getByText, container } = render(<KnowledgeView />);
     expect(getByText('Knowledge')).toBeTruthy(); // SecHero eyebrow
     expect(getByText('% mastery')).toBeTruthy(); // SecHero unit next to the value
-    fireEvent.click(getByText('‹ Topics'));
-    expect(browseSpy).toHaveBeenCalledOnce();
+    // The in-page "‹ Topics" back was retired; Progress→gallery is the chrome Back
+    // (handleBack, covered in actions.test). Assert no stray in-page back remains.
+    expect(container.querySelector('.backbtn')).toBeNull();
   });
 
   it('renders topic cards on the gallery and tapping a topic fires selectTopic', () => {

@@ -9,7 +9,7 @@ import type { StoreKey } from '@/core/storage/appState';
 import { sync, cloudEnabled } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import { dataRev, dataMsg } from '@/ui/store';
-import { wk, sg, kg, core, dataActions, discard, goHome } from '@/ui/actions';
+import { wk, sg, kg, core, dataActions, discard } from '@/ui/actions';
 
 const KEYS: StoreKey[] = ['core', 'overload', 'surplus', 'csgraph'];
 
@@ -44,10 +44,6 @@ export function DataView() {
 
   return (
     <>
-      <button class="backbtn" onClick={goHome}>
-        ‹ Back
-      </button>
-
       {/* status hero — the glow + hero value tint by sync state */}
       <div class="sechero">
         <div class="sechero-wash" data-tone={statusTone} />

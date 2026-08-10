@@ -11,7 +11,7 @@ import { selectMealView } from '@/features/meal/mealSelectors';
 import { calorieSeries, proteinSeries, calorieTarget, proteinTarget } from '@/ui/charts/progress';
 import { ProgControls, Carousel, Chart } from '@/ui/components/Charts';
 import { sgLoaded, sgExtrasOpen, sgDate, progPeriod, dataRev } from '@/ui/store';
-import { sg, wk, mealActions, workoutActions, loadMeal, toggleMealExtras, MEAL_PRESETS, goHome } from '@/ui/actions';
+import { sg, wk, mealActions, workoutActions, loadMeal, toggleMealExtras, MEAL_PRESETS } from '@/ui/actions';
 import { dateLabel, dstr } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import { toNum } from '@/core/util';
@@ -220,10 +220,6 @@ export function MealView() {
 
   return (
     <>
-      <button class="backbtn" onClick={goHome}>
-        ‹ Back
-      </button>
-
       {/* Date scope + settings — kept compact so the budget stays the hero. */}
       <div class="log-h">
         <div class="datenav">

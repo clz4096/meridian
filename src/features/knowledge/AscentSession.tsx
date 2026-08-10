@@ -262,7 +262,7 @@ export function AscentSession() {
   return (
     <div class="asc-app">
       {screen === 'start' && (
-        <button class="asc-back asc-back-float" onClick={() => knowledgeActions.exitSession()} aria-label="Back to topics">
+        <button class="asc-back asc-back-float" onClick={() => window.history.back()} aria-label="Back to topics">
           <span class="asc-chev" aria-hidden="true">‹</span> Back
         </button>
       )}
@@ -270,7 +270,7 @@ export function AscentSession() {
         <div class="asc-topbar">
           <div class="asc-track-row">
             {screen === 'card' && (
-              <button class="asc-back" onClick={() => knowledgeActions.exitSession()} aria-label="Back to topics">
+              <button class="asc-back" onClick={() => window.history.back()} aria-label="Back to topics">
                 <span class="asc-chev" aria-hidden="true">‹</span> Back
               </button>
             )}
@@ -423,7 +423,7 @@ function SummitPanel({ S }: { S: AscSt }) {
           <span class="asc-plus">+{overflow}</span> waiting for tomorrow
         </div>
       )}
-      <button class="asc-cta ghost" style="margin-top:10px" onClick={() => knowledgeActions.exitSession()}>
+      <button class="asc-cta ghost" style="margin-top:10px" onClick={() => window.history.back()}>
         Back to topics
       </button>
     </div>
@@ -440,7 +440,7 @@ function CaughtPanel() {
       <div class="asc-frontier-hint">
         <span class="asc-pulse" /> frontier &nbsp;·&nbsp; {backlog > 0 ? `+${backlog} forming for tomorrow` : 'new questions forming'}
       </div>
-      <button class="asc-cta ghost" style="margin-top:14px" onClick={() => knowledgeActions.exitSession()}>
+      <button class="asc-cta ghost" style="margin-top:14px" onClick={() => window.history.back()}>
         Back to topics
       </button>
     </div>

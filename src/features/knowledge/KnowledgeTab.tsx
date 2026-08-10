@@ -93,9 +93,6 @@ function KnowledgeProgress() {
   const retentionTxt = g.retention == null ? '—' : `${Math.round(g.retention * 100)}%`;
   return (
     <>
-      <button class="backbtn" onClick={() => knowledgeActions.browseTopics()}>
-        ‹ Topics
-      </button>
       <SecHero eyebrow="Knowledge" value={masteryPct} unit="% mastery" sub={sub} tone="ok" />
       <div class="kgrowth">
         <div class="kg-stat"><div class="kg-v">{retentionTxt}</div><div class="kg-k">retention</div></div>
@@ -286,9 +283,6 @@ function GymScreen({ vm, title }: { vm: KnowledgeViewModel; title: string }) {
   return (
     <div class="tpc-root">
       <div class="tpc-gym-head">
-        <button class="tpc-backbtn" onClick={() => knowledgeActions.toggleGym()} aria-label="Back to questions">
-          <span aria-hidden="true">‹</span> Questions
-        </button>
         <span class="tpc-th-name">🎧 Gym — {title}</span>
       </div>
       {vm.gym ? (
@@ -350,9 +344,6 @@ function KnowledgeBody({ vm }: { vm: KnowledgeViewModel }) {
     <div class="tpc-root">
       <header class="tpc-head">
         <div class="tpc-th-line">
-          <button class="tpc-backbtn" onClick={() => knowledgeActions.backToTopics()} aria-label="Back to Knowledge">
-            <span aria-hidden="true">‹</span> back
-          </button>
           <span class="tpc-th-name">{title}</span>
           <span class="tpc-th-mastery">
             <span class="tpc-m-dot" style={`background:${mst.color}`} aria-hidden="true" />

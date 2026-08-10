@@ -9,7 +9,7 @@
 import { organizeTodos } from '@/features/todos/todosSelectors';
 import type { TodoItem } from '@/core/types';
 import { dataRev, todoView, todoAdding } from '@/ui/store';
-import { core, todosActions, goHome } from '@/ui/actions';
+import { core, todosActions } from '@/ui/actions';
 import { dstr } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 
@@ -57,9 +57,6 @@ export function TodosView() {
 
   return (
     <>
-      <button class="backbtn" onClick={goHome}>
-        ‹ Back
-      </button>
 
       <div class="sechero">
         <div class="sechero-wash" data-tone={tone} />

@@ -16,7 +16,7 @@ import { appState, dstr, sync } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import { selectWorkoutView } from '@/features/workout/workoutSelectors';
 import defaultWorkout from '@/core/data/defaultWorkout.json';
-import { dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems, kgOverview, currentTab } from '@/ui/store';
+import { dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems, kgOverview, currentTab, activeExercise } from '@/ui/store';
 
 const today = dstr();
 
@@ -50,6 +50,25 @@ describe('meal addMeal', () => {
     mealActions.addMeal('', 0, 0);
     expect(sg().days[today]).toBeUndefined();
     expect(dirty).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleBack — chrome Back unwinds sub-screens before leaving the section', () => {
+  afterEach(() => { currentTab.value = 'today'; activeExercise.value = null; });
+
+  it('backs out of the workout exercise detail first, staying in the section', () => {
+    currentTab.value = 'workout';
+    activeExercise.value = 'Bench Press';
+    expect(handleBack()).toBe(true);
+    expect(activeExercise.value).toBeNull();
+    expect(currentTab.value).toBe('workout'); // did NOT jump home yet
+  });
+
+  it('from a section landing (nothing to unwind) goes home', () => {
+    currentTab.value = 'workout';
+    activeExercise.value = null;
+    expect(handleBack()).toBe(true);
+    expect(currentTab.value).toBe('today');
   });
 });
 

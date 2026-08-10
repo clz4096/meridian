@@ -38,7 +38,14 @@ export const wk = (): Store => appState.get('overload');
 export const sg = (): Store => appState.get('surplus');
 export const kg = (): Store => appState.get('csgraph');
 export const core = (): Store => appState.get('core');
-const pushState = (): void => window.history.pushState({ meridianDetail: 1 }, '');
+// One history entry per pushed nav level above home. `navDepth` lets the Home
+// button collapse the whole stack so a later hardware Back doesn't hit dead
+// intermediate entries. Back (chrome or hardware) always flows through popstate.
+let navDepth = 0;
+const pushState = (): void => {
+  window.history.pushState({ meridianDetail: 1 }, '');
+  navDepth++;
+};
 
 /* ── rest timer (drives the RestBar via host.restBar → restState signal) ── */
 export const restTimer = new RestTimer({
@@ -94,6 +101,10 @@ export async function loadWorkout(): Promise<void> {
 
 /* ── workout actions ── */
 export const workoutActions: WorkoutActions = {
+  viewExercise(ex) {
+    st.activeExercise.value = ex;
+    pushState(); // a real nav level, so Back (chrome or hardware) returns to the list
+  },
   logSet(ex, type, weight, reps) {
     if (!ex || !weight || !reps) return;
     const W = wk();
@@ -906,12 +917,30 @@ export function ensureLoaded(tab: st.Tab): void {
 /** Return to the Today home (the pill-Back target for trackers). */
 export function goHome(): void {
   st.currentTab.value = 'today';
+  st.activeExercise.value = null; // clear the workout exercise-detail level (was leaking on re-entry)
   loadForHome();
+}
+
+/** The Home button: reset to the hub AND collapse the pushed history, so a later
+ *  hardware Back lands outside the app (expected) rather than on dead entries. */
+export function navHome(): void {
+  goHome();
+  const d = navDepth;
+  navDepth = 0;
+  if (d > 0) window.history.go(-d); // fires one popstate; onPopNav no-ops (already home)
+}
+
+/** popstate driver (chrome Back → history.back(), and hardware/edge Back): the
+ *  browser already moved one entry, so drop a level and unwind one screen. */
+export function onPopNav(): void {
+  if (navDepth > 0) navDepth--;
+  handleBack();
 }
 
 /** Drill into a tracker section (from Today's at-a-glance); pushes history for back. */
 export function openSection(tab: st.Tab): void {
   st.currentTab.value = tab;
+  st.activeExercise.value = null; // never re-enter a stale exercise detail
   // Entering Knowledge always lands on the card gallery, never wherever it was left.
   if (tab === 'knowledge') {
     st.kgProgressOpen.value = false;
@@ -946,10 +975,11 @@ export function discard(): void {
   }
 }
 export function handleBack(): boolean {
+  if (st.currentTab.value === 'workout' && st.activeExercise.value) { st.activeExercise.value = null; st.bump(); return true; } // exercise detail → list
   if (st.currentTab.value === 'meal' && st.sgLogOpen.value) { st.sgLogOpen.value = false; st.bump(); return true; }
   if (st.currentTab.value === 'knowledge' && st.kgGym.value) { st.kgGym.value = false; st.bump(); return true; } // gym → questions
   if (st.currentTab.value === 'knowledge' && st.kgProgressOpen.value) { st.kgProgressOpen.value = false; st.bump(); return true; } // Progress → gallery
-  if (st.currentTab.value === 'knowledge' && st.kgTopic.value.startsWith(REVIEW_PREFIX)) { knowledgeActions.exitSession(); return true; } // focused review → its topic (mirror the in-session Back)
+  if (st.currentTab.value === 'knowledge' && (st.kgTopic.value.startsWith(REVIEW_PREFIX) || st.kgTopic.value === '__today__')) { knowledgeActions.exitSession(); return true; } // a session (today's path / focused review) → its topic/Rail
   if (st.currentTab.value === 'knowledge' && !st.kgOverview.value) { st.kgOverview.value = true; st.bump(); return true; } // study → gallery
   if (st.currentTab.value !== 'today') { goHome(); return true; } // gallery → hub
   return false;

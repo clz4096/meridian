@@ -6,7 +6,7 @@
 import { organizeScratch, SCRATCH_STATUSES, STATUS_LABEL } from '@/features/scratch/scratchSelectors';
 import type { ScratchCard, ScratchStatus } from '@/core/types';
 import { dataRev, scratchFilter, scratchOpen, scratchAdding } from '@/ui/store';
-import { core, scratchActions, goHome } from '@/ui/actions';
+import { core, scratchActions } from '@/ui/actions';
 import { host } from '@/ui/host';
 
 const rv = (id: string): string => host.readValue(id);
@@ -76,9 +76,6 @@ export function ScratchView() {
 
   return (
     <>
-      <button class="backbtn" onClick={goHome}>
-        ‹ Back
-      </button>
 
       <div class="sechero">
         <div class="sechero-wash" data-tone="fuel" />

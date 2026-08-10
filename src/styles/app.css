@@ -36,10 +36,18 @@ body{padding-bottom:env(safe-area-inset-bottom)}
 body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(env(safe-area-inset-bottom) + 1px);background:var(--bg);z-index:39;pointer-events:none}
 body.pre-enter::after{background:var(--void)}
 .appwrap{max-width:820px;margin:0 auto;padding:0 14px 90px;min-height:100vh;min-height:100dvh}
-.brandrow{display:flex;align-items:center;justify-content:space-between;padding:calc(16px + env(safe-area-inset-top)) 2px 8px;position:sticky;top:0;background:linear-gradient(var(--bg),var(--bg) 70%,transparent);z-index:20}
-.brand{font-family:var(--mono);font-weight:600;font-size:17px;letter-spacing:.28em;text-transform:uppercase;color:var(--text)}
+.brandrow{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;padding:calc(16px + env(safe-area-inset-top)) 2px 8px;position:sticky;top:0;background:linear-gradient(var(--bg),var(--bg) 70%,transparent);z-index:30}
+.brand{grid-column:2;text-align:center;font-family:var(--mono);font-weight:600;font-size:17px;letter-spacing:.28em;text-transform:uppercase;color:var(--text)}
 .brand b{color:var(--text)}
 .brand .mn{color:var(--hub)}
+/* Persistent chrome nav: a quiet Back (‹) + Home in the brandrow, shown on every
+   screen except home. Deliberately understated (muted, borderless) so it reads as
+   chrome, not a call to action. */
+.navbtn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;margin:0;background:none;border:none;border-radius:var(--r-pill);color:var(--muted);font-family:var(--mono);font-size:22px;line-height:1;cursor:pointer;transition:color var(--dur) var(--ease),background var(--dur) var(--ease)}
+.navbtn:hover{color:var(--text);background:var(--surface-1)}
+.navbtn:focus-visible{color:var(--text);outline:none;box-shadow:0 0 0 2px var(--ring)}
+.navbtn:last-child{justify-self:end}
+.navbtn-home{font-size:16px}
 /* save status chip */
 .savechip{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:20px;padding:5px 12px;cursor:pointer;user-select:none}
 /* rest timer — one clean floating bar, above the safe area, never over the content */
@@ -302,8 +310,7 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .backbtn:hover,.backbtn:focus-visible{color:var(--teal);border-color:var(--line-2);outline:none}
 /* ===== hub (table of contents) — the post-Enter home ===== */
 #tabbar{display:none}
-body:not(.at-home) .brandrow{display:none}
-body:not(.at-home) .tabpane{padding-top:calc(14px + env(safe-area-inset-top))}
+body:not(.at-home) .tabpane{padding-top:6px}
 .hubtag{font-size:var(--fs-body);color:var(--muted);margin:6px 2px 18px}
 .hub{display:flex;flex-direction:column;gap:12px;flex:1}
 .hubrow{flex:1 1 0;min-height:104px;display:flex;align-items:center;gap:14px;padding:22px 20px;border:1px solid var(--line);background:var(--panel);border-radius:16px;width:100%;text-align:left;cursor:pointer;color:inherit;font:inherit;transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease),transform var(--dur) var(--ease)}
@@ -1252,7 +1259,7 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 }
 
 /* ---- Header ---- */
-.rail-header{position:sticky;top:0;z-index:20;background:linear-gradient(var(--bg) 78%,rgba(7,11,20,0));padding-top:20px}
+.rail-header{background:linear-gradient(var(--bg) 78%,rgba(7,11,20,0));padding-top:20px}
 .rail-h-title{font-size:15px;font-weight:600;letter-spacing:.2px;color:var(--text)}
 .rail-meter{display:block;width:100%;border:0;background:none;padding:12px 0 4px;cursor:pointer;text-align:left}
 .rail-meter-track{display:block;height:1px;width:100%;background:var(--surface-2);border-radius:1px;overflow:hidden}
@@ -1344,7 +1351,7 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 }
 
 /* header line: ‹ back · topic · mastery% · N due */
-.tpc-head{position:sticky; top:0; z-index:20; background:linear-gradient(var(--bg) 80%,rgba(7,11,20,0)); padding:20px 0 8px}
+.tpc-head{background:linear-gradient(var(--bg) 80%,rgba(7,11,20,0)); padding:20px 0 8px}
 .tpc-th-line{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
 .tpc-backbtn{appearance:none; border:0; background:none; cursor:pointer; color:var(--muted); font-size:14px; font-family:var(--sans);
   padding:6px 8px 6px 0; min-height:44px; display:inline-flex; align-items:center; gap:4px; margin-left:-4px}

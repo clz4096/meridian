@@ -8,6 +8,7 @@ import type { SetType, Split } from '@/core/types';
 
 /** Commands the view can emit. The host wires these to state mutations. */
 export interface WorkoutActions {
+  viewExercise(exercise: string): void;
   logSet(exercise: string, type: SetType, weight: number, reps: number): void;
   deleteSet(date: string, setId: string): void;
   toggleExerciseDone(exercise: string): void;

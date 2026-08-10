@@ -6,7 +6,7 @@
  */
 import { useEffect } from 'preact/hooks';
 import { currentTab, sgLogOpen, kgProgressOpen, kgGym, kgOverview, type Tab } from '@/ui/store';
-import { handleBack, loadForHome } from '@/ui/actions';
+import { navHome, onPopNav, loadForHome } from '@/ui/actions';
 import { SaveChip, RestBar } from '@/ui/components/Chrome';
 import { TodayView } from '@/features/today/TodayTab';
 import { DataView } from '@/features/data/DataTab';
@@ -47,11 +47,8 @@ export function App() {
 
   useEffect(() => {
     loadForHome(); // Today's at-a-glance needs every tracker store
-    const onPop = (): void => {
-      handleBack();
-    };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
+    window.addEventListener('popstate', onPopNav);
+    return () => window.removeEventListener('popstate', onPopNav);
   }, []);
 
   // A key unique per screen/subscreen — changing it replays the paneIn entrance
@@ -67,11 +64,24 @@ export function App() {
     <>
       <div class="appwrap">
         <div class="brandrow">
+          {!home && (
+            <button class="navbtn" type="button" onClick={() => window.history.back()} aria-label="Back">
+              <span aria-hidden="true">‹</span>
+            </button>
+          )}
           <div class="brand">
             <b>
               Meridia<span class="mn">n</span>
             </b>
           </div>
+          {!home && (
+            <button class="navbtn navbtn-home" type="button" onClick={navHome} aria-label="Home">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+                <path d="M4 11.5 12 4l8 7.5" />
+                <path d="M6 10.5V20h12v-9.5" />
+              </svg>
+            </button>
+          )}
         </div>
         <div class="tabpane on" id={PANE_ID[tab]} key={screenKey}>
           <Section tab={tab} />
