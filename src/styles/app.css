@@ -1170,11 +1170,11 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 a.asc-src{display:inline-block; text-decoration:none; border-bottom:1px dotted var(--line-2); padding-bottom:1px}
 a.asc-src:hover{color:var(--teal)}
 /* quiet practice-chip row (teal) + "Also:" secondary line under the source (Ascent) */
-.asc-practice{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; font-family:var(--mono); font-size:11px; letter-spacing:.02em}
+.asc-practice{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; margin-top:8px; font-family:var(--mono); font-size:11px; letter-spacing:.02em}
 .asc-practice-lead{color:var(--dim)}
 .asc-practice a{color:var(--teal); text-decoration:none}
 .asc-practice a:hover{text-decoration:underline}
-.asc-see{font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.02em}
+.asc-see{margin-top:6px; font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.02em}
 .asc-see a{color:var(--faint); text-decoration:none; border-bottom:1px dotted var(--line-2)}
 .asc-see a:hover{color:var(--teal)}
 

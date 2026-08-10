@@ -129,7 +129,7 @@
  },
  "skycak": {
   "t": "Introduction to Algorithms and Machine Learning — Skycak (from-scratch; Math Academy Eurisko)",
-  "u": "https://justinmath.com/books/"
+  "u": "https://justinmath.com/files/introduction-to-algorithms-and-machine-learning.pdf"
  },
  "fortnow": {
   "t": "Foundations of Complexity — Lance Fortnow (Computational Complexity blog series)",
@@ -138,5 +138,9 @@
  "infereng": {
   "t": "Inference Engineering — Kiely/Baseten (VRAM, roofline, KV-cache, quantization, speculative decoding)",
   "u": "https://inferenceengineering.tech/"
+ },
+ "sipser": {
+  "t": "Sipser — Introduction to the Theory of Computation, 3rd ed.",
+  "u": "https://cs.brown.edu/courses/csci1810/fall-2023/resources/ch2_readings/Sipser_Introduction.to.the.Theory.of.Computation.3E.pdf"
  }
 }

@@ -34,8 +34,8 @@ export function srcHref(src: KnowledgeItem['src'], bookUrl: string | undefined):
   // Detect `.pdf` on the fragment-stripped base so `…/x.pdf#section` still counts as
   // a PDF (rules 1 & 2 append onto the stripped base; rule 3 leaves base untouched).
   const stripped = stripFrag(base);
-  if (src.page != null && /\.pdf$/i.test(stripped)) return `${stripped}#page=${src.page}`;
-  if (src.anchor) return `${stripped}#${src.anchor}`;
+  if (typeof src.page === 'number' && src.page > 0 && /\.pdf$/i.test(stripped)) return `${stripped}#page=${src.page}`;
+  if (src.anchor) return `${stripped}#${encodeURIComponent(src.anchor)}`;
   return base;
 }
 
@@ -44,7 +44,7 @@ function normalize<T extends { label?: unknown; url?: unknown }>(links: T | T[] 
   if (!links) return [];
   const arr = Array.isArray(links) ? links : [links];
   return arr.filter(
-    (l): l is T => !!l && typeof l.label === 'string' && l.label !== '' && typeof l.url === 'string' && HTTP_SCHEME.test(l.url),
+    (l): l is T => !!l && typeof l.label === 'string' && l.label.trim() !== '' && typeof l.url === 'string' && HTTP_SCHEME.test(l.url),
   );
 }
 

@@ -203,8 +203,8 @@ describe('AscentSession — source deep-links + practice/see (the MAIN surface)'
   });
 
   it('keeps the plain <div class="asc-src"> for a book with no url (no link, no extras)', () => {
-    // sipser has no url in books.json → srcHref returns null → plain text, backward-compat.
-    seedRich({ book: 'sipser', ref: 'p42' });
+    // A book key not in books.json → no url → srcHref returns null → plain text (backward-compat).
+    seedRich({ book: 'no-such-book', ref: 'p42' });
     const { container, getByText } = render(<AscentSession />);
     fireEvent.click(getByText('Begin the climb'));
     expect(container.querySelector('a.asc-src')).toBeNull();
