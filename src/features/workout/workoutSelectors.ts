@@ -121,6 +121,16 @@ export function topSetOf(sets: readonly WorkoutSet[]): WorkoutSet | null {
   return sets.find((s) => s.type === 'top') ?? null;
 }
 
+/** Heaviest non-cardio set in a session — the top-set stand-in when none was tagged 'top'. */
+function heaviestSet(sets: readonly WorkoutSet[]): WorkoutSet | null {
+  let best: WorkoutSet | null = null;
+  for (const s of sets) {
+    if (s.type === 'cardio') continue;
+    if (!best || toNum(s.weight) > toNum(best.weight)) best = s;
+  }
+  return best;
+}
+
 /** The most recent session for `exercise` strictly before `before`. */
 export function lastSession(
   state: WorkoutState,
@@ -508,7 +518,11 @@ export function buildPlan(
 
   const repHigh = repCeiling(state, exercise, config);
 
-  const top = topSetOf(previous.sets);
+  // A lift is only "cardio" when it is GENUINELY cardio (muscle/type), never merely
+  // because its last session happened to log no set tagged 'top' — otherwise a strength
+  // lift (e.g. a Leg Press day with only back-off sets) would render as a time/distance
+  // cardio card. For such a strength lift, progress off the heaviest set instead.
+  const top = topSetOf(previous.sets) ?? (isCardio(state, exercise) ? null : heaviestSet(previous.sets));
   if (!top) {
     return {
       exercise,

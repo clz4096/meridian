@@ -664,6 +664,22 @@ describe('workout bug-bash regressions', () => {
     expect(weekStrength(s, D(0))).not.toBe('weak');
   });
 
+  it('a strength lift whose last session had NO top set is not mis-flagged as cardio', () => {
+    // Reproduce "Leg Press overridden with treadmill cardio": a Leg Press day logged
+    // with only back-off sets (no 'top') must still build a STRENGTH plan, not a cardio
+    // (time/distance) card. It progresses off the heaviest logged set.
+    const s = stateOf([
+      { date: D(0), ex: 'Leg Press', weight: 180, reps: 10, muscle: 'quads', type: 'back' },
+      { date: D(0), ex: 'Leg Press', weight: 200, reps: 8, muscle: 'quads', type: 'back' },
+    ]);
+    const plan = buildPlan(s, 'Leg Press', D(2))!;
+    expect(plan.cardio).toBe(false);
+    expect(plan.lastTopWeight).toBe(200); // heaviest set stands in for the missing top
+    // a genuine cardio lift with no top set is still cardio
+    const c = stateOf([{ date: D(0), ex: 'Treadmill', weight: 3, reps: 20, muscle: 'cardio', type: 'cardio' }]);
+    expect(buildPlan(c, 'Treadmill', D(2))!.cardio).toBe(true);
+  });
+
   it('D#20 · an unknown-muscle (other) lift is not silently hidden on a split day', () => {
     const s = stateOf([
       { date: D(0), ex: 'Bench Press', weight: 135, reps: 8, muscle: 'chest' },
