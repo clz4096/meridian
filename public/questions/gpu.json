@@ -6,12 +6,18 @@
   "prompt": "In one sentence: what is the fundamental architectural difference between a CPU and a GPU, and what workload does each favor?",
   "src": {
    "book": "pmpp",
-   "ref": "Ch.1 Introduction — heterogeneous computing"
+   "ref": "Ch.1 Introduction — latency- vs throughput-oriented design"
   },
-  "reveal": "A CPU spends transistors on control logic, branch prediction, and large caches to make a few threads fast (latency-optimized); a GPU spends them on thousands of simple ALUs sharing control logic to run many threads at once (throughput-optimized). CPUs favor branchy, sequential, latency-sensitive work; GPUs favor wide, regular, data-parallel work — the same operation over huge arrays, which is exactly what matmul is.",
+  "reveal": "The gist: a **CPU** is built to make a few threads finish fast; a **GPU** is built to run thousands of simple threads at once. A CPU spends its transistors on control logic, branch prediction, and big caches, so it is **latency-optimized** — good at branchy, sequential, one-thing-after-another work. A GPU spends them on thousands of simple **ALUs** (arithmetic units) that share control logic and run in parallel, so it is **throughput-optimized** — good at wide, regular, data-parallel work: the same operation over huge arrays, which is exactly what matrix multiply is. **Tell:** few-fast-threads (CPU) vs many-slow-threads (GPU).",
   "tags": [
    "ml-systems",
    "systems"
+  ],
+  "see": [
+   {
+    "label": "Inference Engineering — GPU Architecture",
+    "url": "https://inferenceengineering.tech/chapters/hardware/#gpu-architecture"
+   }
   ]
  },
  {
@@ -21,9 +27,9 @@
   "prompt": "What is a warp, and what is warp divergence? Why does an if/else inside a kernel cost more than on a CPU?",
   "src": {
    "book": "pmpp",
-   "ref": "Ch.4 Compute architecture and scheduling"
+   "ref": "Ch.4 Compute architecture and scheduling — warps and SIMT"
   },
-  "reveal": "A warp is a group of 32 threads that execute in lockstep — one instruction, all threads (SIMT). Warp divergence happens when threads in the same warp take different branches: the hardware must execute BOTH paths serially, masking off the inactive threads each time. So a branch that splits a warp roughly doubles that section’s cost, whereas a CPU branch predictor would simply predict one way and move on. Minimizing divergence means arranging data so threads in a warp follow the same path.",
+  "reveal": "Gist: a **warp** is a pack of 32 GPU threads that all run the *same* instruction at the same moment; **warp divergence** is what happens when an if/else forces them to disagree.\n\nGPUs execute in **SIMT** style — Single Instruction, Multiple Threads: the hardware issues one instruction and all 32 threads in the warp run it in lockstep, each on its own data. When a branch sends some threads down the `if` and others down the `else`, the warp **diverges**, and the hardware cannot run both paths together. It runs them **serially** — first the `if` path with the `else` threads switched off (masked), then the `else` path with the `if` threads masked. So a branch that splits a warp roughly **doubles** that section's cost.\n\nA CPU never pays this: its branch predictor just guesses one direction and keeps going. **The tell:** to keep a GPU fast, arrange data so all threads in a warp take the same path — divergence, not arithmetic, is the hidden cost of branches on a GPU.",
   "tags": [
    "ml-systems",
    "systems"
@@ -36,9 +42,9 @@
   "prompt": "What is memory coalescing and why does it dominate GPU kernel performance? Connect it to CPU cache lines.",
   "src": {
    "book": "pmpp",
-   "ref": "Ch.5 Memory architecture and data locality"
+   "ref": "Ch.5 Memory architecture and data locality — coalesced global memory access"
   },
-  "reveal": "When the threads of a warp access consecutive memory addresses, the hardware merges them into a single wide memory transaction — coalescing. Scattered access forces many separate transactions, wasting most of each fetch. It is the same principle as a CPU cache line (fetching 64 bytes whether you use 1 or 64), amplified: the GPU is bandwidth-bound, so wasted bytes translate directly into lost throughput. Getting the access pattern right often matters more than the arithmetic.",
+  "reveal": "Gist: **memory coalescing** is when the 32 threads of a warp read *neighbouring* addresses, so the hardware satisfies them all with one wide memory fetch instead of many.\n\nWhen a warp's threads touch consecutive addresses, the hardware **merges** those accesses into a single wide transaction — that is coalescing. Scattered, jumbled addresses force many separate transactions, and each transaction hauls a fixed-size chunk whether you use all of it or one byte, so most of the fetch is wasted. It is the same idea as a **CPU cache line** — the CPU pulls 64 bytes even if you asked for one — but amplified, because a GPU is **bandwidth-bound**: its speed is set by how many *useful* bytes per second it moves, so wasted bytes convert directly into lost throughput.\n\n**The tell:** getting the access pattern right — thread `i` reads element `i`, so a warp sweeps a contiguous run — often matters more than the arithmetic inside the kernel.",
   "tags": [
    "ml-systems",
    "systems"
@@ -51,9 +57,9 @@
   "prompt": "Name the GPU memory hierarchy from fastest to slowest and state what shared memory is FOR.",
   "src": {
    "book": "pmpp",
-   "ref": "Ch.5 Memory hierarchy"
+   "ref": "Ch.5 Memory architecture and data locality — the memory hierarchy"
   },
-  "reveal": "Registers (per thread, fastest) → shared memory / L1 (per thread block, on-chip) → L2 (device-wide) → global HBM/DRAM (slowest, off-chip). Shared memory is a PROGRAMMER-MANAGED cache: it exists so a thread block can cooperatively load a tile of data from global memory once and then reuse it many times on-chip — the tiling that makes matmul compute-bound instead of bandwidth-bound.",
+  "reveal": "Gist: the GPU's memory runs from tiny-and-instant to huge-and-slow, and **shared memory** is the one level you manage by hand to dodge the slow trips.\n\nFastest to slowest: **registers** (private to each thread, fastest) → **shared memory / L1** (on-chip, shared within one thread block) → **L2** (on-chip, shared across the whole device) → **global memory**, the off-chip **HBM/DRAM** (High-Bandwidth Memory / DRAM — the big pool of VRAM) and the slowest. **Shared memory is a programmer-managed cache**: unlike an automatic CPU cache, you explicitly load data into it and decide what stays.\n\nIts job: let a thread **block** (a cooperating group of threads on one chip unit) load a **tile** — a small sub-block of data — from global memory *once*, then reuse it many times on-chip. **The tell:** that reuse is exactly what turns matrix multiply from **bandwidth-bound** (waiting on memory) into **compute-bound** (limited by math) — so any kernel that re-reads the same global data should stage it in shared memory first.",
   "tags": [
    "ml-systems",
    "systems"
@@ -65,13 +71,21 @@
   "flow": "full",
   "prompt": "Define arithmetic intensity and use the roofline model to explain why a large matmul is compute-bound while an elementwise add is memory-bound.",
   "src": {
-   "book": "pmpp",
-   "ref": "Performance considerations; see also the roofline model"
+   "book": "scaling",
+   "ref": "Ch.1 A Brief Intro to Roofline Analysis",
+   "url": "https://jax-ml.github.io/scaling-book/roofline",
+   "anchor": "where-does-the-time-go"
   },
-  "reveal": "Arithmetic intensity is FLOPs performed per byte moved from memory. Roofline: achievable performance = min(peak FLOPs, intensity × memory bandwidth) — below a hardware-specific intensity you are bandwidth-bound, above it compute-bound. An elementwise add on n elements does ~1 FLOP per ~12 bytes moved (two reads, one write) — tiny intensity, memory-bound. An n×n matmul does ~2n³ FLOPs on ~3n² bytes, so intensity grows with n — large matmuls sit far to the right and become compute-bound. This is why kernel fusion helps: it removes memory round-trips between cheap ops.",
+  "reveal": "Gist: **arithmetic intensity** is how much math you do per byte you fetch — FLOPs per byte — and the **roofline** model says that one number predicts whether you are limited by the math units or by memory.\n\nA **FLOP** is one floating-point operation; intensity = FLOPs performed ÷ bytes moved from memory. Roofline: achievable performance = min(**peak FLOPs**, intensity × **memory bandwidth**). Below a hardware-specific intensity you are **memory-bound** (starved for bytes); above it you are **compute-bound** (starved for math). An **elementwise add** over n numbers does ~1 FLOP per ~12 bytes moved — two reads and one write of 4-byte floats — a tiny intensity, so it is memory-bound. An **n×n matrix multiply** does ~2n³ FLOPs while moving only ~12n² bytes (three n×n matrices of 4-byte floats), so its intensity *grows with n*; large matmuls sit far to the right and become compute-bound.\n\n**The tell — why kernel fusion helps:** a chain of cheap ops is all memory-bound, so merging them removes the memory round-trips between them and reclaims the wasted bandwidth.",
   "tags": [
    "ml-systems",
    "systems"
+  ],
+  "practice": [
+   {
+    "label": "Inference Engineering — Arithmetic Intensity / Roofline Calculator",
+    "url": "https://inferenceengineering.tech/exercises/arithmetic-intensity"
+   }
   ]
  },
  {
@@ -81,9 +95,9 @@
   "prompt": "Explain tiled matrix multiplication: what problem does tiling solve, and roughly how much does it reduce global-memory traffic?",
   "src": {
    "book": "pmpp",
-   "ref": "Ch.5 Tiled matrix multiplication"
+   "ref": "Ch.5 Memory architecture and data locality — tiled matrix multiplication"
   },
-  "reveal": "Naive matmul re-reads rows and columns from global memory for every output element — each input element is fetched O(n) times, so the kernel is bandwidth-starved. Tiling loads a T×T tile of each input into shared memory once, then every thread in the block reuses it for T multiply-accumulates before moving on. Global traffic drops by roughly a factor of T (the tile width). This is the canonical example of trading on-chip memory for off-chip bandwidth — and it is the same idea as keeping weights in SRAM next to compute on Cerebras/Tenstorrent hardware.",
+  "reveal": "Gist: **tiling** fixes matmul's memory problem — instead of re-reading rows and columns from slow memory over and over, load a small square **tile** into fast on-chip memory once and reuse it.\n\nNaive matmul fetches each input element from **global memory** about O(n) times, because every output element re-reads a full row and a full column, so the kernel is bandwidth-starved. Tiling loads a **T×T tile** (a T-by-T sub-block, T the tile width) of each input into **shared memory** once; then every thread in the block reuses that tile for T **multiply-accumulates** (multiply-then-add, the core matmul step) before moving on. Global-memory traffic drops by roughly a **factor of T**.\n\n**The tell:** this is the canonical trade of on-chip memory for off-chip bandwidth — the *same* bet as keeping weights in SRAM right next to the compute on Cerebras/Tenstorrent hardware. Reuse data while it is on-chip; every extra reuse is a global fetch you did not pay for.",
   "tags": [
    "ml-systems",
    "systems"
@@ -96,9 +110,9 @@
   "prompt": "What is occupancy, and why is maximizing it NOT always the goal?",
   "src": {
    "book": "pmpp",
-   "ref": "Ch.4 Resource assignment and occupancy"
+   "ref": "Ch.4 Compute architecture and scheduling — occupancy and resource limits"
   },
-  "reveal": "Occupancy is the ratio of active warps on a streaming multiprocessor to the maximum it supports. High occupancy helps hide memory latency — while some warps wait on memory, others compute. But it is not the goal in itself: registers and shared memory are finite, and raising occupancy means giving each thread fewer of them, which can force register spilling or block the tiling that actually made the kernel fast. A lower-occupancy kernel with good data reuse often beats a high-occupancy one with poor reuse.",
+  "reveal": "Gist: **occupancy** is how full a compute unit is — the fraction of its warp slots actually in use — and cranking it to the maximum is *not* the goal.\n\nIt is the ratio of **active warps** on a **streaming multiprocessor** (SM — one of the GPU's parallel compute units) to the most that SM can hold. High occupancy helps **hide memory latency**: while some warps wait on a slow fetch, others have work to do, so the math units stay busy. But it is not an end in itself — **registers** and **shared memory** are finite and split among the resident threads, so raising occupancy hands each thread fewer of them. That can force **register spilling** (overflowing registers into slow memory) or starve the **tiling** that made the kernel fast in the first place.\n\n**The tell:** a lower-occupancy kernel with good data reuse routinely beats a high-occupancy one with poor reuse — occupancy is a means to hide latency, not a score to maximize.",
   "tags": [
    "ml-systems",
    "systems"
@@ -111,9 +125,9 @@
   "prompt": "What is the CUDA execution hierarchy — thread, block, grid — and what can synchronize with what?",
   "src": {
    "book": "pmpp",
-   "ref": "Ch.3 Multidimensional grids and data"
+   "ref": "Ch.3 Multidimensional grids and data — grids, blocks, threads"
   },
-  "reveal": "A kernel launches a GRID of thread BLOCKS, each block containing many THREADS. Threads within a block run on the same streaming multiprocessor, share its shared memory, and can synchronize with __syncthreads(). Blocks are INDEPENDENT by design — there is no general synchronization between them within a kernel launch, because the hardware may schedule them in any order or at different times. That is what makes the model scalable across GPUs of different sizes, and it means cross-block coordination requires either separate kernel launches or atomics on global memory.",
+  "reveal": "Gist: a CUDA kernel runs as a three-level nest — a **grid** of **blocks** of **threads** — and the key rule is that threads inside a block can coordinate, but blocks cannot.\n\nLaunching a kernel spawns a **grid** (the whole launch) made of thread **blocks**, each block holding many **threads**. Threads in one block run on the same **streaming multiprocessor** (SM — one parallel compute unit), share its fast **shared memory**, and can line up at a barrier with `__syncthreads()` (wait here until every thread in the block arrives). **Blocks are independent by design**: within a single kernel launch there is no general way to synchronize across blocks, because the hardware may run them in any order, at different times, or not simultaneously at all.\n\n**The tell:** that block independence is exactly what lets the *same* code scale across a small GPU or a huge one — and it means cross-block coordination needs either a **separate kernel launch** or **atomics** on global memory, never a `__syncthreads()` across blocks.",
   "tags": [
    "ml-systems",
    "systems"
@@ -125,13 +139,21 @@
   "flow": "full",
   "prompt": "What problem does FlashAttention solve, and what is the key insight?",
   "src": {
-   "book": "pmpp",
-   "ref": "Attention optimization; roofline reasoning"
+   "book": "infereng",
+   "ref": "Ch.2 Models — Optimizing Attention",
+   "url": "https://inferenceengineering.tech/chapters/models/",
+   "anchor": "optimizing-attention"
   },
-  "reveal": "Standard attention materializes the full N×N attention matrix in HBM, so memory traffic — not arithmetic — dominates, and memory grows quadratically with sequence length. FlashAttention never materializes it: it TILES the computation, loading blocks of Q, K, V into on-chip SRAM, computing partial attention there, and using an online (streaming) softmax that rescales running sums so results stay correct without seeing the whole row. Result: the same output with linear memory and far less HBM traffic — a pure memory-movement win, not a math change. It is the canonical example of IO-aware kernel design.",
+  "reveal": "Gist: **FlashAttention** makes attention faster without changing its math — by never writing the giant attention matrix to slow memory.\n\nStandard attention builds the full **N×N attention matrix** (N = sequence length; every token scored against every token) in **HBM**, the off-chip high-bandwidth memory, so **memory traffic** — not arithmetic — dominates, and that memory grows **quadratically** with sequence length. FlashAttention never materializes that matrix: it **tiles** the work, loading blocks of the Q, K, V matrices (queries, keys, values) into on-chip **SRAM**, computing partial attention there, and stitching the pieces with an **online (streaming) softmax** — a running normalization that rescales its partial sums as new blocks arrive, so the result stays exact without ever seeing a whole row at once.\n\n**The tell:** the same output with **linear** memory and far less HBM traffic — a pure memory-movement win, not a math change. It is the canonical **IO-aware** kernel: optimize the data movement, and the FLOPs take care of themselves.",
   "tags": [
    "ml-systems",
    "systems"
+  ],
+  "see": [
+   {
+    "label": "Dao et al. — FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness",
+    "url": "https://arxiv.org/abs/2205.14135"
+   }
   ]
  },
  {
@@ -140,10 +162,11 @@
   "flow": "full",
   "prompt": "What is kernel fusion and why does it help so much for elementwise chains?",
   "src": {
-   "book": "pmpp",
-   "ref": "Performance considerations; Horace He, Making DL Go Brrrr"
+   "book": "brrr",
+   "ref": "Making Deep Learning Go Brrrr — Bandwidth (operator fusion)",
+   "url": "https://horace.io/brrr_intro.html"
   },
-  "reveal": "Fusion combines several operations into one kernel so intermediate results stay in registers or shared memory instead of round-tripping through global memory. A chain like x → add → multiply → relu launched as three kernels reads and writes the whole tensor three times; fused, it reads once and writes once. Since elementwise ops have tiny arithmetic intensity, they are entirely bandwidth-bound — so cutting memory traffic by 3× cuts runtime by roughly 3×. This is why torch.compile, XLA, and TensorRT invest so heavily in fusion.",
+  "reveal": "Gist: **kernel fusion** merges several operations into one GPU kernel so the in-between results never leave fast memory.\n\nRun as separate kernels, a chain like x → add → multiply → **relu** (a simple activation) reads and writes the whole tensor **three times** through slow **global memory** — once per op. **Fused** into a single kernel, the intermediates stay in registers or shared memory, so it reads once and writes once. Because elementwise ops have tiny **arithmetic intensity** (little math per byte), they are entirely **bandwidth-bound** — runtime is set by memory traffic — so cutting that traffic ~3× cuts runtime ~3×.\n\n**The tell:** this is why `torch.compile`, **XLA**, and **TensorRT** pour so much effort into fusion — for memory-bound elementwise chains, fewer memory round-trips is almost the whole game.",
   "tags": [
    "ml-systems",
    "systems"
@@ -155,10 +178,12 @@
   "flow": "full",
   "prompt": "Why is LLM training compute-bound while single-stream inference is memory-bound?",
   "src": {
-   "book": "pmpp",
-   "ref": "Roofline; inference vs training"
+   "book": "infereng",
+   "ref": "Ch.2 Models — LLM Inference Bottlenecks (prefill vs decode)",
+   "url": "https://inferenceengineering.tech/chapters/models/",
+   "anchor": "llm-inference-bottlenecks"
   },
-  "reveal": "Training processes large batches, so each weight loaded from memory is reused across many samples — arithmetic intensity is high and the GPU’s FLOPs are the limit. Autoregressive inference generates ONE token at a time: for each token you must stream the ENTIRE weight matrix from memory to do what is essentially a matrix-vector product, reusing each weight once. Intensity is near 1 FLOP per byte, so you are bandwidth-bound and the FLOPs sit idle. This is why inference optimizations target memory: quantization, batching, speculative decoding, and keeping weights in SRAM.",
+  "reveal": "Gist: **training** reuses each loaded weight across a whole batch, so it is limited by math; single-stream **inference** reuses each weight once, so it is limited by memory.\n\nTraining processes large **batches**, so a weight streamed once from memory feeds many samples — **arithmetic intensity** (math per byte) is high and the GPU's **FLOPs** are the ceiling: **compute-bound**. **Autoregressive** inference (generate one token, feed it back, repeat) emits **one token at a time**: to produce it you must stream the **entire weight matrix** from memory to do what is essentially a **matrix-vector** product, reusing each weight exactly once. Intensity is near 1 FLOP per byte, so you are **memory-bandwidth-bound** and the math units sit idle.\n\n**The tell:** because single-stream decode wastes the FLOPs and pays for the bytes, every inference trick targets *memory* — **quantization**, **batching**, **speculative decoding**, and keeping weights in **SRAM**.",
   "tags": [
    "ml-systems",
    "systems"
@@ -170,10 +195,12 @@
   "flow": "full",
   "prompt": "What does quantization do for inference, and why does it help more than the FLOP count suggests?",
   "src": {
-   "book": "pmpp",
-   "ref": "Inference optimization"
+   "book": "infereng",
+   "ref": "Ch.5 Techniques — Quantization",
+   "url": "https://inferenceengineering.tech/chapters/techniques/",
+   "anchor": "quantization"
   },
-  "reveal": "Quantization stores weights (and sometimes activations) in lower precision — INT8, FP8, INT4 — instead of FP16/FP32. It helps disproportionately because inference is MEMORY-bound: halving the bits halves the bytes streamed per token, so throughput roughly doubles even if the arithmetic units were never the bottleneck. Secondary benefits: the model fits in less HBM (or fits on fewer GPUs), and modern tensor cores have faster low-precision paths. The risk is accuracy loss, mitigated by per-channel scales, outlier handling (some activations have extreme values), and quantization-aware training.",
+  "reveal": "Gist: **quantization** stores the model's numbers in fewer bits, and it speeds inference far more than the FLOP count would suggest — because inference is bottlenecked on memory, not math.\n\nIt keeps weights (and sometimes activations) in **lower precision** — **INT8**, **FP8**, or **INT4** (8-, 8-, and 4-bit) instead of **FP16/FP32** (16- or 32-bit floats). Since decode is **memory-bound**, halving the bits halves the **bytes streamed per token**, so throughput roughly **doubles** even though the arithmetic units were never the bottleneck. Two bonuses: the model fits in less **HBM** (or on fewer GPUs), and modern **tensor cores** have faster low-precision paths.\n\n**The tell — the catch:** accuracy loss, fought with **per-channel scales** (a separate scale factor per weight channel), **outlier handling** (a few activations carry extreme values that wreck naive scaling), and **quantization-aware training** (training the model to tolerate the rounding). Quant helps disproportionately *because* the win is fewer bytes moved, not fewer FLOPs.",
   "tags": [
    "ml-systems",
    "systems"
@@ -185,13 +212,21 @@
   "flow": "full",
   "prompt": "What is the KV cache, what does it cost, and what does it save?",
   "src": {
-   "book": "pmpp",
-   "ref": "Transformer inference"
+   "book": "infereng",
+   "ref": "Ch.2 Models — Attention (the KV cache)",
+   "url": "https://inferenceengineering.tech/chapters/models/",
+   "anchor": "attention"
   },
-  "reveal": "During autoregressive generation, each new token attends to all previous tokens — recomputing their keys and values every step would be quadratic. The KV cache stores past keys and values so each step only computes K and V for the NEW token: turning O(n²) recomputation into O(n) lookup. The cost is memory that grows linearly with sequence length × batch × layers × heads, and it often exceeds the model weights themselves for long contexts — which is why paged attention (vLLM) manages it like virtual memory, and why grouped-query attention shrinks it by sharing K/V across query heads.",
+  "reveal": "Gist: the **KV cache** stores the keys and values of past tokens so each new token does not have to recompute them — trading memory for a big cut in compute.\n\nDuring **autoregressive** generation (one token at a time), each new token attends to all previous tokens; recomputing every prior token's **keys and values** each step would be **quadratic** work. The KV cache saves those past K and V, so each step only computes K and V for the **new** token — turning O(n²) recomputation into O(n) lookup. The cost is memory that grows **linearly** with sequence length × batch × layers × heads, and at long context it often **exceeds the model weights themselves**.\n\n**The tell:** that is why **PagedAttention** (in vLLM) manages the cache like operating-system virtual memory, and why **grouped-query attention** shrinks it by sharing K/V across query heads — the KV cache, not the weights, is usually what caps your batch size.",
   "tags": [
    "ml-systems",
    "systems"
+  ],
+  "practice": [
+   {
+    "label": "Inference Engineering — KV Cache Size Calculator",
+    "url": "https://inferenceengineering.tech/exercises/kv-cache-sizing/"
+   }
   ]
  },
  {
@@ -200,10 +235,12 @@
   "flow": "full",
   "prompt": "Why does batching help inference throughput, and what is continuous batching?",
   "src": {
-   "book": "pmpp",
-   "ref": "Serving systems"
+   "book": "infereng",
+   "ref": "Ch.2 Models — Ops:Byte Ratio and Arithmetic Intensity (batching)",
+   "url": "https://inferenceengineering.tech/chapters/models/",
+   "anchor": "opsbyte-ratio-and-arithmetic-intensity"
   },
-  "reveal": "Batching amortizes the weight-streaming cost: loading a weight matrix once and applying it to B sequences turns a matrix-VECTOR product into a matrix-MATRIX product, raising arithmetic intensity roughly B× and moving you rightward on the roofline toward compute-bound. Static batching wastes capacity because all requests must finish together — short generations wait for the longest. CONTINUOUS (in-flight) batching evicts finished sequences and admits new ones at each decoding step, keeping the batch full and typically multiplying throughput several-fold at the same latency.",
+  "reveal": "Gist: **batching** lets one weight load serve many requests at once, which is what pushes inference off its memory bottleneck; **continuous batching** keeps that batch full at all times.\n\nLoading a weight matrix once and applying it to **B** sequences turns a matrix-**vector** product (one token) into a matrix-**matrix** product (B tokens), raising **arithmetic intensity** (math per byte) roughly **B×** and sliding you rightward on the roofline toward **compute-bound**. **Static** batching wastes capacity: every request in the batch must finish together, so short generations idle while the longest one runs. **Continuous (in-flight) batching** instead evicts finished sequences and admits new ones at *each* decoding step, keeping the batch full.\n\n**The tell:** continuous batching typically **multiplies throughput several-fold at the same latency** — the batch is never left half-empty waiting on stragglers.",
   "tags": [
    "ml-systems",
    "systems"
@@ -215,10 +252,12 @@
   "flow": "full",
   "prompt": "Distinguish data, tensor, and pipeline parallelism. What does each cost in communication?",
   "src": {
-   "book": "pmpp",
-   "ref": "Distributed training; How to Scale Your Model"
+   "book": "scaling",
+   "ref": "Ch.5 How to Parallelize a Transformer for Training",
+   "url": "https://jax-ml.github.io/scaling-book/training",
+   "anchor": "data-parallelism"
   },
-  "reveal": "DATA parallelism replicates the model and splits the batch; each step ends with an all-reduce of gradients — communication proportional to model size, per step. TENSOR parallelism splits individual matrices across GPUs, so a single layer’s forward pass needs an all-reduce of ACTIVATIONS — very frequent and latency-sensitive, so it is normally confined within one node over NVLink. PIPELINE parallelism assigns different LAYERS to different GPUs, communicating only activations at stage boundaries — cheap bandwidth-wise but introduces the pipeline BUBBLE (idle stages), mitigated by splitting the batch into micro-batches. Large runs combine all three (3D parallelism).",
+  "reveal": "Gist: three ways to split a model across GPUs — **data**, **tensor**, and **pipeline** parallelism — and each pays a different communication bill.\n\n**Data parallelism** replicates the whole model on each GPU and splits the **batch**; every step ends with an **all-reduce** of gradients (a collective that sums each GPU's gradients and shares the result) — traffic proportional to **model size**, once per step. **Tensor parallelism** splits individual weight **matrices** across GPUs, so a single layer's forward pass needs an all-reduce of **activations** — very frequent and latency-sensitive, so it is normally kept **within one node** over the fast **NVLink** interconnect. **Pipeline parallelism** puts different **layers** on different GPUs and communicates activations only at the **stage boundaries** — cheap on bandwidth, but it introduces the **pipeline bubble** (stages idle waiting for work), softened by splitting the batch into **micro-batches**.\n\n**The tell:** the three trade differently, so large runs combine all of them — **3D parallelism**. Match the split to its cost: data → gradient all-reduce; tensor → activation all-reduce (keep it on NVLink); pipeline → cheap but bubbly.",
   "tags": [
    "ml-systems",
    "systems"
@@ -230,10 +269,11 @@
   "flow": "full",
   "prompt": "What is a systolic array and how does a TPU differ from a GPU architecturally?",
   "src": {
-   "book": "pmpp",
-   "ref": "TPU / accelerator architecture"
+   "book": "scaling",
+   "ref": "Ch.2 How to Think About TPUs — the MXU systolic array",
+   "url": "https://jax-ml.github.io/scaling-book/tpus"
   },
-  "reveal": "A systolic array is a grid of simple multiply-accumulate cells where data flows RHYTHMICALLY between neighbours: each cell receives operands from its neighbours, does one MAC, and passes them along. Because operands move directly cell-to-cell, one memory read feeds many computations — enormous data reuse with almost no register-file or cache traffic. A TPU is built around this large matrix unit plus big on-chip memory and a simpler control model, optimized narrowly for dense matmul; a GPU is a more general many-core SIMT machine with caches and flexible branching, so it handles a much wider range of workloads at lower matmul efficiency.",
+  "reveal": "Gist: a **systolic array** is a grid of tiny multiply-add cells that pass data hand-to-hand, so one memory read feeds many operations; a **TPU** is a chip built around one big such array.\n\nIn a systolic array, data flows **rhythmically** between neighbouring cells (the name is from 'systole,' a heartbeat): each **MAC cell** (multiply-accumulate) takes operands from its neighbours, does one multiply-add, and passes them along. Because operands travel **directly cell-to-cell**, a single memory read is reused across many computations — huge data reuse with almost no register-file or cache traffic. A **TPU** (Tensor Processing Unit) is built around one large matrix unit like this, plus big on-chip memory and a **simpler control model**, optimized narrowly for dense **matmul**.\n\n**The tell — the contrast:** a **GPU** is a more general many-core **SIMT** machine (Single Instruction, Multiple Threads) with caches and flexible branching, so it handles a far wider range of workloads — at lower peak matmul efficiency than a TPU. Systolic array = maximize reuse of each fetched operand.",
   "tags": [
    "ml-systems",
    "systems"
@@ -245,10 +285,12 @@
   "flow": "full",
   "prompt": "Why do Cerebras and Tenstorrent emphasize on-chip SRAM? State the core economic argument.",
   "src": {
-   "book": "pmpp",
-   "ref": "Accelerator architecture; Cerebras/Tenstorrent"
+   "book": "infereng",
+   "ref": "Ch.3 Hardware — Other Datacenter Accelerators",
+   "url": "https://inferenceengineering.tech/chapters/hardware/",
+   "anchor": "other-datacenter-accelerators"
   },
-  "reveal": "Moving a byte from off-chip DRAM (HBM) costs roughly two orders of magnitude more energy and far more latency than reading it from on-chip SRAM. Since inference is dominated by streaming weights, the machine’s speed is set by memory bandwidth, not FLOPs. If the weights live in SRAM NEXT TO the compute, that trip disappears entirely — the wafer-scale (Cerebras) and distributed-SRAM-per-core (Tenstorrent) designs are both bets on this. The economic argument: HBM is expensive and supply-constrained, so an architecture that needs less of it can undercut GPU pricing while being faster on memory-bound work.",
+  "reveal": "Gist: **Cerebras** and **Tenstorrent** bet on keeping weights in on-chip **SRAM** because fetching a byte from off-chip memory costs far more than reading it from on-chip — and inference is all about fetching weights.\n\nMoving a byte from off-chip **DRAM** (the **HBM**, high-bandwidth memory) costs roughly **two orders of magnitude** more energy — and far more latency — than reading it from on-chip **SRAM** (the fast static memory right next to the compute). Since inference is dominated by **streaming weights**, the machine's speed is set by **memory bandwidth**, not FLOPs. Put the weights in SRAM **next to** the compute and that expensive trip disappears — **Cerebras** does it with a **wafer-scale** chip; **Tenstorrent** with **distributed SRAM per core**.\n\n**The tell — the economic argument:** HBM is **expensive and supply-constrained**, so an architecture that needs less of it can undercut GPU pricing while running *faster* on memory-bound work. On-chip SRAM is a bet against the HBM bottleneck.",
   "tags": [
    "ml-systems",
    "systems"
@@ -258,12 +300,12 @@
   "id": "gp-amdahl-15",
   "mins": 15,
   "flow": "full",
-  "prompt": "State Amdahl’s law and what it implies about GPU acceleration of a mixed workload.",
+  "prompt": "State Amdahl's law and what it implies about GPU acceleration of a mixed workload.",
   "src": {
    "book": "pmpp",
-   "ref": "Ch.1 / parallel performance limits"
+   "ref": "Ch.1 Introduction — Amdahl's law and the limits of speedup"
   },
-  "reveal": "Speedup = 1 / ((1−p) + p/s), where p is the parallelizable fraction and s the speedup on that portion. The implication is brutal: if 10% of your runtime is inherently serial, the maximum possible speedup is 10× no matter how fast the GPU is. For a mixed workload this means the bottleneck migrates — accelerate the matmul and suddenly data loading, Python overhead, or the CPU-GPU transfer dominates. It is the reason profiling before optimizing matters, and why end-to-end wins usually require removing serial sections, not just making the parallel part faster.",
+  "reveal": "Gist: **Amdahl's law** says the serial part of your program caps your speedup no matter how fast the parallel part gets.\n\nThe formula: **Speedup = 1 / ((1 − p) + p/s)**, where **p** is the fraction of runtime that can be parallelized and **s** is the speedup achieved on that portion. The consequence is brutal: if just **10%** of your runtime is inherently **serial** (p = 0.9), the maximum possible speedup is **10×** — even with an infinitely fast GPU (s → ∞). For a mixed workload this means the **bottleneck migrates**: accelerate the matmul and suddenly data loading, Python overhead, or the CPU→GPU transfer dominates.\n\n**The tell:** this is why you **profile before optimizing**, and why end-to-end wins usually come from **removing serial sections**, not from making the already-parallel part even faster.",
   "tags": [
    "ml-systems",
    "systems"
@@ -276,9 +318,9 @@
   "prompt": "What is the cost of CPU–GPU data transfer and what techniques reduce it?",
   "src": {
    "book": "pmpp",
-   "ref": "Ch.2/Ch.20 (host-device transfer)"
+   "ref": "Ch.20 Programming a heterogeneous computing cluster — host–device transfer, pinned memory, streams"
   },
-  "reveal": "PCIe bandwidth is roughly an order of magnitude below on-device HBM bandwidth, so transfers easily become the bottleneck — a kernel that is fast on paper can be dominated by getting data to it. Reductions: use PINNED (page-locked) host memory so the DMA engine can transfer without staging; OVERLAP transfer and compute with CUDA streams so the next batch uploads while the current one computes; keep data resident on the device across many kernels instead of round-tripping; batch small transfers into large ones; and use unified/managed memory only where the access pattern justifies it.",
+  "reveal": "Gist: getting data across the **PCIe** bus between CPU and GPU is roughly 10× slower than the GPU's own memory, so transfers can quietly become the bottleneck.\n\n**PCIe** (the CPU–GPU interconnect) bandwidth is about an **order of magnitude below** on-device **HBM** bandwidth, so a kernel that is fast on paper can be dominated by just getting data to it. The fixes: use **pinned** (page-locked) host memory so the **DMA engine** (the copy hardware) can transfer without an extra staging step; **overlap** transfer and compute using **CUDA streams** (independent queues of work) so the next batch uploads while the current one computes; keep data **resident** on the device across many kernels instead of round-tripping; and **batch** many small transfers into one large one.\n\n**The tell:** reach for **unified/managed memory** (a single address space the runtime pages automatically) only where the access pattern justifies it — its convenience can hide expensive transfers. The through-line: move data less, and overlap the moves you cannot avoid.",
   "tags": [
    "ml-systems",
    "systems"
@@ -291,12 +333,18 @@
   "prompt": "How do you tell whether a GPU kernel is compute-bound or memory-bound in practice?",
   "src": {
    "book": "pmpp",
-   "ref": "Performance analysis"
+   "ref": "Ch.6 Performance considerations — analysis and profiling"
   },
-  "reveal": "Measure achieved FLOPs and achieved memory bandwidth, then compare each to the hardware peak: whichever is closer to its ceiling is your bound. Nsight Compute reports exactly this (SM throughput vs DRAM throughput) and often labels it directly. A quick analytical check first: compute arithmetic intensity by hand — total FLOPs divided by bytes moved — and compare it to the device’s FLOPs-per-byte ratio (~100+ for modern GPUs); below that you are memory-bound. If neither is near peak, you are LATENCY-bound: too few warps to hide memory latency, or a dependency chain serializing the work.",
+  "reveal": "Gist: to find a kernel's bottleneck, measure how close it gets to the hardware's two ceilings — peak FLOPs and peak memory bandwidth — and whichever it is hugging is your bound.\n\nMeasure **achieved FLOPs** and **achieved memory bandwidth**, then compare each to the hardware **peak**; the one nearer its ceiling is the limit. **Nsight Compute** (NVIDIA's kernel profiler) reports exactly this — **SM throughput** vs **DRAM throughput** — and often labels the bound directly. A quick analytical check first: compute **arithmetic intensity** by hand (total FLOPs ÷ bytes moved) and compare it to the device's **FLOPs-per-byte** ratio (~**100+** on modern GPUs); below that ratio you are **memory-bound**.\n\n**The tell — the often-missed third case:** if *neither* achieved number is near peak, you are **latency-bound** — too few **warps** to hide memory latency, or a dependency chain serializing the work. Do not optimize the math on a memory-bound kernel; confirm the bound first.",
   "tags": [
    "ml-systems",
    "systems"
+  ],
+  "practice": [
+   {
+    "label": "Inference Engineering — Arithmetic Intensity / Roofline Calculator",
+    "url": "https://inferenceengineering.tech/exercises/arithmetic-intensity"
+   }
   ]
  },
  {
@@ -306,12 +354,26 @@
   "prompt": "Back-of-envelope: how much VRAM do the WEIGHTS of an N-billion-parameter model take, and how does dtype change it? Work 7B and 70B across fp16, int8, int4.",
   "src": {
    "book": "infereng",
-   "ref": "VRAM budget — weight memory by dtype"
+   "ref": "Ch.2 Models — Calculating Inference Bottlenecks (weight memory)",
+   "url": "https://inferenceengineering.tech/chapters/models/",
+   "anchor": "calculating-inference-bottlenecks"
   },
-  "reveal": "Weight memory = params × bytes-per-param. The dtype sets the bytes: fp32 = 4, fp16/bf16 = 2, fp8/int8 = 1, int4 = 0.5. So the rule of thumb in fp16 is GB ≈ 2 × params(B): 7B → 14 GB, 70B → 140 GB. Halve the bits and you halve the footprint — 70B is 70 GB at int8, 35 GB at int4. This single number already tells you the GPU count: 70B fp16 (140 GB) does not fit one 80 GB H100, but 70B int4 (35 GB) does with room to spare — which is the whole point of quantizing for deployment.",
+  "reveal": "Gist: a model's **weights** take **params × bytes-per-param** of VRAM, and the data type sets the bytes — so in fp16 the rule of thumb is **GB ≈ 2 × the parameter count in billions**.\n\nBytes per parameter by **dtype**: **fp32** = 4, **fp16/bf16** = 2, **fp8/int8** = 1, **int4** = 0.5. So in fp16, **weight GB ≈ 2 × params(B)**: a **7B** model → **14 GB**, a **70B** → **140 GB**. Halve the bits and you halve the footprint — 70B is **70 GB** at int8 and **35 GB** at int4.\n\n**The tell:** this one number already tells you the GPU count. 70B in fp16 (140 GB) does **not** fit a single **80 GB H100**, but 70B at int4 (35 GB) fits with room to spare — which is the whole point of quantizing for deployment. Bytes-per-param × params, then check it against your GPU's HBM.",
   "tags": [
    "gpu",
    "mlsys"
+  ],
+  "practice": [
+   {
+    "label": "Inference Engineering — Interactive VRAM Calculator",
+    "url": "https://inferenceengineering.tech/exercises/vram-calculator"
+   }
+  ],
+  "see": [
+   {
+    "label": "APXML — LLM VRAM Calculator (Nvidia GPU and Apple Silicon)",
+    "url": "https://apxml.com/tools/vram-calculator"
+   }
   ]
  },
  {
@@ -321,12 +383,20 @@
   "prompt": "You are sizing a GPU to serve a model. List every term in the VRAM budget and how you decide whether it fits. What is easy to forget?",
   "src": {
    "book": "infereng",
-   "ref": "VRAM budget — will the model fit"
+   "ref": "Ch.2 Models — Calculating Inference Bottlenecks (the VRAM budget)",
+   "url": "https://inferenceengineering.tech/chapters/models/",
+   "anchor": "calculating-inference-bottlenecks"
   },
-  "reveal": "Total VRAM ≈ weights + KV cache + activations + runtime overhead. Weights = params × bytes/param (fixed). The KV cache is the term people forget: it scales with batch × sequence-length and at long context / high batch can EXCEED the weights (see the KV formula). Activations are transient and modest for decode but larger during prefill (proportional to prompt length × batch). Overhead is the CUDA context, framework buffers, and allocator fragmentation — budget 1–2 GB plus ~10–20% headroom. The fit check is: pick your max batch and context, sum the terms, and confirm it lands under HBM capacity with headroom — the KV term usually decides your achievable batch size, not the weights.",
+  "reveal": "Gist: the VRAM a served model needs is **weights + KV cache + activations + overhead** — and the term people forget, the KV cache, is often what actually decides whether it fits.\n\n**Weights** = params × bytes-per-param (fixed once you pick the dtype). The **KV cache** scales with **batch × sequence length** and at long context / high batch can **exceed the weights** (see the KV-cache formula). **Activations** are transient — modest during **decode** but larger during **prefill**, proportional to prompt length × batch. **Overhead** is the **CUDA context**, framework buffers, and allocator **fragmentation** — budget ~**1–2 GB** plus ~**10–20% headroom**.\n\n**The tell — the fit check:** pick your max batch and context, sum the four terms, and confirm the total lands under **HBM capacity** with headroom. The KV term — not the weights — usually caps your achievable batch size, so size for it first.",
   "tags": [
    "gpu",
    "mlsys"
+  ],
+  "practice": [
+   {
+    "label": "Inference Engineering — Interactive VRAM Calculator",
+    "url": "https://inferenceengineering.tech/exercises/vram-calculator"
+   }
   ]
  },
  {
@@ -336,12 +406,20 @@
   "prompt": "Write the KV-cache size formula and compute it for Llama-2-7B (32 layers, hidden 4096, MHA, fp16) at 4096 tokens. Compare to the weights and show why it dominates long context.",
   "src": {
    "book": "infereng",
-   "ref": "KV cache size formula"
+   "ref": "Ch.2 Models — Attention (KV cache sizing)",
+   "url": "https://inferenceengineering.tech/chapters/models/",
+   "anchor": "attention"
   },
-  "reveal": "KV bytes = 2 (K and V) × layers × n_kv_heads × head_dim × seq × batch × bytes-per-elem; with MHA, n_kv_heads × head_dim = hidden, so it simplifies to 2 × layers × hidden × seq × batch × bytes. For 7B: 2 × 32 × 4096 × 2 bytes = 0.5 MiB PER TOKEN. At seq 4096 that is 2 GiB for a single sequence; at batch 32 it is ~64 GiB — far more than the 14 GB of weights. That linear-in-(seq × batch) growth is why the KV cache, not the weights, caps how much you can batch at long context, and why PagedAttention (vLLM) manages it like virtual memory and GQA shrinks it at the source.",
+  "reveal": "Gist: the KV cache costs **~0.5 MiB per token** for a 7B model — and because it grows with sequence × batch, at long context it dwarfs the 14 GB of weights.\n\nThe formula: **KV bytes = 2 (one K, one V) × layers × n_kv_heads × head_dim × seq × batch × bytes-per-element.** With standard **MHA** (multi-head attention), n_kv_heads × head_dim equals the hidden size, so it simplifies to **2 × layers × hidden × seq × batch × bytes**. For **Llama-2-7B** (32 layers, hidden 4096, fp16 = 2 bytes): 2 × 32 × 4096 × 2 = **0.5 MiB per token**. At **seq 4096** that is **2 GiB** for one sequence; at **batch 32**, about **64 GiB** — far past the **14 GB** of weights.\n\n**The tell:** that linear growth in (seq × batch) is why the **KV cache, not the weights, caps how much you can batch** at long context — and why **PagedAttention** (vLLM) manages it like virtual memory and **GQA** shrinks it at the source. Cache per token = 2 × layers × hidden × bytes; scale it by seq × batch.",
   "tags": [
    "gpu",
    "mlsys"
+  ],
+  "practice": [
+   {
+    "label": "Inference Engineering — KV Cache Size Calculator",
+    "url": "https://inferenceengineering.tech/exercises/kv-cache-sizing/"
+   }
   ]
  },
  {
@@ -350,13 +428,27 @@
   "flow": "full",
   "prompt": "Show that the arithmetic intensity of autoregressive decode is approximately equal to the batch size. What does that imply about how large a batch you need to stop being memory-bound?",
   "src": {
-   "book": "roofline",
-   "ref": "arithmetic intensity of decode"
+   "book": "infereng",
+   "ref": "Ch.2 Models — Ops:Byte Ratio and Arithmetic Intensity",
+   "url": "https://inferenceengineering.tech/chapters/models/",
+   "anchor": "opsbyte-ratio-and-arithmetic-intensity"
   },
-  "reveal": "For a weight matrix W (n×n) applied to B tokens, FLOPs = 2n²B while the bytes moved are dominated by streaming W once = 2n² (fp16). Intensity = 2n²B / 2n² = B FLOPs/byte — it equals the batch size. At batch 1 that is ~1, orders of magnitude below a modern GPU's ridge point (~300 FLOPs/byte), so decode is deeply memory-BANDWIDTH-bound and the tensor cores sit idle. To reach compute-bound you need B on the order of a few hundred; every batched request rides in on weights you already had to load, which is exactly why batching multiplies decode throughput at near-constant latency until the batch fills the compute roofline.",
+  "reveal": "Gist: in single-token decode, the **arithmetic intensity roughly equals the batch size** — so at batch 1 you are deeply memory-bound, and only a batch of a few hundred pushes you toward compute-bound.\n\nApply a weight matrix **W** (n×n) to **B** tokens: the math is **FLOPs = 2n²B**, but the bytes moved are dominated by **streaming W once = 2n²** (fp16). So **intensity = 2n²B / 2n² = B** FLOPs per byte — it *equals the batch size*. At **batch 1** that is ~1, orders of magnitude below a modern GPU's **ridge point** (~**300** FLOPs/byte), so decode is deeply **memory-bandwidth-bound** and the **tensor cores** sit idle.\n\n**The tell:** to reach compute-bound you need **B on the order of a few hundred**, and every batched request rides in on weights you already had to load. That is exactly why **batching multiplies decode throughput at near-constant latency** — until the batch is big enough to hit the compute roofline.",
   "tags": [
    "gpu",
    "mlsys"
+  ],
+  "practice": [
+   {
+    "label": "Inference Engineering — Arithmetic Intensity / Roofline Calculator",
+    "url": "https://inferenceengineering.tech/exercises/arithmetic-intensity"
+   }
+  ],
+  "see": [
+   {
+    "label": "How to Scale Your Model — Ch.1 Roofline Analysis",
+    "url": "https://jax-ml.github.io/scaling-book/roofline"
+   }
   ]
  },
  {
@@ -365,13 +457,21 @@
   "flow": "full",
   "prompt": "What is the roofline 'ridge point', how do you compute it for an H100, and where does batch-1 LLM decode land relative to it?",
   "src": {
-   "book": "roofline",
-   "ref": "roofline ridge point for inference"
+   "book": "scaling",
+   "ref": "Ch.1 Roofline Analysis — peak arithmetic intensity (the ridge point)",
+   "url": "https://jax-ml.github.io/scaling-book/roofline",
+   "anchor": "where-does-the-time-go"
   },
-  "reveal": "The ridge point is the arithmetic intensity where the two roofs cross = peak FLOPs ÷ peak memory bandwidth; below it you are memory-bound, above it compute-bound. For an H100 SXM: ~990 TFLOP/s dense fp16 ÷ ~3.35 TB/s HBM3 ≈ ~295 FLOPs/byte. So a kernel must reuse each byte ~300 times to saturate the math units. Batch-1 decode has intensity ~1–2 — roughly 150× to the LEFT of the ridge, so it runs at a tiny fraction of peak FLOPs and its speed is set purely by HBM bandwidth. That gap is the headroom every inference trick (batching, quantization, speculative decoding) is trying to claw back.",
+  "reveal": "Gist: the **ridge point** is the arithmetic intensity where a GPU stops being memory-limited and starts being compute-limited — for an H100 it is around **300 FLOPs per byte**, and batch-1 decode sits far to the left of it.\n\nIt is the intensity where the roofline's two roofs cross: **ridge = peak FLOPs ÷ peak memory bandwidth**. Below it you are **memory-bound**; above it **compute-bound**. For an **H100 SXM**: ~**990 TFLOP/s** dense fp16 ÷ ~**3.35 TB/s** HBM3 ≈ **~295 FLOPs/byte**. So a kernel must reuse each byte ~**300 times** to saturate the math units. **Batch-1 decode** has intensity ~**1–2** — roughly **150× to the left** of the ridge — so it runs at a tiny fraction of peak FLOPs, its speed set purely by **HBM bandwidth**.\n\n**The tell:** that ~150× gap is the headroom every inference trick — **batching**, **quantization**, **speculative decoding** — is trying to claw back. Ridge = peak-FLOPs ÷ peak-bandwidth; reuse each byte that many times, or you are memory-bound.",
   "tags": [
    "gpu",
    "mlsys"
+  ],
+  "practice": [
+   {
+    "label": "Inference Engineering — Arithmetic Intensity / Roofline Calculator",
+    "url": "https://inferenceengineering.tech/exercises/arithmetic-intensity"
+   }
   ]
  },
  {
@@ -381,12 +481,20 @@
   "prompt": "Prefill and decode are two different bottlenecks. Characterize each (resource bound, latency metric), explain why co-locating them on one GPU hurts, and what disaggregation does.",
   "src": {
    "book": "infereng",
-   "ref": "prefill vs decode; disaggregation"
+   "ref": "Ch.2 Models — LLM Inference Bottlenecks (prefill vs decode)",
+   "url": "https://inferenceengineering.tech/chapters/models/",
+   "anchor": "llm-inference-bottlenecks"
   },
-  "reveal": "PREFILL processes the whole prompt at once — a big matmul over N tokens with high arithmetic intensity, so it is COMPUTE-bound and sets Time-To-First-Token (TTFT), scaling with prompt length. DECODE emits one token per step, streaming all weights to produce a single token — MEMORY-bandwidth-bound, and it sets Time-Per-Output-Token (TPOT). On a shared GPU they interfere: a long prefill monopolizes the compute units and stalls in-flight decodes, spiking tail latency. Disaggregated serving (DistServe, Splitwise) runs prefill on one GPU pool and decode on another, shipping the KV cache between them — so each phase is batched and scaled for its own bottleneck, and a burst of long prompts no longer jitters everyone's token stream.",
+  "reveal": "Gist: inference has **two** bottlenecks — **prefill** is compute-bound and sets how fast the first token appears; **decode** is memory-bound and sets how fast the rest stream out. Running both on one GPU makes them fight.\n\n**Prefill** processes the whole prompt at once — a big matmul over N tokens with **high arithmetic intensity** — so it is **compute-bound** and sets **TTFT** (Time-To-First-Token), scaling with prompt length. **Decode** emits one token per step, streaming all weights to make a single token — **memory-bandwidth-bound**, and it sets **TPOT** (Time-Per-Output-Token). On a shared GPU they interfere: a long prefill **monopolizes the compute units** and stalls in-flight decodes, spiking **tail latency**.\n\n**The tell:** **disaggregated serving** (**DistServe**, **Splitwise**) runs prefill on one GPU pool and decode on another, shipping the **KV cache** between them — so each phase is batched and scaled for its own bottleneck, and a burst of long prompts no longer jitters everyone's token stream. Two phases, two bounds, two metrics (TTFT vs TPOT) — separate them.",
   "tags": [
    "gpu",
    "mlsys"
+  ],
+  "see": [
+   {
+    "label": "Inference Engineering — Ch.5 Disaggregation",
+    "url": "https://inferenceengineering.tech/chapters/techniques/#disaggregation"
+   }
   ]
  },
  {
@@ -396,9 +504,11 @@
   "prompt": "Explain speculative decoding and, using the roofline, why it accelerates a MEMORY-bound decode. What determines the speedup, and what is the failure mode?",
   "src": {
    "book": "infereng",
-   "ref": "speculative decoding"
+   "ref": "Ch.5 Techniques — Speculative Decoding (draft-target)",
+   "url": "https://inferenceengineering.tech/chapters/techniques/",
+   "anchor": "speculative-decoding"
   },
-  "reveal": "A small cheap DRAFT model autoregressively proposes γ tokens; the big TARGET model then verifies all γ+1 in a SINGLE forward pass (parallel, like a mini-prefill), accepting the longest prefix that matches its own distribution and correcting the first mismatch. It wins because decode is bandwidth-bound: one streaming of the target's weights now yields several tokens instead of one, raising arithmetic intensity and amortizing the memory load — you convert several memory-bound steps into one more compute-dense step, output-identical to greedy/sampled target decoding. Speedup grows with the acceptance rate α (expected tokens per verify step ≈ (1−α^(γ+1))/(1−α), i.e. the accepted prefix plus 1 bonus token), typically 2–3×. Failure mode: a draft that is too slow or poorly aligned — low α means wasted draft work and little gain.",
+  "reveal": "Gist: **speculative decoding** speeds up memory-bound decode by having a small **draft** model guess several tokens, then letting the big **target** model check them all in one pass — turning several slow steps into one.\n\nA cheap **draft** model autoregressively proposes **γ** tokens; the big **target** model then verifies all **γ+1** in a **single forward pass** (parallel, like a mini-prefill), accepting the longest prefix that matches its own distribution and correcting the first mismatch. It wins because decode is **bandwidth-bound**: one streaming of the target's weights now yields several tokens instead of one, raising **arithmetic intensity** and amortizing the memory load — several memory-bound steps become one more compute-dense step, **output-identical** to ordinary greedy/sampled target decoding.\n\n**The tell:** speedup grows with the **acceptance rate α** — expected tokens per verify step ≈ **(1 − α^(γ+1)) / (1 − α)** (the accepted prefix plus one bonus token) — typically **2–3×**. The failure mode: a draft that is too slow or poorly aligned means low α — wasted draft work and little gain. One weight-load, many tokens, same output.",
   "tags": [
    "gpu",
    "mlsys"
@@ -411,9 +521,11 @@
   "prompt": "Distinguish weight-only from weight-plus-activation quantization. Which one speeds up memory-bound decode, which is needed for compute-bound prefill, and why are activations harder to quantize?",
   "src": {
    "book": "infereng",
-   "ref": "quantization — weight-only vs activation"
+   "ref": "Ch.5 Techniques — Quantization Approaches (weight-only vs activation)",
+   "url": "https://inferenceengineering.tech/chapters/techniques/",
+   "anchor": "quantization-approaches"
   },
-  "reveal": "WEIGHT-ONLY quant (GPTQ, AWQ; INT4/INT8 weights, fp16 activations, dequantize on the fly) shrinks the bytes streamed per token, so it directly speeds memory-bound DECODE and lets the model fit on fewer GPUs — but the matmul still runs in fp16 after dequant, so it does little for compute-bound PREFILL and adds dequant overhead. To accelerate compute you must ALSO quantize activations (INT8 both, or FP8) so the low-precision tensor cores do the math. The catch: activations carry outliers — a few channels with extreme magnitudes — that wreck naive scaling, which is why SmoothQuant migrates scale into the weights and per-token/per-channel scales are used. FP8 (E4M3) is popular because its floating range tolerates those outliers better than INT8 and is native on Hopper.",
+  "reveal": "Gist: **weight-only** quantization speeds up **decode** (a memory problem); to speed up **prefill** (a compute problem) you must **also** quantize the **activations** — and activations are the hard part.\n\n**Weight-only** quant (**GPTQ**, **AWQ**; INT4/INT8 weights, fp16 activations, **dequantized on the fly**) shrinks the bytes streamed per token, so it directly speeds **memory-bound decode** and lets the model fit on fewer GPUs — but the matmul still runs in **fp16** after dequant, so it does little for **compute-bound prefill** and adds dequant overhead. To accelerate the *compute*, you must **also quantize activations** (INT8 on both, or **FP8**) so the low-precision **tensor cores** do the math. The catch: activations carry **outliers** — a few channels with extreme magnitudes — that wreck naive scaling.\n\n**The tell:** that is why **SmoothQuant** migrates scale from activations into the weights, and why **per-token / per-channel** scales are used. **FP8 (E4M3)** is popular because its floating range tolerates those outliers better than INT8 and is native on **Hopper**. Weight-only → decode; weight+activation → prefill; activations are hard because of outliers.",
   "tags": [
    "gpu",
    "mlsys"
@@ -426,9 +538,11 @@
   "prompt": "A 70B model in fp16 is 140 GB — too big for one 80 GB GPU. Compare tensor vs pipeline parallelism for SERVING it: what each splits, its per-token communication cost, and its latency implication.",
   "src": {
    "book": "infereng",
-   "ref": "tensor vs pipeline parallelism for serving"
+   "ref": "Ch.5 Techniques — Model Parallelism (tensor vs pipeline)",
+   "url": "https://inferenceengineering.tech/chapters/techniques/",
+   "anchor": "model-parallelism"
   },
-  "reveal": "TENSOR parallelism shards each weight matrix (and the attention heads, hence the KV cache) across GPUs, so every layer needs an all-reduce of activations — roughly two per transformer block, per forward pass. That traffic is frequent and latency-critical, so TP is kept WITHIN a node over NVLink; it lowers per-GPU memory and per-token latency but only scales well to a node's worth of GPUs. PIPELINE parallelism assigns contiguous layer ranges to different GPUs and only ships activations at stage boundaries — tiny bandwidth, tolerant of slower cross-node links — but it does not cut single-request latency (a token still traverses all stages in sequence) and it introduces pipeline bubbles. Practical serving: TP within a node for latency, add PP across nodes only when the model exceeds one node.",
+  "reveal": "Gist: to serve a **70B fp16 model (140 GB)** that will not fit one **80 GB** GPU, **tensor** parallelism splits every matrix (low latency, but must stay inside a node) while **pipeline** parallelism splits layer-ranges (cheap comms, but no latency win).\n\n**Tensor parallelism** shards each weight **matrix** (and the attention heads, hence the **KV cache**) across GPUs, so every layer needs an **all-reduce of activations** — roughly two per transformer block, per forward pass. That traffic is frequent and latency-critical, so TP is kept **within a node** over **NVLink**; it lowers per-GPU memory *and* per-token latency, but only scales well to a node's worth of GPUs. **Pipeline parallelism** assigns contiguous **layer ranges** to different GPUs and ships activations only at **stage boundaries** — tiny bandwidth, tolerant of slower cross-node links — but it **does not cut single-request latency** (a token still traverses all stages in order) and it adds **pipeline bubbles**.\n\n**The tell — practical serving:** **TP within a node** for latency, then add **PP across nodes** only when the model exceeds one node. TP = frequent activation all-reduce (needs NVLink); PP = cheap but latency-neutral and bubbly.",
   "tags": [
    "gpu",
    "mlsys"
@@ -441,12 +555,20 @@
   "prompt": "How do multi-query and grouped-query attention shrink the KV cache, and by exactly what factor? Use Llama-2-70B as the example.",
   "src": {
    "book": "infereng",
-   "ref": "grouped-query attention KV reduction"
+   "ref": "Ch.2 Models — Attention (grouped-query / multi-query attention)",
+   "url": "https://inferenceengineering.tech/chapters/models/",
+   "anchor": "attention"
   },
-  "reveal": "The KV cache scales with the number of KV heads, not query heads. MHA gives every query head its own K/V (n_kv_heads = n_heads). MQA collapses to a SINGLE shared K/V head; GQA is the middle ground — G groups of query heads share one K/V head. So the cache shrinks by exactly n_heads / n_kv_heads. Llama-2-70B has 64 query heads but only 8 KV heads → an 8× smaller KV cache with negligible quality loss. That directly buys longer context or bigger batches within the same HBM — which is why essentially every modern long-context model ships with GQA.",
+  "reveal": "Gist: the KV cache grows with the number of **KV heads**, not query heads — so **grouped-query attention** shrinks it by exactly **n_heads / n_kv_heads**, which is **8×** for Llama-2-70B.\n\n**MHA** (multi-head attention) gives every **query head** its own K/V pair (n_kv_heads = n_heads). **MQA** (multi-query attention) collapses all of them to a **single** shared K/V head. **GQA** (grouped-query attention) is the middle ground — **G groups** of query heads each share one K/V head. So the cache shrinks by exactly **n_heads / n_kv_heads**. **Llama-2-70B** has **64 query heads** but only **8 KV heads** → an **8× smaller** KV cache, with negligible quality loss.\n\n**The tell:** that reduction buys **longer context or bigger batches** within the same HBM — which is why essentially every modern long-context model ships with **GQA**. Cache scales with KV heads; cut them, cut the cache.",
   "tags": [
    "gpu",
    "mlsys"
+  ],
+  "practice": [
+   {
+    "label": "Inference Engineering — KV Cache Size Calculator (MQA/GQA effect)",
+    "url": "https://inferenceengineering.tech/exercises/kv-cache-sizing/"
+   }
   ]
  }
 ]

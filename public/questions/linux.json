@@ -9,7 +9,13 @@
    "ref": "Ch.24 Process Creation",
    "page": 557
   },
-  "reveal": "fork() returns the child PID to the parent and 0 to the child (\u22121 on failure). The child gets a copy of the parent\u2019s address space, but modern kernels use copy-on-write: pages are shared read-only and only duplicated when either side writes, so the copy is lazy, not upfront.",
+  "reveal": "Gist: `fork()` clones the calling process into a near-identical child, and its **return value** is how each side learns which one it is — the parent gets back the child's **PID** (process ID, the kernel's number for the new process), the child gets `0`, and `-1` means the fork failed. The child receives a copy of the parent's **address space** — its entire memory image — but the copy is lazy, not upfront: modern kernels use **copy-on-write**, meaning parent and child share the same physical pages marked read-only, and the kernel only duplicates a page at the moment one side actually **writes** to it. **Tell:** the memory you “get” from fork costs nothing until you touch it.",
+  "see": [
+   {
+    "label": "man fork(2)",
+    "url": "https://man7.org/linux/man-pages/man2/fork.2.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -22,10 +28,20 @@
   "prompt": "Explain the three-level file-descriptor model: the per-process fd table, the open file table, and the inode table. Why does this structure make dup() and fork() behave the way they do?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.5 \u00a75.4 Relationship between file descriptors and open files",
+   "ref": "§5.4 Relationship between file descriptors and open files",
    "page": 138
   },
-  "reveal": "A file descriptor indexes the per-process fd table; each entry points to an open file description (system-wide) holding the offset and status flags; that points to the inode. dup() and fork() copy the fd entry but SHARE the open file description \u2014 so duplicated/inherited fds share a file offset (a write through one advances the other), whereas two independent open() calls to the same file get separate offsets.",
+  "reveal": "Gist: a file descriptor is just a small integer, but behind it the kernel stacks **three** tables — and that layering is exactly what explains why some open files share a position and others don't.\n\nThe three levels: (1) the **per-process fd table** — one table per process, indexed by the fd number you hold; each entry points to (2) an **open file description** — a system-wide object that holds the current **file offset** (where the next read or write lands) and the **status flags** (how the file was opened, e.g. read-only, append); which in turn points to (3) the **inode** — the kernel's record of the actual file on disk.\n\nNow the payoff. `dup()` (which copies a descriptor) and `fork()` (which copies a whole process) both duplicate the **fd-table entry**, but the copy still points at the **same** open file description. So the two descriptors **share one offset**: a write through one advances the position seen by the other. Contrast two independent `open()` calls on the same file — each builds its **own** open file description, so each gets a **separate** offset that moves independently.\n\n**Tell:** shared offset means a shared open file description (from `dup`/`fork`); independent offset means separate `open()` calls.",
+  "see": [
+   {
+    "label": "man dup(2)",
+    "url": "https://man7.org/linux/man-pages/man2/dup.2.html"
+   },
+   {
+    "label": "man open(2)",
+    "url": "https://man7.org/linux/man-pages/man2/open.2.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -41,7 +57,13 @@
    "ref": "Ch.63 Alternative I/O Models (epoll)",
    "page": 1369
   },
-  "reveal": "select()/poll() are O(n): every call re-passes and re-scans the entire fd set, so cost grows with total connections even if few are active. epoll keeps the interest set in the kernel and returns only ready fds \u2014 O(ready), not O(total). Level-triggered fires while data remains (simpler, poll-like); edge-triggered fires once on a readiness transition, so you must drain the fd fully (loop until EAGAIN) or you lose events \u2014 faster but easier to get wrong.",
+  "reveal": "Gist: to watch 10,000 sockets efficiently you want the kernel to hand you only the ones that are ready — not make you re-scan all 10,000 every time.\n\n`select()` and `poll()` are **O(n)** in the number of watched descriptors: on **every** call you pass the entire descriptor set into the kernel, and the kernel scans all of it to find the ready ones. So cost grows with the **total** number of connections even when only a handful are active — the wasted work is the whole set minus the few that matter.\n\n**epoll** flips this. You register your interest set **once** in a kernel data structure, then each wait returns **only the descriptors that are ready** — **O(ready)**, not O(total). That's what makes tens of thousands of mostly-idle connections practical.\n\nTwo readiness modes. **Level-triggered** fires as long as data remains — the forgiving, `poll`-like default: if you don't read everything this time, you'll be told again. **Edge-triggered** fires **once**, only on a readiness **transition** (not-ready → ready), so you must **drain** the descriptor completely — keep reading until you get `EAGAIN` (the “nothing left right now” error) — or you lose the event and hang waiting for a notification that never repeats. Edge is faster (fewer wakeups) but far easier to get wrong.",
+  "see": [
+   {
+    "label": "man epoll(7)",
+    "url": "https://man7.org/linux/man-pages/man7/epoll.7.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -54,10 +76,20 @@
   "prompt": "Walk through fork() and exec(). What does copy-on-write do, and what does fork return?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.24 Process creation; Ch.27 Program execution",
+   "ref": "Ch.24 Process Creation; Ch.27 Program Execution",
    "page": 557
   },
-  "reveal": "fork() creates a near-identical child process, returning the child\u2019s PID in the parent and 0 in the child (\u22121 on failure) \u2014 that return value is how the two branches distinguish themselves. Copy-on-write means the address space is not actually duplicated: both share the same physical pages marked read-only, and only when one WRITES does the kernel copy that page. exec() then replaces the process image entirely with a new program, keeping the PID and open file descriptors (which is exactly how shells set up redirection: fork, rearrange fds in the child, then exec).",
+  "reveal": "Gist: `fork()` makes a copy of the running process, and `exec()` throws away that copy's program and loads a new one in its place — the two together are how every new program gets launched on Unix.\n\n`fork()` creates a near-identical **child** process. Its **return value** is how the two branches tell themselves apart: it returns the child's **PID** (process ID) in the parent and `0` in the child (`-1` on failure). **Copy-on-write** means the child's address space isn't really duplicated up front — parent and child share the same physical pages marked read-only, and only when one side **writes** does the kernel copy that single page. So the fork is cheap; you pay only for what you actually modify.\n\n`exec()` then **replaces the process image entirely** — the old program's code and data are gone, swapped for the new program — while **keeping the same PID and the open file descriptors**. That inheritance is exactly how a shell sets up redirection: it `fork`s, rearranges the child's descriptors (point stdout at a file, say), and only **then** `exec`s the target program, which starts up already wired to the right files.",
+  "see": [
+   {
+    "label": "man execve(2)",
+    "url": "https://man7.org/linux/man-pages/man2/execve.2.html"
+   },
+   {
+    "label": "OSTEP · Interlude: Process API (fork/exec)",
+    "url": "https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-api.pdf"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -70,10 +102,20 @@
   "prompt": "What is a file descriptor, and what actually happens to descriptors across fork and exec?",
   "src": {
    "book": "tlpi",
-   "ref": "\u00a75.4 File descriptors and open files",
+   "ref": "§5.4 File descriptors and open files",
    "page": 138
   },
-  "reveal": "A file descriptor is a small integer index into the process\u2019s descriptor table; each entry points to an open file description (holding the offset and status flags), which in turn points to an inode. Across fork, the child gets a COPY of the descriptor table pointing at the SAME open file descriptions \u2014 so parent and child share the file offset, which is why interleaved writes behave surprisingly. Across exec, descriptors survive by default, which is how pipes and redirection work; set FD_CLOEXEC (or open with O_CLOEXEC) on anything the new program should not inherit.",
+  "reveal": "Gist: a file descriptor is a small integer handle, and what happens to it across `fork` and `exec` is the whole reason pipes and shell redirection work.\n\nConcretely, a **file descriptor** is a small integer that indexes the process's **descriptor table**; each entry points to an **open file description** (a kernel object holding the **file offset** — where the next read/write lands — and the status flags), which in turn points to an **inode**, the kernel's record of the real file.\n\nAcross **`fork`**, the child gets a **copy** of the descriptor table, but the copies point at the **same** open file descriptions — so parent and child **share the file offset**, which is why their interleaved writes to the same descriptor land in a surprising, intermixed order.\n\nAcross **`exec`**, descriptors **survive by default** — the new program inherits them — which is precisely how pipes and redirection keep working after the program is replaced. When you *don't* want that inheritance, set the **`FD_CLOEXEC`** flag (“close on exec”) on the descriptor, or open it with **`O_CLOEXEC`** in the first place, and the kernel closes it automatically at the next `exec`.",
+  "see": [
+   {
+    "label": "man open(2) (O_CLOEXEC)",
+    "url": "https://man7.org/linux/man-pages/man2/open.2.html"
+   },
+   {
+    "label": "man fcntl(2) (FD_CLOEXEC)",
+    "url": "https://man7.org/linux/man-pages/man2/fcntl.2.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -89,7 +131,17 @@
    "ref": "Ch.44 Pipes and FIFOs",
    "page": 933
   },
-  "reveal": "Call pipe() to get a read end and a write end. fork() twice. In the first child: dup2(writeEnd, STDOUT_FILENO) so its stdout becomes the pipe, close both original pipe fds, then exec a. In the second child: dup2(readEnd, STDIN_FILENO), close the originals, exec b. The parent closes BOTH ends \u2014 critical, because the reader only sees EOF when every write end in every process is closed; a forgotten open write end is the classic reason a pipeline hangs forever.",
+  "reveal": "Gist: a shell wires `a | b` by creating a pipe, forking both programs, and redirecting `a`'s output and `b`'s input into the two ends of that pipe.\n\nStep by step. Call **`pipe()`** to get two connected descriptors — a **read end** and a **write end**; bytes written to one come out the other. **`fork()` twice**, once per program. In the **first child** (which will run `a`): `dup2(writeEnd, STDOUT_FILENO)` so its standard output *becomes* the pipe's write end, then close both original pipe descriptors, then `exec` `a`. In the **second child** (which will run `b`): `dup2(readEnd, STDIN_FILENO)` so its standard input becomes the pipe's read end, close the originals, `exec` `b`.\n\nThe crucial part: the **parent must close BOTH ends** of the pipe. A reader only sees **EOF** (end of file — the signal that no more data is coming) once **every** write end, in **every** process, is closed. A single forgotten open write end — often one the parent itself still holds — means the reader waits forever for an EOF that never arrives. That leftover descriptor is the classic reason a pipeline **hangs**.",
+  "see": [
+   {
+    "label": "man pipe(2)",
+    "url": "https://man7.org/linux/man-pages/man2/pipe.2.html"
+   },
+   {
+    "label": "man pipe(7)",
+    "url": "https://man7.org/linux/man-pages/man7/pipe.7.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -102,10 +154,20 @@
   "prompt": "What is a signal, and what makes writing a signal handler dangerous?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.20\u201322 Signals",
+   "ref": "Ch.20–22 Signals",
    "page": 431
   },
-  "reveal": "A signal is an asynchronous notification delivered to a process (SIGINT, SIGTERM, SIGSEGV, SIGCHLD). A handler can interrupt the program at ALMOST ANY instruction, so it may run in the middle of a malloc or a printf and re-enter non-reentrant code, corrupting internal state or deadlocking. Only ASYNC-SIGNAL-SAFE functions may be called (write is safe, printf and malloc are not). The standard safe pattern is to set a volatile sig_atomic_t flag (or write a byte to a self-pipe / eventfd) and do the real work in the main loop.",
+  "reveal": "Gist: a signal is an **asynchronous** interruption — the kernel can pause your program at almost any instruction to run a handler — and that “almost any instruction” is exactly what makes handlers treacherous.\n\nA **signal** is a notification delivered to a process out of nowhere, not tied to your program's own flow: `SIGINT` (Ctrl-C), `SIGTERM` (polite kill request), `SIGSEGV` (bad memory access), `SIGCHLD` (a child process changed state). When one arrives, the kernel can suspend the program **mid-instruction** and jump into your handler.\n\nThe danger: that handler might fire in the **middle** of a `malloc` or a `printf`, then call the same function again — re-entering **non-reentrant** code (code that assumes it's never interrupted partway through) and corrupting its internal bookkeeping or deadlocking on a lock it already holds. So a handler may only call **async-signal-safe** functions — the specific set guaranteed safe to run in this interrupted context. `write` is safe; `printf` and `malloc` are **not**.\n\n**The standard safe pattern:** don't do real work in the handler. Just set a `volatile sig_atomic_t` flag (a variable type guaranteed to be updated in one uninterruptible step), or write a single byte to a **self-pipe** or **eventfd** (a descriptor your main loop is already watching), and let the **main loop** notice and do the actual work back in normal context.",
+  "see": [
+   {
+    "label": "man signal-safety(7)",
+    "url": "https://man7.org/linux/man-pages/man7/signal-safety.7.html"
+   },
+   {
+    "label": "man signal(7)",
+    "url": "https://man7.org/linux/man-pages/man7/signal.7.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -118,10 +180,20 @@
   "prompt": "Contrast select, poll, and epoll. What makes epoll scale, and what is edge- vs level-triggered?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.63 Alternative I/O models",
+   "ref": "Ch.63 Alternative I/O Models",
    "page": 1369
   },
-  "reveal": "select and poll require passing the ENTIRE descriptor set on every call and the kernel scans all of it \u2014 O(n) per call, and select is additionally capped at FD_SETSIZE. epoll registers interest ONCE in a kernel data structure and returns only the ready descriptors \u2014 O(ready), which is what makes 100k connections viable. LEVEL-triggered reports readiness as long as data remains (forgiving, poll-like semantics). EDGE-triggered reports only on a state CHANGE, so you must drain the socket until EAGAIN or you will hang waiting for an event that never repeats \u2014 faster, but the classic source of subtle bugs.",
+  "reveal": "Gist: `select` and `poll` make you re-hand the kernel your entire watch list on every call; `epoll` registers it once and returns only what's ready — which is what lets one thread ride herd on 100,000 connections.\n\n`select` and `poll` require passing the **entire** descriptor set into the kernel on **every** call, and the kernel scans all of it — **O(n)** per call in the number watched. `select` has an extra limit: it can't watch beyond **`FD_SETSIZE`** descriptors (typically 1024).\n\n`epoll` registers your interest **once** in a kernel data structure, then each wait returns **only the ready descriptors** — **O(ready)** rather than O(total). That shift from “rescan everything” to “report only the ready ones” is what makes 100k concurrent connections viable.\n\nTwo notification modes. **Level-triggered** reports readiness **as long as data remains** — forgiving, `poll`-like semantics: miss some this round and you'll be reminded next round. **Edge-triggered** reports **only on a state change** (not-ready → ready), fired once, so you must **drain the socket until `EAGAIN`** (the “nothing left for now” error) or you'll hang waiting for an event that never repeats. Edge-triggered is faster — fewer wakeups — but the classic source of subtle, hard-to-find bugs.",
+  "see": [
+   {
+    "label": "man epoll(7)",
+    "url": "https://man7.org/linux/man-pages/man7/epoll.7.html"
+   },
+   {
+    "label": "man select(2)",
+    "url": "https://man7.org/linux/man-pages/man2/select.2.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -134,10 +206,16 @@
   "prompt": "What does mmap do, and when is it better or worse than read/write?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.49 Memory mappings",
+   "ref": "Ch.49 Memory Mappings",
    "page": 1061
   },
-  "reveal": "mmap maps a file (or anonymous memory) into the process address space, so accessing memory triggers demand paging instead of explicit syscalls. Better when: random access to a large file (no syscall per access), sharing memory between processes, or avoiding a copy from kernel to user buffers. Worse when: sequential streaming (read with a large buffer is comparable and simpler), files smaller than a page (overhead dominates), or when you need precise error handling \u2014 an I/O error surfaces as SIGBUS at access time rather than a return code. It also makes page-fault latency unpredictable, which matters for latency-critical paths.",
+  "reveal": "Gist: `mmap` makes a file look like a chunk of your process's memory, so you read and write it with ordinary pointer accesses instead of `read`/`write` system calls.\n\nMechanically, `mmap` maps a file — or plain anonymous memory backed by nothing — into the process's **address space**. Touching that memory then triggers **demand paging** (the kernel pulls in each page on first access via a page fault) instead of an explicit syscall per operation.\n\n**Better when:** you do **random access** into a large file (no syscall on every access), you want to **share memory** between processes (they map the same file), or you want to **avoid the copy** from a kernel buffer into a user buffer that `read`/`write` performs.\n\n**Worse when:** you're **streaming sequentially** — a `read` into a large buffer is comparable in speed and simpler; the file is **smaller than a page** — mapping overhead dominates; or you need **precise error handling** — an I/O error surfaces as a **`SIGBUS`** signal at the moment you touch the page, rather than as a return code you can check. It also makes **page-fault latency unpredictable** (any access might block to fetch a page), which matters on latency-critical paths.",
+  "see": [
+   {
+    "label": "man mmap(2)",
+    "url": "https://man7.org/linux/man-pages/man2/mmap.2.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -150,10 +228,16 @@
   "prompt": "A process shows high VIRT but low RSS. Explain the difference between virtual size, RSS, and shared memory.",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.6 Processes / \u00a749 memory mappings",
+   "ref": "Ch.6 Processes (memory layout of a process); Ch.49 Memory Mappings",
    "page": 157
   },
-  "reveal": "VIRT (virtual size) is the total address space the process has RESERVED, including memory never touched, file mappings, and shared libraries \u2014 it costs page-table entries, not RAM. RSS (resident set size) is the physical RAM actually backing those pages right now, including shared pages. Because RSS counts shared libraries and shared memory in EVERY process that maps them, summing RSS across processes double-counts and can exceed total RAM. PSS (proportional set size) divides shared pages among sharers and is the honest per-process number.",
+  "reveal": "Gist: a process can **reserve** a huge address space while only a little of it is actually in RAM — that gap between reserved and resident is the whole point of the VIRT-versus-RSS distinction.\n\n**VIRT (virtual size)** is the **total address space the process has reserved** — including memory it allocated but never touched, mapped files, and every shared library it links. Reserving costs only **page-table entries**, not physical RAM, which is why VIRT can be enormous and mostly meaningless.\n\n**RSS (resident set size)** is the **physical RAM actually backing those pages right now**, shared pages included.\n\nThe catch with RSS: it **counts shared libraries and shared memory in full inside every process that maps them**. So if you **sum** RSS across all processes, the shared pages get **double-counted**, and the total can exceed the machine's real RAM — a common source of confusion. **PSS (proportional set size)** fixes this by **dividing each shared page's cost among the processes sharing it**, giving an honest per-process number that actually adds up.",
+  "see": [
+   {
+    "label": "man proc_pid_smaps(5) (RSS/PSS in /proc/[pid]/smaps)",
+    "url": "https://man7.org/linux/man-pages/man5/proc_pid_smaps.5.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -166,10 +250,20 @@
   "prompt": "What is memory overcommit and the OOM killer? Why can malloc succeed and the write still crash?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.7/49 (memory allocation)",
+   "ref": "Ch.7 Memory Allocation; Ch.49 Memory Mappings (overcommit and the OOM killer)",
    "page": 183
   },
-  "reveal": "Linux by default OVERCOMMITS: it grants virtual address space without reserving physical pages, betting that most programs do not touch everything they allocate. So malloc succeeds by adjusting the mapping, but physical pages are only assigned on FIRST TOUCH \u2014 if RAM is exhausted at that moment, the kernel invokes the OOM killer, which selects a victim by oom_score (roughly, memory footprint adjusted by oom_score_adj) and kills it. That is why a write to freshly allocated memory can die even though malloc returned non-null. Tune via /proc/sys/vm/overcommit_memory, or pre-touch and mlock memory in latency-critical processes.",
+  "reveal": "Gist: Linux hands out memory it doesn't actually have yet, betting you won't use all of it — so `malloc` can say “yes” and the machine can still run out when you finally **write** to that memory.\n\nBy default Linux **overcommits**: it grants **virtual** address space without reserving matching **physical** pages, gambling that most programs never touch everything they allocate. So `malloc` succeeds just by adjusting the process's mappings — no RAM is set aside. Physical pages are assigned only on **first touch** (the first read or write to each page). If RAM happens to be exhausted at that moment, the kernel invokes the **OOM killer** (out-of-memory killer), which picks a victim process by its **`oom_score`** — roughly its memory footprint, adjusted by the tunable **`oom_score_adj`** — and kills it.\n\nThat's the answer to the paradox: a **write** to freshly `malloc`'d memory can die even though `malloc` returned a non-null pointer — because the pointer only ever promised address space, and the page behind it wasn't real until you touched it.\n\n**Control it:** tune overcommit policy via `/proc/sys/vm/overcommit_memory`, or in a latency-critical process **pre-touch** every page and **`mlock`** it (lock it into RAM) so the pages are real and can never be reclaimed or fault mid-operation.",
+  "see": [
+   {
+    "label": "Linux kernel docs — Overcommit Accounting",
+    "url": "https://docs.kernel.org/mm/overcommit-accounting.html"
+   },
+   {
+    "label": "man mlock(2)",
+    "url": "https://man7.org/linux/man-pages/man2/mlock.2.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -182,10 +276,16 @@
   "prompt": "What is /proc, and name five things you would actually read from it while debugging.",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.12 System and process information",
+   "ref": "Ch.12 System and Process Information",
    "page": 267
   },
-  "reveal": "/proc is a virtual filesystem exposing kernel and process state as files \u2014 no disk behind it. Practical reads: /proc/<pid>/status (memory, threads, context-switch counts), /proc/<pid>/maps (address-space layout, useful for a segfault address), /proc/<pid>/fd/ (which files and sockets are open \u2014 finds descriptor leaks), /proc/<pid>/stack or /proc/<pid>/wchan (where a hung process is blocked in the kernel), /proc/meminfo and /proc/interrupts for system-wide pressure and interrupt distribution.",
+  "reveal": "Gist: `/proc` looks like a directory of files, but there's no disk behind it — each “file” is a live window the kernel generates on read, exposing its own state and every process's state as plain text.\n\nIt's a **virtual filesystem**: reading a path under `/proc` makes the kernel materialize the answer on the spot. Five things worth reading while debugging:\n\n- **`/proc/<pid>/status`** — memory use, thread count, and voluntary/involuntary context-switch counts (is the process getting starved of CPU?).\n- **`/proc/<pid>/maps`** — the full address-space layout: which ranges map which libraries and regions. Match a segfault's faulting address against this to see what it hit.\n- **`/proc/<pid>/fd/`** — every open file and socket, as symlinks. This is how you catch a **descriptor leak** (the count only ever climbing).\n- **`/proc/<pid>/stack`** or **`/proc/<pid>/wchan`** — where a **hung** process is blocked inside the kernel (which function it's parked in).\n- **`/proc/meminfo`** and **`/proc/interrupts`** — system-wide memory pressure, and how interrupts are distributed across CPUs.",
+  "see": [
+   {
+    "label": "man proc(5)",
+    "url": "https://man7.org/linux/man-pages/man5/proc.5.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -198,9 +298,19 @@
   "prompt": "When do you reach for strace, ltrace, perf, and gdb? Pick the tool for: a program that hangs.",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.1 (tooling); performance debugging"
+   "ref": "§1.3 The Linux programming environment (tooling overview)"
   },
-  "reveal": "strace \u2014 traces SYSCALLS; use it when the program interacts with the OS wrongly (missing file, blocked read, permission denied) and for a hang, because it shows the exact syscall it is stuck in. ltrace \u2014 library calls, rarely needed. perf \u2014 sampling profiler for CPU-bound problems: where time goes, cache misses, branch mispredicts. gdb \u2014 for logic bugs and crashes; also for a hang, attach with gdb -p and use thread apply all bt to see every thread\u2019s stack. For a HANG specifically: strace first (is it blocked in a syscall?), then gdb -p for the full picture, since a spinning-but-not-syscalling process shows nothing under strace.",
+  "reveal": "Gist: match the tool to the layer where the bug lives — the kernel boundary, library calls, CPU time, or program logic.\n\n- **`strace`** traces **system calls** — every request your program makes to the kernel. Reach for it when the program interacts with the OS wrongly (a missing file, a `read` that blocks, a permission denial), and especially for a **hang**, because it shows the exact syscall the program is stuck inside.\n- **`ltrace`** traces **library calls** instead of syscalls — occasionally handy, rarely the tool you need.\n- **`perf`** is a **sampling profiler** for **CPU-bound** problems: where time actually goes, plus cache misses and branch mispredictions.\n- **`gdb`** is the **debugger** for logic bugs and crashes; you can also attach it to a running process with `gdb -p <pid>` and run `thread apply all bt` to dump every thread's call stack.\n\n**For a hang specifically:** start with `strace` — is it blocked in a syscall? If `strace` shows **nothing**, the process is spinning in user code rather than waiting on the kernel, so switch to `gdb -p` to see the full picture of where it's looping.",
+  "see": [
+   {
+    "label": "man strace(1)",
+    "url": "https://man7.org/linux/man-pages/man1/strace.1.html"
+   },
+   {
+    "label": "man gdb(1)",
+    "url": "https://man7.org/linux/man-pages/man1/gdb.1.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -212,10 +322,21 @@
   "flow": "full",
   "prompt": "TCP vs UDP: state the guarantees and when a low-latency system deliberately chooses UDP.",
   "src": {
-   "book": "unp",
-   "ref": "Ch.58\u201361 Sockets (Stevens UNP)"
+   "book": "tlpi",
+   "ref": "Ch.58 Sockets: Fundamentals of TCP/IP Networks; Ch.59 Internet Domain Sockets",
+   "page": 1223
   },
-  "reveal": "TCP gives an ordered, reliable, connection-oriented byte STREAM with congestion and flow control \u2014 at the cost of head-of-line blocking (one lost packet stalls everything behind it), retransmission delay, and connection setup. UDP is an unreliable, unordered DATAGRAM service with essentially no overhead. Low-latency systems choose UDP (usually multicast) for market data because a retransmitted stale price is worthless \u2014 you would rather drop it and take the next update \u2014 and multicast delivers one send to many receivers. Order and gap detection are then handled by sequence numbers in the application protocol.",
+  "reveal": "Gist: TCP is a reliable ordered pipe that guarantees delivery at the cost of delay; UDP is a fire-and-forget message service that trades all those guarantees for the lowest possible latency.\n\n**TCP** gives an **ordered, reliable, connection-oriented byte stream** — bytes arrive in order, with none lost, over a connection you set up first — plus **congestion control** (backing off when the network is full) and **flow control** (not overrunning a slow receiver). The price: **head-of-line blocking** (one lost packet stalls everything queued behind it while TCP retransmits), retransmission delay, and connection-setup cost.\n\n**UDP** is an **unreliable, unordered datagram service** — discrete messages that may be dropped, duplicated, or reordered — with essentially **no overhead**.\n\nLow-latency systems deliberately choose **UDP (usually multicast)** for things like **market data** because a **retransmitted stale price is worthless** — you'd rather drop it and take the next update than wait for the old one to be resent — and **multicast** delivers a single send to many receivers at once. The application protocol then adds **sequence numbers** to detect gaps and reordering itself, keeping only the guarantees it actually needs.",
+  "see": [
+   {
+    "label": "man tcp(7)",
+    "url": "https://man7.org/linux/man-pages/man7/tcp.7.html"
+   },
+   {
+    "label": "man udp(7)",
+    "url": "https://man7.org/linux/man-pages/man7/udp.7.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -225,12 +346,19 @@
   "id": "lx-nagle-15",
   "mins": 15,
   "flow": "full",
-  "prompt": "What is Nagle\u2019s algorithm and delayed ACK, and why is their interaction a latency trap?",
+  "prompt": "What is Nagle’s algorithm and delayed ACK, and why is their interaction a latency trap?",
   "src": {
-   "book": "unp",
-   "ref": "Ch.61 Socket options (Stevens UNP)"
+   "book": "tlpi",
+   "ref": "Ch.61 Sockets: Advanced Topics (TCP_NODELAY / the Nagle algorithm)",
+   "page": 1297
   },
-  "reveal": "Nagle buffers small writes until the previous data is acknowledged, to avoid flooding the network with tiny packets. Delayed ACK makes the receiver wait (up to ~40 ms) before acknowledging, hoping to piggyback the ACK on a response. Together they DEADLOCK briefly: the sender waits for an ACK before sending its small write, and the receiver waits before sending the ACK \u2014 producing 40 ms latency spikes on request/response protocols. The fix is TCP_NODELAY to disable Nagle, which is standard in any latency-sensitive service.",
+  "reveal": "Gist: two separate TCP optimizations — one on the sender, one on the receiver — are each reasonable alone, but together they can stall a request/response exchange for ~40 milliseconds.\n\n**Nagle's algorithm** lives on the **sender**: it **buffers small writes** until the previously sent data has been acknowledged, so a chatty program can't flood the network with tiny one-byte packets. **Delayed ACK** lives on the **receiver**: it **waits** (up to ~40 ms) before sending an acknowledgment, hoping to **piggyback** that ACK onto an outgoing response and save a packet.\n\nPut them together and they **briefly deadlock**: the sender is holding its small write, waiting for an **ACK** before it sends more; the receiver is holding that ACK, waiting for a **response** to attach it to. Neither moves until the receiver's ~40 ms delayed-ACK timer finally expires — producing periodic **40 ms latency spikes** on exactly the request/response protocols where latency matters most.\n\n**The fix:** set **`TCP_NODELAY`** on the socket to disable Nagle, so small writes go out immediately. It's standard practice in any latency-sensitive service.",
+  "see": [
+   {
+    "label": "man tcp(7) (TCP_NODELAY)",
+    "url": "https://man7.org/linux/man-pages/man7/tcp.7.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -243,10 +371,20 @@
   "prompt": "What is CPU affinity and why do latency-critical systems pin threads? What else gets tuned alongside it?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.35 Process priorities and scheduling",
+   "ref": "Ch.35 Process Priorities and Scheduling",
    "page": 777
   },
-  "reveal": "Affinity binds a thread to specific cores (sched_setaffinity / taskset) so the scheduler cannot migrate it. Migration is expensive: the thread arrives on a new core with cold L1/L2 and a cold branch predictor, causing latency spikes. Pinning keeps the working set hot. Alongside it, latency-critical systems typically use isolcpus or cgroup cpusets to keep OTHER work off those cores, move device interrupts (IRQ affinity) to housekeeping cores, disable hyperthreading on the isolated cores, and set the CPU governor to performance so frequency does not drop during idle gaps.",
+  "reveal": "Gist: **CPU affinity** nails a thread to specific cores so the scheduler can't move it around — because every move throws away the caches that were making it fast.\n\nYou set affinity with **`sched_setaffinity`** (or the `taskset` command), **binding** a thread to a chosen core or set of cores; the scheduler is then forbidden to **migrate** it elsewhere. Migration is expensive: the thread lands on a new core with a **cold L1/L2 cache** and a **cold branch predictor** (both were warmed up on the old core and don't come along), so it stalls while they refill — a latency spike. Pinning keeps the thread's **working set hot** on one core.\n\nPinning alone isn't enough, so latency-critical systems tune around it: **`isolcpus`** or **cgroup cpusets** to keep *other* work off those cores; **IRQ affinity** to move device interrupts onto separate housekeeping cores so they don't interrupt the hot thread; **disabling hyperthreading** on the isolated cores so a sibling thread can't contend for the same physical core; and setting the **CPU governor to `performance`** so the clock frequency doesn't drop during brief idle gaps and leave you slow at the next burst.",
+  "see": [
+   {
+    "label": "man sched_setaffinity(2)",
+    "url": "https://man7.org/linux/man-pages/man2/sched_setaffinity.2.html"
+   },
+   {
+    "label": "man taskset(1)",
+    "url": "https://man7.org/linux/man-pages/man1/taskset.1.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -259,10 +397,16 @@
   "prompt": "Static vs dynamic linking: what is the runtime cost of dynamic linking, and is it only at startup?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.41\u201342 Shared libraries",
+   "ref": "Ch.41–42 Fundamentals of Shared Libraries",
    "page": 877
   },
-  "reveal": "Dynamic linking resolves symbols at load time (or lazily on first call via the PLT), so startup pays for relocation and symbol lookup across every shared object. It is NOT only at startup: every call into a shared library goes through the PLT/GOT indirection, so it cannot be inlined across the boundary, and lazy binding means the first call to each function does a resolver round trip. Static linking eliminates both, enables cross-module inlining and LTO, and gives more predictable latency \u2014 which is why HFT binaries are often statically linked, accepting the larger binary and loss of shared-library updates.",
+  "reveal": "Gist: dynamic linking defers wiring your program to its libraries until run time, and that convenience costs you both at startup **and** on every cross-library call — which is why latency-obsessed shops often link statically instead.\n\n**Dynamic linking** resolves symbols (matches each function name to its address) at **load time**, or **lazily** on the first call via the **PLT** (Procedure Linkage Table, the little trampoline that stands in for a not-yet-resolved function). So startup pays for **relocation** and **symbol lookup** across every shared object.\n\nAnd it's **not** only at startup. Every call into a shared library goes through **PLT/GOT indirection** (the GOT, Global Offset Table, holds the resolved address the trampoline jumps to) — an extra hop that **can't be inlined across the library boundary**, so the optimizer can't fuse caller and callee. Lazy binding also means the **first** call to each function pays a one-time resolver round trip.\n\n**Static linking** bakes the library code straight into the executable, eliminating both costs: it enables **cross-module inlining** and **LTO** (link-time optimization, whole-program optimization across what were separate files) and gives **more predictable latency**. That's why HFT binaries are often **statically linked** — accepting a larger binary and the loss of shared-library security/bug updates in exchange for speed and predictability.",
+  "see": [
+   {
+    "label": "man ld.so(8)",
+    "url": "https://man7.org/linux/man-pages/man8/ld.so.8.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"
@@ -275,10 +419,20 @@
   "prompt": "Which command shows you: open file descriptors of a process, listening sockets, and per-CPU interrupt counts?",
   "src": {
    "book": "tlpi",
-   "ref": "Ch.12 / system tooling",
+   "ref": "Ch.12 System and Process Information",
    "page": 267
   },
-  "reveal": "Open descriptors: ls -l /proc/<pid>/fd or lsof -p <pid>. Listening sockets: ss -ltnp (modern replacement for netstat -ltnp), which shows the process owning each port. Per-CPU interrupt counts: cat /proc/interrupts \u2014 useful for checking whether NIC interrupts are landing on the cores you intended, or all piling onto CPU0.",
+  "reveal": "Three quick diagnostics, one command each. **Open file descriptors** of a process: `ls -l /proc/<pid>/fd` or `lsof -p <pid>`. **Listening sockets:** `ss -ltnp` — the modern replacement for `netstat -ltnp` (l = listening, t = TCP, n = numeric ports, p = show the owning process). **Per-CPU interrupt counts:** `cat /proc/interrupts`, which breaks down interrupts by source and CPU — use it to confirm NIC interrupts are landing on the cores you intended rather than all piling onto CPU0. **Tell:** descriptors live under `/proc/<pid>/fd`; `ss` supersedes `netstat`.",
+  "see": [
+   {
+    "label": "man ss(8)",
+    "url": "https://man7.org/linux/man-pages/man8/ss.8.html"
+   },
+   {
+    "label": "man lsof(8)",
+    "url": "https://man7.org/linux/man-pages/man8/lsof.8.html"
+   }
+  ],
   "tags": [
    "systems",
    "linux"

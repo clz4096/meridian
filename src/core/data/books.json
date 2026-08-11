@@ -9,7 +9,7 @@
  },
  "kurose": {
   "t": "Computer Networking: A Top-Down Approach",
-  "u": "https://gaia.cs.umass.edu/kurose_ross/index.php"
+  "u": "https://raw.githubusercontent.com/CS-Edwards/textbooks/master/computer_network/Computer%20Networking%20A%20Top-Down%20Approach%208th%20Edition%20by%20James%20W.%20Kurose,%20Keith%20W.%20Ross.pdf"
  },
  "sysdesign": {
   "t": "System design — LOB, matching engine, pipelines",
@@ -57,7 +57,7 @@
  },
  "ddia": {
   "t": "Designing Data-Intensive Applications — Kleppmann",
-  "u": "https://dataintensive.net/"
+  "u": "https://0-lucas.github.io/digital-garden/99.-Books/Martin-Kleppmann---Designing-Data-Intensive-Applications_-O%E2%80%99Reilly-Media-(2017).pdf"
  },
  "ostep": {
   "t": "Operating Systems: Three Easy Pieces",
@@ -142,5 +142,41 @@
  "sipser": {
   "t": "Sipser — Introduction to the Theory of Computation, 3rd ed.",
   "u": "https://cs.brown.edu/courses/csci1810/fall-2023/resources/ch2_readings/Sipser_Introduction.to.the.Theory.of.Computation.3E.pdf"
+ },
+ "unp1": {
+  "t": "Stevens — UNIX Network Programming, Vol. 1 (Sockets API), 3rd ed.",
+  "u": "https://putregai.org/books/unix_netprog_v1.pdf"
+ },
+ "dapper": {
+  "t": "Dapper: a Large-Scale Distributed Systems Tracing Infrastructure — Sigelman et al. (Google, 2010)",
+  "u": "https://static.googleusercontent.com/media/research.google.com/en//archive/papers/dapper-2010-1.pdf"
+ },
+ "useindexluke": {
+  "t": "Use The Index, Luke! — Markus Winand",
+  "u": "https://use-the-index-luke.com/"
+ },
+ "aos": {
+  "t": "All of Statistics: A Concise Course in Statistical Inference — Wasserman",
+  "u": "https://www.stat.cmu.edu/~brian/valerie/617-2022/0%20-%20books/2004%20-%20wasserman%20-%20all%20of%20statistics.pdf"
+ },
+ "bh": {
+  "t": "Introduction to Probability — Blitzstein & Hwang (1st ed.)",
+  "u": "https://cdn.jsdelivr.net/gh/nevermind78/Proba_stat_4_LM@master/CH0/Joseph%20K.%20Blitzstein,%20Jessica%20Hwang-Introduction%20to%20Probability.pdf"
+ },
+ "islr": {
+  "t": "An Introduction to Statistical Learning (2nd ed.) — James, Witten, Hastie, Tibshirani",
+  "u": "https://www.stat.cmu.edu/~brian/BurkeBooks/James%20et%20al%20-%20ISLR/ISLR%20second%20edition.pdf"
+ },
+ "cppstr": {
+  "t": "C++ string handling (Wikipedia)",
+  "u": "https://en.wikipedia.org/wiki/C%2B%2B_string_handling"
+ },
+ "shunting": {
+  "t": "Shunting yard algorithm (Wikipedia)",
+  "u": "https://en.wikipedia.org/wiki/Shunting_yard_algorithm"
+ },
+ "sklearn": {
+  "t": "scikit-learn User Guide",
+  "u": "https://scikit-learn.org/stable/user_guide.html"
  }
 }

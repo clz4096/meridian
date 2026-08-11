@@ -4,14 +4,21 @@
   "mins": 15,
   "flow": "full",
   "prompt": "What does a database index actually store, and why can adding one make writes slower?",
+  "reveal": "Gist: an **index** is a small extra lookup table the database keeps on the side — a signpost from a column's value to the rows that hold it — so a query can jump straight to the matching rows instead of reading the whole table.\n\nConcretely it's a separate, **sorted** data structure (usually a **B+ tree** — a shallow, wide search tree) that maps each **key** (the indexed column's value) to the **locations** of the rows holding it. A lookup walks that tree from the top down in about **O(log n)** steps — the work grows with the tree's *depth*, which is only **logarithmic** in the row count (double the rows and you add barely a level), not **linear** the way a **full table scan** that reads every row does.\n\nWhy writes slow down: the index is a second copy of the data that has to stay in sync. Every `INSERT`, `UPDATE`, or `DELETE` on an indexed column must also update *every* index on that table — finding the right slot, sometimes **splitting** a full page in two and rebalancing, and writing those extra pages to disk.\n\n**The tradeoff (the tell):** an index buys faster reads by spending write throughput and storage. So you index the columns you actually **filter** and **join** on — not every column.",
   "src": {
-   "book": "dbsys",
-   "ref": "Readings in Database Systems \u2014 storage & indexing"
+   "book": "ddia",
+   "ref": "Ch.3 — Storage and Retrieval (indexes and the read/write tradeoff)",
+   "page": 91
   },
-  "reveal": "An index is a separate sorted structure (usually a B+ tree) mapping key values to row locations, so lookups become O(log n) tree descents instead of a full table scan. Writes get slower because every insert, update, or delete of an indexed column must also maintain every index on that table \u2014 splitting pages, rebalancing, and writing extra pages to disk. That is the core tradeoff: indexes trade write throughput and storage for read speed, which is why you index the columns you filter and join on, not every column.",
   "tags": [
    "databases",
    "systems"
+  ],
+  "see": [
+   {
+    "label": "Use The Index, Luke! — Anatomy of an Index",
+    "url": "https://use-the-index-luke.com/sql/anatomy"
+   }
   ]
  },
  {
@@ -19,11 +26,12 @@
   "mins": 15,
   "flow": "full",
   "prompt": "Why do databases use B+ trees rather than binary search trees or hash tables for their primary index?",
+  "reveal": "Gist: a database lives on disk, where the slow step is each **disk read (I/O)** — fetching one block from storage. A **B+ tree** wins because it finds any row in just **3–4 disk reads**, where a binary tree would need about 30.\n\nA **B+ tree** is a search tree shaped for disk. Each node is exactly one **disk page** (the fixed-size block the disk returns in a single read), and it packs a **high branching factor** — hundreds of keys, so hundreds of children per node. Since each level down multiplies the fan-out by hundreds, a table of billions of rows is only **3–4 levels deep**, so a lookup costs **3–4 I/Os** — versus the ~30 a **binary search tree** (just two children per node) would take over the same rows.\n\nAll the real values live in the **leaves** (the bottom level), and the leaves are **linked** side to side. So a range scan or an ordered read sweeps along them as one **sequential** read — the access pattern disks are fastest at.\n\nWhy not a hash index: a **hash index** gives **O(1)** point lookups (constant time, a single probe) but stores keys in no order, so it **can't do range queries or ordered traversal at all** — which is why it's only a secondary option, for exact-match lookups.\n\n**Tell:** the metric that decides it is the *number of disk I/Os*, not the number of comparisons.",
   "src": {
-   "book": "dbsys",
-   "ref": "Storage and indexing"
+   "book": "ddia",
+   "ref": "Ch.3 — B-Trees",
+   "page": 99
   },
-  "reveal": "B+ trees have a high branching factor (hundreds of keys per node), so a table of billions of rows is only 3\u20134 levels deep \u2014 and since each node is one disk page, a lookup costs 3\u20134 I/Os instead of the ~30 a binary tree would need. All values live in the LEAVES, which are linked, so range scans and ordered traversal are sequential reads. A hash index gives O(1) point lookups but cannot do ranges or ordering at all, which is why it is a secondary option.",
   "tags": [
    "databases",
    "systems"
@@ -34,11 +42,12 @@
   "mins": 5,
   "flow": "flip",
   "prompt": "Define ACID. Which letter is the one most commonly relaxed in distributed systems, and why?",
+  "reveal": "**ACID** names four guarantees a transaction makes. **Atomicity** — all-or-nothing: the whole transaction commits or none of it does. **Consistency** — it moves the database from one valid state to another, never breaking the rules you've declared on the data (constraints like \"this column can't be null\" or \"this balance can't go negative\"). **Isolation** — concurrent transactions don't step on each other; each runs as if it were alone. **Durability** — once committed, the data survives a crash. The letter most often relaxed in distributed systems is **consistency**, but specifically in the **CAP** sense of \"every read sees the latest write\" — traded away for **availability** when the network **partitions** (nodes can't reach each other). **Tell:** the `C` in ACID and the `C` in CAP are different things — a favorite interview trap.",
   "src": {
-   "book": "dbsys",
-   "ref": "Transactions"
+   "book": "ddia",
+   "ref": "Ch.7 — The Meaning of ACID",
+   "page": 237
   },
-  "reveal": "Atomicity (all or nothing), Consistency (the transaction moves the database between valid states), Isolation (concurrent transactions do not interfere), Durability (committed data survives a crash). CONSISTENCY \u2014 in the CAP sense of every read seeing the latest write \u2014 is the one most often relaxed in distributed systems, traded for availability under partition. Note the C in ACID and the C in CAP are different things, which is a favourite interview trap.",
   "tags": [
    "databases",
    "distributed"
@@ -49,14 +58,21 @@
   "mins": 30,
   "flow": "full",
   "prompt": "Name the SQL isolation levels and the anomaly each one permits.",
+  "reveal": "Gist: **isolation levels** are a dial. Turn it up and concurrent transactions interfere less; turn it down for more speed but let certain glitches — called **anomalies** — slip through. Each of the four standard SQL levels blocks one more anomaly than the one below it.\n\nWeakest to strongest, each named by the anomaly it still *permits*:\n\n- **READ UNCOMMITTED** permits a **dirty read** — seeing another transaction's changes *before* it commits, data that might still be rolled back.\n- **READ COMMITTED** blocks dirty reads (you see only committed data) but permits a **non-repeatable read** — read the same row twice in one transaction and get two different values, because someone committed a change in between.\n- **REPEATABLE READ** blocks non-repeatable reads too, but classically permits a **phantom** — a range query (say \"all orders over $100\") run twice returns *new* rows the second time, because another transaction inserted rows matching the filter.\n- **SERIALIZABLE** blocks all of the above: the outcome is guaranteed to match *some* order of running the transactions strictly **one at a time**.\n\nWhy not always pick the top: higher levels cost **concurrency** — more locking or more forced retries, so less throughput. That's why many systems (Postgres, Oracle, SQL Server) **default to READ COMMITTED** — though not all: MySQL's InnoDB engine defaults to REPEATABLE READ — and lean on the application to take explicit locks (like `SELECT ... FOR UPDATE`) exactly where correctness needs it.\n\n**Tell:** answer by naming the *anomaly* each level allows, not just the level.",
   "src": {
-   "book": "dbsys",
-   "ref": "Concurrency control"
+   "book": "ddia",
+   "ref": "Ch.7 — Weak Isolation Levels",
+   "page": 246
   },
-  "reveal": "READ UNCOMMITTED permits dirty reads (seeing another transaction\u2019s uncommitted data). READ COMMITTED prevents dirty reads but permits non-repeatable reads (the same row read twice returns different values). REPEATABLE READ prevents that but classically permits phantoms (a range query returns new rows on re-execution). SERIALIZABLE prevents all of them, behaving as if transactions ran one at a time. Higher levels cost concurrency, so most systems default to READ COMMITTED and rely on the application to lock explicitly where it matters.",
   "tags": [
    "databases",
    "systems"
+  ],
+  "see": [
+   {
+    "label": "PostgreSQL — Transaction Isolation",
+    "url": "https://www.postgresql.org/docs/current/transaction-iso.html"
+   }
   ]
  },
  {
@@ -64,14 +80,21 @@
   "mins": 15,
   "flow": "full",
   "prompt": "What is MVCC and what problem does it solve that locking does not?",
+  "reveal": "Gist: **MVCC** lets readers and writers stop fighting over the same row by keeping *several versions* of it at once — a reader calmly reads an old version while a writer creates a new one, so neither waits on the other.\n\n**MVCC** stands for **Multi-Version Concurrency Control**. Instead of one current value per row, the database stores **multiple versions**, each stamped with the ID of the transaction that created it (and, once deleted, the one that deleted it). When a transaction begins, it reads from a consistent **snapshot** — the set of row versions committed as of its start time — so it sees one stable picture even as others change the data.\n\nThe problem it solves: with plain **locking**, a reader's lock blocks writers and a writer's lock blocks readers, so work that could run in parallel gets **serialized** — forced single-file, which throttles throughput. Under MVCC, **readers never block writers and writers never block readers**; the only conflict left is **writer-versus-writer** on the same row.\n\n**The cost (the tell):** old versions pile up. You pay in **storage**, and you need a background **garbage-collection** pass — `VACUUM` in Postgres — to reclaim dead versions. That vacuum is a real operational concern: if it falls behind, the table **bloats**.",
   "src": {
-   "book": "dbsys",
-   "ref": "Concurrency control (multiversion)"
+   "book": "ddia",
+   "ref": "Ch.7 — Snapshot Isolation and MVCC",
+   "page": 250
   },
-  "reveal": "Multi-Version Concurrency Control keeps multiple versions of each row, each tagged with the transaction that created it, so a reader sees a consistent SNAPSHOT as of its start time. The problem it solves: with pure locking, readers block writers and writers block readers, which serializes throughput. Under MVCC readers never block writers and writers never block readers \u2014 only writer-writer conflicts need resolution. The cost is storage for old versions and a background vacuum/garbage-collection process to reclaim them, which is a real operational concern in Postgres.",
   "tags": [
    "databases",
    "systems"
+  ],
+  "see": [
+   {
+    "label": "PostgreSQL — Concurrency Control (MVCC)",
+    "url": "https://www.postgresql.org/docs/current/mvcc-intro.html"
+   }
   ]
  },
  {
@@ -79,14 +102,21 @@
   "mins": 15,
   "flow": "full",
   "prompt": "You have a slow query. Walk through your diagnostic process.",
+  "reveal": "Gist: don't guess why a query is slow — ask the database. `EXPLAIN ANALYZE` runs the query and returns its **execution plan**: the step-by-step recipe the engine actually used, annotated with real row counts and timings. You read the plan, fix the most expensive step, and re-measure.\n\nWhat to look for in the plan:\n\n- A **sequential scan** (reading the whole table row by row) on a large table where a filter *should* have hit an index — a missing or unused index.\n- A **row estimate** wildly different from the actual count — a sign of **stale statistics** (the database's outdated model of the data), fixed by running `ANALYZE` to refresh them.\n- A **nested-loop join** (for each row on one side, scan the other) over large inputs where a **hash join** (build a hash table once, then probe it) would be far cheaper.\n- A **sort spilling to disk** because it didn't fit in memory.\n\nThen inspect the query itself: is there an index on the columns you **filter** and **join** on; is the predicate **SARGable** — \"search-argument-able,\" meaning it can actually *use* an index (wrapping a column in a function, like `WHERE lower(email) = ...`, defeats the index on that column); and are you selecting far more **columns or rows** than you need.\n\n**Tell:** fix the single biggest cost node, re-measure, then repeat — one change at a time.",
   "src": {
-   "book": "dbsys",
-   "ref": "Query optimization"
+   "book": "useindexluke",
+   "ref": "Execution Plans",
+   "url": "https://use-the-index-luke.com/sql/explain-plan"
   },
-  "reveal": "Run EXPLAIN ANALYZE first \u2014 never guess. Look for: sequential scans on large tables where an index should apply, a row-estimate wildly different from actual rows (stale statistics \u2192 ANALYZE), nested-loop joins over large inputs where a hash join belongs, and sorts spilling to disk. Then check whether an index exists on the filter and join columns, whether the query is SARGable (wrapping a column in a function defeats its index), and whether you are selecting far more columns or rows than needed. Fix the biggest cost node, re-measure, repeat.",
   "tags": [
    "databases",
    "systems"
+  ],
+  "see": [
+   {
+    "label": "PostgreSQL — Using EXPLAIN",
+    "url": "https://www.postgresql.org/docs/current/using-explain.html"
+   }
   ]
  },
  {
@@ -94,11 +124,12 @@
   "mins": 15,
   "flow": "full",
   "prompt": "What does normalization buy you, and when is denormalizing the right call?",
+  "reveal": "Gist: **normalization** means storing each fact exactly once. Every piece of data lives in one place, and anything else that needs it refers to that place by ID rather than copying the value.\n\nThe payoff is no **redundancy**, which prevents **update anomalies** — the bug where the same value is duplicated across many rows, you change it in one and miss the others, and the database ends up disagreeing with itself. The cost is **joins**: because one real-world entity is split across tables, reassembling it means **joining** those tables back together, which can touch many of them for a single read.\n\n**Denormalize** — deliberately keep a redundant copy — when **reads dominate** and the data is **append-mostly or changes rarely**, so the update-anomaly risk is low: analytics tables, a **materialized view** (a query's result stored as a real table), or caching a computed count you'd otherwise recalculate constantly.\n\n**Tell:** the rule of thumb is *normalize until it hurts, denormalize until it works* — and always mark the denormalized copy as clearly **derived** from the normalized data, so there's exactly one **source of truth**.",
   "src": {
-   "book": "dbsys",
-   "ref": "Data modeling"
+   "book": "ddia",
+   "ref": "Ch.2 — Many-to-One and Many-to-Many Relationships (normalization)",
+   "page": 53
   },
-  "reveal": "Normalization eliminates redundancy so each fact lives in exactly one place \u2014 preventing update anomalies where the same value is changed in one row but not another. The cost is joins: reading a coherent entity may touch many tables. Denormalize when read performance dominates and the data is append-mostly or changes rarely \u2014 analytics tables, materialized views, caching a computed count. The rule of thumb: normalize until it hurts, denormalize until it works, and make the denormalized copy clearly derived so there is one source of truth.",
   "tags": [
    "databases"
   ]
@@ -108,11 +139,12 @@
   "mins": 5,
   "flow": "flip",
   "prompt": "What is the N+1 query problem and how do you fix it?",
+  "reveal": "The **N+1 problem**: you run **1** query to fetch N parent rows, then **1 more query per parent** to fetch its children — **N+1** round trips to the database, each paying network and query-parsing overhead. It's the classic **ORM** (object-relational mapper — the library that turns rows into objects) performance bug, because **lazy loading** fires those child queries invisibly as you loop over parents, so the code looks harmless. **Fix:** pull everything in one query with a `JOIN`, or **batch** — collect the parent IDs and issue a single `WHERE parent_id IN (...)`, then stitch children to parents in memory. **Tell:** most ORMs expose the fix as **eager loading** or a **dataloader**.",
   "src": {
-   "book": "dbsys",
-   "ref": "ORMs and access patterns"
+   "book": "useindexluke",
+   "ref": "The N+1 Selects Problem",
+   "url": "https://use-the-index-luke.com/sql/join/nested-loops-join-n1-problem"
   },
-  "reveal": "You run one query to fetch N parent rows, then one query per parent to fetch its children \u2014 N+1 round trips, each with network and parsing overhead. It is the classic ORM performance bug because lazy loading makes it invisible in the code. Fix by fetching children in a single query with a JOIN, or by batching: collect the parent ids and issue one WHERE parent_id IN (...) query, then stitch in memory. Most ORMs expose this as eager loading or a dataloader pattern.",
   "tags": [
    "databases"
   ]
@@ -122,14 +154,21 @@
   "mins": 15,
   "flow": "full",
   "prompt": "What is a write-ahead log and how does it deliver durability and crash recovery?",
+  "reveal": "Gist: a **write-ahead log (WAL)** is the trick that lets a database survive a crash mid-write: before touching the real data, it first writes down *what it's about to do*. Write it **ahead**, then do it.\n\nEvery change is first **appended** to a sequential **log** and flushed to durable storage *before* the change is applied to the actual data pages — hence write-**ahead**. Because the log is append-only it's fast (sequential writes, no seeking), and because it lands first, a crash in the middle of an update is recoverable: on restart the system **redoes** the committed transactions it finds in the log and **undoes** the uncommitted ones.\n\nThis **decouples** durability from the expensive part. To be durable you only have to `fsync` (force-to-disk) the small log; the costly **random writes** that update the scattered data pages can be flushed lazily later, at a **checkpoint**.\n\n**Why it matters beyond crashes (the tell):** the same log is the foundation of **replication** — a follower stays in sync simply by replaying the leader's log.",
   "src": {
-   "book": "dbsys",
-   "ref": "Recovery"
+   "book": "ddia",
+   "ref": "Ch.3 — Making B-trees reliable (the write-ahead log)",
+   "page": 102
   },
-  "reveal": "Before any change is applied to the data pages, the change is appended to a sequential log and flushed to durable storage \u2014 write-AHEAD. Because the log is sequential it is fast, and because it lands first, a crash mid-update is recoverable: on restart the system REDOES committed transactions found in the log and UNDOES uncommitted ones. This decouples durability (fsync the small log) from the expensive random writes of updating data pages, which can be flushed lazily at a checkpoint. It is also the foundation of replication \u2014 followers replay the leader\u2019s log.",
   "tags": [
    "databases",
    "distributed"
+  ],
+  "see": [
+   {
+    "label": "PostgreSQL — Write-Ahead Logging (WAL)",
+    "url": "https://www.postgresql.org/docs/current/wal-intro.html"
+   }
   ]
  },
  {
@@ -137,11 +176,12 @@
   "mins": 5,
   "flow": "flip",
   "prompt": "Contrast OLTP and OLAP workloads and the storage layout each favors.",
+  "reveal": "**OLTP** (online transaction processing) handles many small, latency-sensitive transactions that each touch a few rows — it favors **row-oriented** storage (a whole record sits together, so you fetch it in one go) plus B-tree indexes. **OLAP** (online analytic processing) scans huge numbers of rows but only a few columns, aggregating — it favors **columnar** storage: you read only the columns you need, and values within a column are similar so they **compress** extremely well (run-length, dictionary encoding), plus vectorized execution. **Tell:** trying to serve both from one database is exactly why the analytics replica or **data warehouse** exists.",
   "src": {
-   "book": "dbsys",
-   "ref": "Data warehousing"
+   "book": "ddia",
+   "ref": "Ch.3 — Transaction Processing or Analytics?",
+   "page": 109
   },
-  "reveal": "OLTP handles many small, latency-sensitive transactions touching a few rows each \u2014 favors ROW-oriented storage, since a whole record is fetched together, plus B-tree indexes. OLAP scans huge numbers of rows but few columns, aggregating \u2014 favors COLUMNAR storage, because you read only the columns you need and similar values compress extremely well (run-length, dictionary encoding), plus vectorized execution. Trying to serve both from one system is why the analytics replica or warehouse exists.",
   "tags": [
    "databases",
    "systems"
@@ -152,14 +192,21 @@
   "mins": 15,
   "flow": "full",
   "prompt": "How do databases detect and resolve deadlocks between transactions?",
+  "reveal": "Gist: a **deadlock** is a standoff — transaction A holds a lock B wants, while B holds a lock A wants, so both wait forever. The database breaks it by detecting the cycle and killing one transaction.\n\n**Detection:** the engine maintains a **waits-for graph** — an arrow from each blocked transaction to the one holding the lock it's waiting on. A **cycle** in that graph *is* a deadlock. On finding one it picks a **victim** — usually the transaction with the least work done or the fewest locks held — **aborts** it, releases its locks, and returns a deadlock error so the application can **retry**.\n\n**Alternative:** some systems skip the graph and just use **timeouts** — if a transaction waits too long, assume a deadlock and abort. Simpler, but less precise (it also kills transactions that were merely slow, not deadlocked).\n\n**Prevention (the tell):** it's the same rule as in concurrent programming — acquire locks in a consistent **global order** (so no cycle can form), and keep transactions **short** (less time holding locks, fewer collisions).",
   "src": {
-   "book": "dbsys",
-   "ref": "Concurrency control"
+   "book": "ddia",
+   "ref": "Ch.7 — Two-Phase Locking (deadlocks)",
+   "page": 271
   },
-  "reveal": "The engine maintains a WAITS-FOR graph of which transaction is blocked on which lock holder; a cycle in that graph is a deadlock. On detection it picks a VICTIM \u2014 typically the transaction with the least work done or fewest locks \u2014 aborts it, releases its locks, and returns a deadlock error so the application can retry. Some systems use timeouts instead of graph detection, which is simpler but less precise. Prevention is the same as in concurrent programming: acquire locks in a consistent global order, and keep transactions short.",
   "tags": [
    "databases",
    "systems"
+  ],
+  "see": [
+   {
+    "label": "PostgreSQL — Deadlocks",
+    "url": "https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-DEADLOCKS"
+   }
   ]
  },
  {
@@ -167,14 +214,21 @@
   "mins": 15,
   "flow": "full",
   "prompt": "You cache database rows in Redis. What are the consistency hazards and how do you handle invalidation?",
+  "reveal": "Gist: a cache is a *copy* of data whose real home is the database, so the whole hazard is the copy going **stale** — serving an old value after the database has moved on.\n\n**The hazards:** a **stale read** right after a write (the cache still holds the old value), and a nastier **race** — a slow read fetches the pre-update value from the database and then writes it into the cache *after* an invalidation already fired, leaving a permanently stale entry that no later invalidation clears.\n\n**Standard handling:**\n\n- Write to the database, then **DELETE** the cache key — don't *update* it. Deleting is **idempotent** (doing it twice is harmless) and sidesteps the ordering races that updating invites.\n- Set short **TTLs** (time-to-live — an expiry on each entry) as a backstop, so any invalidation you miss self-heals when the entry expires.\n- Use **versioned keys** so a stale write can't overwrite a newer version.\n- For strict cases, **read-through with single-flight** locking — only one request repopulates a missing key at a time — prevents both cache **stampedes** and the race above.\n\n**The frame that ties it together (the tell):** the database is the **source of truth** and the cache is **derived** data — always recreatable from it, never the authority.",
   "src": {
-   "book": "dbsys",
-   "ref": "Caching and derived data"
+   "book": "ddia",
+   "ref": "Part III — Systems of Record and Derived Data",
+   "page": 397
   },
-  "reveal": "Hazards: stale reads after a write, and a race where a slow read populates the cache with pre-update data AFTER an invalidation, leaving a permanently stale entry. Standard handling: write to the database, then DELETE the cache key (do not update it \u2014 deleting is idempotent and avoids ordering races); use short TTLs as a backstop so any missed invalidation self-heals; use versioned keys so a stale write cannot overwrite a newer version. For strict cases, read-through with single-flight locking prevents both stampedes and the race.",
   "tags": [
    "databases",
    "distributed"
+  ],
+  "see": [
+   {
+    "label": "AWS — Caching Best Practices",
+    "url": "https://aws.amazon.com/caching/best-practices/"
+   }
   ]
  }
 ]

@@ -1,9 +1,9 @@
 {
- "version": 7,
+ "version": 8,
  "topics": {
   "algorithms": {
    "file": "questions/algorithms.json",
-   "count": 22
+   "count": 35
   },
   "graph": {
    "file": "questions/graph.json",
@@ -15,11 +15,11 @@
   },
   "comparch": {
    "file": "questions/comparch.json",
-   "count": 22
+   "count": 33
   },
   "cpp": {
    "file": "questions/cpp.json",
-   "count": 23
+   "count": 31
   },
   "distributed": {
    "file": "questions/distributed.json",
@@ -35,15 +35,15 @@
   },
   "gpu": {
    "file": "questions/gpu.json",
-   "count": 20
+   "count": 30
   },
   "mlfund": {
    "file": "questions/mlfund.json",
-   "count": 19
+   "count": 31
   },
   "sysdesign": {
    "file": "questions/sysdesign.json",
-   "count": 12
+   "count": 29
   },
   "databases": {
    "file": "questions/databases.json",

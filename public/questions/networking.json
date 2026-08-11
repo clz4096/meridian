@@ -6,9 +6,16 @@
   "prompt": "Walk the TCP three-way handshake and connection teardown. Why does TIME_WAIT exist?",
   "src": {
    "book": "kurose",
-   "ref": "Computer Networking: A Top-Down Approach \u2014 Ch.3"
+   "ref": "§3.5.6 TCP Connection Management",
+   "page": 277
   },
-  "reveal": "Handshake: client SYN \u2192 server SYN-ACK \u2192 client ACK, establishing sequence numbers in both directions. Teardown is four-way: each side sends FIN and receives ACK independently, since the connection is full-duplex and one side may keep sending. TIME_WAIT (2\u00d7MSL on the side that closed first) exists for two reasons: to absorb a retransmitted FIN so the peer\u2019s close completes, and to prevent delayed packets from an old connection being delivered to a NEW connection reusing the same four-tuple. It is why a restarted server hits \"address already in use\" without SO_REUSEADDR.",
+  "reveal": "Gist: opening a TCP connection is a three-step hello, closing it is a four-step goodbye, and the side that closes first then waits a while before fully letting go — that wait is **TIME_WAIT**.\n\n**The three-way handshake** opens the connection: the client sends a **SYN** (a \"synchronize\" segment — a tiny TCP packet with the SYN flag set), the server replies with a **SYN-ACK** (its own SYN plus an acknowledgment), and the client sends a final **ACK**. Those three messages let both ends agree on starting **sequence numbers** — the byte counters TCP uses to order and reassemble the stream — in each direction. **Teardown is four-way**, not three: each side sends its own **FIN** (\"finished, I have no more data\") and gets an ACK back, independently. That's because a TCP connection is **full-duplex** — data flows both ways at once — so one side can close its half while the other keeps sending.\n\n**TIME_WAIT** is where the side that closed first lingers for **2×MSL** — twice the **Maximum Segment Lifetime**, the longest a packet is allowed to wander the network before it must be discarded. It exists for two reasons. First, to **absorb a retransmitted FIN**: if the peer's final ACK was lost, the peer resends its FIN, and you must still be around to ACK it so the peer's close can complete. Second, to keep **stray delayed packets from an old connection** out of a **new** connection that reuses the same **four-tuple** — source IP, source port, destination IP, destination port.\n\n**The tell:** TIME_WAIT is exactly why a just-restarted server gets **\"address already in use\"** until the old connection ages out — unless you set **SO_REUSEADDR** to rebind the port immediately.",
+  "see": [
+   {
+    "label": "RFC 9293 — Transmission Control Protocol (TCP)",
+    "url": "https://www.rfc-editor.org/rfc/rfc9293"
+   }
+  ],
   "tags": [
    "networking",
    "systems"
@@ -21,9 +28,16 @@
   "prompt": "Explain TCP congestion control: slow start, congestion avoidance, and what a loss signals.",
   "src": {
    "book": "kurose",
-   "ref": "Ch.3 Transport layer"
+   "ref": "§3.7 TCP Congestion Control",
+   "page": 294
   },
-  "reveal": "SLOW START grows the congestion window EXPONENTIALLY (doubling each RTT) until a threshold, probing capacity quickly. CONGESTION AVOIDANCE then grows it linearly (additive increase) to probe gently. A loss is interpreted as a congestion signal: three duplicate ACKs trigger fast retransmit and halve the window (multiplicative decrease); a timeout is treated as severe, collapsing the window to one. This AIMD behavior is what makes TCP fair and stable across shared links. Modern variants (CUBIC, BBR) change the growth function \u2014 BBR notably models bandwidth and RTT instead of treating loss as the only signal.",
+  "reveal": "Gist: TCP doesn't know the network's capacity, so it **probes** — ramp the send rate up fast, then gently, and back off hard the instant a packet is lost.\n\nThe sender keeps a **congestion window** (`cwnd`) — how many unacknowledged bytes it's willing to have in flight at once. **Slow start** grows it **exponentially**, doubling every **round-trip time** (RTT — one out-and-back message delay), to find the ceiling quickly; it stops at a **threshold**. **Congestion avoidance** then grows it **linearly** — about one segment's worth per RTT (**additive increase**) — probing gently now that it's near the limit. A **loss** is read as a congestion signal, and the reaction depends on how the loss shows up: **three duplicate ACKs** (the receiver re-acking the same byte, i.e. a single gap in an otherwise-arriving stream) trigger **fast retransmit** and **halve** the window (**multiplicative decrease**); a **timeout** (dead silence, nothing getting through) is treated as severe, collapsing the window to **one** segment and restarting slow start.\n\nThis additive-increase / multiplicative-decrease rhythm — **AIMD** — is what makes many competing TCP flows share a link **fairly and stably**.\n\n**The tell:** modern variants change the growth curve — **CUBIC** (window as a cubic function of time since the last loss) and **BBR**, which notably **models the link's bandwidth and RTT** directly instead of treating loss as the only congestion signal.",
+  "see": [
+   {
+    "label": "RFC 5681 — TCP Congestion Control",
+    "url": "https://www.rfc-editor.org/rfc/rfc5681"
+   }
+  ],
   "tags": [
    "networking",
    "systems"
@@ -36,9 +50,20 @@
   "prompt": "What is head-of-line blocking, and how do HTTP/2 and HTTP/3 each address it?",
   "src": {
    "book": "kurose",
-   "ref": "Ch.2 Application layer"
+   "ref": "§2.2.5 HTTP/2 (head-of-line blocking)",
+   "page": 142
   },
-  "reveal": "Head-of-line blocking is when one delayed item stalls everything queued behind it. HTTP/1.1 has it at the REQUEST level \u2014 one response must complete before the next on that connection. HTTP/2 fixes that with multiplexed streams over one connection, but reintroduces it at the TCP level: a single lost packet stalls ALL streams, because TCP must deliver bytes in order. HTTP/3 moves to QUIC over UDP, where each stream has independent delivery, so a loss affecting one stream does not block the others. It also folds the TLS handshake into the transport handshake, cutting setup round trips.",
+  "reveal": "Gist: **head-of-line (HOL) blocking** is one stuck item freezing everything lined up behind it — like a single slow shopper holding up the only open checkout lane. Each HTTP version pushes the blockage down a layer instead of removing it outright.\n\n**HTTP/1.1** blocks at the **request level**: on one connection, a response must finish before the next request's response can begin, so one slow response stalls all the rest. **HTTP/2** removes that by **multiplexing** many **streams** (independent request/response flows) over a single TCP connection — but it reintroduces HOL blocking one layer down, at **TCP**. Because TCP must deliver bytes **strictly in order**, a **single lost packet** stalls **every** stream until that one packet is retransmitted. **HTTP/3** fixes it by swapping the transport under HTTP from TCP to **QUIC** — a protocol built on **UDP** (the bare, connectionless transport with no ordering guarantee) that re-implements streams with **independent delivery**, so a loss affecting one stream no longer blocks the others.\n\n**The tell:** HTTP/3 also **folds the TLS security handshake into the transport handshake**, so connection setup costs fewer round trips than TCP-then-TLS did.",
+  "see": [
+   {
+    "label": "Cloudflare — HTTP/3: From root to tip",
+    "url": "https://blog.cloudflare.com/http-3-from-root-to-tip/"
+   },
+   {
+    "label": "RFC 9114 — HTTP/3",
+    "url": "https://www.rfc-editor.org/rfc/rfc9114"
+   }
+  ],
   "tags": [
    "networking",
    "systems"
@@ -51,9 +76,20 @@
   "prompt": "What does the TLS handshake accomplish, and what is the difference between a session key and the certificate keypair?",
   "src": {
    "book": "kurose",
-   "ref": "Ch.8 Security"
+   "ref": "§8.6 Securing TCP Connections: TLS",
+   "page": 673
   },
-  "reveal": "It authenticates the server (and optionally the client), negotiates the cipher suite, and establishes a shared SYMMETRIC session key. The certificate keypair is ASYMMETRIC and long-lived: the server proves it holds the private key matching the certificate a CA signed. That asymmetric operation is expensive, so it is used only to authenticate and to agree on a fresh short-lived SYMMETRIC session key (via ECDHE), which then encrypts the actual traffic cheaply. Ephemeral key exchange also gives forward secrecy \u2014 stealing the server key later does not decrypt past sessions.",
+  "reveal": "Gist: the **TLS handshake** does three jobs before any real data flows — it proves who the server is, agrees on the encryption settings, and secretly agrees on one shared key to encrypt the conversation. The clever part is that it uses two *different kinds* of key for two different jobs.\n\n**TLS** (Transport Layer Security — the protocol that encrypts web traffic) opens by **authenticating the server** (and optionally the client), **negotiating the cipher suite** (which encryption and hashing algorithms both sides will use), and establishing a shared **symmetric session key** — one secret key that both ends hold and use for both encrypting and decrypting.\n\nThe **certificate keypair** is a different animal: it's **asymmetric** (a public/private pair, where one key signs or encrypts and the *other* verifies or decrypts) and **long-lived**. The server proves it genuinely holds the **private key** matching the **certificate** that a **CA** — Certificate Authority, a trusted third party your browser already trusts — has signed. That asymmetric math is **expensive**, so it's used *only* to **authenticate** and to **agree on a fresh, short-lived symmetric session key**, via **ECDHE** (Elliptic-Curve Diffie-Hellman Ephemeral, a key-agreement method where both sides derive the same secret without ever sending it over the wire). The cheap symmetric key then encrypts the actual traffic.\n\n**The tell:** using an **ephemeral** (throwaway) key exchange buys **forward secrecy** — steal the server's long-term private key *later* and you still can't decrypt past recorded sessions, because each session's key was temporary and was never transmitted.",
+  "see": [
+   {
+    "label": "RFC 8446 — TLS 1.3",
+    "url": "https://www.rfc-editor.org/rfc/rfc8446"
+   },
+   {
+    "label": "The Illustrated TLS 1.3 Connection",
+    "url": "https://tls13.xargs.org/"
+   }
+  ],
   "tags": [
    "networking",
    "systems"
@@ -65,10 +101,11 @@
   "flow": "flip",
   "prompt": "Why does a request/response protocol sometimes see mysterious ~40ms latency spikes over TCP?",
   "src": {
-   "book": "kurose",
-   "ref": "Ch.3 Transport layer"
+   "book": "unp1",
+   "ref": "§7.9 TCP_NODELAY (Nagle × delayed-ACK interaction)",
+   "page": 245
   },
-  "reveal": "The interaction of Nagle\u2019s algorithm and delayed ACK. Nagle holds a small write until the previous data is acknowledged; delayed ACK holds the acknowledgement up to ~40ms hoping to piggyback it on a response. Each waits for the other, producing a stall that resolves only when the delayed-ACK timer fires. The fix is TCP_NODELAY on the socket, which disables Nagle \u2014 standard practice for any latency-sensitive service.",
+  "reveal": "It's **Nagle's algorithm** and **delayed ACK** deadlocking each other. **Nagle** holds back a small write until the previously sent data has been acknowledged (it batches tiny packets to avoid flooding the network). **Delayed ACK** holds the acknowledgment for up to ~40ms, hoping to piggyback it on response data heading the other way. So each side waits on the other — Nagle won't send until it gets the ACK, delayed-ACK won't send the ACK promptly — and the stall breaks only when the ~40ms delayed-ACK timer finally fires. **Fix:** set **TCP_NODELAY** on the socket to disable Nagle — standard practice for any latency-sensitive service.",
   "tags": [
    "networking",
    "hft"
@@ -80,10 +117,11 @@
   "flow": "full",
   "prompt": "Why does market data use UDP multicast rather than TCP? What must the application then handle?",
   "src": {
-   "book": "unp",
-   "ref": "Stevens UNP \u2014 multicast"
+   "book": "unp1",
+   "ref": "§21 Multicasting",
+   "page": 573
   },
-  "reveal": "Multicast sends ONE packet that the network replicates to all subscribers, so adding a receiver costs the sender nothing \u2014 essential when hundreds of consumers need the same feed. UDP is chosen because a retransmitted stale quote is worthless: you would rather drop it and take the next update than wait and fall behind. The application must then handle what TCP would have: SEQUENCE NUMBERS to detect gaps and reordering, a recovery channel (a separate request for missed messages, often a TCP replay service), and often an A/B feed \u2014 the same data on two paths, arbitrated by taking whichever arrives first.",
+  "reveal": "Gist: **multicast** lets a sender ship **one** copy of a feed that the network fans out to every subscriber, so adding the thousandth listener costs the sender nothing — exactly what a market-data feed with hundreds of consumers needs. The trade is that you give up TCP's guarantees and have to rebuild the ones you still want.\n\nWith **UDP multicast**, the sender emits a single packet to a multicast group and the **network** (switches and routers) **replicates** it out to all subscribers — unlike a per-receiver connection, the sender's cost doesn't grow with the audience. **UDP** (the connectionless transport with no retransmission and no ordering) is the deliberate choice here because a **retransmitted stale quote is worthless**: you'd rather drop it and take the next update than wait for a resend and fall behind the market.\n\nSo the **application** must re-add what TCP would have provided: **sequence numbers** on every message to detect **gaps and reordering**; a **recovery channel** — a separate request for missed messages, often a **TCP replay service** that resends a range on demand; and frequently an **A/B feed** — the identical data sent over **two independent network paths**, with the receiver **arbitrating** by taking whichever copy of each message arrives first.\n\n**The tell:** \"reliable multicast\" isn't a transport you turn on — it's a set of responsibilities (sequencing, gap recovery, arbitration) the application owns.",
   "tags": [
    "networking",
    "hft"
@@ -95,10 +133,20 @@
   "flow": "full",
   "prompt": "What is kernel bypass networking, what does it eliminate, and what do you give up?",
   "src": {
-   "book": "unp",
-   "ref": "Kernel bypass; DPDK/Onload"
+   "book": "unp1",
+   "ref": "Kernel-bypass networking (DPDK / Onload / RDMA)"
   },
-  "reveal": "Kernel bypass maps the NIC\u2019s queues directly into user space (DPDK, Solarflare Onload, RDMA), so packets move between the application and the wire without entering the kernel network stack. It eliminates: the syscall transition, the copy between kernel and user buffers, interrupt handling and scheduling latency, and the generic stack\u2019s per-packet processing \u2014 taking round trips from tens of microseconds to low single digits. What you give up: the kernel\u2019s TCP implementation (you use a user-space stack or raw UDP), standard tooling like tcpdump and iptables, ordinary socket portability, and a dedicated busy-polling core per interface.",
+  "reveal": "Gist: **kernel bypass** lets your application talk to the network card **directly**, skipping the operating system's networking code entirely — which cuts latency dramatically, at the cost of giving up everything the OS was quietly doing for you.\n\nNormally every packet passes through the **kernel** (the OS core) and its **network stack** (the built-in TCP/IP code). Kernel bypass instead **maps the NIC's queues** — the network card's send/receive buffers — **directly into user space** (your application's own memory), so packets move between the app and the wire without the kernel touching them. The common implementations are **DPDK** (Data Plane Development Kit), **Solarflare Onload**, and **RDMA** (Remote Direct Memory Access).\n\nIt **eliminates**: the **syscall transition** (the costly switch into kernel mode on every send/receive), the **copy** between kernel and user buffers, **interrupt handling and scheduler latency** (the delay of waking your process when a packet lands), and the generic stack's **per-packet processing** — taking round trips from **tens of microseconds down to low single digits**.\n\nWhat you **give up**: the kernel's battle-tested **TCP implementation** (you now run a **user-space TCP stack** or raw **UDP** yourself), standard **tooling** like `tcpdump` and `iptables` that hook the kernel path, ordinary **socket portability** (bypass APIs are vendor-specific), and a whole **CPU core** that must **busy-poll** — spin at 100%, constantly checking the NIC — for each interface.",
+  "see": [
+   {
+    "label": "DPDK — Programmer's Guide: Overview",
+    "url": "https://doc.dpdk.org/guides/prog_guide/overview.html"
+   },
+   {
+    "label": "Onload (kernel-bypass TCP/UDP stack) — source",
+    "url": "https://github.com/Xilinx-CNS/onload"
+   }
+  ],
   "tags": [
    "networking",
    "hft"
@@ -111,9 +159,10 @@
   "prompt": "Name the layers a packet traverses from your application to the wire and what each adds.",
   "src": {
    "book": "kurose",
-   "ref": "Ch.1 Computer networks and the Internet"
+   "ref": "§1.5 Protocol layers and encapsulation",
+   "page": 81
   },
-  "reveal": "APPLICATION produces the message (HTTP, FIX). TRANSPORT (TCP/UDP) adds ports and, for TCP, sequencing and reliability \u2014 producing a segment. NETWORK (IP) adds source and destination IP addresses for routing \u2014 a datagram. LINK (Ethernet) adds MAC addresses for the next hop and a frame check sequence \u2014 a frame. PHYSICAL transmits the bits. Each layer encapsulates the one above, which is why MTU matters: headers at every layer eat into the payload, and exceeding the path MTU causes fragmentation or drops.",
+  "reveal": "Each layer wraps the one above it and adds its own header. **Application** produces the message (HTTP, FIX). **Transport** (TCP/UDP) adds **ports** and, for TCP, sequencing and reliability — making a **segment**. **Network** (IP) adds source and destination **IP addresses** for routing — a **datagram**. **Link** (Ethernet) adds **MAC addresses** for the next hop plus a **frame check sequence** (an error-detecting checksum) — a **frame**. **Physical** transmits the raw bits. This nesting is called **encapsulation**, and it's why **MTU** — the **Maximum Transmission Unit**, the largest frame a link will carry — matters: every layer's headers eat into the usable payload, and exceeding the **path MTU** forces **fragmentation** or outright **drops**.",
   "tags": [
    "networking",
    "systems"
@@ -125,10 +174,16 @@
   "flow": "full",
   "prompt": "Break down where the microseconds go in a network round trip inside a datacenter.",
   "src": {
-   "book": "unp",
-   "ref": "Latency analysis"
+   "book": "unp1",
+   "ref": "Datacenter latency budget (round-trip breakdown)"
   },
-  "reveal": "Roughly: application processing and serialization (variable, often the biggest and most controllable), kernel network stack ~5\u201310\u00b5s each way (eliminated by bypass), NIC processing and DMA ~1\u20132\u00b5s, wire propagation ~5ns per meter (so 100m is only 0.5\u00b5s), and each switch hop ~0.5\u20131\u00b5s store-and-forward (less with cut-through). Total intra-datacenter round trip is typically 20\u2013100\u00b5s ordinarily, or single-digit microseconds tuned with bypass and cut-through switches. The lesson: distance is rarely the problem inside a building \u2014 software layers are.",
+  "reveal": "Gist: inside a datacenter, the microseconds of a network round trip are dominated by **software**, not distance — the cable is fast; the layers of processing at each end are what cost you.\n\nWalking the path each way: **application processing and serialization** (turning your data into bytes on the wire) is **variable, and often the biggest and most controllable** slice. The **kernel network stack** adds roughly **5–10µs each way** — this is exactly what kernel bypass removes. **NIC processing and DMA** is about **1–2µs** — the card moving the packet in and out of memory via **DMA** (Direct Memory Access, hardware copying data without involving the CPU). **Wire propagation** is about **5 nanoseconds per meter**, so even **100 meters is only 0.5µs** — negligible. And **each switch hop** is about **0.5–1µs** for a **store-and-forward** switch (which reads the whole frame before forwarding), and **less** with a **cut-through** switch (which starts forwarding as soon as it has read the destination).\n\nAdd it up: an ordinary intra-datacenter round trip runs **20–100µs**, but tuned with **kernel bypass** and **cut-through** switches it drops to **single-digit microseconds**.\n\n**The tell:** distance is rarely the problem inside a building — the **software layers** are.",
+  "see": [
+   {
+    "label": "Latency Numbers Every Programmer Should Know",
+    "url": "https://gist.github.com/jboner/2841832"
+   }
+  ],
   "tags": [
    "networking",
    "hft"
@@ -141,9 +196,16 @@
   "prompt": "Trace a DNS resolution end to end, and explain why TTL choice is an operational tradeoff.",
   "src": {
    "book": "kurose",
-   "ref": "Ch.2 Application layer (DNS)"
+   "ref": "§2.4 DNS — The Internet's Directory Service",
+   "page": 150
   },
-  "reveal": "The resolver checks its cache, then asks a recursive resolver, which (on a miss) queries a root server for the TLD nameserver, that TLD server for the authoritative nameserver, and that authoritative server for the record \u2014 caching each answer for its TTL. The TTL tradeoff: a LONG TTL means fewer lookups and faster, more resilient resolution, but a change (a failover to a new IP) propagates slowly and stale clients keep hitting a dead host. A SHORT TTL makes failover fast but multiplies query load and adds resolution latency to cold requests. Systems needing fast failover use low TTLs plus health-checked load balancers rather than relying on DNS alone.",
+  "reveal": "Gist: **DNS** turns a name like `example.com` into an IP address by walking *down* a hierarchy of servers, caching each answer along the way — and the **TTL** you stamp on those answers trades fast updates against low load.\n\nEnd to end: your machine's **resolver** first checks its **cache**. On a miss it asks a **recursive resolver** (usually your ISP's, or a public one), which does the legwork: it queries a **root server** for who handles the **TLD** (top-level domain — the `.com` part), then that **TLD nameserver** for the domain's **authoritative nameserver** (the server that holds the real records), then that authoritative server for the actual **record**. Each answer is **cached for its TTL** — Time To Live, the number of seconds an answer may be reused before it must be re-fetched.\n\n**The TTL tradeoff:** a **long TTL** means fewer lookups and faster, more resilient resolution — but a change, such as **failing over** to a new IP, **propagates slowly**, and clients still holding a cached answer keep hitting a **dead host**. A **short TTL** makes failover fast but **multiplies query load** and adds resolution latency to every **cold** (uncached) request.\n\n**The tell:** systems that need fast failover keep TTLs **low** and lean on **health-checked load balancers**, rather than trusting DNS alone to route around a dead server.",
+  "see": [
+   {
+    "label": "RFC 1034 — Domain Names: Concepts and Facilities",
+    "url": "https://www.rfc-editor.org/rfc/rfc1034"
+   }
+  ],
   "tags": [
    "networking",
    "systems"
@@ -156,9 +218,15 @@
   "prompt": "Compare L4 and L7 load balancing. What can each see and do?",
   "src": {
    "book": "kurose",
-   "ref": "Load balancing"
+   "ref": "Load balancing (L4 vs L7)"
   },
-  "reveal": "An L4 balancer works at the transport layer: it sees IPs and ports only, and forwards connections \u2014 fast, protocol-agnostic, low overhead, but it cannot route on URL path, header, or cookie, and a single long connection pins to one backend. An L7 balancer terminates the connection and parses the application protocol, so it can route by path or header, retry idempotent requests on a different backend, do TLS termination, rate limiting, and per-request load spreading over multiplexed connections. The cost is CPU, added latency, and being protocol-specific.",
+  "reveal": "Gist: an **L4** load balancer routes by **connection**, seeing only addresses and ports; an **L7** load balancer **reads the actual request** and routes by its content — more powerful, but more expensive.\n\n**L4** (layer 4, the **transport layer** — TCP/UDP) balancing sees only **IP addresses and ports** and simply **forwards connections** to a backend. That makes it **fast, protocol-agnostic, and low-overhead** — but it **cannot** route on **URL path, header, or cookie**, and a single **long-lived connection pins to one backend** for its entire life.\n\n**L7** (layer 7, the **application layer** — HTTP and its kin) balancing **terminates the connection** and **parses the application protocol**, so it can **route by path or header**, **retry an idempotent request** on a different backend when one fails, do **TLS termination** (decrypting HTTPS at the balancer), enforce **rate limiting**, and spread load **per request** across **multiplexed** connections rather than per whole connection.\n\n**The tell:** the cost of L7 is **CPU, added latency, and being protocol-specific** — you spend compute to buy request-level control.",
+  "see": [
+   {
+    "label": "Load balancing (computing) — overview",
+    "url": "https://en.wikipedia.org/wiki/Load_balancing_(computing)"
+   }
+  ],
   "tags": [
    "networking",
    "systems"
@@ -170,10 +238,21 @@
   "flow": "full",
   "prompt": "Name the socket options that actually matter for a low-latency server and what each does.",
   "src": {
-   "book": "unp",
-   "ref": "Stevens UNP \u2014 socket options"
+   "book": "unp1",
+   "ref": "§7 Socket Options",
+   "page": 215
   },
-  "reveal": "TCP_NODELAY disables Nagle so small writes go immediately. SO_REUSEADDR allows rebinding a port still in TIME_WAIT; SO_REUSEPORT lets multiple sockets bind the same port so the kernel load-balances across worker threads. SO_RCVBUF/SO_SNDBUF size the kernel buffers \u2014 too small throttles throughput, too large adds queueing latency. SO_BUSY_POLL makes the socket poll the device rather than sleep, cutting wakeup latency. SO_TIMESTAMPING gives hardware receive timestamps, essential for measuring true wire-to-application latency.",
+  "reveal": "Gist: a handful of socket options do the real work for a low-latency server — disabling batching, sharing a port across threads, sizing buffers, polling instead of sleeping, and hardware-timestamping arrivals.\n\nOption by option: **TCP_NODELAY** disables **Nagle's algorithm** (which batches small writes), so a small write goes out **immediately**. **SO_REUSEADDR** lets you **rebind a port** that's still lingering in **TIME_WAIT** from a previous connection (so a restarted server doesn't hit \"address already in use\"). **SO_REUSEPORT** lets **multiple sockets bind the same port**, and the **kernel load-balances** incoming connections across them — one socket per worker thread. **SO_RCVBUF / SO_SNDBUF** size the kernel's **receive and send buffers**: too **small** throttles throughput, too **large** adds **queueing latency** (packets sitting in a deep buffer). **SO_BUSY_POLL** makes the socket **poll the device** directly rather than **sleep and wait to be woken**, cutting **wakeup latency**. **SO_TIMESTAMPING** attaches **hardware timestamps** to received packets — essential for measuring **true wire-to-application latency** (when the packet actually hit the NIC, not when your code got around to reading it).\n\n**The tell:** TCP_NODELAY, SO_REUSEADDR/SO_REUSEPORT, and the buffer sizes are portable Berkeley-sockets options; SO_BUSY_POLL and SO_TIMESTAMPING are Linux-specific latency tools.",
+  "see": [
+   {
+    "label": "man 7 socket — socket-level options",
+    "url": "https://man7.org/linux/man-pages/man7/socket.7.html"
+   },
+   {
+    "label": "man 7 tcp — TCP_NODELAY and TCP options",
+    "url": "https://man7.org/linux/man-pages/man7/tcp.7.html"
+   }
+  ],
   "tags": [
    "networking",
    "hft"

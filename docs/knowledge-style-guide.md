@@ -298,7 +298,7 @@ A skimmer or the model can score each of these true/false without deciding "woul
 
 - [ ] **(a) Term-gloss adjacency** — every term/acronym/symbol has its gloss in the **same sentence or the one immediately before**. No gloss "somewhere later."
 - [ ] **(b) No forward reference** — no sentence uses a term defined only later in the reveal.
-- [ ] **(c) Sentence budget** — no sentence exceeds ~25 words or contains more than **2 dashes**. Split it if it does.
+- [ ] **(c) Sentence budget** — prefer short sentences; a semicolon-or-dash chain that runs past **~35 words** is a genuine run-on — split it. (Softened from a hard ~25: the approved §10 reference cards routinely run longer clause-chains that still read cleanly on first pass, so the target is "no genuine run-on," not a strict word count. A first-read failure at the *gist* rung still fails (a); this check only flags the true run-ons.)
 - [ ] **(d) Name the referent** — every "this," "that," "it" at a sentence start names what it points to ("this squaring," not a bare "this").
 - [ ] **(e) Facts preserved** — every corollary, every "-complete" qualifier, and every named theorem from the source survives (§3.4).
 - [ ] **(f) Format conventions** — Unicode superscripts, backticked identifiers, quantifiers spelled out on first use (§9).

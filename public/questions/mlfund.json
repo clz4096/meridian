@@ -6,9 +6,10 @@
   "prompt": "In plain language, what IS a neural network, and what does \"training\" mean mechanically?",
   "src": {
    "book": "micrograd",
-   "ref": "Karpathy, micrograd video — intro"
+   "url": "https://www.youtube.com/watch?v=VMj-3S1tku0",
+   "ref": "Karpathy — Building micrograd (intro)"
   },
-  "reveal": "A network is a large function built from multiply-and-add operations with adjustable numbers called WEIGHTS (the knobs). Training means: run inputs through, measure how wrong the output is with a loss function, work out for each weight which direction would reduce the loss, nudge every weight a little in that direction, and repeat. That is all — gradient descent over a differentiable function. Nothing about it is conceptually harder than tuning a very large number of dials by measuring which way each one helps.",
+  "reveal": "A neural network is one big function built from multiply-and-add steps with adjustable numbers called **weights** — the knobs. Training means: run inputs through, measure how wrong the output is with a **loss function** (a single number scoring the error), work out for each weight which direction would lower the loss, nudge every weight a little that way, and repeat. That loop is **gradient descent** over a differentiable function — nothing deeper than tuning a huge bank of dials by measuring which way each one helps. **Tell:** whenever someone says \"training,\" they mean this nudge-by-gradient loop.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -21,9 +22,10 @@
   "prompt": "What is a gradient, in one sentence, without calculus notation? What does its SIGN and MAGNITUDE tell you?",
   "src": {
    "book": "3b1b",
-   "ref": "3Blue1Brown, Neural Networks ep. 3"
+   "url": "https://www.youtube.com/watch?v=IHZwWFHWa-w",
+   "ref": "3Blue1Brown — Gradient descent (Ch. 2)"
   },
-  "reveal": "A gradient answers: if I nudge this knob a tiny bit, how much does the final error change, and in which direction. The SIGN says which way to turn the knob (move opposite the gradient to reduce error); the MAGNITUDE says how much this knob matters right now — a large gradient means a small change has a big effect, a near-zero gradient means the knob barely influences the outcome (which is also what makes vanishing gradients a training failure).",
+  "reveal": "A **gradient** answers one thing per knob: if I nudge this weight a hair, how much does the final error move, and in which direction? The **sign** says which way to turn the knob — step opposite the gradient to cut error. The **magnitude** says how much this knob matters right now: a large gradient means a small change swings the output a lot, a near-zero gradient means the knob barely moves the outcome. That near-zero case is exactly what makes **vanishing gradients** (gradients shrinking toward zero) a training failure — those weights stop learning.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -36,9 +38,10 @@
   "prompt": "State the chain rule in the way it is actually used in backprop, and apply it to y = f(g(h(x))).",
   "src": {
    "book": "cs231n",
-   "ref": "CS231n, Backpropagation notes"
+   "url": "https://cs231n.github.io/optimization-2/",
+   "ref": "CS231n — Backpropagation, intuitions"
   },
-  "reveal": "If a change in A affects B, and B affects C, then the effect of A on C is the PRODUCT of the two local effects: dC/dA = (dC/dB)(dB/dA). For y = f(g(h(x))): dy/dx = f′(g(h(x))) · g′(h(x)) · h′(x). Backprop applies this right-to-left — start with dy/dy = 1 at the output and multiply by each local derivative as you walk backwards through the graph. Each node only needs to know its OWN local derivative; the chain rule composes them, which is exactly why autograd can be built from small independent pieces.",
+  "reveal": "Gist: if nudging A changes B, and B changes C, then A's effect on C is just the two local effects **multiplied**: `dC/dA = (dC/dB)(dB/dA)`.\n\nApplied to `y = f(g(h(x)))`, differentiate outside-in and multiply: `dy/dx = f′(g(h(x))) · g′(h(x)) · h′(x)`. **Backprop** — the algorithm that computes every weight's gradient — applies this **right-to-left**: start at the output with `dy/dy = 1`, then walk backward through the computation graph multiplying by each node's **local derivative** (the derivative of just that one operation with respect to its inputs).\n\n**Tell:** each node only needs to know its OWN local derivative; the chain rule composes them for you. That locality is exactly why an autograd engine can be built from small, independent pieces.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -51,9 +54,10 @@
   "prompt": "Describe the design of a scalar autograd engine: what does each node store, and what does backward() do?",
   "src": {
    "book": "micrograd",
-   "ref": "Karpathy, micrograd — the Value class"
+   "url": "https://www.youtube.com/watch?v=VMj-3S1tku0",
+   "ref": "Karpathy — micrograd: the Value class"
   },
-  "reveal": "Each Value stores: its data (a number), its grad (initially 0), the set of children it was computed from, and a _backward closure describing how to push gradient to those children. Every operation (+, *, tanh) creates a new Value, records its children, and defines _backward to apply that operation’s local derivative. backward() then: (1) builds a TOPOLOGICAL ORDER of the graph so every node comes after its inputs, (2) sets the output’s grad to 1, (3) walks the order in REVERSE calling each _backward, accumulating (+=) into children. The accumulation matters — a value used twice receives gradient from both paths.",
+  "reveal": "Gist: every number in the graph is wrapped in a small object that remembers where it came from, so the whole network can hand its gradients back automatically.\n\nEach `Value` stores four things: its `data` (the number), its `grad` (the gradient flowing into it, starting at 0), the set of **children** it was computed from, and a `_backward` closure — a small function that knows how to push gradient to those children. Every operation (`+`, `*`, `tanh`) creates a new `Value`, records its children, and defines `_backward` to apply that operation's **local derivative**. Calling `backward()` then does three steps: (1) build a **topological order** — nodes arranged so every node comes after the inputs it depends on; (2) set the output's `grad` to 1; (3) walk that order in **reverse**, calling each node's `_backward`, **accumulating** with `+=` into children.\n\n**Tell:** the `+=` is load-bearing — a value used in two places receives gradient from both paths, and adding is what sums those contributions. Overwrite instead and you lose one path.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -66,9 +70,11 @@
   "prompt": "Why does autograd ACCUMULATE gradients with += rather than assigning, and what practical bug does this cause in PyTorch?",
   "src": {
    "book": "cs231n",
-   "ref": "CS231n, Backpropagation — gradients for repeated use"
+   "url": "https://cs231n.github.io/optimization-2/",
+   "anchor": "patterns-in-backward-flow",
+   "ref": "CS231n — Backprop: gradients add up at forks"
   },
-  "reveal": "If a value feeds into multiple downstream operations, the total effect on the loss is the SUM of the effects along each path (multivariable chain rule), so each path must add its contribution rather than overwrite. The practical consequence in PyTorch: gradients persist across backward() calls, so you must call optimizer.zero_grad() every iteration — forgetting it silently sums this batch’s gradients with all previous batches, and training degrades in a way that looks like a bad learning rate rather than a bug.",
+  "reveal": "Gist: a value that feeds several later operations must ADD up the gradient coming back along each path, not overwrite it — because its total effect on the loss is the sum of its effects along every path.\n\nThis is the **multivariable chain rule**: when one quantity influences the output through multiple routes, you sum the contributions from each route. So autograd accumulates with `+=`. The practical consequence in **PyTorch**: gradients persist across `backward()` calls rather than resetting, so you must call `optimizer.zero_grad()` every iteration.\n\n**Tell:** forget `zero_grad()` and this batch's gradients silently sum with all previous batches — training degrades in a way that looks like a bad learning rate rather than a bug, which is why it's brutal to diagnose.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -81,9 +87,10 @@
   "prompt": "Why must backprop process nodes in reverse topological order? What breaks if you do not?",
   "src": {
    "book": "micrograd",
-   "ref": "Karpathy, micrograd — topological sort in backward"
+   "url": "https://www.youtube.com/watch?v=VMj-3S1tku0",
+   "ref": "Karpathy — micrograd: topological sort in backward()"
   },
-  "reveal": "A node can only push correct gradient to its children once its OWN gradient is final — which requires every consumer of that node to have already contributed. Reverse topological order guarantees exactly that. If you process out of order, a node pushes a partial gradient downstream, and the later contribution never propagates past it — producing silently WRONG gradients rather than an error. This is the same dependency-ordering idea as topological sort in DP: process a state only after everything it depends on is finalized.",
+  "reveal": "Gist: backprop must finish a node's gradient before that node can pass correct gradient down to its children — and reverse topological order guarantees exactly that.\n\nA node's gradient is only **final** once every operation that consumed it has contributed its share. **Topological order** arranges nodes so each comes after everything it depends on; walking it in **reverse** visits every consumer of a node before the node itself. Process out of order and a node pushes a **partial** gradient downstream, while the later contribution never propagates past it — producing silently WRONG gradients rather than a crash.\n\n**Tell:** it's the same dependency-ordering idea as topological sort in dynamic programming — finalize a state only after everything it depends on is done.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -96,9 +103,10 @@
   "prompt": "Write the gradient descent update rule and explain what happens if the learning rate is too large or too small.",
   "src": {
    "book": "3b1b",
-   "ref": "3Blue1Brown, Gradient descent"
+   "url": "https://www.youtube.com/watch?v=IHZwWFHWa-w",
+   "ref": "3Blue1Brown — Gradient descent (Ch. 2)"
   },
-  "reveal": "w ← w − η · (∂L/∂w), where η is the learning rate. Subtracting moves DOWNHILL because the gradient points uphill. Too large: the step overshoots the minimum and can oscillate or diverge, loss going to NaN. Too small: convergence is impractically slow and you can stall in flat regions. This is why practice uses adaptive methods (Adam keeps per-parameter running estimates of gradient mean and variance) and learning-rate schedules — warmup then decay.",
+  "reveal": "Gist: gradient descent repeatedly steps each weight a little bit **downhill** on the loss — and the step size, the learning rate, is the one knob that makes or breaks it.\n\nThe update is `w ← w − η · (∂L/∂w)`, where `η` (eta) is the **learning rate**, the step-size multiplier. You subtract because the gradient points **uphill**, so its negative points downhill. **Too large:** steps overshoot the minimum and the loss oscillates or diverges — straight to NaN. **Too small:** convergence crawls and you can stall in flat regions.\n\n**Tell:** this is why real training uses adaptive methods — **Adam** keeps a per-parameter running estimate of the gradient's mean and variance to size each step — plus **learning-rate schedules** that warm up, then decay.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -111,9 +119,11 @@
   "prompt": "Why is squared error used for regression and cross-entropy for classification? What does each penalize?",
   "src": {
    "book": "cs231n",
-   "ref": "CS231n, Loss functions"
+   "url": "https://cs231n.github.io/linear-classify/",
+   "anchor": "softmax-classifier",
+   "ref": "CS231n — Linear classification: Softmax & cross-entropy"
   },
-  "reveal": "Squared error, (y − ŷ)², penalizes distance and grows quadratically, so it punishes large misses heavily — appropriate when outputs are continuous and errors are symmetric. Cross-entropy, −log(p_correct), penalizes CONFIDENT WRONGNESS: it goes to infinity as the probability assigned to the true class goes to zero, and is near zero when the model is confidently right. It pairs with softmax so that the gradient of the loss with respect to the logits simplifies beautifully to (predicted − target), which is why the pair is universal.",
+  "reveal": "Squared error `(y − ŷ)²` penalizes **distance** and grows quadratically, so it punishes big misses hard — right for continuous outputs with symmetric errors. **Cross-entropy** `−log(p_correct)` penalizes **confident wrongness**: it shoots to infinity as the probability the model assigned to the true class approaches zero, and sits near zero when the model is confidently right. It pairs with **softmax** — the function that turns raw scores into a probability distribution — so the gradient with respect to the logits collapses to a clean `(predicted − target)`, which is why the pair is universal.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -126,9 +136,11 @@
   "prompt": "Derive the gradients of C = A @ B with respect to A and B. State the shape check that confirms you got it right.",
   "src": {
    "book": "cs231n",
-   "ref": "CS231n, Backprop for matrices"
+   "url": "https://cs231n.github.io/optimization-2/",
+   "anchor": "gradients-for-vectorized-operations",
+   "ref": "CS231n — Backprop: gradients for matrix multiply"
   },
-  "reveal": "Given upstream gradient G = ∂L/∂C: ∂L/∂A = G @ Bᵀ and ∂L/∂B = Aᵀ @ G. The reliable way to derive these without index gymnastics is the SHAPE CHECK: if A is (m,k) and B is (k,n) then C and G are (m,n). ∂L/∂A must be (m,k) — the only way to build that from G (m,n) and B (k,n) is G @ Bᵀ. Similarly ∂L/∂B must be (k,n), which forces Aᵀ @ G. Shapes uniquely determine the arrangement, which is why the shape check is the standard sanity test.",
+  "reveal": "Gist: the gradient of a matmul is another pair of matmuls, and you can reconstruct the exact form from shapes alone — no index gymnastics.\n\nGiven upstream gradient `G = ∂L/∂C`: `∂L/∂A = G @ Bᵀ` and `∂L/∂B = Aᵀ @ G`. The **shape check** derives them for you: if `A` is `(m,k)` and `B` is `(k,n)`, then `C` and `G` are `(m,n)`. `∂L/∂A` must match `A`'s shape `(m,k)` — the only way to build `(m,k)` out of `G` `(m,n)` and `B` `(k,n)` is `G @ Bᵀ`. Likewise `∂L/∂B` must be `(k,n)`, which forces `Aᵀ @ G`.\n\n**Tell:** shapes uniquely pin down the arrangement, so the shape check is the standard sanity test — if the shapes don't line up, the formula is wrong.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -141,9 +153,16 @@
   "prompt": "What is broadcasting, and what happens to gradients when an operation broadcasts?",
   "src": {
    "book": "cs231n",
-   "ref": "NumPy semantics; CS231n backprop notes"
+   "url": "https://cs231n.github.io/optimization-2/",
+   "ref": "CS231n — Backprop notes (broadcasting)"
   },
-  "reveal": "Broadcasting virtually expands a smaller array along size-1 dimensions so shapes match, without copying — e.g. adding a (1,n) bias to an (m,n) matrix. In the backward pass this must be REVERSED: since the bias was effectively used m times, its gradient is the SUM over the broadcast axis. Forgetting to sum leaves a shape mismatch (usually caught) or, worse, an incorrectly scaled gradient. Rule of thumb: a forward broadcast becomes a backward SUM, and a forward sum becomes a backward broadcast.",
+  "see": [
+   {
+    "label": "NumPy — Broadcasting (semantics)",
+    "url": "https://numpy.org/doc/stable/user/basics.broadcasting.html"
+   }
+  ],
+  "reveal": "Gist: **broadcasting** virtually stretches a smaller array to match a bigger one's shape without copying — and in the backward pass that stretch has to be **undone by summing**.\n\nBroadcasting expands along size-1 dimensions so shapes line up — e.g. adding a `(1,n)` bias to an `(m,n)` matrix reuses the bias across all `m` rows. Because the bias was effectively used `m` times, its gradient is the **sum** over the broadcast axis. Forget to sum and you get a shape mismatch (usually caught) or, worse, an incorrectly scaled gradient (silent).\n\n**Tell:** a forward **broadcast** becomes a backward **sum**, and a forward **sum** becomes a backward **broadcast** — memorize the pair.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -156,9 +175,17 @@
   "prompt": "Define arithmetic intensity and compute it for an n×n matmul and for an elementwise add. What does the comparison tell you?",
   "src": {
    "book": "roofline",
-   "ref": "Williams et al., Roofline model; Horace He, Making DL Go Brrrr"
+   "url": "https://www2.eecs.berkeley.edu/Pubs/TechRpts/2008/EECS-2008-134.pdf",
+   "page": 3,
+   "ref": "Williams, Waterman & Patterson (2009) — operational (arithmetic) intensity"
   },
-  "reveal": "Arithmetic intensity = FLOPs performed / bytes moved from memory. Elementwise add of n floats: ~n FLOPs over ~12n bytes (two reads, one write at 4 bytes) → intensity ≈ 0.08 — deeply memory-bound. An n×n matmul: ~2n³ FLOPs over ~12n² bytes → intensity grows with n, so for large n it far exceeds the hardware ratio and becomes compute-bound. The lesson: the SAME hardware is bandwidth-limited on one kernel and FLOP-limited on another, so “is this op compute- or memory-bound” is the first question in any ML-systems optimization.",
+  "see": [
+   {
+    "label": "Making Deep Learning Go Brrrr — bandwidth costs",
+    "url": "https://horace.io/brrr_intro.html"
+   }
+  ],
+  "reveal": "Gist: **arithmetic intensity** is how much math you do per byte you fetch from memory — and it decides whether an operation is starved for data or starved for compute.\n\nIntensity = FLOPs performed / bytes moved from memory. An **elementwise add** of `n` floats does ~`n` FLOPs over ~`12n` bytes (two reads + one write, 4 bytes each) → intensity ≈ 0.08, deeply **memory-bound** (waiting on data). An `n×n` **matmul** does ~`2n³` FLOPs over ~`12n²` bytes → intensity grows with `n`, so for large `n` it far exceeds the hardware's FLOP-per-byte ratio and becomes **compute-bound** (waiting on math).\n\n**Tell:** the SAME hardware is bandwidth-limited on one kernel and FLOP-limited on another — so \"is this op compute- or memory-bound?\" is the first question in any ML-systems optimization.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -171,9 +198,17 @@
   "prompt": "Explain the roofline model and what the \"ridge point\" means for kernel optimization.",
   "src": {
    "book": "roofline",
-   "ref": "Williams, Waterman, Patterson (2009)"
+   "url": "https://www2.eecs.berkeley.edu/Pubs/TechRpts/2008/EECS-2008-134.pdf",
+   "page": 4,
+   "ref": "Williams, Waterman & Patterson (2009) — the Roofline model & ridge point"
   },
-  "reveal": "Plot attainable performance (FLOP/s) against arithmetic intensity: the ceiling is min(peak FLOP/s, intensity × peak bandwidth) — a slanted bandwidth roof that meets a flat compute roof. The RIDGE POINT is where they intersect: the intensity at which the machine transitions from memory-bound to compute-bound. Kernels left of the ridge are bandwidth-limited, so the fix is reducing memory traffic (fusion, tiling, quantization, better layout); kernels right of it are compute-limited, so the fix is better instruction mix or more FLOPs per cycle (tensor cores). Knowing which side you are on tells you which optimizations can possibly help.",
+  "see": [
+   {
+    "label": "Making Deep Learning Go Brrrr — compute vs bandwidth",
+    "url": "https://horace.io/brrr_intro.html"
+   }
+  ],
+  "reveal": "Gist: the **roofline** plot shows the most performance a machine can reach for a given **arithmetic intensity** (FLOPs per byte), and where the memory limit gives way to the compute limit.\n\nPlot attainable `FLOP/s` against intensity. The ceiling is `min(peak FLOP/s, intensity × peak bandwidth)` — a slanted **bandwidth roof** that meets a flat **compute roof**. The **ridge point** is their intersection: the intensity at which the machine flips from memory-bound to compute-bound. Left of the ridge, kernels are bandwidth-limited → cut memory traffic (fusion, tiling, quantization, better layout). Right of it, kernels are compute-limited → improve the instruction mix or FLOPs per cycle (tensor cores).\n\n**Tell:** knowing which side of the ridge you're on tells you which optimizations can possibly help — anything else is wasted effort.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -186,9 +221,11 @@
   "prompt": "Write scaled dot-product attention from the equation and explain why it is divided by √d_k.",
   "src": {
    "book": "attention",
-   "ref": "Vaswani et al., Attention Is All You Need §3.2"
+   "url": "https://arxiv.org/pdf/1706.03762.pdf",
+   "page": 4,
+   "ref": "§3.2.1 Scaled Dot-Product Attention"
   },
-  "reveal": "Attention(Q,K,V) = softmax(QKᵀ / √d_k) V. Q, K, V come from linear projections of the input. QKᵀ scores every query against every key, softmax turns each row into weights summing to one, and multiplying by V produces a weighted average of value vectors. The √d_k division exists because the dot product of two random d_k-dimensional vectors has variance proportional to d_k, so for large d_k the scores grow large, pushing softmax into saturated regions where gradients vanish. Scaling keeps the variance roughly constant so gradients stay healthy.",
+  "reveal": "Gist: attention lets each position pull in a weighted blend of every other position's information, where the weights come from how well a **query** matches each **key**.\n\n`Attention(Q,K,V) = softmax(QKᵀ / √d_k) V`. `Q`, `K`, `V` (queries, keys, values) are linear projections of the input. `QKᵀ` scores every query against every key; **softmax** turns each row of scores into weights summing to one; multiplying by `V` produces a weighted average of value vectors. The `√d_k` division exists because the dot product of two random `d_k`-dimensional vectors has variance proportional to `d_k`, so for large `d_k` the scores grow large and push softmax into **saturated** regions where gradients vanish.\n\n**Tell:** dividing by `√d_k` holds the score variance roughly constant, keeping gradients healthy — drop it and large models stop training.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -201,9 +238,17 @@
   "prompt": "For a batch of sequences, state the shapes through attention: input, Q/K/V, scores, output. Where does the quadratic cost appear?",
   "src": {
    "book": "attention",
-   "ref": "Attention Is All You Need §3.2; The Annotated Transformer"
+   "url": "https://arxiv.org/pdf/1706.03762.pdf",
+   "page": 4,
+   "ref": "§3.2 Attention (multi-head shapes)"
   },
-  "reveal": "Input (B, N, d) for batch B and sequence length N. Q, K, V each (B, N, d_k) after projection (or (B, heads, N, d_head) with multiple heads). Scores QKᵀ are (B, N, N) — that is where the QUADRATIC cost lives, in both compute and memory. Softmax is applied over the last axis. Multiplying (B,N,N) by V (B,N,d_k) returns to (B, N, d_k), then heads are concatenated back to (B, N, d). The N×N score matrix is the reason long context is expensive and why FlashAttention avoids materializing it.",
+  "see": [
+   {
+    "label": "The Annotated Transformer (Harvard NLP)",
+    "url": "https://nlp.seas.harvard.edu/annotated-transformer/"
+   }
+  ],
+  "reveal": "Gist: trace the shapes through attention and the `N×N` score matrix jumps out — that's where the quadratic cost in sequence length lives.\n\nInput is `(B, N, d)` — batch `B`, sequence length `N`, model width `d`. After projection, `Q`, `K`, `V` are each `(B, N, d_k)` (or `(B, heads, N, d_head)` with multiple heads). Scores `QKᵀ` are `(B, N, N)` — the quadratic blowup, in both compute and memory. Softmax runs over the last axis. Multiplying `(B,N,N)` by `V` `(B,N,d_k)` returns `(B, N, d_k)`, then heads concatenate back to `(B, N, d)`.\n\n**Tell:** the `N×N` scores are why long context is expensive — and why **FlashAttention** goes out of its way to never materialize that matrix.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -216,9 +261,17 @@
   "prompt": "Why is softmax computed with the max subtracted, and what is the \"online softmax\" used in FlashAttention?",
   "src": {
    "book": "attention",
-   "ref": "Numerical stability; FlashAttention"
+   "url": "https://arxiv.org/pdf/1706.03762.pdf",
+   "page": 4,
+   "ref": "§3.2.1 Scaled Dot-Product Attention (softmax)"
   },
-  "reveal": "exp() overflows quickly for moderately large inputs, so implementations compute exp(xᵢ − max(x)) — mathematically identical since the constant cancels in the ratio, but numerically safe. ONLINE softmax extends this to streaming: you process the row in blocks, maintaining a running maximum and a running sum, and RESCALE the accumulated result whenever a new block raises the maximum. That is what lets FlashAttention compute exact softmax attention without ever holding a full row of scores in memory — the enabling trick behind the whole method.",
+  "see": [
+   {
+    "label": "FlashAttention — Dao et al. (arXiv:2205.14135)",
+    "url": "https://arxiv.org/abs/2205.14135"
+   }
+  ],
+  "reveal": "Gist: subtract the max before exponentiating so `exp()` can't overflow — and a streaming version of that trick is what lets **FlashAttention** run.\n\n`exp()` overflows fast for even moderately large inputs, so implementations compute `exp(xᵢ − max(x))` — mathematically identical, since the shared constant cancels in softmax's ratio, but numerically safe. **Online softmax** extends this to streaming: process the row in blocks, keeping a running maximum and a running sum, and **rescale** the accumulated result whenever a new block raises the maximum.\n\n**Tell:** that rescaling is what lets FlashAttention compute exact softmax attention without ever holding a full row of scores in memory — the enabling trick behind the whole method.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -231,9 +284,16 @@
   "prompt": "Roughly how much memory does a model need for inference versus training? Account for each component.",
   "src": {
    "book": "scaling",
-   "ref": "How to Scale Your Model (JAX); training memory accounting"
+   "url": "https://jax-ml.github.io/scaling-book/training/",
+   "ref": "How to Scale Your Model — memory in training"
   },
-  "reveal": "Inference: weights only, so bytes ≈ params × bytes-per-param (2 for FP16, 1 for INT8) — a 7B model in FP16 is ~14 GB — plus the KV cache, which grows with batch × context. Training needs far more: weights + gradients (same size as weights) + optimizer state (Adam keeps two moments, so 2× more, often in FP32) + saved activations for the backward pass. The common rule of thumb is roughly 16 bytes per parameter for mixed-precision Adam training — about 8× the inference footprint — which is why training needs many more GPUs than serving the same model.",
+  "see": [
+   {
+    "label": "Inference Engineering — VRAM & KV-cache accounting",
+    "url": "https://inferenceengineering.tech/"
+   }
+  ],
+  "reveal": "Gist: inference memory is basically just the weights; training needs several times more, because it also holds gradients, optimizer state, and saved activations.\n\n**Inference** ≈ params × bytes-per-param (2 for FP16, 1 for INT8) — a 7B model in FP16 is ~14 GB — plus the **KV cache** (stored keys and values), which grows with batch × context. **Training** adds: weights + **gradients** (same size as the weights) + **optimizer state** (Adam keeps two moments → 2× more, often in FP32) + **saved activations** for the backward pass.\n\n**Tell:** the rule of thumb is ~16 bytes per parameter for mixed-precision Adam training — about 8× the inference footprint — which is why training needs far more GPUs than serving the same model.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -246,9 +306,10 @@
   "prompt": "Why do language models use subword tokenization rather than characters or words?",
   "src": {
    "book": "micrograd",
-   "ref": "Karpathy, Let’s build the GPT Tokenizer"
+   "url": "https://www.youtube.com/watch?v=zduSFxRajkE",
+   "ref": "Karpathy — Let's build the GPT Tokenizer"
   },
-  "reveal": "Characters give a tiny vocabulary but very long sequences — and attention is quadratic in sequence length, so that is expensive. Whole words give short sequences but an unbounded vocabulary that cannot handle typos, new words, or morphology, and the embedding table explodes. SUBWORD schemes (BPE) split the difference: frequent words become single tokens while rare words decompose into pieces, giving a fixed vocabulary (~50k) with reasonable sequence lengths and no out-of-vocabulary failures. The cost is that tokenization is where many odd model behaviours originate — arithmetic, spelling, and non-English text all suffer from token boundaries.",
+  "reveal": "Gist: subword tokenization is the compromise between characters (too many tokens per sentence) and whole words (too many distinct tokens) — split rare words into pieces, keep common words whole.\n\n**Characters** give a tiny vocabulary but very long sequences, and attention is quadratic in length, so that's expensive. **Whole words** give short sequences but an unbounded vocabulary that can't handle typos, new words, or morphology, and the embedding table explodes. **Subword** schemes — **BPE**, byte-pair encoding — split the difference: frequent words become single tokens while rare ones decompose into pieces, giving a fixed ~50k vocabulary, reasonable sequence lengths, and no out-of-vocabulary failures.\n\n**Tell:** the cost is that tokenization is where many odd model behaviors start — arithmetic, spelling, and non-English text all suffer at token boundaries.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -261,9 +322,10 @@
   "prompt": "Your training step is slower than the FLOP count suggests. List the things you would check, in order.",
   "src": {
    "book": "brrr",
-   "ref": "Horace He, Making Deep Learning Go Brrrr"
+   "url": "https://horace.io/brrr_intro.html",
+   "ref": "Making DL Go Brrrr — compute / memory / overhead"
   },
-  "reveal": "First determine which of the three regimes you are in: COMPUTE-bound (near peak FLOPs — the good case), MEMORY-bandwidth-bound (many elementwise ops, unfused; fix with fusion and better layout), or OVERHEAD-bound (the GPU is idle waiting on Python, the data loader, or kernel launch latency — common with small models and the reason CUDA graphs and torch.compile exist). Then check: is the data loader starving the GPU? Are host-device transfers overlapping compute? Are you synchronizing every step (a .item() or .cpu() call forces a stall)? Is the batch large enough to saturate the device? Profile before changing anything.",
+  "reveal": "Gist: before optimizing, figure out which of three regimes is bottlenecking you — compute, memory bandwidth, or overhead — because the fix is different for each.\n\nThe three regimes: **compute-bound** (near peak FLOPs — the good case); **memory-bandwidth-bound** (many unfused elementwise ops moving data; fix with fusion and better layout); and **overhead-bound** (the GPU sits idle waiting on Python, the data loader, or kernel-launch latency — common with small models, and the reason **CUDA graphs** and `torch.compile` exist). Then check: is the data loader starving the GPU? Are host-device transfers overlapping compute? Are you synchronizing every step — a `.item()` or `.cpu()` call forces a stall? Is the batch big enough to saturate the device?\n\n**Tell:** profile before changing anything — the FLOP count alone never tells you which wall you're hitting.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -276,9 +338,10 @@
   "prompt": "You are building a timing simulator for an accelerator executing matmuls. What is the minimal cost model, and what does it deliberately ignore?",
   "src": {
    "book": "roofline",
-   "ref": "Roofline model; accelerator simulation"
+   "url": "https://horace.io/brrr_intro.html",
+   "ref": "Roofline model — a minimal cost model"
   },
-  "reveal": "Minimal model: for each command, compute_cycles = FLOPs / peak_FLOPs_per_cycle and memory_cycles = bytes_moved / bytes_per_cycle, then cost = max(compute_cycles, memory_cycles) — assuming perfect overlap of compute and memory. That single max() captures the roofline: small matmuls are dominated by the memory term, large ones by the compute term. It deliberately ignores cache/SRAM hit rates, dispatch and queueing overhead, contention between concurrent cores, and pipeline warm-up. Those are exactly the refinements a real study would add — and measuring where the simple model diverges from hardware is itself the research question.",
+  "reveal": "Gist: the minimal timing model for a matmul accelerator is one `max()` — the larger of compute time and memory time — assuming the two overlap perfectly.\n\nFor each command, `compute_cycles = FLOPs / peak_FLOPs_per_cycle` and `memory_cycles = bytes_moved / bytes_per_cycle`, then `cost = max(compute_cycles, memory_cycles)`. That single `max()` **is** the roofline: small matmuls are dominated by the memory term, large ones by the compute term. It deliberately ignores cache/SRAM hit rates, dispatch and queueing overhead, contention between concurrent cores, and pipeline warm-up.\n\n**Tell:** those omissions are exactly the refinements a real study adds — and measuring where the simple model diverges from hardware is itself the research question.",
   "tags": [
    "ml-systems",
    "fellows"
@@ -291,9 +354,10 @@
   "prompt": "For linear regression you can solve for the weights two ways: the closed-form normal equation or gradient descent. Write the normal equation and say when you would pick each.",
   "src": {
    "book": "skycak",
-   "ref": "linear regression"
+   "page": 169,
+   "ref": "Ch. 23 — Linear Regression via Pseudoinverse (the normal equation)"
   },
-  "reveal": "The normal equation is θ = (XᵀX)⁻¹Xᵀy — it sets the gradient of squared error to zero and solves directly, no learning rate, no iteration, exact answer in one shot. Its cost is dominated by inverting the d×d matrix XᵀX, roughly O(d³), so it is ideal when the number of FEATURES is small (a few thousand) and you want a deterministic result. Gradient descent wins when d or the number of samples is large (matrix inversion becomes infeasible or memory-bound), when XᵀX is singular/ill-conditioned, or when you are streaming data or want the same iterative machinery as the rest of a neural net. In short: few features → normal equation; many features or online/large-scale → gradient descent.",
+  "reveal": "Gist: linear regression has an exact one-shot formula for the best weights — the **normal equation** — and an iterative alternative, gradient descent; you pick based on how many features you have.\n\nThe normal equation is `θ = (XᵀX)⁻¹Xᵀy`. It sets the gradient of squared error to zero and solves **directly** — no learning rate, no iteration, exact answer in one shot. Its cost is dominated by inverting the `d×d` matrix `XᵀX`, roughly `O(d³)`, so it's ideal when the number of **features** `d` is small (a few thousand) and you want a deterministic result. **Gradient descent** wins when `d` or the sample count is large (inversion becomes infeasible or memory-bound), when `XᵀX` is singular or ill-conditioned, or when you're streaming data or want the same iterative machinery as the rest of a neural net.\n\n**Tell:** few features → normal equation; many features or online/large-scale → gradient descent.",
   "tags": [
    "mlfund",
    "ml"
@@ -306,9 +370,20 @@
   "prompt": "Describe logistic regression from scratch: what the sigmoid does, where the decision boundary lives, and what cross-entropy loss is penalizing.",
   "src": {
    "book": "skycak",
-   "ref": "logistic regression"
+   "page": 201,
+   "ref": "Ch. 25 — Logistic Regression"
   },
-  "reveal": "Logistic regression computes a linear score z = w·x + b, then squashes it through the sigmoid σ(z) = 1/(1 + e⁻ᶻ) to get a probability in (0,1). The DECISION BOUNDARY is where z = 0, i.e. σ(z) = 0.5 — a hyperplane in feature space, so logistic regression is a LINEAR classifier despite the nonlinear squash. Training minimizes cross-entropy, −[y·log p + (1−y)·log(1−p)], which blows up toward infinity when the model is confidently wrong and is near zero when confidently right — so it punishes calibrated overconfidence hard. The gradient of cross-entropy with respect to the weights simplifies to (p − y)·x, the same clean (predicted − target) form that makes it the natural loss to pair with the sigmoid.",
+  "see": [
+   {
+    "label": "CS231n — Softmax & cross-entropy",
+    "url": "https://cs231n.github.io/linear-classify/#softmax-classifier"
+   },
+   {
+    "label": "scikit-learn — Logistic regression",
+    "url": "https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression"
+   }
+  ],
+  "reveal": "Gist: logistic regression is a **linear** classifier — it computes a straight-line score, then bends that score into a probability with the S-shaped **sigmoid**.\n\nIt computes a linear score `z = w·x + b`, then squashes it through the **sigmoid** `σ(z) = 1/(1 + e⁻ᶻ)` (the \"logistic function\") to get a probability in (0,1). The **decision boundary** is where `z = 0`, i.e. `σ(z) = 0.5` — a **hyperplane** (a flat dividing surface) in feature space, so the classifier is linear despite the nonlinear squash. Training minimizes **cross-entropy** `−[y·log p + (1−y)·log(1−p)]`, which blows up toward infinity when the model is confidently wrong and is near zero when confidently right — so it punishes overconfident mistakes hard.\n\n**Tell:** the gradient of cross-entropy with respect to the weights simplifies to `(p − y)·x` — the same clean `(predicted − target)` form that makes cross-entropy the natural partner for the sigmoid.",
   "tags": [
    "mlfund",
    "ml"
@@ -321,9 +396,16 @@
   "prompt": "Why do you train logistic regression with cross-entropy instead of mean squared error, even though MSE would also drive the sigmoid output toward the label?",
   "src": {
    "book": "skycak",
-   "ref": "logistic regression"
+   "page": 201,
+   "ref": "Ch. 25 — Logistic Regression"
   },
-  "reveal": "Two reasons. First, MSE composed with the sigmoid is NON-CONVEX in the weights — it has local minima and flat regions, so gradient descent can get stuck; cross-entropy with the sigmoid is convex, giving a single global minimum. Second, MSE's gradient contains a σ′(z) factor that goes to zero when the neuron is saturated (very confident), so a confidently WRONG prediction produces almost no gradient and barely learns — the vanishing-gradient trap. Cross-entropy cancels that σ′ term, leaving a (p − y) gradient whose size scales with the error, so confident mistakes get the largest corrective push.",
+  "see": [
+   {
+    "label": "CS231n — Softmax & cross-entropy",
+    "url": "https://cs231n.github.io/linear-classify/#softmax-classifier"
+   }
+  ],
+  "reveal": "Two reasons. First, **MSE** (mean squared error) composed with the sigmoid is **non-convex** in the weights — it has local minima and flat spots where gradient descent gets stuck; cross-entropy with the sigmoid is convex, one global minimum. Second, MSE's gradient carries a `σ′(z)` factor that goes to zero when the neuron is **saturated** (very confident), so a confidently WRONG prediction produces almost no gradient and barely learns — the vanishing-gradient trap. Cross-entropy cancels that `σ′` term, leaving a `(p − y)` gradient whose size scales with the error, so confident mistakes get the largest corrective push.",
   "tags": [
    "mlfund",
    "ml"
@@ -336,9 +418,16 @@
   "prompt": "Contrast batch, stochastic (SGD), and mini-batch gradient descent. When does gradient descent diverge versus stall?",
   "src": {
    "book": "skycak",
-   "ref": "gradient descent in practice"
+   "page": 221,
+   "ref": "Ch. 27 — Regression via Gradient Descent"
   },
-  "reveal": "BATCH uses the full dataset per update: the gradient is accurate and the descent smooth, but each step is expensive and it can settle into a sharp local minimum. STOCHASTIC uses one sample per update: steps are cheap and the noise helps escape shallow minima and saddle points, but the path jitters and never fully settles. MINI-BATCH (typically 32–512) is the practical middle — noise for regularization, plus vectorized matmuls that saturate the GPU. DIVERGENCE (loss → NaN, oscillation) usually means the learning rate is too large so steps overshoot the minimum; STALLING (loss plateaus) comes from a rate too small, flat/saddle regions, or vanishing gradients — the fixes differ, so diagnose which one you have before touching the knob.",
+  "see": [
+   {
+    "label": "scikit-learn — Stochastic Gradient Descent",
+    "url": "https://scikit-learn.org/stable/modules/sgd.html"
+   }
+  ],
+  "reveal": "Gist: the three flavors of gradient descent differ only in how many samples each update uses — trading gradient accuracy against speed and noise.\n\n**Batch** uses the full dataset per update — accurate gradient, smooth descent, but each step is expensive and it can settle into a sharp minimum. **Stochastic (SGD)** uses one sample per update — cheap steps, and the noise helps escape shallow minima and saddle points, but the path jitters and never fully settles. **Mini-batch** (typically 32–512) is the practical middle: enough noise to regularize, plus vectorized matmuls that saturate the GPU.\n\n**Tell:** **divergence** (loss → NaN, oscillation) means the learning rate is too large so steps overshoot; **stalling** (loss plateaus) means a rate too small, or flat/saddle regions, or vanishing gradients. Diagnose which one you have before touching the knob — the fixes are opposite.",
   "tags": [
    "mlfund",
    "ml"
@@ -350,10 +439,12 @@
   "flow": "flip",
   "prompt": "Why do feature scaling / standardization matter for gradient descent, k-nearest-neighbors, and k-means — but not for a decision tree?",
   "src": {
-   "book": "skycak",
-   "ref": "feature scaling"
+   "book": "sklearn",
+   "url": "https://scikit-learn.org/stable/modules/preprocessing.html",
+   "anchor": "standardization-or-mean-removal-and-variance-scaling",
+   "ref": "scikit-learn §6.3 — Preprocessing: standardization"
   },
-  "reveal": "For GRADIENT DESCENT, features on wildly different scales make the loss contours long thin ellipses, so the gradient zig-zags and convergence is slow; standardizing (z-score) or min-max scaling makes the bowl round and descent direct. For KNN and K-MEANS, both rely on Euclidean distance, so an unscaled large-range feature (say income in dollars) dominates the distance and small-range features are ignored — scaling gives every feature comparable weight. DECISION TREES split on one feature at a time using thresholds (“is x > t?”), and a monotonic rescaling doesn't change the ordering of values, so the same splits are available — trees are scale-invariant.",
+  "reveal": "For **gradient descent**, features on wildly different scales make the loss contours long thin ellipses, so the gradient zig-zags and converges slowly; **standardizing** (z-score: subtract the mean, divide by the standard deviation) or min-max scaling rounds the bowl and descent goes straight. For **kNN** and **k-means**, both rank points by **Euclidean distance**, so an unscaled large-range feature (say income in dollars) dominates the distance and small-range features get ignored — scaling gives every feature comparable weight. A **decision tree** splits one feature at a time on a threshold (\"is x > t?\"), and a monotonic rescaling never changes the ordering of values, so the same splits stay available — trees are **scale-invariant**.",
   "tags": [
    "mlfund",
    "ml"
@@ -366,9 +457,16 @@
   "prompt": "Explain k-nearest-neighbors as a 'lazy learner': what happens at training vs inference, how the distance metric and k matter, and why it breaks in high dimensions.",
   "src": {
    "book": "skycak",
-   "ref": "k-nearest neighbors"
+   "page": 237,
+   "ref": "Ch. 29 — K-Nearest Neighbors"
   },
-  "reveal": "kNN is LAZY because training does almost nothing — it just stores the dataset. All the work is at INFERENCE: to predict, compute the distance from the query to every stored point, take the k closest, and return their majority vote (classification) or mean (regression). That makes prediction O(n·d) per query, which is the opposite cost profile of most models — cheap to fit, expensive to serve. Small k gives a jagged, noise-sensitive boundary; large k oversmooths and blurs class edges. The distance metric is a real modeling choice (Euclidean, Manhattan, cosine), and features must be scaled first. In high dimensions the CURSE OF DIMENSIONALITY bites: distances concentrate so the nearest and farthest neighbors become almost equidistant, and 'nearest' stops being meaningful.",
+  "see": [
+   {
+    "label": "scikit-learn — Nearest Neighbors",
+    "url": "https://scikit-learn.org/stable/modules/neighbors.html"
+   }
+  ],
+  "reveal": "Gist: k-nearest-neighbors is a **lazy learner** — it does almost no work at training time and pushes all the effort to prediction.\n\nTraining just **stores** the dataset. At **inference**, to predict you compute the distance from the query to every stored point, take the `k` closest, and return their majority vote (classification) or mean (regression) — `O(n·d)` per query for `n` points of `d` features. That's the opposite cost profile of most models: cheap to fit, expensive to serve. Small `k` gives a jagged, noise-sensitive boundary; large `k` oversmooths and blurs class edges. The **distance metric** is a real modeling choice (Euclidean, Manhattan, cosine), and features must be scaled first.\n\n**Tell:** in high dimensions the **curse of dimensionality** bites — distances **concentrate**, so the nearest and farthest neighbors become almost equidistant and \"nearest\" stops meaning anything.",
   "tags": [
    "mlfund",
    "ml"
@@ -381,9 +479,16 @@
   "prompt": "State the conditional-independence assumption behind naive Bayes, explain why the classifier works well despite that assumption usually being false, and why you compute in log-space.",
   "src": {
    "book": "skycak",
-   "ref": "naive Bayes"
+   "page": 251,
+   "ref": "Ch. 30 — Naive Bayes"
   },
-  "reveal": "Naive Bayes assumes the features are conditionally INDEPENDENT given the class, so P(class | x) ∝ P(class)·∏ᵢ P(xᵢ | class) — you just multiply per-feature likelihoods instead of modeling their joint distribution, which needs exponentially less data to estimate. The independence assumption is almost always false (words in a document are correlated), yet the classifier works because you only need the ARGMAX over classes to be correct, not the probabilities to be calibrated — correlated features may skew the magnitudes but often leave the ranking of classes intact. LOG-SPACE matters because multiplying many small probabilities underflows to zero in floating point; taking logs turns the product into a sum, log P(class) + Σᵢ log P(xᵢ | class), which is numerically stable and the argmax is unchanged.",
+  "see": [
+   {
+    "label": "scikit-learn — Naive Bayes",
+    "url": "https://scikit-learn.org/stable/modules/naive_bayes.html"
+   }
+  ],
+  "reveal": "Gist: naive Bayes assumes every feature is independent of the others given the class — a wildly simplifying, usually-false assumption that somehow still classifies well.\n\nThe **conditional-independence** assumption lets you write `P(class | x) ∝ P(class)·∏ᵢ P(xᵢ | class)` — just multiply per-feature likelihoods instead of modeling their joint distribution, which needs exponentially less data to estimate. The assumption is almost always false (words in a document correlate), yet the classifier works because you only need the **argmax** over classes to be right, not the probabilities to be calibrated — correlated features can skew the magnitudes but often leave the class ranking intact.\n\n**Tell:** compute in **log-space** — multiplying many small probabilities **underflows** to zero in floating point, so take logs and the product becomes a sum, `log P(class) + Σᵢ log P(xᵢ | class)`, numerically stable and with the same argmax.",
   "tags": [
    "mlfund",
    "ml"
@@ -396,9 +501,16 @@
   "prompt": "How does a decision tree choose its splits (entropy vs Gini), why is the algorithm called greedy, and how do you keep it from overfitting?",
   "src": {
    "book": "skycak",
-   "ref": "decision trees"
+   "page": 290,
+   "ref": "Ch. 34 — Decision Trees (entropy & Gini impurity)"
   },
-  "reveal": "At each node the tree searches every feature and threshold and picks the split that most reduces impurity of the resulting children. Impurity is measured by ENTROPY, −Σ p·log p (splitting to maximize information gain), or GINI, 1 − Σ p² — the two usually agree, but Gini is cheaper since it avoids the logarithm. It is GREEDY because it commits to the locally best split at each node and never revisits it; there's no lookahead, so it won't find the globally optimal tree, but the heuristic is fast and works well. Left unchecked a tree grows until every leaf is pure — memorizing the training set, high variance. Control this by limiting max depth, requiring a minimum number of samples per leaf/split, or growing fully and then PRUNING back branches that don't improve validation performance.",
+  "see": [
+   {
+    "label": "scikit-learn — Decision Trees",
+    "url": "https://scikit-learn.org/stable/modules/tree.html"
+   }
+  ],
+  "reveal": "Gist: a decision tree splits the data one feature-and-threshold at a time, always grabbing the split that most **purifies** the two resulting groups — a greedy rule that overfits if left unchecked.\n\nAt each node it searches every feature and threshold and picks the split that most reduces **impurity** of the children. Impurity is measured by **entropy** `−Σ p·log p` (splitting to maximize information gain) or **Gini** `1 − Σ p²` — the two usually agree, but Gini is cheaper since it skips the logarithm. It's **greedy** because it commits to the locally best split and never revisits it — no lookahead, so it won't find the globally optimal tree, but the heuristic is fast and works well.\n\n**Tell:** left unchecked a tree grows until every leaf is pure — memorizing the training set (high variance). Rein it in by limiting max depth, requiring a minimum number of samples per leaf/split, or growing fully and then **pruning** back branches that don't improve validation performance.",
   "tags": [
    "mlfund",
    "ml"
@@ -411,9 +523,16 @@
   "prompt": "Walk through Lloyd's algorithm for k-means, explain why initialization matters (and what k-means++ fixes), and how you'd choose k.",
   "src": {
    "book": "skycak",
-   "ref": "k-means clustering"
+   "page": 109,
+   "ref": "Ch. 16 — K-Means Clustering"
   },
-  "reveal": "Lloyd's iteration alternates two steps until assignments stop changing: (1) ASSIGN each point to its nearest centroid, (2) UPDATE each centroid to the mean of its assigned points. This monotonically decreases within-cluster sum of squares, so it always converges — but only to a LOCAL minimum, and which one depends on where the centroids started. Bad random init can put two centroids in the same cluster and leave another empty, giving a poor result; K-MEANS++ fixes this by seeding centroids one at a time, choosing each new one with probability proportional to its squared distance from the nearest existing centroid, so seeds start spread out. Choosing k is a modeling decision, not something the objective picks (SSE always drops as k rises): use the ELBOW of the SSE-vs-k curve or maximize the silhouette score.",
+  "see": [
+   {
+    "label": "scikit-learn — K-means & k-means++",
+    "url": "https://scikit-learn.org/stable/modules/clustering.html#k-means"
+   }
+  ],
+  "reveal": "Gist: k-means alternates \"assign each point to the nearest center, then move each center to the mean of its points\" until nothing changes — simple, but where you start decides how good the result is.\n\n**Lloyd's algorithm** iterates two steps until assignments stop changing: (1) **assign** each point to its nearest **centroid**; (2) **update** each centroid to the mean of its assigned points. This monotonically decreases the within-cluster sum of squares, so it always converges — but only to a **local** minimum, and which one depends on the initial centroids. Bad random init can drop two centroids in one true cluster and leave another empty; **k-means++** fixes this by seeding centroids one at a time, each new one chosen with probability proportional to its squared distance from the nearest existing centroid, so seeds start spread out.\n\n**Tell:** `k` is a modeling choice the objective can't make (the sum of squares always drops as `k` rises) — pick it from the **elbow** of the error-vs-`k` curve or by maximizing the **silhouette** score.",
   "tags": [
    "mlfund",
    "ml"
@@ -426,9 +545,16 @@
   "prompt": "Explain the bias-variance tradeoff, what overfitting looks like in the training curves, and how L1 versus L2 regularization combat it differently.",
   "src": {
    "book": "skycak",
-   "ref": "bias-variance tradeoff and regularization"
+   "page": 217,
+   "ref": "Ch. 26 — Overfitting & the Bias-Variance Tradeoff"
   },
-  "reveal": "BIAS is error from a model too simple to capture the pattern (underfitting — high error on both train and validation); VARIANCE is error from a model so flexible it fits the training noise (overfitting). The signature of overfitting is a widening GAP: training loss keeps falling while validation loss flattens then rises. Regularization shrinks the weights to trade a little bias for a large drop in variance. L2 (ridge) adds λΣwᵢ² and shrinks all weights smoothly toward zero without eliminating any — good when many features each contribute a little. L1 (lasso) adds λΣ|wᵢ|, whose constant-magnitude gradient drives some weights to EXACTLY zero, performing automatic feature selection and yielding a sparse model — good when you believe only a few features matter.",
+  "see": [
+   {
+    "label": "scikit-learn — Ridge (L2) & Lasso (L1)",
+    "url": "https://scikit-learn.org/stable/modules/linear_model.html#lasso"
+   }
+  ],
+  "reveal": "Gist: **bias** is error from a model too simple to catch the pattern; **variance** is error from a model so flexible it fits the noise — and regularization trades a little bias for a big drop in variance.\n\nHigh **bias** = underfitting (high error on both train and validation); high **variance** = overfitting (fits the training noise). The signature of overfitting is a widening **gap**: training loss keeps falling while validation loss flattens then rises. **Regularization** shrinks the weights to fight this. **L2 (ridge)** adds `λΣwᵢ²` and shrinks all weights smoothly toward zero without eliminating any — good when many features each contribute a little. **L1 (lasso)** adds `λΣ|wᵢ|`, whose constant-magnitude gradient drives some weights to **exactly** zero — automatic feature selection, a sparse model — good when you believe only a few features matter.\n\n**Tell:** L2 shrinks everything a bit; L1 zeroes some out entirely — that sparsity is the whole reason to reach for lasso.",
   "tags": [
    "mlfund",
    "ml"
@@ -441,9 +567,16 @@
   "prompt": "Describe one forward and one backward pass through a small multilayer perceptron conceptually: what the forward pass computes, what backprop actually computes and why it needs the chain rule, and where vanishing gradients come from.",
   "src": {
    "book": "skycak",
-   "ref": "neural networks from scratch"
+   "page": 343,
+   "ref": "Ch. 35–36 — Neural Network Regressors & Backpropagation"
   },
-  "reveal": "FORWARD: each layer computes z = Wx + b then a nonlinearity a = σ(z), feeding a into the next layer until the output produces a prediction and a scalar loss; you cache the intermediate z's and a's because the backward pass needs them. BACKWARD (backprop) computes the gradient of that single loss with respect to EVERY weight and bias — the direction to nudge each parameter to reduce the loss. It needs the CHAIN RULE because a weight in an early layer affects the loss only through a chain of later layers, so its gradient is the product of all the local derivatives along that path; backprop reuses shared sub-products by walking the graph output-to-input rather than recomputing each path. VANISHING GRADIENTS arise because that product multiplies one factor per layer: with saturating activations like sigmoid (derivative ≤ 0.25) or tanh (peaks at 1.0 at z=0 but collapses toward 0 when saturated) the gradient shrinks exponentially with depth, so early layers barely learn — which is why ReLU and residual connections exist.",
+  "see": [
+   {
+    "label": "3Blue1Brown — Backpropagation calculus (Ch. 4)",
+    "url": "https://www.youtube.com/watch?v=tIeHLnjs5U8"
+   }
+  ],
+  "reveal": "Gist: the forward pass turns inputs into a prediction and a loss; the backward pass (backprop) works out how to nudge every weight to shrink that loss — and it needs the chain rule because early weights only touch the loss through many later layers.\n\n**Forward:** each layer computes `z = Wx + b` then a nonlinearity `a = σ(z)`, feeding `a` into the next layer until the output gives a prediction and a scalar loss; cache the intermediate `z`'s and `a`'s, since the backward pass needs them. **Backward (backprop):** compute the gradient of that single loss with respect to EVERY weight and bias — the direction to nudge each to reduce the loss. It needs the **chain rule** because an early-layer weight affects the loss only through a chain of later layers, so its gradient is the product of all the local derivatives along that path; backprop reuses shared sub-products by walking the graph output-to-input instead of recomputing each path.\n\n**Tell:** **vanishing gradients** come from that product multiplying one factor per layer — with saturating activations like sigmoid (derivative ≤ 0.25) or tanh (peaks at 1.0 at `z=0` but collapses toward 0 when saturated) the gradient shrinks exponentially with depth, so early layers barely learn — which is why **ReLU** and **residual connections** exist.",
   "tags": [
    "mlfund",
    "ml"
@@ -456,9 +589,16 @@
   "prompt": "For a two-player game like checkers (the Blondie24 capstone), explain how minimax search, alpha-beta pruning, and an evaluation function combine to pick a move.",
   "src": {
    "book": "skycak",
-   "ref": "minimax and alpha-beta pruning (Blondie24)"
+   "page": 379,
+   "ref": "Ch. 38–40 — Minimax, Heuristic Evaluation & Blondie24"
   },
-  "reveal": "MINIMAX assumes an optimal adversary: you (MAX) pick the move maximizing your outcome, assuming the opponent (MIN) then minimizes it, recursing down the game tree and backing values up. The full tree is astronomically large, so you search to a fixed DEPTH and score the non-terminal leaves with an EVALUATION FUNCTION — a heuristic estimate of how good a board is (material, position, etc.) — the search provides lookahead, the eval provides judgment where lookahead stops. ALPHA-BETA PRUNING makes the search tractable without changing the answer: track α (best value MAX can guarantee so far) and β (best MIN can guarantee); when α ≥ β at a node, the opponent would never let play reach it, so you prune the rest of that branch. With good move ordering this cuts the effective branching factor from b to √b, roughly doubling searchable depth. Blondie24's twist: rather than hand-coding the evaluation function, it EVOLVED a neural-network evaluator through self-play co-evolution — no human checkers expertise — and plugged that learned board-scorer into standard minimax search.",
+  "see": [
+   {
+    "label": "Chess Programming Wiki — Alpha-Beta",
+    "url": "https://www.chessprogramming.org/Alpha-Beta"
+   }
+  ],
+  "reveal": "Gist: minimax picks your move by assuming a perfect opponent — you maximize, they minimize — and since the full game tree is astronomical, you cut it off at a fixed depth and score the cutoff positions with a heuristic.\n\n**Minimax** recurses down the game tree and backs values up: you (**MAX**) pick the move maximizing your outcome, assuming the opponent (**MIN**) then minimizes it. The tree is far too big to search fully, so you go to a fixed **depth** and score the non-terminal leaves with an **evaluation function** — a heuristic estimate of how good a board is (material, position). **Alpha-beta pruning** makes this tractable without changing the answer: track `α` (best value MAX can guarantee so far) and `β` (best MIN can guarantee); when `α ≥ β` at a node, the opponent would never let play reach it, so you prune the rest of that branch. With good move ordering this cuts the effective branching factor from `b` to `√b`, roughly doubling searchable depth.\n\n**Tell: Blondie24**'s twist — rather than hand-coding the evaluation function, it **evolved** a neural-network board-scorer through self-play co-evolution (no human checkers expertise) and plugged that learned evaluator into standard minimax search.",
   "tags": [
    "mlfund",
    "ml"

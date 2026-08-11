@@ -6,13 +6,19 @@
   "prompt": "Adjacency list vs adjacency matrix: state the space cost of each and the one question that decides which to use.",
   "src": {
    "book": "cses",
-   "ref": "\u00a711 Basics of graphs",
-   "page": 119
+   "ref": "§11.2 Graph representation",
+   "page": 123
   },
-  "reveal": "Adjacency list is O(V+E); adjacency matrix is O(V\u00b2). The deciding question is density: use a matrix only when the graph is dense (E approaches V\u00b2) or you need O(1) edge-existence lookups; otherwise use lists. Interview default is lists, since most graphs are sparse.",
+  "reveal": "Two ways to store a graph's edges. An **adjacency list** keeps, per vertex, a list of its neighbors — total size **O(V+E)** (V vertices plus E edges). An **adjacency matrix** is a V×V grid where cell (i,j) marks whether the edge i→j exists — size **O(V²)** no matter how few edges there actually are. The one deciding question is **density**: reach for the matrix only when the graph is **dense** (edge count E approaches V², the maximum possible) or you need **O(1)** \"does this edge exist?\" lookups; otherwise use lists. **Tell:** most graphs are sparse, so the interview default is the adjacency list.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 1971. Find if Path Exists in Graph",
+    "url": "https://leetcode.com/problems/find-if-path-exists-in-graph/"
+   }
   ]
  },
  {
@@ -22,13 +28,19 @@
   "prompt": "When does BFS give you a shortest path and when does it fail? What replaces it when it fails?",
   "src": {
    "book": "cses",
-   "ref": "\u00a712 Graph traversal; \u00a713 Shortest paths",
-   "page": 127
+   "ref": "§12.2 Breadth-first search",
+   "page": 129
   },
-  "reveal": "BFS gives shortest paths only when every edge has the same weight \u2014 it explores in layers of equal cost. With differing positive weights it fails, and Dijkstra replaces it (swap the queue for a min-heap). With negative edges Dijkstra fails too, and Bellman\u2013Ford handles it.",
+  "reveal": "BFS (breadth-first search — explore outward in layers, nearest nodes first) gives you shortest paths **only when every edge has the same weight**, because it fans out one equal-cost ring at a time. The moment edge weights **differ** (while staying positive), that layered order breaks and BFS fails — **Dijkstra** replaces it: the same idea, but you swap the plain queue for a **min-heap** (a structure that always hands back the smallest-distance node next). If some weights go **negative**, Dijkstra fails too, and **Bellman–Ford** is what handles it. **Tell:** unweighted or uniform-weight → BFS; positive weights → Dijkstra; negative edges → Bellman–Ford.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 1091. Shortest Path in Binary Matrix",
+    "url": "https://leetcode.com/problems/shortest-path-in-binary-matrix/"
+   }
   ]
  },
  {
@@ -38,13 +50,19 @@
   "prompt": "Explain topological sort: what must be true of the graph, the two standard algorithms, and how you detect that it is impossible.",
   "src": {
    "book": "cses",
-   "ref": "\u00a716 Directed graphs (topological sorting)",
+   "ref": "§16.1 Topological sorting",
    "page": 159
   },
-  "reveal": "It orders vertices so every edge points forward; it requires a DAG. Kahn\u2019s algorithm repeatedly removes in-degree-zero nodes with a queue; the DFS method pushes each node onto a stack after its descendants finish, then reverses. Impossible exactly when a cycle exists \u2014 Kahn detects it when fewer than V nodes are emitted; DFS detects a back edge to a node still on the recursion stack.",
+  "reveal": "Gist: a **topological sort** lines the vertices up so that **every edge points forward** — if there's an edge u→v, then u comes before v. Picture it as a valid order to do tasks when some tasks depend on others.\n\nIt only exists for a **DAG** — a *directed acyclic graph*, one with directed edges and no cycle anywhere. (A cycle would demand some node come before itself, which no ordering can satisfy.)\n\nTwo standard algorithms:\n- **Kahn's algorithm** repeatedly pulls off any node with **in-degree zero** — no remaining edges pointing *into* it, so nothing is left that must precede it. Keep such nodes in a queue; emit one, delete its outgoing edges (which may drop new nodes to in-degree zero), and repeat.\n- **The DFS method** runs depth-first search and pushes each node onto a **stack the moment all of its descendants have finished**; reversing that stack at the end gives the order.\n\nIt's **impossible exactly when the graph has a cycle**. Kahn's catches this when it emits **fewer than V nodes** (the ones tangled in a cycle never reach in-degree zero). The DFS method catches it by finding a **back edge** — an edge to a node still sitting on the current recursion stack, meaning you've looped back onto your own path. **Tell:** \"ordering with dependencies\" plus \"no cycles\" is the topological-sort signature.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 210. Course Schedule II",
+    "url": "https://leetcode.com/problems/course-schedule-ii/"
+   }
   ]
  },
  {
@@ -54,13 +72,19 @@
   "prompt": "Why does Dijkstra break with negative edges? Be precise about the invariant that is violated.",
   "src": {
    "book": "cses",
-   "ref": "\u00a713 Shortest paths (Dijkstra, Bellman\u2013Ford)",
-   "page": 133
+   "ref": "§13.2 Dijkstra's algorithm",
+   "page": 136
   },
-  "reveal": "Dijkstra assumes that once a node is popped with the smallest tentative distance, that distance is final \u2014 because every remaining path can only add non-negative weight. A negative edge breaks that: a later, longer-looking path can become cheaper after traversing the negative edge, so a finalized node may need updating. Bellman\u2013Ford relaxes all edges V\u22121 times instead, and a further relaxation on pass V proves a negative cycle.",
+  "reveal": "Gist: **Dijkstra** trusts that the first time it \"finalizes\" a node, that node's distance is already the best it will ever be. A **negative edge** makes that trust false.\n\nThe invariant precisely: Dijkstra always **pops the unvisited node with the smallest tentative distance** and declares it **final**. That's safe only because every *remaining* path to it can add nothing but **non-negative** weight — so no future path could arrive cheaper. (Tentative distance = the best distance found *so far*, not yet confirmed.)\n\nA negative edge violates exactly this: a path that looked longer at pop-time can turn out **cheaper** once it crosses the negative edge later — so a node you already finalized might actually deserve a smaller value. Dijkstra never revisits it, so it silently returns a wrong answer.\n\n**Bellman–Ford** fixes this by never finalizing early: it **relaxes every edge, V−1 times over** (V = number of vertices), which is enough rounds for the true shortest distances to settle. **The tell:** run one *more* pass — pass V — and if any edge still relaxes (still improves a distance), the graph has a **negative cycle**: a loop you can go around endlessly to drive the cost down without bound.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 787. Cheapest Flights Within K Stops",
+    "url": "https://leetcode.com/problems/cheapest-flights-within-k-stops/"
+   }
   ]
  },
  {
@@ -70,13 +94,19 @@
   "prompt": "Describe union-find with both optimizations and state the resulting complexity. Name two problems where it is the right tool.",
   "src": {
    "book": "cses",
-   "ref": "\u00a715 Spanning trees (union-find)",
-   "page": 151
+   "ref": "§15.2 Union-find structure",
+   "page": 155
   },
-  "reveal": "Union by size/rank attaches the smaller tree under the larger, keeping depth low; path compression flattens the path to the root on every find. Together they give near-constant amortized time \u2014 the inverse Ackermann function \u03b1(n). Right tool for: Kruskal\u2019s MST (detect whether an edge joins two components) and dynamic connectivity / counting connected components as edges arrive.",
+  "reveal": "Gist: **union-find** (also called disjoint-set union) tracks items grouped into sets, answers \"are these two in the same set?\", and lets you **merge** sets — and with two tweaks it does both in almost constant time. Each set is stored as a tree; every item points toward a **root** that names its set.\n\n**Optimization 1 — union by size (or rank):** when merging two sets, attach the **smaller** tree under the **larger** one's root. This keeps the trees shallow, so walking up to a root stays fast.\n\n**Optimization 2 — path compression:** every time you do a **find** (walk up to the root), re-point each node you passed **directly at the root**, flattening that path for next time.\n\nTogether they give **near-constant amortized time** — formally the **inverse Ackermann function α(n)**, which grows so absurdly slowly it stays below 5 for any input you will ever see. (\"Amortized\" = averaged over a sequence of operations, not guaranteed per single call.)\n\n**Right tool for two jobs:** (1) **Kruskal's MST** — to detect whether adding an edge would **join two separate components** rather than close a cycle; (2) **dynamic connectivity / counting connected components as edges arrive** one at a time. **Tell:** groups merging online plus \"same component?\" queries.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 684. Redundant Connection",
+    "url": "https://leetcode.com/problems/redundant-connection/"
+   }
   ]
  },
  {
@@ -86,13 +116,19 @@
   "prompt": "Grid BFS with extra state (e.g. fuel, keys, remaining wall-breaks): what goes in the visited set, and what is the pruning invariant?",
   "src": {
    "book": "cses",
-   "ref": "\u00a712 Graph traversal, extended",
-   "page": 127
+   "ref": "§12.2 Breadth-first search (state-augmented, extension)",
+   "page": 129
   },
-  "reveal": "The visited set must be keyed on the full state, not just the cell: (row, col, extraState). The pruning invariant is dominance \u2014 only revisit a cell if you arrive in a strictly better state (more fuel, more keys, more breaks left); a strictly worse or equal arrival can never lead to a better outcome, so prune it. Store best[r][c] as the best resource seen rather than a plain boolean.",
+  "reveal": "Gist: when a grid search carries **extra state** — fuel left, keys collected, wall-breaks remaining — a cell is no longer simply \"visited or not.\" The same cell reached with **more resources** is a genuinely different, better situation, so your bookkeeping must track the resource, not just the location.\n\n**What goes in the visited set:** the **full state**, `(row, col, extraState)` — not just `(row, col)`. Two arrivals at the same cell with different amounts of fuel are different nodes, and both may be worth exploring.\n\n**The pruning invariant is dominance.** Only revisit a cell if you arrive in a **strictly better** state — more fuel, more keys, more breaks left. An arrival that is **worse or merely equal** on every resource can never lead to an outcome the earlier arrival couldn't already reach, so **prune** it. That one rule is what stops the search from exploding.\n\n**Implementation:** instead of a boolean `visited[r][c]`, keep `best[r][c]` = the **best resource level** seen at that cell so far, and skip any arrival that fails to beat it. **Tell:** a grid BFS/Dijkstra where a move **consumes or grants a budget** — augment the state, prune by dominance.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 1293. Shortest Path in a Grid with Obstacles Elimination",
+    "url": "https://leetcode.com/problems/shortest-path-in-a-grid-with-obstacles-elimination/"
+   }
   ]
  },
  {
@@ -102,29 +138,41 @@
   "prompt": "Kruskal vs Prim for minimum spanning tree: mechanism, data structure, and which you pick when.",
   "src": {
    "book": "cses",
-   "ref": "\u00a715 Spanning trees",
+   "ref": "§15 Spanning trees (Kruskal & Prim)",
    "page": 151
   },
-  "reveal": "Kruskal sorts all edges and adds the cheapest that does not form a cycle, using union-find \u2014 O(E log E), naturally suited to sparse graphs and edge lists. Prim grows one tree from a start vertex, always taking the cheapest edge leaving the tree, using a min-heap \u2014 O(E log V), better on dense graphs, and structurally almost identical to Dijkstra (the only change is the key: edge weight instead of accumulated distance).",
+  "reveal": "Gist: both build a **minimum spanning tree** (MST — the cheapest set of edges that connects every vertex, with no cycles). **Kruskal** thinks in *edges*; **Prim** grows a *tree*.\n\n**Kruskal:** sort **all edges** cheapest-first, then walk down the list adding each edge **unless it would form a cycle** — using **union-find** (the disjoint-set structure) to test in near-constant time whether an edge's two endpoints are already connected. Cost **O(E log E)**, dominated by the sort. Natural on **sparse** graphs and when the input is already an **edge list**.\n\n**Prim:** start from one vertex and **grow a single tree**, each step adding the **cheapest edge that leaves the tree** (connects a tree node to a non-tree node), picked with a **min-heap** (always yields the smallest-weight candidate). Cost **O(E log V)** with a binary heap; the array-based / Fibonacci-heap variant reaches **O(V²)** / **O(E + V log V)**, which is what actually wins on **dense** graphs. It is structurally **almost identical to Dijkstra** — the only change is the heap key: **edge weight** here versus **accumulated distance from the source** in Dijkstra.\n\n**Tell:** sparse or edge-list input → Kruskal; dense or already-have-an-adjacency-structure → Prim.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 1584. Min Cost to Connect All Points",
+    "url": "https://leetcode.com/problems/min-cost-to-connect-all-points/"
+   }
   ]
  },
  {
   "id": "g-parse-15",
   "mins": 15,
   "flow": "full",
-  "prompt": "Many graph problems give you strings, words, or pairs \u2014 not integers. Describe the parse \u2192 map \u2192 algorithm \u2192 unmap pattern.",
+  "prompt": "Many graph problems give you strings, words, or pairs — not integers. Describe the parse → map → algorithm → unmap pattern.",
   "src": {
    "book": "cses",
-   "ref": "\u00a711 Basics of graphs",
-   "page": 119
+   "ref": "§11.2 Graph representation",
+   "page": 123
   },
-  "reveal": "Step 1 parse: read the input into whatever natural form it comes in (word pairs, course names, ticket routes). Step 2 map: assign each distinct entity an integer id via a hash map, building an adjacency list keyed on ids. Step 3 algorithm: run the standard integer-indexed BFS/DFS/topo-sort/Dijkstra untouched. Step 4 unmap: translate the integer result back to the original labels. Keeping these four steps separate is the whole trick \u2014 most bugs come from trying to run the algorithm directly on strings.",
+  "reveal": "Gist: most graph algorithms are written for **integer-numbered vertices**, but real inputs hand you **strings** — words, course names, airport codes. The fix is a clean four-step pipeline that quarantines the messy relabeling from the clean algorithm.\n\n**Step 1 — parse:** read the input into whatever natural form it arrives in (word pairs, course prerequisites, ticket routes).\n\n**Step 2 — map:** assign each **distinct entity an integer id** using a **hash map** (string → id), and build your **adjacency list** keyed on those ids.\n\n**Step 3 — algorithm:** run the standard **integer-indexed** BFS / DFS / topological sort / Dijkstra completely **untouched** — it never sees a string.\n\n**Step 4 — unmap:** translate the integer answer **back** to the original labels.\n\n**The whole trick is keeping these four steps separate.** Most bugs come from trying to run the algorithm **directly on strings**, tangling the relabeling into the traversal. **Tell:** the input names things with words instead of numbers — build the id map first, and everything after is textbook.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 399. Evaluate Division",
+    "url": "https://leetcode.com/problems/evaluate-division/"
+   }
   ]
  },
  {
@@ -134,13 +182,19 @@
   "prompt": "How do you detect a cycle in a DIRECTED graph with DFS, and why does the undirected method fail here?",
   "src": {
    "book": "cses",
-   "ref": "\u00a716 Directed graphs",
-   "page": 159
+   "ref": "§16.1 Topological sorting (three-state DFS)",
+   "page": 160
   },
-  "reveal": "Directed: use three colors \u2014 white (unvisited), gray (on the current recursion stack), black (fully explored). A cycle exists exactly when you reach a GRAY node, meaning you looped back into the path you are currently on. The undirected method (\u201cfound a visited node that is not my parent\u201d) fails for directed graphs because reaching an already-visited BLACK node is perfectly legal \u2014 it just means two paths converge, which is not a cycle. The gray/black distinction is what separates \u201con my current path\u201d from \u201calready done.\u201d",
+  "reveal": "Gist: to find a cycle in a **directed** graph with DFS, you track not just *whether* a node was visited but *whether it sits on the path you're currently walking*. Three colors do exactly that.\n\n**The three colors:** **white** = unvisited; **gray** = **on the current recursion stack** (you entered it and haven't backed out yet); **black** = fully explored (you finished it and all its descendants). A **cycle exists exactly when DFS reaches a gray node** — you've looped back onto the very path you're still standing on.\n\n**Why the undirected trick fails here:** for undirected graphs you detect a cycle by finding \"an already-visited node that isn't my parent.\" In a *directed* graph, hitting an already-visited **black** node is **perfectly legal** — it just means two paths **converge** on a node you already finished, which is not a cycle. Only a **gray** hit is.\n\n**The point:** the gray-versus-black distinction is what separates **\"on my current path\"** from **\"already done.\"** Collapse them into one \"visited\" flag and you get false cycle reports. **Tell:** directed cycle detection = DFS with an on-stack (gray) marker; a back edge to a gray node is the cycle.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 207. Course Schedule",
+    "url": "https://leetcode.com/problems/course-schedule/"
+   }
   ]
  },
  {
@@ -150,29 +204,47 @@
   "prompt": "How do you test whether a graph is bipartite, and what does failure tell you about the graph?",
   "src": {
    "book": "cses",
-   "ref": "\u00a712 Graph traversal",
-   "page": 127
+   "ref": "§12.3 Applications (bipartiteness check)",
+   "page": 131
   },
-  "reveal": "Two-color the graph with BFS or DFS: assign the start node color 0, and every neighbor the opposite color of the current node. If you ever meet an already-colored neighbor with the SAME color as the current node, it is not bipartite. Failure means the graph contains an ODD-length cycle \u2014 that is precisely the characterization: a graph is bipartite if and only if it has no odd cycle. Remember to loop over all components, since a disconnected graph needs each component tested.",
+  "reveal": "Gist: a graph is **bipartite** if you can split its vertices into **two groups** so that every edge crosses between the groups (never stays inside one). You test it by trying to **2-color** the graph and watching for a forced conflict.\n\n**The test:** run BFS or DFS; give the start node **color 0**, and give every neighbor the **opposite** color of the current node. If you ever reach an **already-colored** neighbor whose color is the **same** as the current node's, the coloring is impossible — the graph is **not bipartite**.\n\n**What failure means:** a conflict appears exactly when the graph contains an **odd-length cycle**. That is the full characterization — **a graph is bipartite if and only if it has no odd cycle** (an even cycle 2-colors cleanly; an odd one always clashes).\n\n**Don't forget:** loop the coloring **over every component**. A disconnected graph can be bipartite in one piece and not in another, so each component must be tested from its own start node. **Tell:** \"split into two sides,\" \"two-colorable,\" or \"no odd cycle\" all point here.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 785. Is Graph Bipartite?",
+    "url": "https://leetcode.com/problems/is-graph-bipartite/"
+   }
   ]
  },
  {
   "id": "g-scc-30",
   "mins": 30,
   "flow": "full",
-  "prompt": "What is a strongly connected component, and outline how Kosaraju\u2019s algorithm finds them?",
+  "prompt": "What is a strongly connected component, and outline how Kosaraju’s algorithm finds them?",
   "src": {
    "book": "cses",
-   "ref": "\u00a717 Strong connectivity",
-   "page": 167
+   "ref": "§17.1 Kosaraju's algorithm",
+   "page": 168
   },
-  "reveal": "An SCC is a maximal set of vertices where every vertex can reach every other along directed edges. Kosaraju: (1) run DFS on the original graph, pushing each vertex onto a stack when it FINISHES; (2) reverse every edge; (3) pop vertices off the stack and run DFS on the reversed graph \u2014 each DFS tree is one SCC. The intuition: finish order approximates a topological order of the components, and reversing edges prevents a DFS from escaping its own component. Condensing each SCC to a single node always yields a DAG.",
+  "reveal": "Gist: a **strongly connected component (SCC)** is a **maximal clump of vertices that can all reach each other** by following the arrows. **Kosaraju's algorithm** finds every such clump with just two passes of DFS.\n\n**SCC precisely:** a maximal set of vertices where, for any two, there is a **directed path each way** — everyone in the clump can reach everyone else along directed edges. \"Maximal\" means you can't add another vertex and keep that property.\n\n**Kosaraju, three steps:**\n1. Run **DFS on the original graph**, and when a vertex **finishes** (all its descendants are done), **push it onto a stack**.\n2. **Reverse every edge** in the graph.\n3. **Pop vertices off the stack** in order; from each not-yet-assigned vertex, run **DFS on the reversed graph** — each DFS tree you carve out is **exactly one SCC**.\n\n**Why it works:** the finish-order stack approximates a **topological order of the components** (the highest-finishing vertex lives in a \"source\" component), and **reversing the edges traps** each DFS inside its own component — it can't leak out into a different one. **The payoff fact:** collapse each SCC to a single node and the result is **always a DAG** (a directed acyclic graph) — the \"condensation.\" **Tell:** mutual reachability in a directed graph, or \"condense the graph,\" signals SCC.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 1192. Critical Connections in a Network",
+    "url": "https://leetcode.com/problems/critical-connections-in-a-network/"
+   }
+  ],
+  "see": [
+   {
+    "label": "cp-algorithms — Strongly Connected Components and Condensation Graph",
+    "url": "https://cp-algorithms.com/graph/strongly-connected-components.html"
+   }
   ]
  },
  {
@@ -182,13 +254,25 @@
   "prompt": "0-1 BFS: what problem does it solve, and why can a deque replace a priority queue?",
   "src": {
    "book": "cses",
-   "ref": "\u00a713 Shortest paths",
-   "page": 133
+   "ref": "§13.2 Dijkstra's algorithm (0-1 BFS variant, extension)",
+   "page": 136
   },
-  "reveal": "It solves shortest paths when every edge weight is either 0 or 1 \u2014 common in grid problems where some moves are free and others cost one. Use a deque: relax a 0-weight edge by pushing the neighbor to the FRONT, a 1-weight edge to the BACK. This keeps the deque sorted by distance with at most two distinct values present, which is exactly the ordering a priority queue would maintain \u2014 so you get Dijkstra\u2019s correctness at O(V+E) instead of O(E log V).",
+  "reveal": "Gist: **0-1 BFS** solves shortest paths on a graph where **every edge costs either 0 or 1**, and it reaches **Dijkstra's answer at BFS speed** by swapping the priority queue for a plain **deque** (double-ended queue — you can push and pop at both ends).\n\n**When it applies:** edge weights are only **0 or 1** — extremely common in **grid** problems where some moves are **free** (weight 0) and others **cost one** (weight 1).\n\n**The mechanism:** run a BFS-like loop over a deque. When you relax a **0-weight** edge, push the neighbor onto the **front**; for a **1-weight** edge, push it onto the **back**. This keeps the deque **sorted by distance** at all times, holding **at most two distinct distance values** at once — which is precisely the ordering a **priority queue** (min-heap) would maintain.\n\n**Why it's a win:** you get **Dijkstra's correctness** without Dijkstra's log factor — **O(V+E)** instead of **O(E log V)** (V vertices, E edges) — because the deque keeps order for free instead of paying for heap operations. **Tell:** shortest path where moves are free-or-unit-cost — reach for the deque, not the heap.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 1368. Minimum Cost to Make at Least One Valid Path in a Grid",
+    "url": "https://leetcode.com/problems/minimum-cost-to-make-at-least-one-valid-path-in-a-grid/"
+   }
+  ],
+  "see": [
+   {
+    "label": "cp-algorithms — 0-1 BFS",
+    "url": "https://cp-algorithms.com/graph/01_bfs.html"
+   }
   ]
  },
  {
@@ -198,13 +282,19 @@
   "prompt": "What is multi-source BFS and what problem shape signals it?",
   "src": {
    "book": "cses",
-   "ref": "\u00a712 Graph traversal",
-   "page": 127
+   "ref": "§12.2 Breadth-first search (multi-source, extension)",
+   "page": 129
   },
-  "reveal": "Push ALL sources into the queue at distance 0 before starting the BFS, then run one ordinary BFS. The signal: \u201cdistance to the NEAREST X\u201d \u2014 nearest gate, rotting oranges spreading, distance from every cell to the closest 0. Running a separate BFS per source would be O(sources \u00d7 (V+E)); seeding them all at once gives the same answer in a single O(V+E) pass, because the wavefront naturally expands from whichever source is closest to each cell.",
+  "reveal": "Gist: **multi-source BFS** finds each cell's distance to the **nearest** of many starting points in **one sweep** — you simply seed the queue with **all** the sources at once instead of one.\n\n**The move:** before the BFS begins, **push every source into the queue at distance 0**; then run **one ordinary BFS**. The wavefront expands outward from all sources simultaneously, so each cell is first reached by whichever source is **closest** to it.\n\n**The signal that calls for it:** anything phrased as **\"distance to the nearest X\"** — nearest exit gate, **rotting oranges** spreading to fresh ones, distance from every cell to the closest 0.\n\n**Why seed them together:** running a **separate BFS per source** costs **O(sources × (V+E))**. Seeding all sources at once gives the **same answer in a single O(V+E) pass** (V cells, E adjacencies), because the merged wavefront already accounts for the closest source to each cell. **Tell:** \"nearest among many\" distances on a grid → one BFS from all sources.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 994. Rotting Oranges",
+    "url": "https://leetcode.com/problems/rotting-oranges/"
+   }
   ]
  },
  {
@@ -214,29 +304,41 @@
   "prompt": "Implementing Dijkstra with a binary heap: how do you handle the fact that you cannot decrease-key cheaply?",
   "src": {
    "book": "cses",
-   "ref": "\u00a713 Shortest paths",
-   "page": 133
+   "ref": "§13.2 Dijkstra's algorithm",
+   "page": 136
   },
-  "reveal": "The standard trick is LAZY deletion: instead of decreasing a key, push a new (distance, node) pair whenever you improve a distance, allowing duplicates in the heap. When you pop a node, check whether the popped distance is greater than the recorded best \u2014 if so, it is a stale entry, so skip it. The heap may hold O(E) entries, giving O(E log E), which is asymptotically equivalent to O(E log V) for simple graphs. Attempting real decrease-key requires an indexed heap and is rarely worth it in an interview.",
+  "reveal": "Gist: a binary heap can't cheaply **lower** the priority of an item already inside it (no fast \"decrease-key\"), so Dijkstra sidesteps the problem: never update — just **push a fresh copy** and ignore the stale ones later. This is **lazy deletion**.\n\n**The trick:** whenever you find a **shorter** distance to a node, **push a new `(distance, node)` pair** onto the heap instead of editing the old one — duplicates are allowed to pile up. When you **pop** a node, first check: is the **popped distance larger than the best distance already recorded** for that node? If so, it's a **stale leftover** from before an improvement — **skip it** and pop again.\n\n**The cost:** the heap can swell to **O(E) entries** (E = edges), giving **O(E log E)**. For simple graphs that is **asymptotically the same as O(E log V)** — because log E and log V differ by at most a constant factor when E ≤ V².\n\n**The alternative and why to skip it:** a *true* decrease-key needs an **indexed heap** (one that tracks each element's position so it can find and sift it). It's fiddly and **rarely worth it in an interview** — lazy deletion is simpler and just as fast asymptotically. **Tell:** \"skip if popped distance > best[node]\" is the one line that keeps heap-Dijkstra correct.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 743. Network Delay Time",
+    "url": "https://leetcode.com/problems/network-delay-time/"
+   }
   ]
  },
  {
   "id": "g-floyd-15",
   "mins": 15,
   "flow": "full",
-  "prompt": "When would you use Floyd\u2013Warshall over running Dijkstra from every node? State its structure in one sentence.",
+  "prompt": "When would you use Floyd–Warshall over running Dijkstra from every node? State its structure in one sentence.",
   "src": {
    "book": "cses",
-   "ref": "\u00a713 Shortest paths",
-   "page": 133
+   "ref": "§13.3 Floyd–Warshall algorithm",
+   "page": 139
   },
-  "reveal": "Use it when you need ALL-pairs shortest paths on a small, dense graph (roughly V \u2264 400\u2013500), or when negative edges are present (no negative cycles). Structure: three nested loops with k \u2014 the intermediate vertex \u2014 as the OUTERMOST, updating dist[i][j] = min(dist[i][j], dist[i][k] + dist[k][j]). O(V\u00b3). The loop order matters: k must be outermost so that when you consider it, paths through vertices 1..k-1 are already final. Repeated Dijkstra is better on sparse graphs: O(V \u00d7 E log V).",
+  "reveal": "Gist: **Floyd–Warshall** computes shortest paths between **every pair** of vertices at once, in three tidy nested loops. Reach for it on **small, dense** graphs or when **negative edges** are around.\n\n**When to pick it over running Dijkstra from each node:** (1) you need **all-pairs** shortest paths on a **small, dense** graph — roughly **V ≤ 400–500** vertices; or (2) the graph has **negative edges** (but no negative *cycle*), which plain Dijkstra can't handle.\n\n**Its structure in one sentence:** three nested loops with **k — the intermediate vertex — as the OUTERMOST**, repeatedly applying `dist[i][j] = min(dist[i][j], dist[i][k] + dist[k][j])` (is it shorter to travel from i to j *via k*?). Cost **O(V³)**.\n\n**Why the loop order matters:** k **must** be outermost so that by the time you consider routing through vertex k, all paths using only intermediates **1..k−1 are already final** — that's the induction that makes it correct. Swap the order and the answers break.\n\n**The trade-off:** on **sparse** graphs, **repeated Dijkstra** wins — **O(V × E log V)** beats O(V³) when E is far smaller than V². **Tell:** \"shortest path between all pairs\" on a small graph, or negative edges present → Floyd–Warshall.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 1334. Find the City With the Smallest Number of Neighbors at a Threshold Distance",
+    "url": "https://leetcode.com/problems/find-the-city-with-the-smallest-number-of-neighbors-at-a-threshold-distance/"
+   }
   ]
  },
  {
@@ -246,13 +348,19 @@
   "prompt": "How do you combine topological sort with DP? Give the longest-path-in-a-DAG example.",
   "src": {
    "book": "cses",
-   "ref": "\u00a716 Directed graphs",
-   "page": 159
+   "ref": "§16.2 Dynamic programming (on a DAG)",
+   "page": 161
   },
-  "reveal": "Topological order guarantees that when you process a node, every predecessor is already finalized \u2014 which is exactly the dependency condition DP needs. Longest path in a DAG: topologically sort, then relax in that order: for each node u in topo order, for each edge u\u2192v, dp[v] = max(dp[v], dp[u] + w(u,v)). O(V+E). This is worth internalizing because longest path is NP-hard in general graphs but linear-time on a DAG \u2014 acyclicity is what buys you the DP. Course scheduling, build ordering, and DAG path counting all use this shape.",
+  "reveal": "Gist: **topological order** processes each node only **after all of its predecessors** — which is exactly the guarantee dynamic programming needs, since DP requires a subproblem's inputs to be solved before the subproblem itself. On a DAG, topo-order + DP is a natural pairing.\n\n**Why they fit:** in topological order, when you reach a node **every edge pointing into it is already finalized**. So the DP has no ordering worries — its dependencies are met by construction.\n\n**Longest path in a DAG, worked:** topologically sort, then relax in that order — `for each node u in topo order: for each edge u→v: dp[v] = max(dp[v], dp[u] + w(u,v))`, where `dp[v]` is the longest path ending at v and `w(u,v)` is the edge weight. The answer is the max over all `dp`. Cost **O(V+E)**.\n\n**Why this is worth internalizing:** **longest path is NP-hard in a general graph** (a cycle lets you loop to inflate the length without limit), yet it's **linear-time on a DAG** — the **acyclicity is exactly what buys you the DP**. **Tell:** the same shape drives **course scheduling, build ordering, and counting paths in a DAG** — spot a DAG plus \"longest / best / number of ways,\" and reach for topo-order DP.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 329. Longest Increasing Path in a Matrix",
+    "url": "https://leetcode.com/problems/longest-increasing-path-in-a-matrix/"
+   }
   ]
  },
  {
@@ -262,13 +370,19 @@
   "prompt": "Connected components: when do you use union-find instead of DFS/BFS?",
   "src": {
    "book": "cses",
-   "ref": "\u00a715 Spanning trees",
-   "page": 151
+   "ref": "§15.2 Union-find structure",
+   "page": 155
   },
-  "reveal": "Use DFS/BFS when the graph is given up front and static \u2014 it is simpler and O(V+E). Use union-find when edges ARRIVE INCREMENTALLY and you must answer connectivity queries as they come, or when the problem is fundamentally about merging groups (Kruskal, accounts-merge, number-of-islands-with-streaming-additions). Union-find handles online merging in near-constant time; redoing a DFS after every edge would be O(E \u00d7 (V+E)). Union-find cannot handle edge DELETION, which is a common follow-up trap.",
+  "reveal": "Gist: for connected components, **DFS/BFS** is right when the graph is handed to you **all at once**; **union-find** is right when edges **arrive over time** and you must answer \"connected?\" as they come.\n\n**Use DFS/BFS** when the graph is **static and given up front** — one linear sweep labels every component. It's **simpler and O(V+E)** (V vertices, E edges).\n\n**Use union-find** (disjoint-set union) when either: edges **arrive incrementally** and you must answer **connectivity queries as they stream in**; or the problem is fundamentally about **merging groups** — **Kruskal's MST**, **accounts-merge**, **number-of-islands with streaming additions**. Union-find does each **online merge in near-constant time**.\n\n**Why not just re-run DFS?** Redoing a DFS after **every** new edge would cost **O(E × (V+E))** — quadratic-ish — versus union-find's near-linear total.\n\n**The follow-up trap:** union-find **cannot handle edge deletion** — it only ever merges, never splits. If the problem removes edges over time, neither of these fits cleanly (that needs offline tricks or a more advanced structure). **Tell:** streaming edges plus \"same component?\" → union-find; one fixed graph → DFS.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 547. Number of Provinces",
+    "url": "https://leetcode.com/problems/number-of-provinces/"
+   }
   ]
  },
  {
@@ -278,13 +392,25 @@
   "prompt": "How does A* differ from Dijkstra, and what property must the heuristic satisfy?",
   "src": {
    "book": "cses",
-   "ref": "\u00a713 Shortest paths (extension)",
-   "page": 133
+   "ref": "§13.2 Dijkstra's algorithm (A* extension)",
+   "page": 136
   },
-  "reveal": "A* prioritizes nodes by f(n) = g(n) + h(n): the known cost so far plus an ESTIMATE of the remaining cost, so search is pulled toward the goal instead of expanding uniformly in all directions. Dijkstra is the special case h = 0. The heuristic must be ADMISSIBLE \u2014 never overestimating the true remaining cost \u2014 or A* can return a suboptimal path. For grids, Manhattan distance (4-directional) or Euclidean (free movement) are the standard admissible choices.",
+  "reveal": "Gist: **A\\*** is Dijkstra with a sense of direction — it prioritizes nodes by **known cost so far plus a guess of the cost still to go**, so the search leans **toward the goal** instead of spreading out evenly in every direction.\n\n**The priority function:** A\\* pops the node with the smallest **f(n) = g(n) + h(n)**, where **g(n)** is the actual cost from the start to n (what Dijkstra tracks) and **h(n)** is a **heuristic estimate** of the remaining cost from n to the goal. That forward-looking h is what focuses the search.\n\n**Dijkstra is the special case h = 0** — no guess, so it expands uniformly in all directions.\n\n**The required property:** the heuristic must be **admissible** — it **never overestimates** the true remaining cost. Get that wrong (an overestimate) and A\\* can **return a suboptimal path**, because it may commit to a route it wrongly believes is cheap.\n\n**Standard admissible choices on grids:** **Manhattan distance** when movement is **4-directional**, **Euclidean distance** when movement is **free / any-angle** — both never overshoot the real distance. **Tell:** shortest path to a **specific goal** with a cheap distance estimate available → A\\* beats plain Dijkstra.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 773. Sliding Puzzle",
+    "url": "https://leetcode.com/problems/sliding-puzzle/"
+   }
+  ],
+  "see": [
+   {
+    "label": "Red Blob Games — Introduction to the A* Algorithm",
+    "url": "https://www.redblobgames.com/pathfinding/a-star/introduction.html"
+   }
   ]
  },
  {
@@ -294,13 +420,19 @@
   "prompt": "A 2D grid is a graph. State the implicit vertex set, edge set, and the one line of code that generates neighbors.",
   "src": {
    "book": "cses",
-   "ref": "\u00a712 Graph traversal",
+   "ref": "§12 Graph traversal",
    "page": 127
   },
-  "reveal": "Vertices are the cells (r, c); edges connect orthogonally (or diagonally) adjacent walkable cells. Neighbors come from a direction array: for (dr, dc) in [(1,0),(-1,0),(0,1),(0,-1)], neighbor = (r+dr, c+dc), guarded by bounds and walkability checks. Recognizing that no explicit adjacency list is needed \u2014 the grid IS the graph, generated on the fly \u2014 is the unlock for the entire grid-BFS family.",
+  "reveal": "A 2D grid is a graph you never have to build. **Vertices** are the cells `(r, c)`; **edges** connect **orthogonally** (or, if allowed, diagonally) **adjacent walkable** cells. Neighbors come from a **direction array**: `for (dr, dc) in [(1,0), (-1,0), (0,1), (0,-1)]`, the neighbor is `(r+dr, c+dc)` — each one guarded by **bounds** (stay on the grid) and **walkability** (not a wall) checks. **Tell:** no explicit adjacency list is needed — the **grid IS the graph**, its edges generated on the fly — and that realization unlocks the entire grid-BFS/DFS family.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 200. Number of Islands",
+    "url": "https://leetcode.com/problems/number-of-islands/"
+   }
   ]
  },
  {
@@ -310,13 +442,25 @@
   "prompt": "What are the conditions for an Eulerian path and an Eulerian circuit? Contrast with Hamiltonian.",
   "src": {
    "book": "cses",
-   "ref": "\u00a719 Eulerian paths",
+   "ref": "§19 Paths and circuits (Eulerian & Hamiltonian)",
    "page": 183
   },
-  "reveal": "Eulerian path (uses every EDGE exactly once) exists in a connected undirected graph when zero or exactly two vertices have odd degree; if zero, it is an Eulerian circuit. Directed version: every vertex has in-degree equal to out-degree for a circuit, or exactly one vertex with out\u2212in = 1 and one with in\u2212out = 1 for a path. Hamiltonian (every VERTEX exactly once) has no such simple characterization and is NP-complete \u2014 that contrast (edges easy, vertices hard) is the point worth remembering.",
+  "reveal": "Gist: an **Eulerian path uses every EDGE exactly once**; whether one exists is decided by a simple **degree count**. Its cousin, the **Hamiltonian path** (every VERTEX once), has **no** such easy test — and that gap is the whole lesson.\n\n**Eulerian path, undirected:** in a **connected** graph, one exists when **zero or exactly two vertices have odd degree** (degree = number of edges touching a vertex). If **zero** odd-degree vertices, the path closes into an **Eulerian circuit** (starts and ends at the same vertex).\n\n**Eulerian, directed version:** for a **circuit**, **every vertex has in-degree equal to out-degree**; for an open **path**, exactly **one vertex with out − in = 1** (the start) and **one with in − out = 1** (the end), with all others balanced.\n\n**The contrast that matters:** the **Hamiltonian path** — visit every **vertex** exactly once — has **no simple characterization** and is **NP-complete** (no known efficient test exists). So **edges-exactly-once is easy, vertices-exactly-once is hard** — the punchline worth remembering. **Tell:** \"traverse every edge / road once\" → Eulerian degree check; \"visit every city once\" → Hamiltonian, suspect NP-hardness.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 332. Reconstruct Itinerary",
+    "url": "https://leetcode.com/problems/reconstruct-itinerary/"
+   }
+  ],
+  "see": [
+   {
+    "label": "cp-algorithms — Finding the Eulerian path in O(M)",
+    "url": "https://cp-algorithms.com/graph/euler_path.html"
+   }
   ]
  },
  {
@@ -326,13 +470,19 @@
   "prompt": "You ran BFS/Dijkstra and have distances. How do you RECONSTRUCT the actual path?",
   "src": {
    "book": "cses",
-   "ref": "\u00a713 Shortest paths",
+   "ref": "§13 Shortest paths (path reconstruction)",
    "page": 133
   },
-  "reveal": "Maintain a parent (predecessor) array during the search: whenever you relax an edge into v via u, set parent[v] = u. Afterwards, walk backwards from the target through parent until you reach the source, then reverse the list. Cost is O(path length) and one extra array. The common mistake is only tracking distances and then trying to rebuild the path by re-deriving it afterward \u2014 always record the predecessor as you go.",
+  "reveal": "Gist: to turn shortest-path **distances** back into the **actual route**, record where you came from as you go — one **predecessor** per node — then walk that chain backward from the target.\n\n**The technique:** keep a **`parent` (predecessor) array**. Whenever the search **relaxes** an edge into v through u — that is, updates v's best distance using u — set **`parent[v] = u`**, remembering that the best way into v came from u.\n\n**Recovering the path:** start at the **target** and follow `parent` **backward** — target, its parent, its parent's parent — until you reach the **source**, then **reverse** the list to read it start-to-finish. Cost is just **O(path length)** and **one extra array**.\n\n**The common mistake:** tracking **only distances** during the search, then trying to **rebuild the path afterward** by re-deriving which neighbors \"must have\" been on it. That's error-prone and slow — **record the predecessor as you go** and reconstruction is trivial. **Tell:** any time the problem wants the path itself (not just its length), add a parent array before you run the search.",
   "tags": [
    "dsa",
    "graphs"
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 126. Word Ladder II",
+    "url": "https://leetcode.com/problems/word-ladder-ii/"
+   }
   ]
  },
  {
@@ -342,10 +492,10 @@
   "prompt": "Why is a minimum spanning tree NOT the same as a shortest-path tree? Give the intuition.",
   "src": {
    "book": "cses",
-   "ref": "\u00a715 Spanning trees",
+   "ref": "§15 Spanning trees",
    "page": 151
   },
-  "reveal": "An MST minimizes the TOTAL weight of edges connecting all vertices; a shortest-path tree minimizes the distance FROM ONE SOURCE to every other vertex. They optimize different objectives, so a path in an MST between two nodes can be far longer than the true shortest path. Intuition: the MST cares about global cheapness of the network; Dijkstra cares about egocentric distance from a chosen root.",
+  "reveal": "They optimize **different things**. A **minimum spanning tree (MST)** minimizes the **total weight of the edges** needed to connect **all** vertices — global cheapness of the whole network. A **shortest-path tree** (what Dijkstra builds) minimizes the **distance from one chosen source** to every other vertex. Because the objectives differ, the route between two nodes **inside an MST can be far longer** than their true shortest path. **Tell / intuition:** the MST cares about the **cheapest way to wire everyone together**; Dijkstra cares about **egocentric distance from one root** — same graph, different goal.",
   "tags": [
    "dsa",
    "graphs"
