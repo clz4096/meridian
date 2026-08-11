@@ -20,6 +20,7 @@ import {
   allExercises,
   bandScore,
   buildPlan,
+  canonicalSlot,
   dayGrade,
   daysSinceLast,
   e1rm,
@@ -601,7 +602,11 @@ describe('Away-mode home substitute', () => {
     expect(view.plans['Leg Press']!.lastTopWeight).toBe(35); // progresses off the sub's own history, not the machine's 200
     expect(view.performed['Leg Press']!.map((x) => x.ex)).toEqual(['Goblet Squat']);
     expect(view.performed['Leg Press']![0]!.weight).toBe(40);
-    expect(view.completed['Leg Press']).toBe(true); // the one logged top set meets the plan
+    // A substitute is floored to its baseline structure (top + 3 back-offs), so one
+    // logged top set is NOT the whole prescription — it must not auto-complete at 1
+    // (the reported set-erosion bug). Four sets are prescribed.
+    expect(view.plans['Leg Press']!.backs.length).toBe(3);
+    expect(view.completed['Leg Press']).toBe(false);
   });
 
   it('a first-time sub seeds its slot even with no sub history, driven off the gym slot', () => {
@@ -611,6 +616,62 @@ describe('Away-mode home substitute', () => {
     // no Goblet Squat history yet → seeded starting plan from the approved weight
     expect(view.plans['Leg Press']!.top).toEqual({ weight: 30, reps: 10 });
     expect(view.performed['Leg Press']).toEqual([]);
+  });
+});
+
+describe('workout bug-bash regressions', () => {
+  const away = { swap: { 'Leg Press': 'Goblet Squat' }, start: { 'Goblet Squat': { weight: 30, reps: 10, muscle: 'quads' as Muscle } } };
+
+  it('canonicalSlot maps a substitute back to its gym slot, leaves others alone', () => {
+    expect(canonicalSlot('Goblet Squat')).toBe('Leg Press');
+    expect(canonicalSlot('Leg Press')).toBe('Leg Press');
+    expect(canonicalSlot('Bench Press')).toBe('Bench Press');
+  });
+
+  it('C · a substitute with accrued history never leaks into the Gym-mode list', () => {
+    // Goblet Squat was trained at home, so it has logged history…
+    const s = stateOf([
+      { date: D(0), ex: 'Leg Press', weight: 200, reps: 8, muscle: 'quads' },
+      { date: D(1), ex: 'Goblet Squat', weight: 35, reps: 10, muscle: 'quads' },
+    ]);
+    expect(allExercises(s)).toContain('Goblet Squat'); // it IS in the raw roster
+    const gym = selectWorkoutView(s, D(3), D(3), { split: 'all' }); // Gym mode: no away override
+    expect(gym.exercises).toContain('Leg Press');
+    expect(gym.exercises).not.toContain('Goblet Squat'); // …but never shows as its own gym card
+  });
+
+  it('B · viewing a PAST gym session in Away mode shows the real logged sets, not an empty sub card', () => {
+    const s = stateOf([
+      { date: D(0), ex: 'Leg Press', weight: 200, reps: 8, muscle: 'quads' },
+      { date: D(3), ex: 'Leg Press', weight: 205, reps: 8, muscle: 'quads' }, // the past gym session
+    ]);
+    const view = selectWorkoutView(s, D(3), D(6), { split: 'all', away }); // past date, Away toggled ON
+    expect(view.isPast).toBe(true);
+    expect(view.exercises).toContain('Leg Press');
+    expect(view.performed['Leg Press']!.map((x) => x.weight)).toEqual([205]); // real sets, not swapped away
+  });
+
+  it('E · a full home lower day satisfies the gym-lift staples (week is not graded Weak)', () => {
+    // Establish Leg Press as a lower staple from prior gym sessions, then train lower
+    // at home via Goblet Squat inside the 7-day window. The slot is satisfied.
+    const rows = [] as Array<{ date: string; ex: string; weight: number; reps: number; muscle?: Muscle }>;
+    for (const off of [-10, -8, -6, -4]) rows.push({ date: D(off), ex: 'Leg Press', weight: 200, reps: 8, muscle: 'quads' });
+    // home lower days: substitute, hitting a strong session each time
+    for (const off of [-2, 0]) rows.push({ date: D(off), ex: 'Goblet Squat', weight: 45, reps: 12, muscle: 'quads' });
+    const s = stateOf(rows);
+    // the substitute-trained day must NOT read as a skipped Leg Press staple
+    expect(dayGrade(s, D(0))).not.toBeNull();
+    expect(weekStrength(s, D(0))).not.toBe('weak');
+  });
+
+  it('D#20 · an unknown-muscle (other) lift is not silently hidden on a split day', () => {
+    const s = stateOf([
+      { date: D(0), ex: 'Bench Press', weight: 135, reps: 8, muscle: 'chest' },
+      { date: D(0), ex: 'Mystery Lift', weight: 50, reps: 10, muscle: '' as Muscle }, // unknown → 'other'
+    ]);
+    expect(exerciseSplit(s, 'Mystery Lift')).toBe('other');
+    const view = selectWorkoutView(s, D(2), D(2), { split: 'upper' });
+    expect(view.exercises).toContain('Mystery Lift'); // shown, not dropped
   });
 });
 

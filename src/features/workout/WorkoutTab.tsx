@@ -275,6 +275,44 @@ function topCue(plan: ExercisePlan): preact.JSX.Element | null {
 }
 const setTypeLabel = (type: SetType): string => (type === 'warm' ? 'Warmup' : type === 'top' ? 'Top set' : type === 'back' ? 'Back-off' : 'Set');
 
+/** Cardio reads as time + distance, not weight×reps. Falls back to weight×reps for legacy cardio sets. */
+function fmtCardio(s: { mins?: Any; dist?: Any; weight?: Any; reps?: Any }): string {
+  if (s.mins != null || s.dist != null) {
+    const parts: string[] = [];
+    if (s.mins != null && Number(s.mins) > 0) parts.push(`${s.mins} min`);
+    if (s.dist != null && Number(s.dist) > 0) parts.push(`${s.dist} mi`);
+    return parts.join(' · ') || '—';
+  }
+  return `${s.weight} × ${s.reps}`;
+}
+
+/** Cardio logging input: minutes + miles (defaults seeded from the last bout). */
+function CardioInput({ exercise, prev }: { exercise: string; prev?: { mins?: Any; dist?: Any } }) {
+  const id = domId(exercise);
+  const mid = `m-${id}`;
+  const did = `d-${id}`;
+  const active = awayMode.value && exSwap(exercise) ? exSwap(exercise)! : exercise;
+  return (
+    <>
+      <div class="rx"><span class="rx-what">Cardio · time &amp; distance</span></div>
+      <div class="logrow">
+        <div class="field">
+          <input class="fv" key={mid} id={mid} type="number" inputmode="decimal" defaultValue={prev?.mins != null ? String(prev.mins) : '20'} aria-label="Duration (minutes)" />
+          <div class="k">min</div>
+        </div>
+        <span class="times" aria-hidden="true">·</span>
+        <div class="field">
+          <input class="fv" key={did} id={did} type="number" inputmode="decimal" defaultValue={prev?.dist != null ? String(prev.dist) : ''} aria-label="Distance (miles)" />
+          <div class="k">mi</div>
+        </div>
+        <button class="logbtn" onClick={() => workoutActions.logCardio(active, Number(host.readValue(mid)) || 0, Number(host.readValue(did)) || 0)}>
+          Log
+        </button>
+      </div>
+    </>
+  );
+}
+
 function LogInput({ exercise, type, label, set, index, cue, setNo, setTotal }: { exercise: string; type: SetType; label: string; set: { weight: number; reps: number }; index: number; cue?: preact.JSX.Element | null; setNo: number; setTotal: number }) {
   const id = domId(exercise);
   const wid = `w-${id}-${type}${index}`;
@@ -325,16 +363,18 @@ function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
   const complete = vm.completed[exercise] === true;
 
   const top = performed.find((s) => s.type === 'top') ?? performed[performed.length - 1];
+  const isCard = plan?.cardio || top?.type === 'cardio';
   let sv = 'new';
   let sl = '';
   if (performed.length && top) {
-    sv = `${top.weight} × ${top.reps}`;
-    sl = complete ? 'done' : `${performed.length} set${performed.length > 1 ? 's' : ''}`;
+    sv = isCard ? fmtCardio(top) : `${top.weight} × ${top.reps}`;
+    sl = complete ? 'done' : isCard ? 'logged' : `${performed.length} set${performed.length > 1 ? 's' : ''}`;
   } else if (plan && !plan.cardio) {
     sv = `${plan.top.weight} × ${plan.top.reps}`;
     sl = 'top set';
   } else if (plan?.lastDate) {
-    sv = `${plan.lastTopWeight} × ${plan.lastTopReps}`;
+    // Cardio carries no weight×reps target (buildPlan zeroes them), so don't render "0 × 0".
+    sv = isCard ? 'cardio' : `${plan.lastTopWeight} × ${plan.lastTopReps}`;
     sl = 'last';
   }
   const setCount = plan && !plan.cardio ? plan.warms.length + 1 + plan.backs.length : null;
@@ -371,6 +411,10 @@ function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
 
 /** The full-screen logging view for one exercise, with a back link and a switcher to the others. */
 function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutViewOptions; exercise: string; exercises: string[] }) {
+  // In Away mode the sets/plan/completion live under the dumbbell substitute (the same
+  // identity LogInput logs under). Every per-slot control must key off THAT name, not
+  // the gym-slot prop, or it silently no-ops / edits the wrong lift.
+  const active = awayMode.value && exSwap(exercise) ? exSwap(exercise)! : exercise;
   const plan: Any = vm.plans[exercise] ?? null;
   const performed: Any[] = vm.performed[exercise] ?? [];
   const complete = vm.completed[exercise] === true;
@@ -391,7 +435,7 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
           <SetLine
             state="done"
             label={setTypeLabel(s.type)}
-            val={`${s.weight} × ${s.reps}`}
+            val={s.type === 'cardio' ? fmtCardio(s) : `${s.weight} × ${s.reps}`}
             trailing={
               <button class="setundo" onClick={() => workoutActions.deleteSet(vm.date, s.id)}>
                 ✕ Remove
@@ -402,18 +446,36 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
       </div>
     );
   } else if (!plan) {
+    // No history yet (a manually-added lift): we can't prescribe a set structure, so
+    // show the sets already logged AND keep an input open so more than one set can be
+    // entered — the old single fixed input hid logged sets and capped it at one.
+    const last = performed[performed.length - 1];
     body = (
       <>
-        <div class="rx"><span class="rx-what">First time — log your sets</span></div>
-        <LogInput exercise={exercise} type="top" label="Set" set={{ weight: 0, reps: 0 }} index={0} setNo={1} setTotal={1} />
+        {performed.length > 0 && (
+          <div class="sets">
+            {performed.map((s, i) => (
+              <SetLine
+                state="done"
+                label={setTypeLabel(s.type)}
+                val={s.type === 'cardio' ? fmtCardio(s) : `${s.weight} × ${s.reps}`}
+                trailing={i === performed.length - 1 ? (
+                  <button class="setundo" onClick={() => workoutActions.undoLastSet(active)}>↩ Undo</button>
+                ) : null}
+              />
+            ))}
+          </div>
+        )}
+        <div class="rx"><span class="rx-what">{performed.length ? 'Log another set' : 'First time — log your sets'}</span></div>
+        <LogInput exercise={exercise} type="top" label="Set" set={{ weight: last ? last.weight : 0, reps: last ? last.reps : 0 }} index={performed.length} setNo={performed.length + 1} setTotal={performed.length + 1} />
       </>
     );
   } else if (plan.cardio) {
     body =
       performed.length === 0 ? (
-        <LogInput exercise={exercise} type="cardio" label="Cardio" set={plan.top} index={0} setNo={1} setTotal={1} />
+        <CardioInput exercise={exercise} prev={vm.performed[exercise]?.[0]} />
       ) : (
-        <div class="sets"><SetLine state="done" label="Cardio" val={`${performed[0].weight} × ${performed[0].reps}`} /></div>
+        <div class="sets"><SetLine state="done" label="Cardio" val={fmtCardio(performed[0])} /></div>
       );
   } else {
     const rows: Array<[SetType, string, { weight: number; reps: number }]> = [
@@ -436,7 +498,7 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
             const val = state === 'done' && performed[i] ? `${performed[i].weight} × ${performed[i].reps}` : `${set.weight} × ${set.reps}`;
             const undo =
               state === 'done' && i === next - 1 ? (
-                <button class="setundo" onClick={() => workoutActions.undoLastSet(exercise)}>
+                <button class="setundo" onClick={() => workoutActions.undoLastSet(active)}>
                   ↩ Undo
                 </button>
               ) : null;
@@ -454,7 +516,7 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
       <div class="exdetail-top">
         {next ? (
           <button class="exnext" onClick={() => (activeExercise.value = next)}>
-            Next · {next} ›
+            Next · {displayExercise(next)} ›
           </button>
         ) : (
           <button class="exnext" onClick={() => window.history.back()}>
@@ -474,12 +536,12 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
         <a href={o.videoUrl(exercise)} target="_blank" rel="noopener">▶ How&nbsp;to</a>
         {plan && !plan.cardio && (
           <>
-            <button type="button" onClick={() => workoutActions.toggleDeload(exercise)}>{plan.deload ? '✓ Rebuilding' : 'Feel weak'}</button>
-            <button type="button" onClick={() => workoutActions.editIncrement(exercise)}>Stack&nbsp;step · {o.increments[exercise] ?? plan.incr} lb</button>
+            <button type="button" onClick={() => workoutActions.toggleDeload(active)}>{plan.deload ? '✓ Rebuilding' : 'Feel weak'}</button>
+            <button type="button" onClick={() => workoutActions.editIncrement(active)}>Stack&nbsp;step · {o.increments[active] ?? plan.incr} lb</button>
             {rest && <span class="more-rest">rest {rest.warm}/{rest.top}/{rest.back}s</span>}
           </>
         )}
-        <button type="button" class="more-done" onClick={() => workoutActions.toggleExerciseDone(exercise)}>{complete ? 'Reopen' : 'Mark done'}</button>
+        <button type="button" class="more-done" onClick={() => workoutActions.toggleExerciseDone(active)}>{complete ? 'Reopen' : 'Mark done'}</button>
         </div>
       </div>
     </div>
@@ -566,7 +628,9 @@ export function WorkoutView() {
             <>
               <div class="wkgroup-h">{otherSplit === 'lower' ? 'Lower body' : 'Upper body'} · not today</div>
               <div class="exgrid">
-                {otherVm.exercises.map((ex) => (
+                {/* A 'both'/cardio (or 'other') lift qualifies for both splits — it's
+                    already in today's grid, so exclude it here to avoid a double card. */}
+                {otherVm.exercises.filter((ex) => !vm.exercises.includes(ex)).map((ex) => (
                   <ExerciseCardFace vm={otherVm} exercise={ex} />
                 ))}
               </div>

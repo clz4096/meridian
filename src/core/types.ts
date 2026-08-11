@@ -48,6 +48,10 @@ export interface WorkoutSet {
   type: SetType;
   weight: Numeric;
   reps: Numeric;
+  /** Cardio only: duration in minutes. Cardio isn't weight×reps — it logs time/distance. */
+  mins?: Numeric;
+  /** Cardio only: distance in miles. */
+  dist?: Numeric;
   muscle?: Muscle;
   /** Free-text gym/session label, e.g. "Life Time — Lower". */
   group?: string;
@@ -74,6 +78,8 @@ export interface WorkoutState {
   rpe: Record<string, Numeric>;
   /** date -> exercises explicitly ticked complete */
   done: Record<string, string[]>;
+  /** date -> exercises explicitly RE-opened, overriding derived (full-set) completion */
+  reopened?: Record<string, string[]>;
   /** date -> whole session marked complete */
   sessionDone: Record<string, boolean>;
   /** exercise -> smallest weight step available on that machine */

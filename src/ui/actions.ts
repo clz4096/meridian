@@ -8,7 +8,7 @@
  * components (Preact keeps DOM identity across renders).
  */
 import { RestTimer } from '@/ui/restTimer';
-import { buildPlan, inferIncrement, restSeconds, weekStrength, trainedDaysInWeek, WEEK_TRAINING_TARGET } from '@/features/workout/workoutSelectors';
+import { inferIncrement, restSeconds, plannedSetCount, isExerciseComplete, weekStrength, trainedDaysInWeek, WEEK_TRAINING_TARGET } from '@/features/workout/workoutSelectors';
 import type { WorkoutActions } from '@/features/workout/types';
 import { shiftDate } from '@/core/util';
 import { DEFAULT_CONFIG, type SetType, type SessionOverrides } from '@/core/types';
@@ -118,19 +118,38 @@ export const workoutActions: WorkoutActions = {
     const muscle = m.muscle || AWAY_START[ex]?.muscle || '';
     W.days[td].push({ id: uid(), ex, muscle, group: m.group || '', type, weight, reps });
     appState.markWorkoutDirty();
-    // auto-complete: tick the exercise once every prescribed set is in. Build the
-    // plan WITH the away override so a first-time sub's `need` reflects its seeded
-    // (top-set-only) plan rather than falling through to null → 1.
-    const planned = buildPlan(W, ex, td, { deload: st.wkDeload.value, away: awayOverride() }, DEFAULT_CONFIG);
-    const need = planned && !planned.cardio ? planned.warms.length + 1 + planned.backs.length : 1;
+    // auto-complete: tick the exercise once every prescribed set is in. Use the SAME
+    // plannedSetCount the completion check reads (isExerciseComplete) so the two can't
+    // disagree — e.g. a cardio-flagged lift with a stale top set (buildPlan.cardio and
+    // isCardio() diverge). Away override so a first-time sub counts its seeded 4 sets.
+    const need = plannedSetCount(W, ex, td, { deload: st.wkDeload.value, away: awayOverride() }, DEFAULT_CONFIG);
     if (W.days[td].filter((s: Store) => s.ex === ex).length >= need) {
       if (!W.done) W.done = {};
       if (!W.done[td]) W.done[td] = [];
       if (W.done[td].indexOf(ex) < 0) W.done[td].push(ex);
+      if (W.reopened?.[td]) W.reopened[td] = W.reopened[td].filter((e: string) => e !== ex); // a fresh full log re-completes
       restTimer.dismissFor(ex); // last prescribed set logged → exercise done, no rest to time
-    } else {
+    } else if (td >= dstr()) {
       restTimer.start(ex, type, restSecs(ex, type)); // more sets to go → start the rest countdown
     }
+    // Editing a PAST session (td < today) never arms the rest timer — you're not training now.
+    st.bump();
+  },
+  logCardio(ex, mins, dist) {
+    if (!ex || (!mins && !dist)) return;
+    const W = wk();
+    const td = st.wkDate.value ?? dstr();
+    if (!W.days[td]) W.days[td] = [];
+    const m = exMeta(ex);
+    // Cardio is logged as time + distance, not weight×reps. Keep weight/reps at 0 so
+    // legacy readers (tonnage/e1RM, which already skip cardio) stay well-defined.
+    W.days[td].push({ id: uid(), ex, muscle: m.muscle || 'cardio', group: m.group || '', type: 'cardio', weight: 0, reps: 0, mins, dist });
+    if (!W.done) W.done = {};
+    if (!W.done[td]) W.done[td] = [];
+    if (W.done[td].indexOf(ex) < 0) W.done[td].push(ex); // cardio completes in one bout
+    if (W.reopened?.[td]) W.reopened[td] = W.reopened[td].filter((e: string) => e !== ex);
+    restTimer.dismissFor(ex);
+    appState.markWorkoutDirty();
     st.bump();
   },
   deleteSet(date, id) {
@@ -145,10 +164,19 @@ export const workoutActions: WorkoutActions = {
     const k = st.wkDate.value ?? dstr();
     if (!W.done) W.done = {};
     if (!W.done[k]) W.done[k] = [];
-    const i = W.done[k].indexOf(ex);
-    if (i >= 0) W.done[k].splice(i, 1);
-    else {
-      W.done[k].push(ex);
+    if (!W.reopened) W.reopened = {};
+    if (!W.reopened[k]) W.reopened[k] = [];
+    // Toggle against the DERIVED state, not just the explicit tick — otherwise an
+    // auto-completed (full-set) exercise can't be reopened (removing a tick it never
+    // had leaves logged>=planned still reading complete). Reopen sets an explicit
+    // override; Mark-done clears it. done and reopened are kept mutually exclusive.
+    const complete = isExerciseComplete(W, ex, k, dstr(), { deload: st.wkDeload.value, away: awayOverride() }, DEFAULT_CONFIG);
+    if (complete) {
+      W.done[k] = W.done[k].filter((e: string) => e !== ex);
+      if (!W.reopened[k].includes(ex)) W.reopened[k].push(ex);
+    } else {
+      W.reopened[k] = W.reopened[k].filter((e: string) => e !== ex);
+      if (!W.done[k].includes(ex)) W.done[k].push(ex);
       restTimer.dismissFor(ex);
     }
     appState.markWorkoutDirty();

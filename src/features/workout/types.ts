@@ -10,6 +10,8 @@ import type { SetType, Split } from '@/core/types';
 export interface WorkoutActions {
   viewExercise(exercise: string): void;
   logSet(exercise: string, type: SetType, weight: number, reps: number): void;
+  /** Log a cardio bout as time + distance (not weight×reps). */
+  logCardio(exercise: string, mins: number, dist: number): void;
   deleteSet(date: string, setId: string): void;
   toggleExerciseDone(exercise: string): void;
   toggleSessionDone(): void;

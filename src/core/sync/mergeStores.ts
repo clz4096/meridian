@@ -97,6 +97,7 @@ export function mergeWorkout(local: WorkoutState, remote: WorkoutState, localWin
     bw: mergeScalarMap(local.bw, remote.bw, localWins),
     rpe: mergeScalarMap(local.rpe, remote.rpe, localWins),
     done: mergeListMap(local.done, remote.done),
+    reopened: mergeListMap(local.reopened, remote.reopened),
     sessionDone: mergeScalarMap(local.sessionDone, remote.sessionDone, localWins),
     incr: mergeScalarMap(local.incr, remote.incr, localWins),
     _del: mergeTombs(local._del, remote._del),

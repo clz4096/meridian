@@ -28,6 +28,50 @@ import {
 } from '@/core/types';
 import { shiftDate, toId, toNum, tombstoneIds } from '@/core/util';
 import defaultWorkoutData from '@/core/data/defaultWorkout.json';
+import exSwapData from '@/core/data/exSwap.json';
+import awayStartData from '@/core/data/awayStart.json';
+
+/* ================================================================== */
+/* Away-mode swap knowledge — static, so the pure selectors reason     */
+/* about substitute identity WITHOUT the transient `overrides.away`.    */
+/* ================================================================== */
+
+/*
+ * The dumbbell substitutes are build-time data (`exSwap.json`), so the selectors can
+ * know them unconditionally. This is what lets a home substitute never leak into the
+ * Gym-mode list as its own lift, and lets grading credit a substitute to the gym slot
+ * it stands in for — neither of which the per-render `overrides.away` (present only in
+ * Away mode) can do on its own.
+ */
+/** Gym lift → its dumbbell substitute. */
+const GYM_TO_SUB: Record<string, string> = exSwapData as Record<string, string>;
+/** Dumbbell substitute → the gym lift (slot) it stands in for. */
+const SUB_TO_GYM: Record<string, string> = Object.fromEntries(
+  Object.entries(GYM_TO_SUB).map(([gym, sub]) => [sub, gym]),
+);
+/** Every substitute name — filtered out of the forward-looking Gym-mode list. */
+export const SUB_NAMES: ReadonlySet<string> = new Set(Object.values(GYM_TO_SUB));
+/** Approved starting prescription per substitute (weight/reps/muscle). */
+const AWAY_SEED: Record<string, { weight: number; reps: number; muscle?: string }> =
+  awayStartData as Record<string, { weight: number; reps: number; muscle?: string }>;
+
+/**
+ * The canonical training *slot* for an exercise: a home substitute maps back to the
+ * gym lift it stands in for; every other exercise is its own slot. Used by grading so a
+ * lower day trained at home (Goblet Squat) satisfies the same slot as a gym day (Leg
+ * Press), rather than reading as a skipped staple.
+ */
+export function canonicalSlot(exercise: string): string {
+  return SUB_TO_GYM[exercise] ?? exercise;
+}
+
+/** Rep ceiling implied by a muscle alone (used before an exercise has logged history). */
+function repCeilingForMuscle(muscle: string | null | undefined, config: ProgressionConfig): number {
+  if (muscle === 'cardio') return config.repHigh;
+  return muscle != null && config.compoundMuscles.includes(muscle as Muscle)
+    ? config.repHighCompound
+    : config.repHighIsolation;
+}
 
 /* ================================================================== */
 /* Coercion helpers — the audit found `+x || 0` silently zeroing typos */
@@ -288,6 +332,16 @@ const DEFAULT_TEMPLATES: Record<string, { warms: TemplateSlots; backs: TemplateS
       session.filter((s) => s.type === type).map((s) => ({ ratio: toNum(s.weight) / tw, reps: toNum(s.reps) }));
     out[ex] = { warms: slots('warm'), backs: slots('back') };
   }
+  // Home substitutes aren't in the seed program, so without a baseline they'd have no
+  // back-off floor and would erode to a single set after one short day (the reported
+  // "missing sets" bug). Give each the structure its Away seed implies — a top set plus
+  // three back-offs at the same load (ratio 1). History may still ADD sets; it can't
+  // drop a substitute below three back-offs, exactly like the machine lifts above.
+  for (const [sub, seed] of Object.entries(AWAY_SEED)) {
+    if (out[sub]) continue;
+    const reps = toNum(seed.reps);
+    out[sub] = { warms: [], backs: [{ ratio: 1, reps }, { ratio: 1, reps }, { ratio: 1, reps }] };
+  }
   return out;
 })();
 
@@ -440,7 +494,10 @@ export function buildPlan(
       bumped: false,
       deload: false,
       autoDeload: false,
-      repHigh: repCeiling(state, exercise, config),
+      // First session has no logged sets, so exerciseMeta can't classify the lift yet;
+      // read the class off the Away seed's muscle so a compound sub shows its compound
+      // ceiling (6) from the start instead of defaulting to the isolation ceiling (12).
+      repHigh: repCeilingForMuscle(seed.muscle, config),
       atMinimum: false,
       incr: step,
       lastTopWeight: seed.weight,
@@ -757,6 +814,9 @@ export function isExerciseComplete(
   const logged = setsOn(state, exercise, date).length;
   if (logged === 0) return false;
   if (date < today) return true;
+  // An explicit Reopen overrides derived (full-set) completion for today, so the card
+  // can be reopened without deleting a set. A later explicit Mark-done clears it.
+  if ((state.reopened?.[date] ?? []).includes(exercise)) return false;
   return logged >= plannedSetCount(state, exercise, date, overrides, config);
 }
 
@@ -882,21 +942,59 @@ export function bandScore(avg: number): StrengthGrade {
  */
 export function exerciseScore(
   state: WorkoutState,
-  exercise: string,
+  slot: string,
   date: string,
   overrides: SessionOverrides = {},
   config: ProgressionConfig = DEFAULT_CONFIG,
 ): StrengthGrade | null {
-  if (isCardio(state, exercise)) return null;
-  const plan = buildPlan(state, exercise, date, overrides, config);
+  if (isCardio(state, slot)) return null;
+  // A slot may be trained via its gym lift OR (in home mode) its dumbbell substitute —
+  // the two carry different loads, so grade whichever identity actually topped out that
+  // day against ITS OWN plan. A staple that neither identity topped is a real skip.
+  const sub = GYM_TO_SUB[slot];
+  const gymTop = topSetOf(setsOn(state, slot, date));
+  const subTop = sub ? topSetOf(setsOn(state, sub, date)) : null;
+  const actual = gymTop ?? subTop;
+  const active = gymTop ? slot : subTop ? sub : slot;
+  const plan = buildPlan(state, active, date, overrides, config);
   if (!plan || plan.cardio) return null; // no target to grade against (first-timer)
-  const actual = topSetOf(setsOn(state, exercise, date));
-  if (!actual) return 'weak'; // planned but never topped out → a skipped slot
-  const hitWeight = toNum(actual.weight) >= plan.top.weight;
-  const hitReps = toNum(actual.reps) >= plan.top.reps;
+  if (!actual) return 'weak'; // planned staple but never topped out → a skipped slot
+  const target = gradingTarget(state, active, date, plan, config);
+  const hitWeight = toNum(actual.weight) >= target.weight;
+  const hitReps = toNum(actual.reps) >= target.reps;
   if (hitWeight && hitReps) return 'strong';
   if (!hitWeight && !hitReps) return 'weak';
   return 'moderate';
+}
+
+/**
+ * The top-set target to grade against. Normally the plan's prescribed top, but it
+ * corrects one cross-identity case: when the gym lift's plan auto-deloaded because it
+ * looks detrained, yet the slot was actually kept trained through its home substitute
+ * within the layoff window, that "layoff" is false — grade against the held (pre-deload)
+ * top so a stretch of home training doesn't inflate the first gym day back to Strong.
+ */
+function gradingTarget(
+  state: WorkoutState,
+  active: string,
+  date: string,
+  plan: ExercisePlan,
+  config: ProgressionConfig,
+): { weight: number; reps: number } {
+  const prescribed = { weight: plan.top.weight, reps: plan.top.reps };
+  const held = { weight: plan.lastTopWeight, reps: Math.min(plan.lastTopReps, plan.repHigh) };
+  if (!plan.deload || !plan.autoDeload) return prescribed;
+  const sub = GYM_TO_SUB[active]; // `active` is the gym lift here (it logged a top set)
+  if (!sub) return prescribed;
+  const gymGap = daysSinceLast(state, active, date) ?? Infinity;
+  const subGap = daysSinceLast(state, sub, date) ?? Infinity;
+  // Correct ONLY a layoff-driven deload — i.e. the gym lift itself looks detrained
+  // (its own gap exceeds the layoff threshold). A stall reset (recent gym history, flat
+  // e1RM) also sets autoDeload but is a legitimate lower target, so it must NOT be
+  // reverted. When it IS a layoff and the substitute kept the slot trained through that
+  // gap, it wasn't a real layoff → grade against the held top instead of the eased one.
+  if (gymGap > config.gapRepeatDays && subGap <= config.gapDeloadDays && subGap < gymGap) return held;
+  return prescribed;
 }
 
 /** How many recent same-split sessions define a lift's "habitual" status. */
@@ -927,13 +1025,18 @@ export function habitualStaples(
   if (sessions === 0) return [];
   const seen = new Map<string, number>();
   for (const d of priorSameSplit) {
+    // Count each SLOT once per day: a lift trained via its home substitute (Goblet
+    // Squat) is the same habitual slot as its gym lift (Leg Press), so switching
+    // gym↔home doesn't split one habit into two and mis-flag either as skipped.
+    const slotsToday = new Set<string>();
     for (const ex of loggedExercises(state, d)) {
       if (isCardio(state, ex) || isOptional(ex)) continue;
-      seen.set(ex, (seen.get(ex) ?? 0) + 1);
+      slotsToday.add(canonicalSlot(ex));
     }
+    for (const slot of slotsToday) seen.set(slot, (seen.get(slot) ?? 0) + 1);
   }
   const staples: string[] = [];
-  for (const [ex, count] of seen) if (count / sessions >= 0.5) staples.push(ex);
+  for (const [slot, count] of seen) if (count / sessions >= 0.5) staples.push(slot);
   return staples;
 }
 
@@ -958,16 +1061,18 @@ export function dayGrade(
   config: ProgressionConfig = DEFAULT_CONFIG,
 ): StrengthGrade | null {
   const dead = tombstoneIds(state);
-  const graded = new Set(habitualStaples(state, date, config));
+  const graded = new Set(habitualStaples(state, date, config)); // slot names
   const logged = loggedExercises(state, date);
   for (const ex of logged) {
     if (isCardio(state, ex) || isOptional(ex)) continue;
-    if (topSetOf(setsOn(state, ex, date))) graded.add(ex);
+    // Canonicalize to the slot so a substitute topped today counts as its gym slot
+    // (never as a second, separate lift alongside the staple it satisfies).
+    if (topSetOf(setsOn(state, ex, date))) graded.add(canonicalSlot(ex));
   }
 
   const scores: number[] = [];
-  for (const ex of graded) {
-    const s = exerciseScore(state, ex, date, overrides, config);
+  for (const slot of graded) {
+    const s = exerciseScore(state, slot, date, overrides, config);
     if (s) scores.push(GRADE_VALUE[s]);
   }
   if (scores.length > 0) {
@@ -1094,21 +1199,37 @@ export function selectWorkoutView(
   const isPast = date < today;
   const performedToday = loggedExercises(state, date);
 
-  // In Away mode a substitute accrues its own logged history, so it would
-  // otherwise surface in `allExercises` as its own card — but it is only ever
-  // meant to appear THROUGH its gym slot. Drop substitute names from the
-  // forward-looking list; the gym lift's slot carries them.
-  const subNames = overrides.away ? new Set(Object.values(overrides.away.swap)) : null;
+  // A substitute accrues its own logged history, so it would otherwise surface in
+  // `allExercises` as its own card — but it is only ever meant to appear THROUGH its
+  // gym slot. Substitute names are STATIC build-time data, so filter them in BOTH modes
+  // (Gym mode was leaking them, e.g. Goblet Squat next to Leg Press). In Away mode also
+  // seed the candidate list with the swap KEYS, so a machine whose only history is under
+  // its substitute still shows its slot (driven by the sub) rather than vanishing.
+  const forwardCandidates = overrides.away
+    ? [...new Set([...allExercises(state), ...Object.keys(overrides.away.swap)])]
+    : allExercises(state);
 
   const exercises =
     isPast && performedToday.length > 0
       ? performedToday
-      : allExercises(state)
+      : forwardCandidates
           .filter((ex) => {
-            if (subNames?.has(ex)) return false;
+            if (SUB_NAMES.has(ex)) return false; // never list a substitute as its own lift
             if (split === 'all') return true;
-            const s = exerciseSplit(state, ex, config);
-            return s === split || s === 'both';
+            let s = exerciseSplit(state, ex, config);
+            // A gym slot with no logged history classifies as 'other' (null muscle). In
+            // Away mode, fall back to its substitute's seed muscle so the slot lands on
+            // the right split instead of appearing on every day.
+            const seedMuscle = overrides.away && s === 'other' ? AWAY_SEED[GYM_TO_SUB[ex] ?? '']?.muscle : undefined;
+            if (seedMuscle) {
+              s =
+                seedMuscle === 'cardio' ? 'both'
+                  : config.lowerMuscles.includes(seedMuscle as Muscle) ? 'lower'
+                  : config.upperMuscles.includes(seedMuscle as Muscle) ? 'upper'
+                  : 'other';
+            }
+            // 'other'/unknown-muscle lifts must not be silently hidden on every split.
+            return s === split || s === 'both' || s === 'other';
           })
           .sort((a, b) => exerciseOrder(state, a) - exerciseOrder(state, b));
 
@@ -1118,8 +1239,10 @@ export function selectWorkoutView(
   for (const ex of exercises) {
     // In Away mode the slot's ACTIVE exercise is the dumbbell substitute: its
     // plan/history/completion drive the card, while the slot's list position,
-    // split, order and grouping stay keyed by the gym lift `ex` (unchanged).
-    const active = overrides.away?.swap[ex] ?? ex;
+    // split, order and grouping stay keyed by the gym lift `ex` (unchanged). On a PAST
+    // day the list already holds the names actually logged, so do NOT swap them — that
+    // hid real gym history behind an empty substitute seed card.
+    const active = isPast ? ex : (overrides.away?.swap[ex] ?? ex);
     plans[ex] = buildPlan(state, active, date, overrides, config);
     performed[ex] = setsOn(state, active, date);
     completed[ex] = isExerciseComplete(state, active, date, today, overrides, config);

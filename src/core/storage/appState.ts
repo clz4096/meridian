@@ -263,6 +263,7 @@ export function createAppState(deps: AppStateDeps): AppState {
           bw: st.bw || {},
           rpe: st.rpe || {},
           done: st.done || {},
+          reopened: st.reopened || {},
           sessionDone: st.sessionDone || {},
           incr: st.incr || {},
           _del: st._del || {},

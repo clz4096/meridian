@@ -69,6 +69,10 @@ export function normaliseWorkout(raw: unknown): WorkoutState {
         type: (['warm', 'top', 'back', 'cardio'].includes(String(x.type)) ? x.type : 'top'),
         weight: toNum(x.weight as never, 0),
         reps: toNum(x.reps as never, 0),
+        // Cardio-only time/distance — preserved so an export/import round-trip doesn't
+        // silently drop a logged run back to a meaningless "0 × 0".
+        mins: x.mins === undefined ? undefined : toNum(x.mins as never, 0),
+        dist: x.dist === undefined ? undefined : toNum(x.dist as never, 0),
         muscle: x.muscle === undefined ? undefined : String(x.muscle),
         group: x.group === undefined ? undefined : String(x.group),
       } as WorkoutState['days'][string][number];
@@ -95,6 +99,7 @@ export function normaliseWorkout(raw: unknown): WorkoutState {
     bw: numMap(w.bw),
     rpe: numMap(w.rpe),
     done: strMap(w.done),
+    reopened: strMap(w.reopened),
     sessionDone: boolMap(w.sessionDone),
     incr: numMap(w.incr),
     _del: numMap(w._del),

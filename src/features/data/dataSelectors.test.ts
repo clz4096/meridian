@@ -68,6 +68,29 @@ const arbAppState: fc.Arbitrary<AppState> = fc.record({
 /* THE headline property                                               */
 /* ================================================================== */
 
+describe('workout field preservation (regression)', () => {
+  it('cardio mins/dist and reopened survive normalise + an export→import round-trip', () => {
+    const state = normaliseState({
+      overload: {
+        settings: {},
+        days: { '2025-01-02': [{ id: 'c1', ex: 'Treadmill', type: 'cardio', weight: 0, reps: 0, mins: 22, dist: 2.4, muscle: 'cardio' }] },
+        bw: {}, rpe: {}, done: {}, reopened: { '2025-01-02': ['Bench Press'] }, sessionDone: {}, incr: {},
+      },
+    } as unknown as AppState);
+    const set0 = state.overload.days['2025-01-02']![0]!;
+    expect(set0.mins).toBe(22);
+    expect(set0.dist).toBe(2.4);
+    expect(state.overload.reopened!['2025-01-02']).toEqual(['Bench Press']);
+    const r = roundTrip(state);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const rset = r.state.overload.days['2025-01-02']![0]!;
+    expect(rset.mins).toBe(22);
+    expect(rset.dist).toBe(2.4);
+    expect(r.state.overload.reopened!['2025-01-02']).toEqual(['Bench Press']);
+  });
+});
+
 describe('round-trip serialisation', () => {
   it('export -> import is the identity for any state', () => {
     fc.assert(

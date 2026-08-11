@@ -10,6 +10,7 @@
  */
 import { toId, toNum, tombstoneIds } from '@/core/util';
 import { studyStreak } from '@/features/knowledge/knowledgeSelectors';
+import { SUB_NAMES } from '@/features/workout/workoutSelectors';
 import type { CoreState, KnowledgeState, MealState, WorkoutState } from '@/core/types';
 
 export type Period = 'day' | 'week' | 'month' | 'quarter' | 'year';
@@ -185,7 +186,11 @@ export function trackedLifts(wk: WorkoutState): string[] {
   for (const sets of Object.values(wk.days ?? {})) {
     for (const s of sets ?? []) if (!dead.has(toId(s.id)) && s.type === 'top') seen.add(s.ex);
   }
-  return [...seen].sort();
+  // Home substitutes are their own (different-load) lifts, so they must not be folded
+  // into the gym lift's series — that would draw a misleading 30↔140 lb sawtooth. But
+  // they also shouldn't clutter the lifetime picker as separate broken series, so drop
+  // them here; their history stays intact for the day-to-day workout view.
+  return [...seen].filter((ex) => !SUB_NAMES.has(ex)).sort();
 }
 
 /* ================= MEAL ================= */
