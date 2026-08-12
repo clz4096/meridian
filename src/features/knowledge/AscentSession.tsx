@@ -104,7 +104,21 @@ function doReveal(S: AscSt): void {
  * card swap — all on the one persistent node.
  */
 function doGrade(S: AscSt, g: Grade, reduced: boolean): void {
-  if (!S.revealed.value || S.locked.current) return;
+  if (!S.revealed.value) return; // grades are only offered after Reveal
+  applyGrade(S, g, reduced);
+}
+
+/**
+ * Skip the current card: auto-grade it "Again" (grade 1 → back tomorrow under the SRS
+ * lapse interval) and advance, WITHOUT needing to Reveal. For a card you don't want to
+ * answer right now but still want to see again.
+ */
+function doSkip(S: AscSt, reduced: boolean): void {
+  applyGrade(S, 1, reduced);
+}
+
+function applyGrade(S: AscSt, g: Grade, reduced: boolean): void {
+  if (S.locked.current) return;
   const deck = S.deckRef.current;
   const item = deck[S.cursor.value];
   if (!item) return; // guard BEFORE locking, so a bad index can't permanently brick the session
@@ -224,13 +238,17 @@ export function AscentSession() {
     }
   }, [S.cursor.value]);
 
-  // Keyboard: R reveals, 1–4 grade — but a focused textarea swallows them.
+  // Keyboard: R reveals, S skips, 1–4 grade — but a focused textarea swallows them.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (S.screen.value !== 'card') return;
       const tag = (document.activeElement as HTMLElement | null)?.tagName;
       if (e.key === 'r' || e.key === 'R') {
         if (!S.revealed.value && tag !== 'TEXTAREA') doReveal(S);
+        return;
+      }
+      if (e.key === 's' || e.key === 'S') {
+        if (!S.revealed.value && tag !== 'TEXTAREA') doSkip(S, reduced);
         return;
       }
       if (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4') {
@@ -403,9 +421,14 @@ function Card({ S, item, reduced, cardRef }: { S: AscSt; item: DeckItem; reduced
 
       <div class="asc-actions">
         {!revealed ? (
-          <button class="asc-btn-reveal" onClick={() => doReveal(S)}>
-            Reveal <span class="asc-k">R</span>
-          </button>
+          <div class="asc-prereveal">
+            <button class="asc-btn-reveal" onClick={() => doReveal(S)}>
+              Reveal <span class="asc-k">R</span>
+            </button>
+            <button class="asc-skip" onClick={() => doSkip(S, reduced)} title="Skip — you'll see this again tomorrow">
+              Skip for now <span class="asc-k">S</span>
+            </button>
+          </div>
         ) : (
           <>
             <div class="asc-grades">

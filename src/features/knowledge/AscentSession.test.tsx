@@ -97,6 +97,29 @@ describe('AscentSession — motion crux', () => {
   });
 });
 
+describe('AscentSession — skip', () => {
+  it('Skip auto-fails the card (Again → back tomorrow) and advances WITHOUT revealing', () => {
+    vi.useFakeTimers();
+    seedFresh(2);
+    const { container, getByText } = render(<AscentSession />);
+    fireEvent.click(getByText('Begin the climb'));
+    const node = card(container);
+    expect(node.querySelector('.asc-prompt')!.textContent).toContain('Prompt zero');
+
+    // Skip is available before Reveal; clicking it needs no reveal.
+    fireEvent.click(container.querySelector('.asc-skip') as HTMLElement);
+    // grade-1 (Again) uses the longer 620ms recede window before advancing
+    act(() => { vi.advanceTimersByTime(620); });
+    expect(card(container).querySelector('.asc-prompt')!.textContent).toContain('Prompt one');
+
+    // the skipped card was graded Again: mastery 1, and rescheduled (due set)
+    const K = appState.get('csgraph');
+    expect(K.mastery.c0).toBe(1);
+    expect(typeof K.srs.c0.due).toBe('string');
+    expect(K.srs.c0.due).not.toBe('');
+  });
+});
+
 describe('AscentSession — data moments', () => {
   it('fires a promotion receipt when a grade crosses a mastery band upward', () => {
     vi.useFakeTimers();

@@ -1160,7 +1160,9 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .asc-back-float{position:absolute; top:calc(12px + env(safe-area-inset-top)); left:14px; z-index:6; margin:0; padding:8px 12px}
 
 /* ---- top bar (counter · rail · receipt) ---- */
-.asc-topbar{padding:16px 20px 8px; flex:0 0 auto}
+/* Offset for the iOS status bar / notch — .asc-app is full-bleed (covers the chrome),
+   so its own top bar must respect the safe area or the Back/counter collide with the clock. */
+.asc-topbar{padding:calc(16px + env(safe-area-inset-top)) 20px 8px; flex:0 0 auto}
 .asc-topbar.asc-hidden{visibility:hidden}
 .asc-track-row{display:flex; align-items:center; gap:12px}
 .asc-counter{font-family:var(--mono); font-size:12px; letter-spacing:.06em; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums}
@@ -1243,6 +1245,14 @@ a.asc-src:hover{color:var(--teal)}
   transition:background .18s var(--ease), border-color .18s var(--ease)}
 .asc-btn-reveal:hover{background:#2E3644; border-color:var(--faint)}
 .asc-btn-reveal .asc-k{font-family:var(--mono); font-size:11px; color:var(--dim); border:1px solid var(--line); padding:1px 6px; border-radius:6px}
+/* Skip: a quiet secondary next to Reveal — auto-"Again", back tomorrow */
+.asc-prereveal{display:flex; flex-direction:column; gap:9px}
+.asc-skip{width:100%; min-height:42px; background:none; color:var(--muted); cursor:pointer;
+  border:1px solid var(--line); border-radius:var(--r-12); font-size:13.5px; font-weight:500;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  transition:color .18s var(--ease), border-color .18s var(--ease)}
+.asc-skip:hover{color:var(--text); border-color:var(--line-2)}
+.asc-skip .asc-k{font-family:var(--mono); font-size:11px; color:var(--dim); border:1px solid var(--line); padding:1px 6px; border-radius:6px}
 
 .asc-grades{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
 .asc-grade{min-height:60px; padding:8px 4px 7px; background:var(--surface-2);
@@ -1300,7 +1310,7 @@ a.asc-src:hover{color:var(--teal)}
   .asc-prompt{font-size:17.5px}
   .asc-grade .asc-g{font-size:13px}
   .asc-stage{padding:6px 14px 18px}
-  .asc-topbar{padding:14px 16px 6px}
+  .asc-topbar{padding:calc(14px + env(safe-area-inset-top)) 16px 6px}
 }
 @media (prefers-reduced-motion:reduce){
   .asc-app *{transition-duration:.001ms !important; animation-duration:.001ms !important; animation-iteration-count:1 !important}
