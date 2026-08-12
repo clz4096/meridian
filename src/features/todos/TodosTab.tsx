@@ -8,7 +8,7 @@
  */
 import { organizeTodos } from '@/features/todos/todosSelectors';
 import type { TodoItem } from '@/core/types';
-import { dataRev, todoView, todoAdding } from '@/ui/store';
+import { dataRev, todoView, todoAdding, editingTodo } from '@/ui/store';
 import { core, todosActions } from '@/ui/actions';
 import { dstr } from '@/app/bootstrap';
 import { host } from '@/ui/host';
@@ -25,14 +25,42 @@ function dueChip(due: string | undefined, today: string) {
 }
 
 function Row({ t, today }: { t: TodoItem; today: string }) {
+  const id = String(t.id);
+  const editing = editingTodo.value === id;
+
+  if (editing) {
+    const save = () => {
+      todosActions.editText(id, rv('edit-todo-text'));
+      todosActions.setDue(id, rv('edit-todo-due'));
+      editingTodo.value = null;
+    };
+    return (
+      <div class="todo-row editing">
+        {/* key on the id so switching rows remounts the inputs with the new defaults */}
+        <input
+          key={'et-' + id}
+          id="edit-todo-text"
+          class="minp name"
+          defaultValue={t.text}
+          aria-label="Edit todo"
+          onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') editingTodo.value = null; }}
+        />
+        <input key={'ed-' + id} id="edit-todo-due" class="minp num" type="date" defaultValue={t.due || ''} aria-label="Due date (optional)" />
+        <button class="madd" onClick={save}>Save</button>
+        <span class="todo-rm" onClick={() => (editingTodo.value = null)} title="Cancel edit">×</span>
+      </div>
+    );
+  }
+
   return (
     <div class={'todo-row' + (t.done ? ' done' : '')}>
-      <button class="todo-chk" onClick={() => todosActions.toggle(String(t.id))} aria-label={t.done ? 'Mark not done' : 'Mark done'}>
+      <button class="todo-chk" onClick={() => todosActions.toggle(id)} aria-label={t.done ? 'Mark not done' : 'Mark done'}>
         {t.done ? '✓' : ''}
       </button>
-      <span class="todo-text">{t.text}</span>
+      <span class="todo-text" onClick={() => (editingTodo.value = id)} title="Tap to edit">{t.text}</span>
       {dueChip(t.due, today)}
-      <span class="todo-rm" onClick={() => todosActions.remove(String(t.id))} title="Remove">
+      <span class="todo-edit" onClick={() => (editingTodo.value = id)} title="Edit">✎</span>
+      <span class="todo-rm" onClick={() => todosActions.remove(id)} title="Remove">
         ×
       </span>
     </div>

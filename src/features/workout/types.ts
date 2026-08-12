@@ -13,6 +13,8 @@ export interface WorkoutActions {
   /** Log a cardio bout as time + distance (not weight×reps). */
   logCardio(exercise: string, mins: number, dist: number): void;
   deleteSet(date: string, setId: string): void;
+  /** Correct a logged set in place (weight/reps for lifts, mins/dist for cardio). */
+  editSet(date: string, setId: string, patch: { weight?: number; reps?: number; mins?: number; dist?: number }): void;
   toggleExerciseDone(exercise: string): void;
   toggleSessionDone(): void;
   toggleDeload(exercise: string): void;

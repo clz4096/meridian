@@ -13,7 +13,7 @@ import { domId } from '@/ui/html';
 import { ProgControls, Carousel, Chart, LiftPicker } from '@/ui/components/Charts';
 import { wk, currentBW, exVideo, displayExercise, exSwap, workoutActions, loadWorkout } from '@/ui/actions';
 import { DATA } from '@/core/data/index';
-import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkShowAll, wkProgOpen, activeExercise, awayMode, progPeriod, progLift, dataRev } from '@/ui/store';
+import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkShowAll, wkProgOpen, activeExercise, awayMode, editingSet, progPeriod, progLift, dataRev } from '@/ui/store';
 import { dstr, dateLabel } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 
@@ -148,32 +148,55 @@ function dayPlan(state: WorkoutState, date: string, today: string, sundayFullBod
   return weekPlan(state, weekDaysFor(date), today, sundayFullBody)[date];
 }
 
+const dayNum = (d: string): number => new Date(d + 'T00:00:00').getDate();
+const fmtMD = (d: string): string => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+/** Label for the visible week, e.g. "Jul 21 – 27" or "Jul 28 – Aug 3". */
+function weekLabel(days: string[]): string {
+  const a = days[0]!;
+  const b = days[6]!;
+  const right = a.slice(0, 7) === b.slice(0, 7) ? String(dayNum(b)) : fmtMD(b);
+  return `${fmtMD(a)} – ${right}`;
+}
+/** Move the selected date (and thus the visible week) by whole days. */
+function goToDate(date: string): void {
+  wkDate.value = date;
+  wkSplitTouched.value = false; // each day starts on its own plan
+  wkShowAll.value = false;
+}
+
 function WeekStrip({ state, today, selected, sundayFullBody }: { state: WorkoutState; today: string; selected: string; sundayFullBody: boolean }) {
   const days = weekDaysFor(selected);
   const plan = weekPlan(state, days, today, sundayFullBody);
+  const onToday = days.includes(today);
   return (
-    <div class="wkweek">
-      {DOW.map((label, i) => {
-        const date = days[i];
-        const isToday = date === today;
-        const isSel = date === selected;
-        const { split, done, rest } = plan[date];
-        const cls =
-          split === 'upper' ? ' up' : split === 'lower' ? ' lo' : split === 'full' ? ' full' : rest ? ' rest' : '';
-        return (
-          <button
-            class={'wkday' + cls + (done ? ' done' : '') + (isSel ? ' sel' : '') + (isToday ? ' today' : '')}
-            onClick={() => {
-              wkDate.value = date;
-              wkSplitTouched.value = false; // each tapped day starts on its own plan
-              wkShowAll.value = false;
-            }}
-          >
-            <span class="wkday-l">{label}</span>
-            <span class="wkday-dot" />
-          </button>
-        );
-      })}
+    <div class="wkweek-wrap">
+      <div class="wkweek-nav">
+        <button class="wkweek-arrow" onClick={() => goToDate(shiftDate(selected, -7))} aria-label="Previous week">‹</button>
+        <button class="wkweek-label" onClick={() => goToDate(today)} title="Jump to today">
+          {weekLabel(days)}{onToday ? '' : ' · Today'}
+        </button>
+        <button class="wkweek-arrow" onClick={() => goToDate(shiftDate(selected, 7))} aria-label="Next week">›</button>
+      </div>
+      <div class="wkweek">
+        {DOW.map((label, i) => {
+          const date = days[i];
+          const isToday = date === today;
+          const isSel = date === selected;
+          const { split, done, rest } = plan[date];
+          const cls =
+            split === 'upper' ? ' up' : split === 'lower' ? ' lo' : split === 'full' ? ' full' : rest ? ' rest' : '';
+          return (
+            <button
+              class={'wkday' + cls + (done ? ' done' : '') + (isSel ? ' sel' : '') + (isToday ? ' today' : '')}
+              onClick={() => goToDate(date)}
+            >
+              <span class="wkday-l">{label}</span>
+              <span class="wkday-n">{dayNum(date)}</span>
+              <span class="wkday-dot" />
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -409,6 +432,57 @@ function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
   );
 }
 
+/** One logged set in the past-session review, with in-place edit (fix a wrong weight) + remove. */
+function PastSetRow({ date, s }: { date: string; s: Any }) {
+  const id = String(s.id);
+  const editing = editingSet.value === id;
+  const cardio = s.type === 'cardio';
+  const wid = `es-w-${id}`;
+  const rid = `es-r-${id}`;
+  const mid = `es-m-${id}`;
+  const did = `es-d-${id}`;
+  if (editing) {
+    const save = () => {
+      if (cardio) workoutActions.editSet(date, id, { mins: Number(host.readValue(mid)) || 0, dist: Number(host.readValue(did)) || 0 });
+      else workoutActions.editSet(date, id, { weight: Number(host.readValue(wid)) || 0, reps: Number(host.readValue(rid)) || 0 });
+      editingSet.value = null;
+    };
+    return (
+      <div class="set editing">
+        <span class="nm">{setTypeLabel(s.type)}</span>
+        {cardio ? (
+          <span class="setedit-fields">
+            <input key={mid} id={mid} class="fv" type="number" inputmode="decimal" defaultValue={s.mins != null ? String(s.mins) : ''} aria-label="Minutes" />
+            <span class="times" aria-hidden="true">·</span>
+            <input key={did} id={did} class="fv" type="number" inputmode="decimal" defaultValue={s.dist != null ? String(s.dist) : ''} aria-label="Miles" />
+          </span>
+        ) : (
+          <span class="setedit-fields">
+            <input key={wid} id={wid} class="fv" type="number" inputmode="decimal" defaultValue={String(s.weight)} aria-label="Weight (lb)" />
+            <span class="times" aria-hidden="true">×</span>
+            <input key={rid} id={rid} class="fv" type="number" inputmode="numeric" defaultValue={String(s.reps)} aria-label="Reps" />
+          </span>
+        )}
+        <button class="setundo" onClick={save}>Save</button>
+        <button class="setundo" onClick={() => (editingSet.value = null)}>Cancel</button>
+      </div>
+    );
+  }
+  return (
+    <SetLine
+      state="done"
+      label={setTypeLabel(s.type)}
+      val={cardio ? fmtCardio(s) : `${s.weight} × ${s.reps}`}
+      trailing={
+        <span class="setrow-actions">
+          <button class="setundo" onClick={() => (editingSet.value = id)}>✎ Edit</button>
+          <button class="setundo" onClick={() => workoutActions.deleteSet(date, id)}>✕ Remove</button>
+        </span>
+      }
+    />
+  );
+}
+
 /** The full-screen logging view for one exercise, with a back link and a switcher to the others. */
 function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutViewOptions; exercise: string; exercises: string[] }) {
   // In Away mode the sets/plan/completion live under the dumbbell substitute (the same
@@ -429,22 +503,7 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
 
   let body: preact.JSX.Element;
   if (vm.isPast && performed.length > 0) {
-    body = (
-      <div class="sets">
-        {performed.map((s) => (
-          <SetLine
-            state="done"
-            label={setTypeLabel(s.type)}
-            val={s.type === 'cardio' ? fmtCardio(s) : `${s.weight} × ${s.reps}`}
-            trailing={
-              <button class="setundo" onClick={() => workoutActions.deleteSet(vm.date, s.id)}>
-                ✕ Remove
-              </button>
-            }
-          />
-        ))}
-      </div>
-    );
+    body = <div class="sets">{performed.map((s) => <PastSetRow date={vm.date} s={s} />)}</div>;
   } else if (!plan) {
     // No history yet (a manually-added lift): we can't prescribe a set structure, so
     // show the sets already logged AND keep an input open so more than one set can be

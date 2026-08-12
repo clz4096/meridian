@@ -159,6 +159,17 @@ export const workoutActions: WorkoutActions = {
     appState.markWorkoutDirty();
     st.bump();
   },
+  editSet(date, id, patch) {
+    const W = wk();
+    const s = (W.days[date] || []).find((x: Store) => String(x.id) === String(id));
+    if (!s) return;
+    if (patch.weight !== undefined) s.weight = patch.weight;
+    if (patch.reps !== undefined) s.reps = patch.reps;
+    if (patch.mins !== undefined) s.mins = patch.mins;
+    if (patch.dist !== undefined) s.dist = patch.dist;
+    appState.markWorkoutDirty();
+    st.bump();
+  },
   toggleExerciseDone(ex) {
     const W = wk();
     const k = st.wkDate.value ?? dstr();

@@ -241,9 +241,8 @@ function TopicCard({ it, vm }: { it: KnowledgeItem; vm: KnowledgeViewModel }) {
       <p class="tpc-prompt">{it.prompt}</p>
       <QSrc src={it.src} />
       <SourceExtras it={it} />
-      {full && (
-        <textarea class="ans dictxt" id={'ans-' + it.id} aria-label="Your answer" placeholder="Write your answer, then reveal to compare — active recall beats rereading." />
-      )}
+      <textarea class="ans dictxt" id={'ans-' + it.id} aria-label="Your answer" placeholder="Write your answer, then reveal to compare — active recall beats rereading." />
+
       <div class={'tpc-answer-wrap' + (open ? ' open' : '')} id={'rv-' + it.id}>
         <div class="tpc-answer-inner">
           <div class="tpc-answer">

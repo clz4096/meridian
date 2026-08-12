@@ -384,7 +384,8 @@ function Card({ S, item, reduced, cardRef }: { S: AscSt; item: DeckItem; reduced
         </div>
       )}
 
-      {isAttempt && <textarea placeholder="Write your answer…" aria-label="Your answer" />}
+      <textarea placeholder="Write your answer…" aria-label="Your answer" />
+
 
       <div class={'asc-answer-wrap' + (revealed ? ' open' : '')}>
         <div class="asc-answer-inner">

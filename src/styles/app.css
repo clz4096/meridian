@@ -111,7 +111,16 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .exhead-r{display:flex;align-items:center;gap:10px}
 .exhead-m{color:var(--muted);letter-spacing:.06em}
 /* workout — your week strip (quiet: letters + a state dot, today emphasized) */
-.wkweek{display:flex;gap:2px;margin:4px 0 20px}
+.wkweek-wrap{margin:4px 0 20px}
+.wkweek-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
+.wkweek-arrow{flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:none;border:0;border-radius:9px;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.wkweek-arrow:hover{background:var(--surface-1);color:var(--text)}
+.wkweek-label{flex:1;min-width:0;background:none;border:0;cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:6px 4px;border-radius:8px;transition:color var(--dur) var(--ease)}
+.wkweek-label:hover{color:var(--text)}
+.wkweek{display:flex;gap:2px}
+.wkday-n{font-family:var(--mono);font-size:12px;color:var(--dim);line-height:1}
+.wkday.today .wkday-n{color:var(--text);font-weight:700}
+.wkday.sel .wkday-n{color:var(--text);font-weight:700}
 .wkday{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;padding:7px 0 9px;background:none;border:0;cursor:pointer;color:inherit;border-radius:10px;transition:background var(--dur) var(--ease)}
 .wkday:hover{background:var(--surface-1)}
 .wkday-l{font-family:var(--mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
@@ -248,6 +257,14 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .set.up{opacity:.45}
 .setundo{margin-left:14px;flex:none;height:30px;display:inline-flex;align-items:center;padding:0 13px;border-radius:var(--r-pill);border:1px solid var(--line-2);background:var(--surface-1);color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
 .setundo:hover,.setundo:focus-visible{color:var(--deficit);border-color:var(--deficit);outline:none}
+/* past-set review: edit + remove sit together; edit turns the row into weight/reps inputs */
+.setrow-actions{margin-left:auto;display:inline-flex;gap:8px}
+.setrow-actions .setundo{margin-left:0}
+.set.editing{gap:10px}
+.setedit-fields{margin-left:auto;display:inline-flex;align-items:center;gap:8px}
+.setedit-fields .fv{width:64px;font-size:17px;text-align:center;border:1px solid var(--line-2);border-radius:8px;padding:5px 4px}
+.setedit-fields .times{color:var(--faint)}
+.set.editing .setundo{margin-left:0}
 .more{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
 .more a,.more button{font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--muted);text-decoration:none;cursor:pointer;background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-pill);padding:7px 12px;min-height:0;transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
 .more a:hover,.more button:hover,.more a:focus-visible,.more button:focus-visible{color:var(--teal);border-color:var(--line-2);outline:none}
@@ -671,6 +688,10 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 .todo-due{flex:none;font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface-3);border-radius:20px;padding:3px 9px}
 .todo-due.overdue{color:var(--deficit);background:rgba(216,101,79,.12)}
 .todo-due.today{color:var(--fuel);background:rgba(224,166,75,.12)}
+.todo-edit{flex:none;margin:-11px 0;padding:11px 6px;color:var(--faint);cursor:pointer;font-size:13px;line-height:1}
+.todo-edit:hover{color:var(--text)}
+.todo-row.editing{gap:8px}
+.todo-row.editing .minp.name{flex:1;min-width:0}
 .todo-rm{flex:none;margin:-11px 0;padding:11px 10px;color:var(--faint);cursor:pointer;font-size:16px;line-height:1}
 .todo-rm:hover{color:var(--deficit)}
 

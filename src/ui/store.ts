@@ -60,6 +60,8 @@ export const sgExtrasOpen = signal(false);
 // ── todos UI state ── (todos live in the core store, loaded at boot — no lazy load)
 export const todoView = signal<'due' | 'all' | 'done'>('all'); // segmented view
 export const todoAdding = signal(false); // FAB-revealed add form
+export const editingTodo = signal<string | null>(null); // id of the todo being edited inline, or null
+export const editingSet = signal<string | null>(null); // id of the logged workout set being edited inline, or null
 
 // ── scratchpad UI state ── (scratch lives in the core store, loaded at boot)
 export const scratchFilter = signal<ScratchStatus | 'all'>('all');
