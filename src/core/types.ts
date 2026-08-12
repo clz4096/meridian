@@ -186,12 +186,30 @@ export interface SrsEntry {
   n: number;
 }
 
+/** Persisted shape of a question card (mirrors the feature-layer KnowledgeItem). */
+export interface KnowledgeItemLike {
+  id: string;
+  prompt: string;
+  reveal: string;
+  mins: number;
+  flow: 'flip' | 'full';
+  src: { book: string; ref: string; page?: number; anchor?: string; title?: string; url?: string };
+  tags?: string[];
+  ai?: boolean;
+}
+
 export interface KnowledgeState {
   mastery: Record<string, Mastery>;
   srs: Record<string, SrsEntry>;
   log: Array<{ id: EntityId; qid: string; at: Millis; rating: Mastery }>;
   /** "topic|c|3" -> watched/read */
   gymDone: Record<string, boolean>;
+  /** AI-generated cards, kept in their own pool (topic id -> cards) — never mixed
+   *  into the curated static bank. Studyable + fed into FSRS/mastery like any card. */
+  generated?: Record<string, KnowledgeItemLike[]>;
+  /** Grow-only tombstone of discarded generated-card ids, so a discard sticks across a
+   *  sync merge (knowledge has no per-id tombstones otherwise) instead of resurrecting. */
+  genDiscarded?: string[];
   /**
    * Monotonic "reset epoch". Knowledge has no per-id tombstones, so a reset
    * bumps this to `Date.now()` and empties the store; the merge discards any

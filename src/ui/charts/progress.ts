@@ -251,11 +251,14 @@ export function questionsSolvedSeries(kg: KnowledgeState, period: Period): Point
  * few well-rated answers; `total` is the honest denominator. Falls back to the
  * attempted count if `total` is unknown (0), preserving the old behaviour.
  */
-export function masterySeries(kg: KnowledgeState, period: Period, total = 0): Point[] {
+export function masterySeries(kg: KnowledgeState, period: Period, total = 0, validIds?: ReadonlySet<string>): Point[] {
   const log = [...(kg.log ?? [])].sort((a, b) => toNum(a.at, 0) - toNum(b.at, 0));
   const latest = new Map<string, number>();
   const byBucket = new Map<string, number>();
   for (const l of log) {
+    // Scope the mastered-numerator to the curated bank (the denominator `total`), so a
+    // graded AI-generated card can't push the mastery-% chart past 100%.
+    if (validIds && !validIds.has(l.qid)) continue;
     latest.set(l.qid, toNum(l.rating, 0));
     const mastered = [...latest.values()].filter((r) => r >= 4).length;
     const denom = total > 0 ? total : latest.size;

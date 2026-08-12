@@ -350,6 +350,7 @@ function Card({ S, item, reduced, cardRef }: { S: AscSt; item: DeckItem; reduced
             {mWord}
           </span>
         </span>
+        {(item as { ai?: boolean }).ai && <span class="asc-flowtag asc-ai" title="AI-generated — verify before trusting">✨ AI</span>}
         <span class="asc-flowtag">{isAttempt ? 'attempt' : 'flip'}</span>
       </div>
 

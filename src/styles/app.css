@@ -1460,6 +1460,20 @@ a.asc-src:hover{color:var(--teal)}
 .tpc-echip{display:inline-flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px;
   color:var(--faint); background:var(--surface-2); border:1px solid var(--line); padding:4px 9px; border-radius:var(--r-999)}
 .tpc-echip svg{opacity:.8}
+/* AI-generated cards — visually distinct from the fact-checked curated bank */
+.tpc-card.ai{border-color:color-mix(in srgb, #8b7fd6 40%, var(--line)); background:color-mix(in srgb, #8b7fd6 6%, var(--surface-1))}
+.tpc-aibadge{display:inline-flex; align-items:center; gap:4px; font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:#a99be6; background:color-mix(in srgb, #8b7fd6 16%, transparent); border:1px solid color-mix(in srgb, #8b7fd6 34%, transparent); padding:3px 7px; border-radius:var(--r-999)}
+.tpc-aidiscard{appearance:none; border:0; background:none; cursor:pointer; color:var(--faint); font-size:17px; line-height:1; padding:2px 4px; margin:-2px -4px -2px 0}
+.tpc-aidiscard:hover{color:var(--deficit)}
+.tpc-genrow{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:2px 0 16px}
+.tpc-gen{appearance:none; cursor:pointer; font-family:var(--sans); font-size:13px; color:#a99be6; background:color-mix(in srgb, #8b7fd6 10%, var(--surface-1)); border:1px solid color-mix(in srgb, #8b7fd6 30%, var(--line)); padding:9px 14px; border-radius:var(--r-999); transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+.tpc-gen:hover:not(:disabled){background:color-mix(in srgb, #8b7fd6 18%, var(--surface-1))}
+.tpc-gen:disabled{opacity:.6; cursor:default}
+.tpc-gen.busy{animation:aipulse 1.1s var(--ease) infinite}
+@keyframes aipulse{0%,100%{opacity:.6}50%{opacity:1}}
+.tpc-genmsg{font-size:12.5px; color:var(--muted)}
+.asc-flowtag.asc-ai{color:#a99be6; border-color:color-mix(in srgb, #8b7fd6 34%, transparent)}
+@media (prefers-reduced-motion:reduce){.tpc-gen.busy{animation:none}}
 .tpc-prompt{font-size:16.5px; line-height:1.42; color:var(--text); letter-spacing:-.01em; margin:2px 0 0}
 .tpc-card .qsrc{margin-top:0}
 

@@ -7,7 +7,7 @@
  * `schedule` is a pure transition: (previous entry, rating, today) -> new entry.
  */
 
-import type { KnowledgeState, Mastery, SrsEntry } from '@/core/types';
+import type { KnowledgeItemLike, KnowledgeState, Mastery, SrsEntry } from '@/core/types';
 import { shiftDate, toNum } from '@/core/util';
 
 export interface SrsConfig {
@@ -300,6 +300,53 @@ export function interviewDeck<T extends Taggable>(
   return deck;
 }
 
+/**
+ * Validate + normalise raw AI-generated cards into real question cards. Drops anything
+ * missing a prompt/reveal or duplicating an existing prompt (case-insensitive, also
+ * de-dupes within the batch); clamps mins to {5,15,30,60} and keeps flow consistent
+ * (mins 5 ⇒ flip); always tags the card with its topic; stamps `ai:true` and an HONEST
+ * source (no book/page — unverified content renders as plain text, never a fake link).
+ * Pure: ids come from the caller-supplied `idPrefix` so no clock is read here.
+ */
+export function normalizeGenerated(
+  raw: readonly unknown[],
+  topicId: string,
+  idPrefix: string,
+  existingPrompts: readonly string[],
+  max = 10,
+): KnowledgeItemLike[] {
+  const seen = new Set(existingPrompts.map((p) => p.trim().toLowerCase()).filter(Boolean));
+  const out: KnowledgeItemLike[] = [];
+  for (const r of raw) {
+    if (out.length >= max) break; // hard cap so a runaway model can't bloat the pool
+    const c = (r ?? {}) as Record<string, unknown>;
+    const prompt = typeof c.prompt === 'string' ? c.prompt.trim() : '';
+    const reveal = typeof c.reveal === 'string' ? c.reveal.trim() : '';
+    if (!prompt || !reveal) continue; // a card must have both
+    const key = prompt.toLowerCase();
+    if (seen.has(key)) continue; // duplicate of an existing card or an earlier one this batch
+    seen.add(key);
+    let mins = Math.round(Number(c.mins));
+    if (![5, 15, 30, 60].includes(mins)) mins = 15;
+    const flow: 'flip' | 'full' = mins === 5 ? 'flip' : c.flow === 'flip' || c.flow === 'full' ? c.flow : 'full';
+    const tags = Array.isArray(c.tags)
+      ? c.tags.filter((t): t is string => typeof t === 'string' && t.trim() !== '').map((t) => t.trim().toLowerCase())
+      : [];
+    if (!tags.includes(topicId)) tags.push(topicId); // always relevant to its own topic
+    out.push({
+      id: `${idPrefix}-${out.length}`,
+      prompt,
+      reveal,
+      mins: mins === 5 ? 5 : flow === 'flip' ? 5 : mins, // flip is always a 5-min card
+      flow,
+      src: { book: '', ref: 'AI-generated · verify before trusting' },
+      tags,
+      ai: true,
+    });
+  }
+  return out;
+}
+
 /** Consecutive days ending at `today` on which at least one item was answered. */
 export function studyStreak(state: KnowledgeState, today: string): number {
   const dates = new Set(
@@ -373,16 +420,20 @@ export interface GrowthReadout {
   solid: number; // questions at mastery >= 4
   seen: number; // questions attempted at least once
 }
-export function knowledgeGrowth(state: KnowledgeState, today: string, windowDays = 30): GrowthReadout {
+export function knowledgeGrowth(state: KnowledgeState, today: string, windowDays = 30, validIds?: ReadonlySet<string>): GrowthReadout {
   const cutoff = shiftDate(today, -windowDays);
   const log = (state.log ?? []).filter((e) => String((e as { date?: string }).date ?? '') >= cutoff);
   const reviews = log.length;
   const hits = log.filter((e) => Number((e as { rating?: number }).rating ?? 0) >= 4).length;
   const mastery = state.mastery ?? {};
+  // `solid`/`seen` are curriculum-coverage counts, so scope them to the curated bank
+  // when a valid-id set is given — the ad-hoc AI pool must not move these headline
+  // numbers. `retention` is a pure recall ratio over all reviews, so it's unscoped.
+  const inScope = (id: string): boolean => !validIds || validIds.has(id);
   return {
     retention: reviews >= 5 ? hits / reviews : null,
     reviews,
-    solid: Object.values(mastery).filter((m) => Number(m) >= 4).length,
-    seen: Object.keys(mastery).length,
+    solid: Object.entries(mastery).filter(([id, m]) => inScope(id) && Number(m) >= 4).length,
+    seen: Object.keys(mastery).filter(inScope).length,
   };
 }

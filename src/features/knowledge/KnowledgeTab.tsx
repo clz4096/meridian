@@ -9,12 +9,12 @@ import type { KnowledgeViewModel, KnowledgeItem, GymLink } from '@/features/know
 import { masterySeries, questionsSolvedSeries, xpSeries, studyDaysSeries, currentStreak } from '@/ui/charts/progress';
 import { ProgControls, Carousel, Chart } from '@/ui/components/Charts';
 import { SecHero } from '@/ui/components/SecHero';
-import { kg, core, dueItems, allTargetItems, todayPathItems, allKGItems, knowledgeActions, loadKnowledge } from '@/ui/actions';
+import { kg, core, dueItems, allTargetItems, todayPathItems, knowledgeActions, loadKnowledge } from '@/ui/actions';
 import { knowledgeGrowth, INTERVIEW_PRESETS } from '@/features/knowledge/knowledgeSelectors';
 import { AscentSession } from '@/features/knowledge/AscentSession';
 import { srcHref, practiceLinks, seeLinks } from '@/features/knowledge/source';
 import { KnowledgeRail } from '@/features/knowledge/KnowledgeRail';
-import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgGraded, kgOverview, kgSession, kgInterview, progPeriod, dataRev } from '@/ui/store';
+import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgGraded, kgOverview, kgSession, kgInterview, kgGenerating, kgGenMsg, progPeriod, dataRev } from '@/ui/store';
 import { dstr } from '@/app/bootstrap';
 import { previewIntervals, readFsrs, type Grade } from '@/features/knowledge/fsrs';
 
@@ -28,7 +28,9 @@ function knowledgeVM(): KnowledgeViewModel {
   const K = kg();
   const topicId = kgTopic.value;
   const items: Any[] =
-    topicId === '__today__' ? todayPathItems() : topicId === '__review__' ? dueItems() : topicId === '__target__' ? allTargetItems() : kgItems.value[topicId] || [];
+    topicId === '__today__' ? todayPathItems() : topicId === '__review__' ? dueItems() : topicId === '__target__' ? allTargetItems()
+      // A topic screen shows its curated cards PLUS any AI-generated cards for that topic.
+      : [...(kgItems.value[topicId] || []), ...((K.generated?.[topicId] as Any[]) || [])];
   const time = kgTime.value;
   const target = kgTarget.value;
   const matchesTarget = (it: Any): boolean => (target === 'all' ? true : (it.tags || []).includes(target));
@@ -87,10 +89,14 @@ function KnowledgeProgress() {
   const period = progPeriod.value;
   const today = dstr();
   const streak = currentStreak(K, today);
-  const g = knowledgeGrowth(K, today);
-  // Mastery % is share of the WHOLE curriculum mastered — not of the handful
-  // attempted (dividing by g.seen read ~99% after a few well-rated answers).
-  const total = allKGItems().length;
+  // Mastery % is share of the CURATED curriculum mastered — not of the handful
+  // attempted, and NOT diluted by the ad-hoc AI-generated pool (keep this headline in
+  // step with the Hub tile, which is also curated-only).
+  const bank = kgItems.value;
+  const curatedIds = new Set<string>();
+  Object.keys(bank).forEach((tp) => (bank[tp] || []).forEach((it: Any) => curatedIds.add(String(it.id))));
+  const g = knowledgeGrowth(K, today, 30, curatedIds);
+  const total = curatedIds.size;
   const masteryPct = total ? Math.round((100 * g.solid) / total) : 0;
   const sub = streak > 0 ? `🔥 ${streak}-day streak` : g.seen ? `${g.solid} of ${total} mastered` : 'nothing yet';
   const retentionTxt = g.retention == null ? '—' : `${Math.round(g.retention * 100)}%`;
@@ -105,7 +111,7 @@ function KnowledgeProgress() {
       <div class="prog">
         <ProgControls />
         <Carousel keepKey="knowledge">
-          <Chart opts={{ kind: 'line', title: 'Mastery %', points: masterySeries(K, period, total), unit: '%', color: 'var(--ok)' }} />
+          <Chart opts={{ kind: 'line', title: 'Mastery %', points: masterySeries(K, period, total, curatedIds), unit: '%', color: 'var(--ok)' }} />
           <Chart opts={{ kind: 'bar', title: 'Questions solved', points: questionsSolvedSeries(K, period), summary: 'sum', color: 'var(--teal)' }} />
           <Chart opts={{ kind: 'bar', title: 'XP earned', points: xpSeries(C, period, 'kg'), summary: 'sum', color: 'var(--fuel)' }} />
           <Chart opts={{ kind: 'bar', title: 'Study days', points: studyDaysSeries(K, period), summary: 'sum', color: 'var(--protein)' }} />
@@ -225,7 +231,7 @@ function TopicCard({ it, vm }: { it: KnowledgeItem; vm: KnowledgeViewModel }) {
   const graded = kgGraded.value[it.id];
   const preview = previewIntervals(readFsrs(K.srs?.[it.id]), now());
   return (
-    <article class={'tpc-card' + (graded ? ' reviewed' : '')} id={'qc-' + it.id}>
+    <article class={'tpc-card' + (graded ? ' reviewed' : '') + (it.ai ? ' ai' : '')} id={'qc-' + it.id}>
       <div class="tpc-qc-top">
         <span class="tpc-mchip">
           <span class="dot2" style={`background:${M_VAR[m]}`} aria-hidden="true" />
@@ -233,10 +239,20 @@ function TopicCard({ it, vm }: { it: KnowledgeItem; vm: KnowledgeViewModel }) {
             {M_WORD[m]}
           </span>
         </span>
+        {it.ai && <span class="tpc-aibadge" title="AI-generated — verify before trusting">✨ AI</span>}
         <span class="tpc-echip">
           <EffortClock />
           {it.mins} min
         </span>
+        {it.ai && (
+          <button
+            class="tpc-aidiscard"
+            title="Discard this AI card"
+            onClick={() => knowledgeActions.discardGenerated(it.id, (it as Any).topic || kgTopic.value)}
+          >
+            ×
+          </button>
+        )}
       </div>
       <p class="tpc-prompt">{it.prompt}</p>
       <QSrc src={it.src} />
@@ -415,6 +431,17 @@ function KnowledgeBody({ vm }: { vm: KnowledgeViewModel }) {
         <button class="tpc-gym" onClick={() => knowledgeActions.toggleGym()}>
           🎧 Gym
         </button>
+      </div>
+
+      <div class="tpc-genrow">
+        <button
+          class={'tpc-gen' + (kgGenerating.value ? ' busy' : '')}
+          disabled={kgGenerating.value}
+          onClick={() => void knowledgeActions.generateCards(vm.topicId, 5)}
+        >
+          {kgGenerating.value ? 'Generating…' : '✨ Generate cards'}
+        </button>
+        {kgGenMsg.value && <span class="tpc-genmsg">{kgGenMsg.value}</span>}
       </div>
 
       <div aria-label="Cards">

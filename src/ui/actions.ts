@@ -12,12 +12,12 @@ import { inferIncrement, restSeconds, plannedSetCount, isExerciseComplete, weekS
 import type { WorkoutActions } from '@/features/workout/types';
 import { shiftDate } from '@/core/util';
 import { DEFAULT_CONFIG, type SetType, type SessionOverrides } from '@/core/types';
-import { dueCards, isDue, interviewDeck, interviewRelevant, interviewPreset } from '@/features/knowledge/knowledgeSelectors';
+import { dueCards, isDue, interviewDeck, interviewRelevant, interviewPreset, normalizeGenerated } from '@/features/knowledge/knowledgeSelectors';
 import { scheduleFsrs, queuedEntry, type Grade } from '@/features/knowledge/fsrs';
 import { GRADE_MASTERY } from '@/features/knowledge/ascent';
 import type { KnowledgeActions } from '@/features/knowledge/types';
 import { fetchQuestionBank } from '@/features/knowledge/questionBank';
-import { aiCall, estimateMacros } from '@/services/ai';
+import { aiCall, estimateMacros, generateQuestions } from '@/services/ai';
 import type { MealActions, MealPreset } from '@/features/meal/types';
 import { exportBundle, serialise, importBundle, normaliseState, storageMetrics } from '@/features/data/dataSelectors';
 import type { DataActions } from '@/features/data/types';
@@ -313,6 +313,10 @@ export function allKGItems(): Store[] {
   const out: Store[] = [];
   const items = st.kgItems.value;
   Object.keys(items).forEach((tp) => (items[tp] || []).forEach((it: Store) => out.push(Object.assign({ topic: tp }, it))));
+  // AI-generated cards live in their own persisted pool but study exactly like the rest
+  // (same id space → same FSRS/mastery). They carry `ai:true` so the UI can label them.
+  const gen = kg().generated || {};
+  Object.keys(gen).forEach((tp) => (gen[tp] || []).forEach((it: Store) => out.push(Object.assign({ topic: tp }, it))));
   return out;
 }
 export function dueItems(): Store[] {
@@ -664,6 +668,59 @@ export const knowledgeActions: KnowledgeActions = {
     }
     out.set(res.text.trim(), 'plain');
   },
+  async generateCards(topicId, count = 5) {
+    if (st.kgGenerating.value) return; // one request at a time
+    const topic = (DATA.topics as Array<{ id: string; name: string }>).find((t) => t.id === topicId);
+    const topicName = topic?.name || topicId;
+    st.kgGenerating.value = true;
+    st.kgGenMsg.value = '';
+    st.bump();
+    try {
+      const avoid = allKGItems().filter((it) => it.topic === topicId).map((it) => String(it.prompt || ''));
+      const res = await generateQuestions(topicName, count, avoid);
+      if (!res.ok) {
+        st.kgGenMsg.value = res.error === 'no proxy'
+          ? 'Set up cloud sync (Data → Cloud backend) to generate cards.'
+          : 'Could not generate: ' + res.error + '.';
+        return;
+      }
+      const K = kg();
+      if (!K.generated) K.generated = {};
+      // uid() (timestamp+seq+random) makes the id prefix collision-proof even if two
+      // devices generate for the same topic in the same millisecond.
+      const idPrefix = 'ai-' + topicId + '-' + uid();
+      const fresh = normalizeGenerated(res.raw, topicId, idPrefix, avoid, 10);
+      if (fresh.length === 0) {
+        st.kgGenMsg.value = 'No new cards this time — try again.';
+        return;
+      }
+      K.generated[topicId] = [...(K.generated[topicId] || []), ...fresh];
+      appState.markKnowledgeDirty();
+      st.kgGenMsg.value = '+' + fresh.length + (fresh.length === 1 ? ' card' : ' cards') + ' added';
+      void appState.save();
+    } catch (e) {
+      st.kgGenMsg.value = 'Could not generate: ' + ((e as Error)?.message || 'error') + '.';
+    } finally {
+      st.kgGenerating.value = false;
+      st.bump();
+    }
+  },
+  discardGenerated(cardId, topicId) {
+    const K = kg();
+    if (K.generated?.[topicId]) {
+      K.generated[topicId] = K.generated[topicId].filter((c: Store) => String(c.id) !== String(cardId));
+      if (K.generated[topicId].length === 0) delete K.generated[topicId];
+    }
+    if (K.mastery) delete K.mastery[cardId]; // discard its progress too
+    if (K.srs) delete K.srs[cardId];
+    if (K.log) K.log = K.log.filter((e: Store) => String(e.qid) !== String(cardId)); // and its study log (chart overcount)
+    // Grow-only tombstone so the discard sticks across a sync merge (no resurrection).
+    if (!K.genDiscarded) K.genDiscarded = [];
+    if (!K.genDiscarded.includes(cardId)) K.genDiscarded.push(cardId);
+    appState.markKnowledgeDirty();
+    st.bump();
+    void appState.save();
+  },
   setChartPeriod(p) {
     st.progPeriod.value = p as import("@/ui/charts/progress").Period;
     st.bump();
@@ -977,11 +1034,14 @@ export const scratchActions = {
 export function hubStats(): HubStat[] {
   const today = dstr();
   const K = kg();
-  // Mastery % = share of the WHOLE curriculum mastered — NOT of the handful
+  // Mastery % = share of the CURATED curriculum mastered — NOT of the handful
   // attempted (dividing by attempted read ~100% after a couple mastered answers).
-  // Scope the numerator to ids still in the bank so a stale mastery row (a retired
-  // question) can't push it over 100; the denominator is the current bank size.
-  const validIds = new Set(allKGItems().map((it) => String(it.id)));
+  // Scope to the curated bank ONLY (exclude the ad-hoc AI-generated pool), so
+  // generating cards can't silently move the headline number up or down; a stale
+  // mastery row (a retired question) also can't push it over 100.
+  const bank = st.kgItems.value;
+  const validIds = new Set<string>();
+  Object.keys(bank).forEach((tp) => (bank[tp] || []).forEach((it: Store) => validIds.add(String(it.id))));
   const totalQ = validIds.size;
   const mastered = Object.entries(K.mastery ?? {}).filter(([id, r]) => validIds.has(id) && Number(r) >= 4).length;
   const masteryPct = totalQ ? Math.round((100 * mastered) / totalQ) : 0;

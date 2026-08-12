@@ -10,7 +10,7 @@
  * instead of silently writing garbage into storage.
  */
 
-import type { CoreState, KnowledgeState, MealState, WorkoutState } from '@/core/types';
+import type { CoreState, KnowledgeItemLike, KnowledgeState, MealState, WorkoutState } from '@/core/types';
 import { toNum } from '@/core/util';
 
 export const BUNDLE_VERSION = 2 as const;
@@ -186,7 +186,35 @@ export function normaliseKnowledge(raw: unknown): KnowledgeState {
       rating: Math.round(toNum((o.rating ?? o.score) as never, 1)),
     } as KnowledgeState['log'][number];
   });
-  return { mastery, srs, gymDone, log };
+  // AI-generated cards — preserved through an export/import round-trip so they aren't
+  // silently dropped from a backup (each is validated back into a real card shape).
+  const generated: NonNullable<KnowledgeState['generated']> = {};
+  for (const [tp, cards] of Object.entries(obj(k.generated))) {
+    const list = arr(cards)
+      .map((x) => {
+        const o = obj(x);
+        const s = obj(o.src);
+        const mins = Math.round(toNum(o.mins as never, 15));
+        return {
+          id: String(o.id ?? ''),
+          prompt: String(o.prompt ?? ''),
+          reveal: String(o.reveal ?? ''),
+          mins: [5, 15, 30, 60].includes(mins) ? mins : 15,
+          flow: o.flow === 'flip' ? 'flip' : 'full',
+          src: { book: String(s.book ?? ''), ref: String(s.ref ?? '') },
+          tags: arr(o.tags).map(String),
+          ai: true,
+        } as KnowledgeItemLike;
+      })
+      .filter((c) => c.id && c.prompt && c.reveal);
+    if (list.length) generated[tp] = list;
+  }
+  const genDiscarded = [...new Set(arr(k.genDiscarded).map(String).filter(Boolean))];
+  return {
+    mastery, srs, gymDone, log,
+    ...(Object.keys(generated).length ? { generated } : {}),
+    ...(genDiscarded.length ? { genDiscarded } : {}),
+  };
 }
 
 export function normaliseState(raw: unknown): AppState {

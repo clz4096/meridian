@@ -128,6 +128,16 @@ describe('hubStats knowledge tile — mastery % of the whole curriculum', () => 
     Object.assign(kg(), { mastery: {}, srs: {}, log: [], gymDone: {} });
     expect(hubStats().find((s) => s.key === 'knowledge')!.value).toBe('0');
   });
+
+  it('AI-generated cards do NOT move the headline mastery % (curated bank is the denominator)', () => {
+    kgItems.value = { algorithms: Array.from({ length: 20 }, (_, i) => ({ id: `q${i}`, mins: 5 })) as never };
+    // 1 curated card mastered → 5%. Adding a generated pool (even a mastered one) must not change it.
+    Object.assign(kg(), {
+      mastery: { q0: 5, 'ai-1': 5 }, srs: {}, log: [], gymDone: {},
+      generated: { algorithms: [{ id: 'ai-1', prompt: 'p', reveal: 'r', mins: 5, flow: 'flip', src: { book: '', ref: 'AI' }, tags: ['algorithms'], ai: true }] },
+    });
+    expect(hubStats().find((s) => s.key === 'knowledge')!.value).toBe('5'); // still 1/20, not 2/21
+  });
 });
 
 describe('dataActions.resetKnowledge', () => {

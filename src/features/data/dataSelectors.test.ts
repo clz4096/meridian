@@ -89,6 +89,23 @@ describe('workout field preservation (regression)', () => {
     expect(rset.dist).toBe(2.4);
     expect(r.state.overload.reopened!['2025-01-02']).toEqual(['Bench Press']);
   });
+
+  it('AI-generated cards survive a normalise + export→import round-trip', () => {
+    const state = normaliseState({
+      csgraph: {
+        mastery: {}, srs: {}, gymDone: {}, log: [],
+        generated: { cpp: [{ id: 'ai-cpp-1', prompt: 'What is RAII?', reveal: 'Tie lifetime to scope.', mins: 5, flow: 'flip', src: { book: '', ref: 'AI-generated · verify' }, tags: ['cpp'], ai: true }] },
+      },
+    } as unknown as AppState);
+    expect(state.csgraph.generated!.cpp![0]!.prompt).toBe('What is RAII?');
+    const r = roundTrip(state);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const c = r.state.csgraph.generated!.cpp![0]!;
+    expect(c.id).toBe('ai-cpp-1');
+    expect(c.reveal).toBe('Tie lifetime to scope.');
+    expect(c.ai).toBe(true);
+  });
 });
 
 describe('round-trip serialisation', () => {

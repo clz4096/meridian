@@ -29,6 +29,8 @@ export interface KnowledgeItem {
   /** Optional secondary "further reading" links — normalize via `seeLinks`. */
   see?: SeeLink[];
   tags?: string[];
+  /** True for an AI-generated card (kept in a separate pool, honest unverified source). */
+  ai?: boolean;
 }
 
 export interface KnowledgeTopic {
@@ -96,4 +98,8 @@ export interface KnowledgeActions {
   pickInterview(presetId: string): void;
   /** Return to the session chooser (the Knowledge tab's entry). */
   backToChooser(): void;
+  /** Generate fresh AI study cards for a topic into the separate generated pool. */
+  generateCards(topicId: string, count?: number): void | Promise<void>;
+  /** Discard a generated card (and its progress) from the pool. */
+  discardGenerated(cardId: string, topicId: string): void;
 }

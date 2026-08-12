@@ -4,7 +4,7 @@ import type { KnowledgeState, Mastery, SrsEntry } from '@/core/types';
 import {
   DEFAULT_SRS, daysBetween, dueCards, isDue, normaliseEntry,
   schedule, selectStudyView, studyStreak, toCard,
-  INTERVIEW_PRESETS, interviewPreset, interviewRelevant, interviewDeck,
+  INTERVIEW_PRESETS, interviewPreset, interviewRelevant, interviewDeck, normalizeGenerated, knowledgeGrowth,
 } from '@/features/knowledge/knowledgeSelectors';
 import { shiftDate } from '@/core/util';
 
@@ -323,5 +323,59 @@ describe('interview decks — relevance-first, capped, unified progress', () => 
     const swe = interviewPreset('swe')!;
     const deck = interviewDeck(bank, K(), swe.tags, T);
     for (const c of deck) expect(bank.some((b) => b.id === c.id)).toBe(true);
+  });
+});
+
+describe('normalizeGenerated — AI card validation into a real card shape', () => {
+  it('drops cards missing prompt/reveal, clamps mins/flow, tags the topic, flags ai + honest src', () => {
+    const raw = [
+      { prompt: 'What is a mutex?', reveal: 'A lock ensuring mutual exclusion.', mins: 5, flow: 'flip', tags: ['Concurrency'] },
+      { prompt: 'Explain false sharing', reveal: 'Two cores thrash one cache line.', mins: 99, flow: 'nonsense' }, // bad mins/flow → 15/full
+      { prompt: 'no reveal here', reveal: '' },      // dropped
+      { reveal: 'no prompt' },                        // dropped
+    ];
+    const out = normalizeGenerated(raw, 'concurrency', 'ai-concurrency-x', []);
+    expect(out.length).toBe(2);
+    // card 1
+    expect(out[0]!.prompt).toBe('What is a mutex?');
+    expect(out[0]!.mins).toBe(5);
+    expect(out[0]!.flow).toBe('flip');
+    expect(out[0]!.tags).toContain('concurrency'); // topic always present, lowercased
+    expect(out[0]!.ai).toBe(true);
+    expect(out[0]!.src.book).toBe(''); // honest: no book → renders as plain text, never a fake link
+    expect(out[0]!.src.ref.toLowerCase()).toContain('ai-generated');
+    expect(out[0]!.id).toBe('ai-concurrency-x-0'); // deterministic, prefix + index
+    // card 2 — invalid mins/flow coerced
+    expect(out[1]!.mins).toBe(15);
+    expect(out[1]!.flow).toBe('full');
+  });
+
+  it('de-dupes against existing prompts and within the batch (case-insensitive)', () => {
+    const raw = [
+      { prompt: 'What is RAII?', reveal: 'Tie resource lifetime to an object.', mins: 5, flow: 'flip' },
+      { prompt: 'what is raii?', reveal: 'dup within batch', mins: 5, flow: 'flip' }, // dup of card 1
+      { prompt: 'Define move semantics', reveal: 'Steal resources from an rvalue.', mins: 15, flow: 'full' },
+    ];
+    const out = normalizeGenerated(raw, 'cpp', 'ai-cpp-y', ['Define move semantics']); // one already exists
+    expect(out.map((c) => c.prompt)).toEqual(['What is RAII?']); // batch-dup and existing-dup both removed
+  });
+
+  it('forces flip cards to 5 minutes (flow/mins stay consistent)', () => {
+    const out = normalizeGenerated([{ prompt: 'q', reveal: 'a', mins: 30, flow: 'flip' }], 't', 'ai-t-z', []);
+    expect(out[0]!.flow).toBe('flip');
+    expect(out[0]!.mins).toBe(5);
+  });
+});
+
+describe('knowledgeGrowth scopes solid/seen to the curated bank (AI pool excluded)', () => {
+  it('a mastered AI card does not inflate solid/seen when a valid-id set is given', () => {
+    const state = { mastery: { q1: 5, 'ai-1': 5 }, srs: {}, log: [], gymDone: {} } as unknown as KnowledgeState;
+    const curated = new Set(['q1']); // ai-1 is not in the curated bank
+    const g = knowledgeGrowth(state, '2025-06-01', 30, curated);
+    expect(g.solid).toBe(1); // only q1, not ai-1
+    expect(g.seen).toBe(1);
+    // without a valid-id set (back-compat), both count
+    const gAll = knowledgeGrowth(state, '2025-06-01');
+    expect(gAll.solid).toBe(2);
   });
 });

@@ -230,4 +230,27 @@ describe('mergeKnowledge reset epoch propagates a wipe across devices', () => {
     expect(m.mastery).toEqual({ q1: 4, q2: 5 });
     expect(m.resetAt).toBeUndefined();
   });
+
+  it('unions the AI-generated card pool by id per topic (not dropped by merge)', () => {
+    const card = (id: string) => ({ id, prompt: 'p' + id, reveal: 'r', mins: 5, flow: 'flip', src: { book: '', ref: 'AI' }, tags: ['cpp'], ai: true });
+    const a = { mastery: {}, srs: {}, log: [], gymDone: {}, generated: { cpp: [card('ai-1')] } };
+    const b = { mastery: {}, srs: {}, log: [], gymDone: {}, generated: { cpp: [card('ai-2')], gpu: [card('g-1')] } };
+    const m = mergeKnowledge(a as never, b as never, true) as never as { generated: Record<string, Array<{ id: string }>> };
+    expect(m.generated.cpp.map((c) => c.id).sort()).toEqual(['ai-1', 'ai-2']); // both survive
+    expect(m.generated.gpu.map((c) => c.id)).toEqual(['g-1']);
+  });
+
+  it('a discarded generated card (tombstone) does NOT resurrect on sync — card, progress, and log all stay gone', () => {
+    const card = (id: string) => ({ id, prompt: 'p' + id, reveal: 'r', mins: 5, flow: 'flip', src: { book: '', ref: 'AI' }, tags: ['cpp'], ai: true });
+    // Device A discarded ai-1 (tombstoned; card/mastery/srs/log removed locally).
+    const a = { mastery: {}, srs: {}, log: [], gymDone: {}, generated: {}, genDiscarded: ['ai-1'] };
+    // Device B still holds ai-1 with its progress + a study-log entry.
+    const b = { mastery: { 'ai-1': 5 }, srs: { 'ai-1': { due: 'x', ivl: 1, ease: 2.5, n: 1 } }, log: [{ id: 'l1', qid: 'ai-1', at: 1, rating: 5 }], gymDone: {}, generated: { cpp: [card('ai-1')] } };
+    const m = mergeKnowledge(a as never, b as never, true) as never as { generated: Record<string, unknown[]>; mastery: Record<string, number>; srs: Record<string, unknown>; log: unknown[]; genDiscarded: string[] };
+    expect(m.generated.cpp).toBeUndefined(); // card not resurrected (empty topic dropped)
+    expect(m.mastery['ai-1']).toBeUndefined(); // progress stripped
+    expect(m.srs['ai-1']).toBeUndefined();
+    expect(m.log.length).toBe(0); // log entry stripped
+    expect(m.genDiscarded).toContain('ai-1'); // tombstone carried forward
+  });
 });

@@ -54,6 +54,8 @@ export const kgOverview = signal(true); // the card gallery is the default landi
 // the home page, a gym topic, or an interview deck. All modes share the SAME progress.
 export const kgSession = signal<'choose' | 'home' | 'gym' | 'interview'>('choose');
 export const kgInterview = signal<string>(''); // chosen interview preset id ('' = show the picker)
+export const kgGenerating = signal(false); // an AI card-generation request is in flight
+export const kgGenMsg = signal<string>(''); // transient status/error from the last generation
 
 // ── meal UI state ──
 export const sgLoaded = signal(false);

@@ -127,6 +127,14 @@ export function mergeCore(local: CoreState, remote: CoreState, _localWins: boole
 
 const EMPTY_KNOWLEDGE: KnowledgeState = { mastery: {}, srs: {}, log: [], gymDone: {} };
 
+/** A copy of `m` without the keys in `dead` (used to drop discarded generated ids). */
+function without<T>(m: Record<string, T>, dead: ReadonlySet<string>): Record<string, T> {
+  if (dead.size === 0) return m;
+  const out: Record<string, T> = {};
+  for (const k of Object.keys(m)) if (!dead.has(k)) out[k] = m[k]!;
+  return out;
+}
+
 export function mergeKnowledge(local: KnowledgeState, remote: KnowledgeState, localWins: boolean): KnowledgeState {
   // Reset epoch: a "Reset knowledge" bumps `resetAt` and empties the store. Since
   // knowledge has no per-id tombstones, the union would otherwise resurrect the
@@ -138,12 +146,18 @@ export function mergeKnowledge(local: KnowledgeState, remote: KnowledgeState, lo
   const epoch = Math.max(lEpoch, rEpoch);
   const l = lEpoch === epoch ? local : EMPTY_KNOWLEDGE;
   const r = rEpoch === epoch ? remote : EMPTY_KNOWLEDGE;
+  const deadGen = new Set<string>([...(l.genDiscarded ?? []), ...(r.genDiscarded ?? [])]);
   return {
     ...(epoch > 0 ? { resetAt: epoch as KnowledgeState['resetAt'] } : {}),
-    mastery: mergeScalarMap(l.mastery, r.mastery, localWins),
-    srs: mergeScalarMap(l.srs, r.srs, localWins),
+    mastery: without(mergeScalarMap(l.mastery, r.mastery, localWins), deadGen),
+    srs: without(mergeScalarMap(l.srs, r.srs, localWins), deadGen),
     gymDone: mergeScalarMap(l.gymDone, r.gymDone, localWins),
-    log: unionById(l.log, r.log, new Set()),
+    log: unionById(l.log, r.log, new Set()).filter((e) => !deadGen.has(String((e as { qid?: string }).qid ?? ''))),
+    // AI-generated cards union by id per topic — but a DISCARDED id (genDiscarded, a
+    // grow-only tombstone) is dropped on both sides so a discard sticks across devices
+    // instead of resurrecting from the other side; its progress/log are stripped above.
+    generated: mergeDayMap(l.generated, r.generated, deadGen),
+    ...(deadGen.size ? { genDiscarded: [...deadGen] } : {}),
   };
 }
 
