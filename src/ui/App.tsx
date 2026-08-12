@@ -5,7 +5,7 @@
  * table-of-contents hub.
  */
 import { useEffect } from 'preact/hooks';
-import { currentTab, sgLogOpen, kgProgressOpen, kgGym, kgOverview, type Tab } from '@/ui/store';
+import { currentTab, sgLogOpen, kgProgressOpen, kgGym, kgOverview, kgSession, kgInterview, type Tab } from '@/ui/store';
 import { navHome, onPopNav, loadForHome } from '@/ui/actions';
 import { SaveChip, RestBar } from '@/ui/components/Chrome';
 import { TodayView } from '@/features/today/TodayTab';
@@ -53,11 +53,23 @@ export function App() {
 
   // A key unique per screen/subscreen — changing it replays the paneIn entrance
   // on every navigation (daily-tab switch, drill-in, and back).
+  // Each Knowledge sub-screen gets a distinct suffix (mirroring KnowledgeView's router)
+  // so the entrance animation replays across chooser → picker → deck, not just the ones
+  // that happen to toggle kgOverview/kgGym.
+  const kgKey =
+    kgSession.value === 'choose' ? ':choose'
+      : kgSession.value === 'gym' && !kgGym.value ? ':gympick'
+      : kgSession.value === 'interview' && !kgInterview.value ? ':ivpick'
+      : kgProgressOpen.value ? ':prog'
+      : kgGym.value ? ':gym'
+      : kgInterview.value ? ':iv:' + kgInterview.value
+      : !kgOverview.value ? ':q'
+      : '';
   const screenKey =
     tab === 'meal'
       ? 'meal' + (sgLogOpen.value ? ':log' : '')
       : tab === 'knowledge'
-        ? 'knowledge' + (kgGym.value ? ':gym' : kgProgressOpen.value ? ':prog' : !kgOverview.value ? ':q' : '')
+        ? 'knowledge' + kgKey
         : tab;
 
   return (

@@ -4,6 +4,7 @@ import type { KnowledgeState, Mastery, SrsEntry } from '@/core/types';
 import {
   DEFAULT_SRS, daysBetween, dueCards, isDue, normaliseEntry,
   schedule, selectStudyView, studyStreak, toCard,
+  INTERVIEW_PRESETS, interviewPreset, interviewRelevant, interviewDeck,
 } from '@/features/knowledge/knowledgeSelectors';
 import { shiftDate } from '@/core/util';
 
@@ -245,5 +246,82 @@ describe('due queue and view model', () => {
       }),
       opts,
     );
+  });
+});
+
+describe('interview decks — relevance-first, capped, unified progress', () => {
+  type Card = { id: string; tags?: string[]; topic?: string };
+  const T = '2025-06-01';
+  const K = (mastery: Record<string, Mastery> = {}, srs: Record<string, unknown> = {}): KnowledgeState =>
+    ({ mastery, srs, log: [], gymDone: {} } as unknown as KnowledgeState);
+
+  const bank: Card[] = [
+    { id: 'a1', topic: 'algorithms', tags: ['algorithms', 'dsa'] }, // SWE-relevant
+    { id: 'c1', topic: 'cpp', tags: ['cpp', 'hft'] },               // HFT-relevant
+    { id: 'm1', topic: 'mlfund', tags: ['ml', 'mlfund'] },          // ML-relevant
+    { id: 'x1', topic: 'behavioral', tags: ['behavioral'] },        // SWE-only
+    { id: 'z1', topic: 'gpu', tags: ['gpu', 'ml-systems'] },        // ML-relevant
+  ];
+
+  it('exposes the three presets and resolves them by id', () => {
+    expect(INTERVIEW_PRESETS.map((p) => p.id)).toEqual(['swe', 'hft', 'ml']);
+    expect(interviewPreset('hft')?.name).toContain('HFT');
+    expect(interviewPreset('nope')).toBeUndefined();
+  });
+
+  it('only serves cards relevant to the chosen interview (tag intersection)', () => {
+    const hft = interviewPreset('hft')!;
+    const deck = interviewDeck(bank, K(), hft.tags, T);
+    const ids = deck.map((c) => c.id);
+    expect(ids).toContain('c1'); // cpp/hft
+    expect(ids).not.toContain('m1'); // ml — not HFT
+    expect(ids).not.toContain('x1'); // behavioral — not HFT
+  });
+
+  it('ranks the weaker / more-overdue relevant card first (relevance-first need)', () => {
+    const swe = interviewPreset('swe')!;
+    // a1 mastered (mastery 5), x1 unseen (mastery 0) → x1 needs study more
+    const deck = interviewDeck(bank, K({ a1: 5 as Mastery }), swe.tags, T);
+    expect(deck[0]!.id).toBe('x1');
+    // give a1 an overdue review and x1 none → an overdue card outranks a merely-new one only via score;
+    // here x1 weakness(5)*3=15 still beats a1 weakness(0)*3 + overdue; check x1 stays ahead of mastered a1
+    expect(deck.map((c) => c.id).indexOf('x1')).toBeLessThan(deck.map((c) => c.id).indexOf('a1'));
+  });
+
+  it('caps the deck and reports it deterministically', () => {
+    const swe = interviewPreset('swe')!;
+    const many: Card[] = Array.from({ length: 40 }, (_, i) => ({ id: 's' + i, topic: 'algorithms', tags: ['dsa'] }));
+    const deck = interviewDeck(many, K(), swe.tags, T, 20);
+    expect(deck.length).toBe(20);
+    // deterministic: same inputs → same order
+    expect(interviewDeck(many, K(), swe.tags, T, 20).map((c) => c.id)).toEqual(deck.map((c) => c.id));
+  });
+
+  it('spreads the deck across the interview topics (round-robin, not alphabetically-first ids)', () => {
+    const swe = interviewPreset('swe')!;
+    // Many unseen cards across several SWE topics — the failure mode was the whole
+    // deck collapsing onto the 2 topics whose ids sort first. Round-robin must span them.
+    const topics = ['algorithms', 'databases', 'graph', 'sysdesign', 'networking', 'linux', 'behavioral'];
+    const many: Card[] = [];
+    topics.forEach((tp) => {
+      for (let i = 0; i < 6; i++) many.push({ id: `${tp}-${i}`, topic: tp, tags: [tp === 'graph' ? 'graphs' : tp] });
+    });
+    const deck = interviewDeck(many, K(), swe.tags, T, 20);
+    expect(deck.length).toBe(20);
+    expect(new Set(deck.map((c) => c.topic)).size).toBe(topics.length); // every topic represented
+  });
+
+  it('interviewRelevant counts all relevant cards (for the overflow tally)', () => {
+    const ml = interviewPreset('ml')!;
+    // ml pulls in a1 too (its tag set includes 'algorithms' — ML interviews test DS&A).
+    expect(interviewRelevant(bank, ml.tags).map((c) => c.id).sort()).toEqual(['a1', 'm1', 'z1']);
+    // hft, by contrast, excludes the pure-ML and behavioral cards
+    expect(interviewRelevant(bank, interviewPreset('hft')!.tags).map((c) => c.id).sort()).toEqual(['a1', 'c1']);
+  });
+
+  it('uses the SAME card ids as the bank so grading updates unified progress', () => {
+    const swe = interviewPreset('swe')!;
+    const deck = interviewDeck(bank, K(), swe.tags, T);
+    for (const c of deck) expect(bank.some((b) => b.id === c.id)).toBe(true);
   });
 });

@@ -12,7 +12,7 @@ import { inferIncrement, restSeconds, plannedSetCount, isExerciseComplete, weekS
 import type { WorkoutActions } from '@/features/workout/types';
 import { shiftDate } from '@/core/util';
 import { DEFAULT_CONFIG, type SetType, type SessionOverrides } from '@/core/types';
-import { dueCards } from '@/features/knowledge/knowledgeSelectors';
+import { dueCards, isDue, interviewDeck, interviewRelevant, interviewPreset } from '@/features/knowledge/knowledgeSelectors';
 import { scheduleFsrs, queuedEntry, type Grade } from '@/features/knowledge/fsrs';
 import { GRADE_MASTERY } from '@/features/knowledge/ascent';
 import type { KnowledgeActions } from '@/features/knowledge/types';
@@ -393,13 +393,36 @@ export function topicReviewSession(topicId: string, cap = 10): TodaySession {
   return { items, dueN: items.length, newN: 0, overflow: due.length - items.length };
 }
 
+/** kgTopic sentinel that scopes an Ascent session to an interview preset's deck. */
+export const INTERVIEW_PREFIX = '__interview__:';
+
 /**
- * The Ascent deck for the CURRENT kgTopic: a capped topic review when kgTopic is
- * a `__review__:<id>` sentinel, otherwise the interleaved "Today's path".
+ * A relevance-first, capped interview deck for the Ascent engine — the same
+ * TodaySession shape so AscentSession runs it unchanged. The deck is a filtered view
+ * over the whole bank + shared FSRS/mastery, so grading updates overall progress.
+ */
+export function interviewSession(presetId: string, cap = 20): TodaySession {
+  const preset = interviewPreset(presetId);
+  if (!preset) return { items: [], dueN: 0, newN: 0, overflow: 0 };
+  const all = allKGItems();
+  const today = dstr();
+  const K = kg();
+  const deck = interviewDeck(all, K, preset.tags, today, cap) as Store[];
+  const dueN = deck.filter((it) => isDue(K.srs?.[it.id], today)).length;
+  const newN = deck.filter((it) => K.srs?.[it.id] === undefined && K.mastery?.[it.id] === undefined).length;
+  const relevant = interviewRelevant(all, preset.tags).length;
+  return { items: deck, dueN, newN, overflow: Math.max(0, relevant - deck.length) };
+}
+
+/**
+ * The Ascent deck for the CURRENT kgTopic: a capped topic review (`__review__:<id>`),
+ * an interview deck (`__interview__:<preset>`), otherwise the interleaved "Today's path".
  */
 export function sessionForTopic(): TodaySession {
   const t = st.kgTopic.value;
-  return t.startsWith(REVIEW_PREFIX) ? topicReviewSession(t.slice(REVIEW_PREFIX.length)) : todaySession();
+  if (t.startsWith(REVIEW_PREFIX)) return topicReviewSession(t.slice(REVIEW_PREFIX.length));
+  if (t.startsWith(INTERVIEW_PREFIX)) return interviewSession(t.slice(INTERVIEW_PREFIX.length));
+  return todaySession();
 }
 
 /* ── knowledge actions ── */
@@ -456,17 +479,61 @@ export const knowledgeActions: KnowledgeActions = {
     st.bump();
   },
   exitSession() {
-    // A topic review returns to its topic screen; Today's path returns to the Rail.
+    // A topic review returns to its topic screen; an interview deck returns to the
+    // interview picker; Today's path returns to the Rail.
     const t = st.kgTopic.value;
     if (t.startsWith(REVIEW_PREFIX)) {
       st.kgTopic.value = t.slice(REVIEW_PREFIX.length);
       st.kgOverview.value = false;
+    } else if (t.startsWith(INTERVIEW_PREFIX)) {
+      st.kgInterview.value = ''; // back to the interview-type picker
+      st.kgSession.value = 'interview';
     } else {
       st.kgOverview.value = true;
     }
     st.kgGym.value = false;
     st.kgRevealed.value = {};
     st.kgGraded.value = {};
+    st.bump();
+  },
+  chooseMode(mode) {
+    st.kgSession.value = mode;
+    st.kgGym.value = false;
+    st.kgInterview.value = '';
+    st.kgProgressOpen.value = false;
+    if (mode === 'home') {
+      st.kgOverview.value = true; // the normal knowledge landing
+    } else {
+      st.kgOverview.value = false; // gym/interview show their own picker first
+    }
+    pushState(); // chooser → mode is a drill-in; Back returns to the chooser
+    st.bump();
+  },
+  pickGymTopic(topicId) {
+    st.kgTopic.value = topicId;
+    st.kgGym.value = true; // knowledgeVM() renders the Gym screen for this topic
+    st.kgOverview.value = false;
+    st.kgSession.value = 'gym';
+    pushState(); // topic pick → gym screen; Back returns to the topic picker
+    st.bump();
+  },
+  pickInterview(presetId) {
+    st.kgInterview.value = presetId;
+    st.kgTopic.value = INTERVIEW_PREFIX + presetId; // AscentSession resolves the deck
+    st.kgOverview.value = false;
+    st.kgGym.value = false;
+    st.kgRevealed.value = {};
+    st.kgGraded.value = {};
+    st.kgSession.value = 'interview';
+    pushState(); // type pick → deck; Back returns to the type picker
+    st.bump();
+  },
+  backToChooser() {
+    st.kgSession.value = 'choose';
+    st.kgInterview.value = '';
+    st.kgGym.value = false;
+    st.kgOverview.value = true;
+    st.kgProgressOpen.value = false;
     st.bump();
   },
   startToday() {
@@ -980,11 +1047,13 @@ export function onPopNav(): void {
 export function openSection(tab: st.Tab): void {
   st.currentTab.value = tab;
   st.activeExercise.value = null; // never re-enter a stale exercise detail
-  // Entering Knowledge always lands on the card gallery, never wherever it was left.
+  // Entering Knowledge always asks which study mode (At Home / Gym / Interview) first.
   if (tab === 'knowledge') {
     st.kgProgressOpen.value = false;
     st.kgOverview.value = true;
     st.kgGym.value = false;
+    st.kgSession.value = 'choose';
+    st.kgInterview.value = '';
   }
   ensureLoaded(tab);
   pushState();
@@ -1016,11 +1085,19 @@ export function discard(): void {
 export function handleBack(): boolean {
   if (st.currentTab.value === 'workout' && st.activeExercise.value) { st.activeExercise.value = null; st.bump(); return true; } // exercise detail → list
   if (st.currentTab.value === 'meal' && st.sgLogOpen.value) { st.sgLogOpen.value = false; st.bump(); return true; }
-  if (st.currentTab.value === 'knowledge' && st.kgGym.value) { st.kgGym.value = false; st.bump(); return true; } // gym → questions
-  if (st.currentTab.value === 'knowledge' && st.kgProgressOpen.value) { st.kgProgressOpen.value = false; st.bump(); return true; } // Progress → gallery
-  if (st.currentTab.value === 'knowledge' && (st.kgTopic.value.startsWith(REVIEW_PREFIX) || st.kgTopic.value === '__today__')) { knowledgeActions.exitSession(); return true; } // a session (today's path / focused review) → its topic/Rail
-  if (st.currentTab.value === 'knowledge' && !st.kgOverview.value) { st.kgOverview.value = true; st.bump(); return true; } // study → gallery
-  if (st.currentTab.value !== 'today') { goHome(); return true; } // gallery → hub
+  if (st.currentTab.value === 'knowledge') {
+    const kt = st.kgTopic.value;
+    if (st.kgGym.value) { st.kgGym.value = false; st.bump(); return true; } // gym screen → gym topic picker
+    if (st.kgProgressOpen.value) { st.kgProgressOpen.value = false; st.bump(); return true; } // Progress → gallery
+    if (st.kgInterview.value && kt.startsWith(INTERVIEW_PREFIX)) { knowledgeActions.exitSession(); return true; } // interview deck → interview picker
+    // Today's-path / focused-review sentinels only apply to a live home-mode session
+    // (kgOverview=false). Guarding on that stops a STALE '__today__' (exitSession never
+    // clears it) from dead-ending Back on the chooser, a picker, or the Rail.
+    if (st.kgSession.value === 'home' && !st.kgOverview.value && (kt.startsWith(REVIEW_PREFIX) || kt === '__today__')) { knowledgeActions.exitSession(); return true; }
+    if (st.kgSession.value === 'home' && !st.kgOverview.value) { st.kgOverview.value = true; st.bump(); return true; } // home topic study → gallery
+    if (st.kgSession.value !== 'choose') { knowledgeActions.backToChooser(); return true; } // any mode / picker → the chooser
+  }
+  if (st.currentTab.value !== 'today') { goHome(); return true; } // chooser / gallery → hub
   return false;
 }
 

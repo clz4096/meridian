@@ -10,11 +10,11 @@ import { masterySeries, questionsSolvedSeries, xpSeries, studyDaysSeries, curren
 import { ProgControls, Carousel, Chart } from '@/ui/components/Charts';
 import { SecHero } from '@/ui/components/SecHero';
 import { kg, core, dueItems, allTargetItems, todayPathItems, allKGItems, knowledgeActions, loadKnowledge } from '@/ui/actions';
-import { knowledgeGrowth } from '@/features/knowledge/knowledgeSelectors';
+import { knowledgeGrowth, INTERVIEW_PRESETS } from '@/features/knowledge/knowledgeSelectors';
 import { AscentSession } from '@/features/knowledge/AscentSession';
 import { srcHref, practiceLinks, seeLinks } from '@/features/knowledge/source';
 import { KnowledgeRail } from '@/features/knowledge/KnowledgeRail';
-import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgGraded, kgOverview, progPeriod, dataRev } from '@/ui/store';
+import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgGraded, kgOverview, kgSession, kgInterview, progPeriod, dataRev } from '@/ui/store';
 import { dstr } from '@/app/bootstrap';
 import { previewIntervals, readFsrs, type Grade } from '@/features/knowledge/fsrs';
 
@@ -470,15 +470,93 @@ export function overviewTopics(): OverviewTopic[] {
   });
 }
 
+/** The Knowledge tab's entry: pick how you're studying today. All modes share progress. */
+function StudyModeChooser() {
+  const modes: Array<{ id: 'home' | 'gym' | 'interview'; icon: string; title: string; desc: string }> = [
+    { id: 'home', icon: '🏠', title: 'At Home', desc: 'Full study — every topic, the climb, and your progress.' },
+    { id: 'gym', icon: '🎧', title: 'At the Gym', desc: 'Hands-free — concepts, videos & reading for one topic.' },
+    { id: 'interview', icon: '🎯', title: 'Interview Prep', desc: 'A focused deck of the most relevant cards for your interview.' },
+  ];
+  return (
+    <div class="kgchooser">
+      <div class="kgchooser-eyb">Knowledge</div>
+      <h2 class="kgchooser-h">How are you studying?</h2>
+      <div class="kgchooser-grid">
+        {modes.map((m) => (
+          <button class="kgmode" onClick={() => knowledgeActions.chooseMode(m.id)}>
+            <span class="kgmode-i" aria-hidden="true">{m.icon}</span>
+            <span class="kgmode-t">{m.title}</span>
+            <span class="kgmode-d">{m.desc}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Gym mode: choose which topic to study hands-free. */
+function GymTopicPicker() {
+  const topics = (KG_TOPICS as Any[]).filter((t) => KG_GYM[t.id]);
+  return (
+    <div class="kgpicker">
+      <button class="kgpicker-back" onClick={() => window.history.back()}>‹ Modes</button>
+      <div class="kgchooser-eyb">Gym session</div>
+      <h2 class="kgchooser-h">Which topic?</h2>
+      <div class="kgpicker-list">
+        {topics.map((t) => (
+          <button class="kgpick" onClick={() => knowledgeActions.pickGymTopic(t.id)}>
+            <span class="kgpick-t">{t.name}</span>
+            <span class="kgpick-chev" aria-hidden="true">›</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Interview mode: choose the interview type; each launches a relevance-first deck. */
+function InterviewPicker() {
+  return (
+    <div class="kgpicker">
+      <button class="kgpicker-back" onClick={() => window.history.back()}>‹ Modes</button>
+      <div class="kgchooser-eyb">Interview prep</div>
+      <h2 class="kgchooser-h">What are you interviewing for?</h2>
+      <div class="kgpicker-list">
+        {INTERVIEW_PRESETS.map((p) => (
+          <button class="kgpick" onClick={() => knowledgeActions.pickInterview(p.id)}>
+            <span class="kgpick-main">
+              <span class="kgpick-t">{p.name}</span>
+              <span class="kgpick-d">{p.blurb}</span>
+            </span>
+            <span class="kgpick-chev" aria-hidden="true">›</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function KnowledgeView() {
   useEffect(() => {
     if (!kgLoaded.value) void loadKnowledge();
   }, []);
   dataRev.value; // re-derive
   if (!kgLoaded.value) return <div class="empty">Loading…</div>;
+
+  // Study-mode router: the tab opens on a chooser, then routes into a mode.
+  const mode = kgSession.value;
+  if (mode === 'choose') return <StudyModeChooser />;
+  if (mode === 'gym' && !kgGym.value) return <GymTopicPicker />; // topic not chosen yet
+  if (mode === 'interview' && !kgInterview.value) return <InterviewPicker />; // type not chosen yet
+
+  // Home mode, gym-with-topic, and interview-with-deck all resolve through the existing views.
   if (kgProgressOpen.value) return <KnowledgeProgress />; // secondary charts/trends
-  // One session engine: Today's path AND a topic's focused review both run in AscentSession.
-  if (!kgOverview.value && (kgTopic.value === '__today__' || kgTopic.value.startsWith('__review__:'))) return <AscentSession />;
-  if (!kgOverview.value) return <KnowledgeBody vm={knowledgeVM()} />; // per-topic study
+  // One session engine: Today's path, a topic's focused review, and an interview deck all run in AscentSession.
+  if (
+    !kgOverview.value &&
+    (kgTopic.value === '__today__' || kgTopic.value.startsWith('__review__:') || kgTopic.value.startsWith('__interview__:'))
+  )
+    return <AscentSession />;
+  if (!kgOverview.value) return <KnowledgeBody vm={knowledgeVM()} />; // per-topic study (incl. Gym screen)
   return <KnowledgeRail />; // The Rail = default Knowledge landing
 }

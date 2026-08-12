@@ -500,6 +500,27 @@ body:has(.wk-finish):not(.resting) .savestat{bottom:calc(92px + env(safe-area-in
 .lastline{font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:6px}
 .logged{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .setpill{min-height:44px;display:inline-flex;align-items:center;font-family:var(--mono);font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:2px 7px}
+/* knowledge — study-mode chooser + gym/interview pickers */
+.kgchooser{padding:20px 2px 8px}
+.kgchooser-eyb{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
+.kgchooser-h{font-size:23px;font-weight:700;letter-spacing:-.01em;color:var(--text);margin:0 0 18px;text-wrap:balance}
+.kgchooser-grid{display:flex;flex-direction:column;gap:12px}
+.kgmode{display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;padding:18px;background:var(--surface-1);border:1px solid var(--line);border-radius:16px;cursor:pointer;color:inherit;transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.kgmode:hover{border-color:var(--line-2);background:var(--surface-2)}
+.kgmode:active{transform:scale(.99)}
+.kgmode-i{font-size:24px;line-height:1}
+.kgmode-t{font-size:17px;font-weight:650;color:var(--text)}
+.kgmode-d{font-size:13px;color:var(--muted);line-height:1.4}
+.kgpicker{padding:8px 2px}
+.kgpicker-back{display:inline-flex;align-items:center;background:none;border:0;color:var(--muted);font-family:var(--mono);font-size:12px;letter-spacing:.04em;cursor:pointer;padding:6px 2px;margin-bottom:6px}
+.kgpicker-back:hover{color:var(--text)}
+.kgpicker-list{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.kgpick{display:flex;align-items:center;gap:12px;text-align:left;padding:15px 16px;background:var(--surface-1);border:1px solid var(--line);border-radius:13px;cursor:pointer;color:inherit;transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease)}
+.kgpick:hover{border-color:var(--line-2);background:var(--surface-2)}
+.kgpick-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.kgpick-t{font-size:15.5px;font-weight:600;color:var(--text)}
+.kgpick-d{font-size:12.5px;color:var(--muted);line-height:1.35}
+.kgpick-chev{margin-left:auto;color:var(--faint);font-size:18px;flex:none}
 /* knowledge */
 .ktabs{display:flex;flex-wrap:wrap;gap:6px;padding:2px 0 8px}
 .ktabs::-webkit-scrollbar{display:none}

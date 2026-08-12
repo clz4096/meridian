@@ -88,4 +88,12 @@ export interface KnowledgeActions {
   browseTopics(): void;
   /** Return from a topic's questions to the card gallery. */
   backToTopics(): void;
+  /** Study-mode router: pick At Home / Gym / Interview from the session chooser. */
+  chooseMode(mode: 'home' | 'gym' | 'interview'): void;
+  /** Gym mode: pick the topic to study, then show its Gym screen. */
+  pickGymTopic(topicId: string): void;
+  /** Interview mode: pick a preset (swe/hft/ml), then launch its relevance-first deck. */
+  pickInterview(presetId: string): void;
+  /** Return to the session chooser (the Knowledge tab's entry). */
+  backToChooser(): void;
 }

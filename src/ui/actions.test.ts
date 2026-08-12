@@ -11,12 +11,12 @@
  * touch document.getElementById — harmlessly no-op when the element is absent.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, dataActions, restTimer, openSection, goHome, handleBack, todaySession, topicReviewSession, sessionForTopic, REVIEW_PREFIX, hubStats, sg, kg, core, wk } from '@/ui/actions';
+import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, dataActions, restTimer, openSection, goHome, handleBack, todaySession, topicReviewSession, sessionForTopic, REVIEW_PREFIX, INTERVIEW_PREFIX, hubStats, sg, kg, core, wk } from '@/ui/actions';
 import { appState, dstr, sync } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import { selectWorkoutView } from '@/features/workout/workoutSelectors';
 import defaultWorkout from '@/core/data/defaultWorkout.json';
-import { dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems, kgOverview, currentTab, activeExercise } from '@/ui/store';
+import { dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems, kgOverview, kgSession, kgInterview, kgGym, currentTab, activeExercise } from '@/ui/store';
 
 const today = dstr();
 
@@ -69,6 +69,48 @@ describe('handleBack — chrome Back unwinds sub-screens before leaving the sect
     activeExercise.value = null;
     expect(handleBack()).toBe(true);
     expect(currentTab.value).toBe('today');
+  });
+});
+
+describe('handleBack — knowledge study-mode router (no dead-ends from a stale sentinel)', () => {
+  afterEach(() => {
+    currentTab.value = 'today';
+    kgSession.value = 'choose';
+    kgInterview.value = '';
+    kgGym.value = false;
+    kgOverview.value = true;
+    kgTopic.value = 'algorithms';
+  });
+
+  it('a STALE kgTopic="__today__" does not trap Back on the chooser — it leaves to the hub', () => {
+    currentTab.value = 'knowledge';
+    kgSession.value = 'choose';
+    kgOverview.value = true;
+    kgTopic.value = '__today__'; // left over from a prior Today's-path session
+    expect(handleBack()).toBe(true);
+    expect(currentTab.value).toBe('today'); // reached goHome, not a dead-end
+  });
+
+  it('Back on the interview picker (stale sentinel present) returns to the chooser', () => {
+    currentTab.value = 'knowledge';
+    kgSession.value = 'interview';
+    kgInterview.value = ''; // at the type picker
+    kgOverview.value = false;
+    kgTopic.value = '__today__'; // stale — must not misfire the today branch
+    expect(handleBack()).toBe(true);
+    expect(kgSession.value).toBe('choose');
+    expect(currentTab.value).toBe('knowledge'); // stayed in the tab, on the chooser
+  });
+
+  it('Back on a live interview deck returns to the interview type picker', () => {
+    currentTab.value = 'knowledge';
+    kgSession.value = 'interview';
+    kgInterview.value = 'hft';
+    kgOverview.value = false;
+    kgTopic.value = INTERVIEW_PREFIX + 'hft';
+    expect(handleBack()).toBe(true);
+    expect(kgInterview.value).toBe(''); // back to the picker
+    expect(kgSession.value).toBe('interview');
   });
 });
 
@@ -439,11 +481,13 @@ describe('topicReviewSession / sessionForTopic', () => {
 
   it('hardware/browser Back from a focused review returns to its TOPIC, not the Rail (BUG-1)', () => {
     currentTab.value = 'knowledge';
+    kgSession.value = 'home'; // a focused review is a home-mode session
     kgOverview.value = false;
     kgTopic.value = REVIEW_PREFIX + 'algorithms';
     expect(handleBack()).toBe(true);
     expect(kgTopic.value).toBe('algorithms'); // back landed on the topic
     expect(kgOverview.value).toBe(false); // NOT collapsed to the Rail
     currentTab.value = 'today';
+    kgSession.value = 'choose';
   });
 });

@@ -23,7 +23,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { signal, type Signal } from '@preact/signals';
 import { dataRev, kgTopic } from '@/ui/store';
-import { kg, knowledgeActions, sessionForTopic, REVIEW_PREFIX, type TodaySession } from '@/ui/actions';
+import { kg, knowledgeActions, sessionForTopic, REVIEW_PREFIX, INTERVIEW_PREFIX, type TodaySession } from '@/ui/actions';
 import { dstr } from '@/app/bootstrap';
 import { readFsrs, previewIntervals, humanizeDays, type Grade } from '@/features/knowledge/fsrs';
 import { ascentLedger, bandOf, MWORD, MCOLOR, GRADE_MASTERY, type AscentHistory } from '@/features/knowledge/ascent';
@@ -178,9 +178,10 @@ export function AscentSession() {
 
   const stRef = useRef<AscSt>();
   if (!stRef.current) {
-    // A topic review (`__review__:<id>`) launches straight into its capped deck —
-    // no Start panel; "Today's path" keeps the Start → Begin intro. Same engine.
-    const isReview = kgTopic.value.startsWith(REVIEW_PREFIX);
+    // A topic review (`__review__:<id>`) and an interview deck (`__interview__:<preset>`)
+    // launch straight into their capped deck — no Start panel; "Today's path" keeps the
+    // Start → Begin intro. Same engine.
+    const isReview = kgTopic.value.startsWith(REVIEW_PREFIX) || kgTopic.value.startsWith(INTERVIEW_PREFIX);
     const sess = sessionForTopic();
     const deck = sess.items as DeckItem[];
     const empty = deck.length === 0;

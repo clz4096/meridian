@@ -11,7 +11,7 @@ import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { KnowledgeView } from '@/features/knowledge/KnowledgeTab';
 import { knowledgeActions } from '@/ui/actions';
 import { appState } from '@/app/bootstrap';
-import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgGraded, kgOverview } from '@/ui/store';
+import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgGraded, kgOverview, kgSession, kgInterview } from '@/ui/store';
 import type { KnowledgeItem } from '@/features/knowledge/types';
 
 const QUESTION: KnowledgeItem = {
@@ -34,6 +34,9 @@ beforeEach(() => {
   // The view shows "Loading…" and kicks off a real async loadKnowledge() in its
   // effect unless the loaded-signal is already true. Pre-seed it.
   kgLoaded.value = true;
+  // These tests exercise the At-Home flow; the tab now opens on a mode chooser, so
+  // select home mode explicitly (the chooser itself is covered separately below).
+  kgSession.value = 'home';
 });
 
 afterEach(() => {
@@ -42,6 +45,8 @@ afterEach(() => {
   localStorage.clear();
   kgLoaded.value = false;
   kgProgressOpen.value = false;
+  kgSession.value = 'choose';
+  kgInterview.value = '';
   kgOverview.value = true;
   kgGym.value = false;
   kgTopic.value = 'algorithms';
@@ -235,5 +240,45 @@ describe('KnowledgeView', () => {
     expect(rows.length).toBeGreaterThan(0);
     fireEvent.click(rows[0].querySelector('.chk') as HTMLElement);
     expect(gymSpy).toHaveBeenCalledWith('algorithms|c|0');
+  });
+});
+
+describe('KnowledgeView — study-mode router', () => {
+  it('opens on the mode chooser and routes At Home / Gym / Interview to the right action', () => {
+    seedQuestions();
+    kgSession.value = 'choose';
+    const spy = vi.spyOn(knowledgeActions, 'chooseMode').mockImplementation(() => {});
+    const { container, getByText } = render(<KnowledgeView />);
+    expect(container.querySelector('.kgchooser')).toBeTruthy();
+    fireEvent.click(getByText('At Home'));
+    expect(spy).toHaveBeenCalledWith('home');
+    fireEvent.click(getByText('At the Gym'));
+    expect(spy).toHaveBeenCalledWith('gym');
+    fireEvent.click(getByText('Interview Prep'));
+    expect(spy).toHaveBeenCalledWith('interview');
+  });
+
+  it('interview mode shows the type picker and fires pickInterview with the preset id', () => {
+    seedQuestions();
+    kgSession.value = 'interview';
+    kgInterview.value = ''; // not yet chosen → picker
+    const spy = vi.spyOn(knowledgeActions, 'pickInterview').mockImplementation(() => {});
+    const { container, getByText } = render(<KnowledgeView />);
+    expect(container.querySelector('.kgpicker')).toBeTruthy();
+    fireEvent.click(getByText('HFT / Quant'));
+    expect(spy).toHaveBeenCalledWith('hft');
+  });
+
+  it('gym mode shows the topic picker and fires pickGymTopic', () => {
+    seedQuestions();
+    kgSession.value = 'gym';
+    kgGym.value = false; // topic not chosen → picker
+    const spy = vi.spyOn(knowledgeActions, 'pickGymTopic').mockImplementation(() => {});
+    const { container } = render(<KnowledgeView />);
+    expect(container.querySelector('.kgpicker')).toBeTruthy();
+    const first = container.querySelector('.kgpick') as HTMLElement;
+    expect(first).toBeTruthy();
+    fireEvent.click(first);
+    expect(spy).toHaveBeenCalled();
   });
 });

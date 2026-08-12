@@ -50,6 +50,10 @@ export const kgGraded = signal<Record<string, string>>({});
 export const kgItems = signal<Record<string, KnowledgeItem[]>>({}); // fetched question bank
 export const kgProgressOpen = signal(false); // secondary charts/trends view, opened on demand from the gallery
 export const kgOverview = signal(true); // the card gallery is the default landing; false = a topic's study body
+// Study-mode router: the Knowledge tab opens on a session chooser, then routes to
+// the home page, a gym topic, or an interview deck. All modes share the SAME progress.
+export const kgSession = signal<'choose' | 'home' | 'gym' | 'interview'>('choose');
+export const kgInterview = signal<string>(''); // chosen interview preset id ('' = show the picker)
 
 // ── meal UI state ──
 export const sgLoaded = signal(false);

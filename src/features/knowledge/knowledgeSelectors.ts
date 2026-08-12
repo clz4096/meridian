@@ -174,6 +174,132 @@ export function dueCards(
     .sort((a, b) => b.overdueDays - a.overdueDays);
 }
 
+/* ================================================================== */
+/* Interview study decks — relevance-first, capped, over the SAME bank */
+/* ================================================================== */
+
+/*
+ * An interview preset is a named set of card TAGS. Cards already carry interview
+ * tags (hft, quant, ml, ml-systems, systems, dsa, embedded, cpp, …), so a preset
+ * selects the actual relevant cards across topics — not whole topics. The deck is
+ * a filtered VIEW over the same question bank + FSRS/mastery, so grading a card in
+ * interview mode updates overall progress (nothing is siloed).
+ */
+export interface InterviewPreset {
+  id: string;
+  name: string;
+  blurb: string;
+  /** card tags (and topic ids) this interview draws from */
+  tags: string[];
+}
+
+/**
+ * The interview presets — editable tag sets. The over-broad generic `systems` tag
+ * (it sits on a third of the bank) is deliberately left OUT so a preset stays focused
+ * on its interview; the specific tags + topic ids already cover the relevant material.
+ */
+export const INTERVIEW_PRESETS: InterviewPreset[] = [
+  {
+    id: 'swe',
+    name: 'Software Engineering',
+    blurb: 'General SWE — data structures & algorithms, systems design, core CS.',
+    tags: ['dsa', 'algorithms', 'graphs', 'graph', 'sysdesign', 'databases', 'networking', 'distributed', 'linux', 'behavioral', 'concurrency'],
+  },
+  {
+    id: 'hft',
+    name: 'HFT / Quant',
+    blurb: 'Low-latency C++, computer architecture, concurrency, probability.',
+    tags: ['hft', 'quant', 'cpp', 'comparch', 'concurrency', 'complexity', 'linux', 'embedded', 'algorithms', 'dsa', 'math', 'probstats'],
+  },
+  {
+    id: 'ml',
+    name: 'Machine Learning',
+    blurb: 'ML fundamentals, ML systems, the underlying math.',
+    tags: ['ml', 'mlsys', 'ml-systems', 'mlfund', 'math', 'probstats', 'gpu', 'distributed', 'algorithms'],
+  },
+];
+
+export function interviewPreset(id: string): InterviewPreset | undefined {
+  return INTERVIEW_PRESETS.find((p) => p.id === id);
+}
+
+type Taggable = { id: string; tags?: string[]; topic?: string };
+
+/** How many of the preset's tags a card hits (its topic id counts as a tag too). */
+function relevanceMatches(item: Taggable, tagSet: Set<string>): number {
+  let n = 0;
+  for (const t of item.tags ?? []) if (tagSet.has(t)) n++;
+  if (item.topic && tagSet.has(item.topic)) n++;
+  return n;
+}
+
+/** Every card relevant to a preset (≥1 tag match), unranked. */
+export function interviewRelevant<T extends Taggable>(items: readonly T[], presetTags: readonly string[]): T[] {
+  const tagSet = new Set(presetTags);
+  return items.filter((it) => relevanceMatches(it, tagSet) > 0);
+}
+
+/** How urgently a card needs study for this interview: weakest mastery + overdue + relevance. */
+function studyScore(it: Taggable, state: KnowledgeState, matches: number, today: string, config: SrsConfig): number {
+  const mastery = Math.max(0, Math.min(5, (state.mastery?.[it.id] ?? 0) as number)); // clamp corrupt data
+  const weakness = 5 - mastery; // 0..5; unseen/new (0) → 5, the top priority
+  const entry = normaliseEntry(state.srs?.[it.id], config);
+  const overdue = entry.due === '' ? 0 : Math.max(0, Math.min(14, daysBetween(entry.due, today)));
+  return weakness * 3 + matches * 2 + overdue;
+}
+
+/**
+ * The interview study deck: relevance-first, capped, AND spread across the interview's
+ * topics. Keep the preset-relevant cards; within each topic order by how much each NEEDS
+ * study (weakest mastery + most overdue + tag-match strength); then round-robin across
+ * topics (urgent topic first) so the deck spans the whole interview instead of collapsing
+ * onto whichever topic's ids sort first. Pure & deterministic (clock passed as `today`),
+ * and it returns the same card ids so the shared FSRS/mastery keeps progress unified.
+ */
+export function interviewDeck<T extends Taggable>(
+  items: readonly T[],
+  state: KnowledgeState,
+  presetTags: readonly string[],
+  today: string,
+  cap = 20,
+  config: SrsConfig = DEFAULT_SRS,
+): T[] {
+  const tagSet = new Set(presetTags);
+  // Group relevant cards by topic, each scored by study urgency.
+  const byTopic = new Map<string, Array<{ it: T; score: number }>>();
+  for (const it of items) {
+    const matches = relevanceMatches(it, tagSet);
+    if (matches === 0) continue; // not relevant to this interview
+    const score = studyScore(it, state, matches, today, config);
+    const topic = it.topic ?? '';
+    (byTopic.get(topic) ?? byTopic.set(topic, []).get(topic)!).push({ it, score });
+  }
+  // Within a topic: most-urgent first, id as the stable tie-break.
+  for (const arr of byTopic.values()) arr.sort((a, b) => b.score - a.score || a.it.id.localeCompare(b.it.id));
+  // Topic order: the topic holding the most-urgent card leads; name breaks ties (stable).
+  const topics = [...byTopic.keys()].sort((a, b) => {
+    const sa = byTopic.get(a)![0]!.score;
+    const sb = byTopic.get(b)![0]!.score;
+    return sb - sa || a.localeCompare(b);
+  });
+  // Round-robin across topics so the deck spans them (one from each, then seconds, …).
+  const limit = Math.max(0, cap);
+  const deck: T[] = [];
+  for (let round = 0; deck.length < limit; round++) {
+    let progressed = false;
+    for (const t of topics) {
+      const arr = byTopic.get(t)!;
+      if (round < arr.length) {
+        deck.push(arr[round]!.it);
+        progressed = true;
+        if (deck.length >= limit) break;
+      }
+    }
+    if (!progressed) break; // every topic exhausted
+  }
+  return deck;
+}
+
 /** Consecutive days ending at `today` on which at least one item was answered. */
 export function studyStreak(state: KnowledgeState, today: string): number {
   const dates = new Set(
