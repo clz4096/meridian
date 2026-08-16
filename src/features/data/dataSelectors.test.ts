@@ -106,6 +106,18 @@ describe('workout field preservation (regression)', () => {
     expect(c.reveal).toBe('Tie lifetime to scope.');
     expect(c.ai).toBe(true);
   });
+
+  it('knowledge resetAt reset-epoch survives normalise + an export→import round-trip', () => {
+    const state = normaliseState({
+      csgraph: { mastery: {}, srs: {}, gymDone: {}, log: [], resetAt: 1734300000000 },
+    } as unknown as AppState);
+    expect(state.csgraph.resetAt).toBe(1734300000000);
+    const r = roundTrip(state);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.csgraph.resetAt).toBe(1734300000000);
+  });
+
 });
 
 describe('round-trip serialisation', () => {

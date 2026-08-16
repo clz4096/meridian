@@ -10,7 +10,7 @@
  * instead of silently writing garbage into storage.
  */
 
-import type { CoreState, KnowledgeItemLike, KnowledgeState, MealState, WorkoutState } from '@/core/types';
+import type { CoreState, KnowledgeItemLike, KnowledgeState, MealState, Millis, WorkoutState } from '@/core/types';
 import { toNum } from '@/core/util';
 
 export const BUNDLE_VERSION = 2 as const;
@@ -214,6 +214,7 @@ export function normaliseKnowledge(raw: unknown): KnowledgeState {
     mastery, srs, gymDone, log,
     ...(Object.keys(generated).length ? { generated } : {}),
     ...(genDiscarded.length ? { genDiscarded } : {}),
+    ...(toNum(k.resetAt as never, 0) ? { resetAt: toNum(k.resetAt as never) as Millis } : {}),
   };
 }
 

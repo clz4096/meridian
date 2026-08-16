@@ -309,14 +309,28 @@ export function allTargetItems(): Store[] {
   Object.keys(items).forEach((t) => (items[t] || []).forEach((it: Store) => itemMatchesTarget(it) && out.push(it)));
   return out;
 }
+// allKGItems flattens the whole bank (per-item Object.assign) and is called many
+// times per render, so memoize on the IDENTITY of its two inputs: the fetched
+// question bank (st.kgItems.value) and the AI-generated pool (kg().generated).
+// Both are replaced by reference when they change (loadKnowledge/import/reset swap
+// the store; the bank signal is reassigned), so a reference match means the flat
+// array is still current — return it without rebuilding.
+let kgItemsMemoKey: unknown = null;
+let kgGenMemoKey: unknown = null;
+let kgItemsMemo: Store[] | null = null;
 export function allKGItems(): Store[] {
-  const out: Store[] = [];
   const items = st.kgItems.value;
+  const gen = kg().generated; // raw ref (may be undefined) — key on it directly, not on a `|| {}` fresh object
+  if (kgItemsMemo && kgItemsMemoKey === items && kgGenMemoKey === gen) return kgItemsMemo;
+  const out: Store[] = [];
   Object.keys(items).forEach((tp) => (items[tp] || []).forEach((it: Store) => out.push(Object.assign({ topic: tp }, it))));
   // AI-generated cards live in their own persisted pool but study exactly like the rest
   // (same id space → same FSRS/mastery). They carry `ai:true` so the UI can label them.
-  const gen = kg().generated || {};
-  Object.keys(gen).forEach((tp) => (gen[tp] || []).forEach((it: Store) => out.push(Object.assign({ topic: tp }, it))));
+  const g = gen || {};
+  Object.keys(g).forEach((tp) => (g[tp] || []).forEach((it: Store) => out.push(Object.assign({ topic: tp }, it))));
+  kgItemsMemoKey = items;
+  kgGenMemoKey = gen;
+  kgItemsMemo = out;
   return out;
 }
 export function dueItems(): Store[] {
@@ -695,6 +709,7 @@ export const knowledgeActions: KnowledgeActions = {
         return;
       }
       K.generated[topicId] = [...(K.generated[topicId] || []), ...fresh];
+      K.generated = { ...K.generated }; // new reference so allKGItems' memo invalidates
       appState.markKnowledgeDirty();
       st.kgGenMsg.value = '+' + fresh.length + (fresh.length === 1 ? ' card' : ' cards') + ' added';
       void appState.save();
@@ -710,6 +725,7 @@ export const knowledgeActions: KnowledgeActions = {
     if (K.generated?.[topicId]) {
       K.generated[topicId] = K.generated[topicId].filter((c: Store) => String(c.id) !== String(cardId));
       if (K.generated[topicId].length === 0) delete K.generated[topicId];
+      K.generated = { ...K.generated }; // new reference so allKGItems' memo invalidates
     }
     if (K.mastery) delete K.mastery[cardId]; // discard its progress too
     if (K.srs) delete K.srs[cardId];
@@ -1031,6 +1047,19 @@ export const scratchActions = {
 };
 
 /* ── hub + navigation ── */
+// The Data tile's "X KB" subtitle needs a full JSON.stringify of all four stores,
+// but hubStats() reruns on every render. The payload only changes when a store is
+// mutated, and every mutation bumps dataRev — so cache the size keyed on dataRev
+// and recompute at most once per bump (identical value, no per-render stringify).
+let kbMemoRev = -1;
+let kbMemo = 0;
+function storageKB(): number {
+  if (kbMemoRev === st.dataRev.value) return kbMemo;
+  const state = normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg() });
+  kbMemo = Math.round(JSON.stringify(state).length / 102.4) / 10;
+  kbMemoRev = st.dataRev.value;
+  return kbMemo;
+}
 export function hubStats(): HubStat[] {
   const today = dstr();
   const K = kg();
@@ -1056,8 +1085,7 @@ export function hubStats(): HubStat[] {
   const G = sg();
   const todayCal = ((G.days?.[today] ?? []) as Store[]).reduce((a: number, m: Store) => a + (+m.cal || 0), 0);
   const dirty = (['core', 'overload', 'surplus', 'csgraph'] as StoreKey[]).some((k) => sync.isDirtyCloud(k));
-  const state = normaliseState({ core: core(), overload: W, surplus: G, csgraph: K });
-  const kb = Math.round(JSON.stringify(state).length / 102.4) / 10;
+  const kb = storageKB();
   const C = core();
   const openTodos = todoOpenCount(C);
   const dueToday = dueTodos(C, today).length;

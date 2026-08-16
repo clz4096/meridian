@@ -11,7 +11,7 @@
  * touch document.getElementById — harmlessly no-op when the element is absent.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, dataActions, restTimer, openSection, goHome, handleBack, todaySession, topicReviewSession, sessionForTopic, REVIEW_PREFIX, INTERVIEW_PREFIX, hubStats, sg, kg, core, wk } from '@/ui/actions';
+import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, dataActions, restTimer, openSection, goHome, handleBack, todaySession, topicReviewSession, sessionForTopic, REVIEW_PREFIX, INTERVIEW_PREFIX, hubStats, allKGItems, sg, kg, core, wk } from '@/ui/actions';
 import { appState, dstr, sync } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import { selectWorkoutView } from '@/features/workout/workoutSelectors';
@@ -137,6 +137,46 @@ describe('hubStats knowledge tile — mastery % of the whole curriculum', () => 
       generated: { algorithms: [{ id: 'ai-1', prompt: 'p', reveal: 'r', mins: 5, flow: 'flip', src: { book: '', ref: 'AI' }, tags: ['algorithms'], ai: true }] },
     });
     expect(hubStats().find((s) => s.key === 'knowledge')!.value).toBe('5'); // still 1/20, not 2/21
+  });
+});
+
+describe('allKGItems memoization', () => {
+  it('returns the SAME array reference while kgItems and generated are unchanged, a fresh one after they change', () => {
+    kg().generated = undefined; // known starting pool
+    kgItems.value = { algorithms: [{ id: 'q1', prompt: 'p', reveal: 'r', mins: 5 }] } as never;
+
+    const a = allKGItems();
+    expect(allKGItems()).toBe(a); // memo hit — no per-call re-flatten
+    expect(a).toHaveLength(1);
+
+    // reassigning the bank signal (new reference) invalidates the memo
+    kgItems.value = {
+      algorithms: [
+        { id: 'q1', prompt: 'p', reveal: 'r', mins: 5 },
+        { id: 'q2', prompt: 'p', reveal: 'r', mins: 5 },
+      ],
+    } as never;
+    const b = allKGItems();
+    expect(b).not.toBe(a);
+    expect(b).toHaveLength(2);
+    expect(allKGItems()).toBe(b); // memo re-armed on the new inputs
+
+    // swapping in a generated pool (new reference) invalidates again
+    kg().generated = { algorithms: [{ id: 'ai-1', prompt: 'p', reveal: 'r', mins: 5, ai: true }] };
+    const c = allKGItems();
+    expect(c).not.toBe(b);
+    expect(c).toHaveLength(3);
+    expect(allKGItems()).toBe(c);
+    kg().generated = undefined; // don't leak the pool into later tests
+  });
+
+  it('discardGenerated invalidates the memo — a removed card disappears immediately (not stale)', () => {
+    kgItems.value = {} as never;
+    kg().generated = { algorithms: [{ id: 'ai-1', prompt: 'p', reveal: 'r', mins: 5, flow: 'flip', src: { book: '', ref: 'AI' }, tags: ['algorithms'], ai: true }] };
+    expect(allKGItems().some((c: { id: string }) => c.id === 'ai-1')).toBe(true); // primes the memo
+    knowledgeActions.discardGenerated('ai-1', 'algorithms');
+    expect(allKGItems().some((c: { id: string }) => c.id === 'ai-1')).toBe(false); // in-place mutation swaps the ref → memo invalidated
+    kg().generated = undefined;
   });
 });
 

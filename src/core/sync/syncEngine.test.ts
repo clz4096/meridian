@@ -260,6 +260,19 @@ describe('forcePush — repair path that defeats the grow-only union', () => {
     expect(cloud.writes).toBe(0);
     expect(engine.isDirtyCloud('csgraph')).toBe(true);
   });
+
+  it('scoped forcePush skips (no write) when the cloud read fails — cannot preserve other stores', async () => {
+    const { engine, cloud } = makeEngine();
+    cloud.seedFromOtherDevice('overload', [{ id: 'w-fromphone' }], 5); // another device's workout
+    engine.edit('csgraph', () => ({ items: [{ id: 'real1' }], _del: {} }));
+    cloud.failMode = 'offline'; // read can't tell us the cloud's non-authoritative stores
+
+    const res = await engine.forcePush(['csgraph']);
+    expect(res.cloud).toBe('skipped'); // don't clobber the other device from LOCAL fallback
+    expect(res.cloudError?.kind).toBe('offline');
+    expect(cloud.writes).toBe(0); // nothing written
+    expect(engine.isDirtyCloud('csgraph')).toBe(true); // still pending
+  });
 });
 
 describe('discard reverts to the last persisted state', () => {

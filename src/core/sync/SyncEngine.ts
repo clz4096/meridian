@@ -355,6 +355,15 @@ export class SyncEngine {
       this.backoffUntil = now + this.rateLimitBackoff;
       return { cloud: 'failed', cloudError: { kind: 'rate-limited', message: read.message ?? 'rate limited' } };
     }
+    // A scoped forcePush reads the cloud to PRESERVE the stores it is not
+    // authoritative for. If that read failed we have no remote copy of them, and
+    // `pick` below would fall back to LOCAL state — overwriting another device's
+    // edits to those stores. Skip rather than clobber. Only a FULL overwrite
+    // (every store authoritative, a deliberate whole-state replace) may proceed
+    // on a failed read, since it writes nothing it needed to preserve.
+    if (!read.ok && only.length < STORE_KEYS.length) {
+      return { cloud: 'skipped', cloudError: { kind: read.kind ?? 'unknown', message: read.message ?? 'cloud read failed' } };
+    }
     const remote = read.ok && read.payload ? read.payload : null;
     const cloudRev = remote ? remote.rev : this.baseRev;
     const pick = (key: StoreKey): StoreData =>
