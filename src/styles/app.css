@@ -1,14 +1,17 @@
 :root{
-  /* dark elevation: higher surface = lighter (Material/dark-mode canon) */
-  --bg:var(--void); --surface-1:#171C24; --surface-2:#1E242E; --surface-3:#272E3A;
+  /* dark elevation: higher surface = lighter (Material/dark-mode canon), re-homed onto
+     the void hue (h~218) so the whole app reads as one deep field rather than grey cards;
+     separation now comes as much from the cool --edge hairline as from luminance. */
+  --bg:var(--void); --surface-0:#0B1220; --surface-1:#101826; --surface-2:#16202F; --surface-3:#1E2A3B;
   --panel:var(--surface-1); --panel2:var(--surface-2);
   /* canonical Meridian palette (single source of truth, mirrored in src/tokens.ts).
      Used by the graph landing now; the rest of the app migrates to these incrementally
      (see docs/token-migration-plan.md). --hub amber is the lone warm accent — used sparingly. */
   --void:#070B14; --core:#BFE9FF; --hub:#F2B25C;
   --edge:rgba(120,170,220,.18); --ring:rgba(150,200,255,.28); --faint:#5C7291;
-  /* borders as hairlines; elevation carries most of the separation */
-  --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+  /* borders as hairlines; the cool tint makes every seam read as the --edge web
+     (was warm-grey rgba(255,255,255,...)) so panels join like nodes, not stacked cards. */
+  --line:rgba(150,190,240,.09); --line-2:rgba(150,190,240,.16);
   --text:#DCE6F2; --muted:#8FA3BE; --dim:#727D8E; --track:#232A33;
   --teal:#7CC9EC; --tealSoft:#0d1c2b; --fuel:#E0A64B; --ok:#3BB98C; --deficit:#D8654F;
   --protein:#A78BEA; --interview:#D8654F;
@@ -18,15 +21,20 @@
   --r-sm:8px; --r-md:12px; --r-lg:16px; --r-pill:999px;
   /* type scale (sans for UI, mono for numbers) */
   --fs-micro:11px; --fs-caption:12px; --fs-body:14px; --fs-h3:15px; --fs-h2:19px; --fs-h1:26px; --fs-hero:40px;
-  /* motion */
+  /* motion — one named system. --ease/--dur kept as the standard aliases so existing
+     rules stay valid; new work uses the named tokens (emphasized = the springier curve
+     that was siloed in the knowledge prototype; exit = accelerate-out for back/dismiss). */
   --ease:cubic-bezier(.2,.8,.2,1); --dur:.22s;
+  --ease-standard:cubic-bezier(.2,.8,.2,1); --ease-emphasized:cubic-bezier(.22,.61,.36,1); --ease-exit:cubic-bezier(.4,0,1,1);
+  --dur-fast:.12s; --dur-slow:.4s; --dur-wash:.7s; --stagger:40ms;
   --mono:ui-monospace,SFMono-Regular,Menlo,monospace; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   /* display face for the Today clock (system stack; swap for an inlined woff2 to go further) */
   --disp:"SF Pro Display","Segoe UI Variable Display","Segoe UI",var(--sans);
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.5}
+html{background:var(--bg)}
+html,body{margin:0;color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.5}
 body{padding-bottom:env(safe-area-inset-bottom)}
 /* iOS standalone: always paint the bottom safe-area (home-indicator) strip in the
    page background colour, so a reflowing fixed bar or a short page can never reveal
@@ -35,6 +43,11 @@ body{padding-bottom:env(safe-area-inset-bottom)}
    strip would read as an orphaned grey band behind the home indicator.) */
 body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(env(safe-area-inset-bottom) + 1px);background:var(--bg);z-index:39;pointer-events:none}
 body.pre-enter::after{background:var(--void)}
+/* Persistent cosmic background: the passive graph (revived on Enter) is the void field
+   behind every screen, so the app reads as sitting inside the constellation rather than
+   on a flat shell. Opaque void clear + faint additive nodes; content rides above at z-1.
+   pointer-events:none so it never eats taps; the engine caps DPR and idles when hidden. */
+#bg-graph{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.8}
 .appwrap{max-width:820px;margin:0 auto;padding:0 14px 90px;min-height:100vh;min-height:100dvh}
 .brandrow{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;padding:calc(16px + env(safe-area-inset-top)) 2px 8px;position:sticky;top:0;background:linear-gradient(var(--bg),var(--bg) 70%,transparent);z-index:30}
 .brand{grid-column:2;text-align:center;font-family:var(--mono);font-weight:600;font-size:17px;letter-spacing:.28em;text-transform:uppercase;color:var(--text)}

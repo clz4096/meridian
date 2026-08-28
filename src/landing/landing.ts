@@ -7,7 +7,7 @@
  * Enter disposes the graph and hands off to `onEnter` (which reveals the dashboard).
  */
 import { mount, type GraphHandle } from '@/landing/graph';
-import { landingPreset } from '@/landing/presets';
+import { backgroundPreset, landingPreset } from '@/landing/presets';
 
 export function mountLanding(root: ParentNode, onEnter: () => void): void {
   const stage = root.querySelector<HTMLElement>('#stage');
@@ -31,8 +31,18 @@ export function mountLanding(root: ParentNode, onEnter: () => void): void {
   const done = (e?: Event): void => {
     e?.preventDefault();
     window.clearTimeout(hintTimer);
-    graph.unmount(); // dispose all GL resources before leaving
+    graph.unmount(); // dispose the interactive landing GL before leaving
     onEnter();
   };
   enter?.addEventListener('click', done);
+}
+
+/**
+ * Mount the passive graph as a persistent app background, reviving the cosmic field
+ * behind the dashboard instead of leaving a flat shell. Non-interactive, dimmed, and
+ * DPR-capped; the engine already pauses while the tab is hidden and idles the loop
+ * under reduced motion. Returns the handle so the caller can dispose it if ever needed.
+ */
+export function mountBackground(host: HTMLElement): GraphHandle {
+  return mount(host, backgroundPreset());
 }

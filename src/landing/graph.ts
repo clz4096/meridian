@@ -43,6 +43,8 @@ export interface GraphConfig {
   dim: number;
   /** opt-in UnrealBloom; off by default (the additive glow already reads right) */
   bloom: boolean;
+  /** cap devicePixelRatio; the passive background dims to 1.5 for battery, landing keeps 2 */
+  maxDpr?: number;
   colors: GraphColors;
 }
 
@@ -100,7 +102,7 @@ export function mount(el: HTMLElement, config: GraphConfig): GraphHandle {
   camera.position.set(0, 0, 165);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, config.maxDpr ?? 2));
   renderer.setSize(w0, h0);
   renderer.setClearColor(config.colors.void, 1);
   const canvas = renderer.domElement;
@@ -269,6 +271,7 @@ export function mount(el: HTMLElement, config: GraphConfig): GraphHandle {
   let reduce = rm.matches;
   const rmChange = (): void => {
     reduce = rm.matches;
+    if (!reduce) start(); // motion re-enabled: resume the drift loop
   };
   rm.addEventListener('change', rmChange);
   off.push(() => rm.removeEventListener('change', rmChange));
@@ -282,6 +285,8 @@ export function mount(el: HTMLElement, config: GraphConfig): GraphHandle {
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
     composer?.setSize(w, h);
+    if (composer) composer.render();
+    else renderer.render(scene, camera);
   };
   fitView();
   on(window, 'resize', fitView);
@@ -289,16 +294,20 @@ export function mount(el: HTMLElement, config: GraphConfig): GraphHandle {
   /* ---- render loop (paused when tab hidden) ---- */
   let raf = 0;
   const tick = (): void => {
-    raf = requestAnimationFrame(tick);
     if (!reduce) world.rotation.y += config.autoRotateSpeed;
     world.rotation.y += velY;
     world.rotation.x += velX;
     world.rotation.x = Math.max(-0.6, Math.min(0.6, world.rotation.x));
     velX *= 0.94;
     velY *= 0.94;
-    ring.rotation.z += 0.0005;
+    if (!reduce) ring.rotation.z += 0.0005;
     if (composer) composer.render();
     else renderer.render(scene, camera);
+    // A passive (non-interactive) graph under reduced motion has nothing left to
+    // animate once drift is off: paint one static frame, then idle instead of
+    // holding a rAF slot every frame for an unchanging image. The landing stays
+    // interactive, so it keeps looping for drag inertia.
+    raf = reduce && !config.interactive ? 0 : requestAnimationFrame(tick);
   };
   const start = (): void => {
     if (!raf) tick();

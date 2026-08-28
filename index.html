@@ -12,9 +12,10 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <!-- Critical: paint the dark ground on the very first frame, before the bundled CSS loads,
        so the landing never flashes white. Matches --void / theme-color. -->
-  <style>html,body{margin:0;background:#070B14}</style>
+  <style>html{margin:0;background:#070B14}body{margin:0}</style>
 </head>
 <body>
+<div id="bg-graph"></div>
 <div id="app"></div>
 <div id="landing">
   <div id="stage"></div>

@@ -47,5 +47,6 @@ export function backgroundPreset(): GraphConfig {
     autoRotateSpeed: 0.0008,
     interactive: false,
     dim: 0.55,
+    maxDpr: 1.5,
   };
 }

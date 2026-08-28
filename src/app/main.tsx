@@ -27,6 +27,11 @@ function enter(): void {
   void boot(); // appState.init() runs synchronously before render; core loads async
   const mount = document.getElementById('app');
   if (mount) render(<App />, mount);
+  // Revive the graph as a persistent, passive background behind the app. Three is
+  // already loaded (the landing chunk pulled it in), so this import resolves from cache;
+  // if the landing failed to load, this just loads it now and the background still appears.
+  const bg = document.getElementById('bg-graph');
+  if (bg) void import('@/landing/index').then((m) => m.mountBackground(bg)).catch(() => {});
 }
 
 // Lazily pull in the graph chunk (Three) and mount the landing; degrade gracefully.
