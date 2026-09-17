@@ -30,6 +30,8 @@ import { DATA } from '@/core/data/index';
 import { appState, stores, uid, dstr, sync, cloudEnabled, STORAGE_KEYS } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import * as st from '@/ui/store';
+import { trackerSummary } from '@/features/studytracker/trackerStore';
+import { roadmapSummary } from '@/features/wgu/roadmapStore';
 
 // Stores are dynamically-shaped legacy blobs; the typed selectors own the real
 // schemas (same rationale as app.ts's `Any`). Loosely typed here on purpose.
@@ -1090,10 +1092,14 @@ export function hubStats(): HubStat[] {
   const openTodos = todoOpenCount(C);
   const dueToday = dueTodos(C, today).length;
   const notes = scratchCardCount(C);
+  const tsum = trackerSummary();
+  const rsum = roadmapSummary();
   return [
     { key: 'todos', label: 'Todos', desc: 'Reminders & tasks', value: String(openTodos), unit: openTodos === 1 ? ' open' : ' open', sub: dueToday ? `${dueToday} due today` : openTodos ? 'to do' : 'all clear', tone: dueToday ? 'kcal' : '' },
     { key: 'scratch', label: 'Scratchpad', desc: 'Ideas & experiments', value: String(notes), unit: notes === 1 ? ' note' : ' notes', sub: 'captured', tone: '' },
     { key: 'knowledge', label: 'Knowledge', desc: 'Study & spaced review', value: String(masteryPct), unit: '%', sub: 'mastery', tone: 'cyan' },
+    { key: 'tracker', label: 'Study Tracker', desc: 'Daily ritual, scored', value: String(tsum.todayXP), unit: ' XP', sub: `Lv ${tsum.level} · ${tsum.streak}/7`, tone: 'cyan' },
+    { key: 'roadmap', label: 'WGU Roadmap', desc: 'Course finish plan', value: `${rsum.done}/${rsum.total}`, unit: '', sub: 'courses', tone: rsum.done === rsum.total ? 'ok' : '' },
     { key: 'workout', label: 'Workout', desc: 'Training log & progression', value: wkWord, unit: '', sub: `${wkTrained} of ${WEEK_TRAINING_TARGET} days`, tone: wkGrade === 'strong' ? 'ok' : wkGrade === 'weak' ? 'kcal' : '' },
     { key: 'meal', label: 'Food & Body', desc: 'Calories & bodyweight', value: todayCal.toLocaleString('en-US'), unit: ' kcal', sub: todayCal ? 'today' : 'not logged', tone: 'kcal' },
     { key: 'data', label: 'Data', desc: 'Sync, storage & export', value: cloudEnabled() ? (dirty ? 'Unsaved' : 'Synced') : 'Local', unit: '', sub: `${kb} KB`, tone: !cloudEnabled() || dirty ? '' : 'ok', dot: cloudEnabled() && !dirty },

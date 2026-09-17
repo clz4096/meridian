@@ -10,7 +10,7 @@ import type { Period } from '@/ui/charts/progress';
 import type { Split, ScratchStatus } from '@/core/types';
 import type { Weather } from '@/services/weather';
 
-export type Tab = 'today' | 'todos' | 'scratch' | 'workout' | 'meal' | 'knowledge' | 'data';
+export type Tab = 'today' | 'todos' | 'scratch' | 'workout' | 'meal' | 'knowledge' | 'data' | 'tracker' | 'roadmap';
 
 // ── navigation ──
 export const currentTab = signal<Tab>('today'); // boot lands on Today (the home)

@@ -12,7 +12,7 @@ import { core, hubStats, openSection, todosActions, tickClock, refreshWeather, s
 import { dueTodos } from '@/features/todos/todosSelectors';
 import { weatherSvg, weatherColor, cachedWeather } from '@/services/weather';
 
-const TRACKERS = new Set(['meal', 'workout', 'knowledge', 'data']);
+const TRACKERS = new Set(['meal', 'workout', 'knowledge', 'data', 'tracker', 'roadmap']);
 const toneColor = (t: HubStat['tone']): string | undefined =>
   t === 'cyan' ? 'var(--teal)' : t === 'kcal' ? 'var(--fuel)' : t === 'ok' ? 'var(--ok)' : undefined;
 

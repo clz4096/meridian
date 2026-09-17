@@ -1,0 +1,125 @@
+/*
+ * WGU Roadmap — scoped styles. Ported from the source artifact, every selector
+ * nested under `.wgu-root` so nothing leaks into other views. Self-contained
+ * palette that follows Meridian's theme via prefers-color-scheme and
+ * :root[data-theme].
+ */
+.wgu-root{
+  --bg:#f7f6f2; --surface:#fffefb; --surface-2:#f2f0ea;
+  --ink:#1c1b19; --ink-soft:#565450; --ink-faint:#8a8781;
+  --line:#e6e2d9; --line-strong:#d6d1c5;
+  --accent:#2f56c8; --accent-ink:#264aad; --accent-wash:#2f56c811;
+  --oa:#2f56c8; --oa-bg:#2f56c815;
+  --cert:#a86616; --cert-bg:#a8661618;
+  --pa:#2c7a52; --pa-bg:#2c7a5218;
+  --cap:#93357e; --cap-bg:#93357e18;
+  --shadow:0 1px 2px rgba(20,18,14,.05), 0 8px 26px rgba(20,18,14,.05);
+  --radius:14px;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  background:var(--bg); color:var(--ink); font-family:var(--sans);
+  font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; margin:0;
+  padding:clamp(20px,5vw,56px) 20px 96px; border-radius:16px;
+}
+@media (prefers-color-scheme:dark){
+  .wgu-root{
+    --bg:#16171a; --surface:#1d1f23; --surface-2:#23262b;
+    --ink:#eae8e3; --ink-soft:#b2afa8; --ink-faint:#807d77;
+    --line:#2c2f35; --line-strong:#3a3e45;
+    --accent:#87a2ff; --accent-ink:#9db3ff; --accent-wash:#87a2ff14;
+    --oa:#87a2ff; --oa-bg:#87a2ff18;
+    --cert:#e0aa5c; --cert-bg:#e0aa5c18;
+    --pa:#6cc492; --pa-bg:#6cc49218;
+    --cap:#e07cc8; --cap-bg:#e07cc818;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 26px rgba(0,0,0,.28);
+  }
+}
+:root[data-theme="dark"] .wgu-root{
+  --bg:#16171a; --surface:#1d1f23; --surface-2:#23262b;
+  --ink:#eae8e3; --ink-soft:#b2afa8; --ink-faint:#807d77;
+  --line:#2c2f35; --line-strong:#3a3e45;
+  --accent:#87a2ff; --accent-ink:#9db3ff; --accent-wash:#87a2ff14;
+  --oa:#87a2ff; --oa-bg:#87a2ff18; --cert:#e0aa5c; --cert-bg:#e0aa5c18;
+  --pa:#6cc492; --pa-bg:#6cc49218; --cap:#e07cc8; --cap-bg:#e07cc818;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 26px rgba(0,0,0,.28);
+}
+:root[data-theme="light"] .wgu-root{
+  --bg:#f7f6f2; --surface:#fffefb; --surface-2:#f2f0ea;
+  --ink:#1c1b19; --ink-soft:#565450; --ink-faint:#8a8781;
+  --line:#e6e2d9; --line-strong:#d6d1c5;
+  --accent:#2f56c8; --accent-ink:#264aad; --accent-wash:#2f56c811;
+  --oa:#2f56c8; --oa-bg:#2f56c815; --cert:#a86616; --cert-bg:#a8661618;
+  --pa:#2c7a52; --pa-bg:#2c7a5218; --cap:#93357e; --cap-bg:#93357e18;
+  --shadow:0 1px 2px rgba(20,18,14,.05), 0 8px 26px rgba(20,18,14,.05);
+}
+
+.wgu-root *{box-sizing:border-box}
+.wgu-root .wrap{max-width:860px;margin:0 auto;}
+.wgu-root p{margin:0 0 12px;}
+.wgu-root a{color:var(--accent-ink);text-decoration:none;border-bottom:1px solid var(--accent-wash);}
+.wgu-root a:hover{border-bottom-color:var(--accent);}
+.wgu-root code{font-family:var(--mono);font-size:.88em;}
+
+.wgu-root header.top{border-bottom:2px solid var(--line-strong);padding-bottom:22px;margin-bottom:28px;}
+.wgu-root .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);font-weight:600;margin:0 0 10px;}
+.wgu-root h1{font-family:var(--serif);font-weight:600;font-size:clamp(30px,6vw,46px);line-height:1.05;
+  letter-spacing:-.01em;margin:0 0 14px;text-wrap:balance;}
+.wgu-root .stats{display:flex;flex-wrap:wrap;gap:10px 26px;font-size:14px;color:var(--ink-soft);
+  font-family:var(--mono);}
+.wgu-root .stats b{color:var(--ink);font-weight:600;}
+
+.wgu-root h2{font-family:var(--serif);font-weight:600;font-size:23px;margin:38px 0 4px;letter-spacing:-.005em;}
+.wgu-root .sub{color:var(--ink-faint);font-size:14px;margin:0 0 16px;}
+
+.wgu-root .callout{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:var(--radius);padding:18px 20px;margin:18px 0;box-shadow:var(--shadow);}
+.wgu-root .callout h3{margin:0 0 10px;font-family:var(--sans);font-size:13px;font-weight:700;
+  letter-spacing:.05em;text-transform:uppercase;color:var(--accent-ink);}
+.wgu-root ol.actions{margin:0;padding-left:20px;} .wgu-root ol.actions li{margin-bottom:9px;color:var(--ink-soft);}
+.wgu-root ol.actions li b{color:var(--ink);}
+
+.wgu-root .legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:6px 0 4px;font-size:12.5px;}
+.wgu-root .chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;
+  font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+.wgu-root .chip.oa{background:var(--oa-bg);color:var(--oa);} .wgu-root .chip.cert{background:var(--cert-bg);color:var(--cert);}
+.wgu-root .chip.pa{background:var(--pa-bg);color:var(--pa);} .wgu-root .chip.cap{background:var(--cap-bg);color:var(--cap);}
+
+.wgu-root .week{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:20px 22px;margin:16px 0;box-shadow:var(--shadow);break-inside:avoid;}
+.wgu-root .week__head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;
+  border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:14px;}
+.wgu-root .week__n{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--accent);}
+.wgu-root .week__dates{font-family:var(--mono);font-size:12.5px;color:var(--ink-faint);}
+.wgu-root .week__theme{font-size:14px;color:var(--ink-soft);margin-left:auto;font-style:italic;}
+
+.wgu-root .course{display:grid;grid-template-columns:22px 1fr;gap:0 12px;padding:12px 0;border-top:1px dashed var(--line);}
+.wgu-root .course:first-of-type{border-top:none;}
+.wgu-root .course input{margin-top:5px;width:15px;height:15px;accent-color:var(--accent);}
+.wgu-root .course__body{min-width:0;}
+.wgu-root .course__title{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:5px;}
+.wgu-root .course__code{font-family:var(--mono);font-weight:700;font-size:13px;color:var(--ink);}
+.wgu-root .course__name{font-weight:600;font-size:15px;}
+.wgu-root .kv{font-size:14px;color:var(--ink-soft);margin:2px 0;}
+.wgu-root .kv b{color:var(--ink);font-weight:600;font-family:var(--mono);font-size:11px;letter-spacing:.04em;
+  text-transform:uppercase;margin-right:6px;}
+.wgu-root .links{font-size:13.5px;margin-top:4px;}
+
+.wgu-root ol.logic{margin:8px 0;padding-left:20px;} .wgu-root ol.logic li{margin-bottom:8px;color:var(--ink-soft);}
+.wgu-root ol.logic li b{color:var(--ink);}
+
+.wgu-root .check{list-style:none;padding:0;margin:8px 0;columns:2;column-gap:28px;}
+.wgu-root .check li{break-inside:avoid;margin-bottom:9px;display:flex;align-items:flex-start;gap:9px;font-size:14px;}
+.wgu-root .check input{margin-top:3px;width:15px;height:15px;accent-color:var(--accent);flex:none;}
+.wgu-root .check .c{font-family:var(--mono);font-weight:700;font-size:12px;color:var(--accent-ink);}
+
+.wgu-root .caveats{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 20px;margin-top:16px;}
+.wgu-root .caveats li{margin-bottom:8px;color:var(--ink-soft);font-size:14px;}
+.wgu-root .caveats li b{color:var(--ink);}
+
+.wgu-root footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:12px;color:var(--ink-faint);}
+
+@media (max-width:560px){ .wgu-root .check{columns:1;} .wgu-root .week__theme{margin-left:0;width:100%;} }

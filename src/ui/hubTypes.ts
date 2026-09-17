@@ -2,7 +2,7 @@
  * Hub — types for the table-of-contents screen shown after Enter. `hubStats()`
  * (in actions) produces `HubStat[]`; `Hub.tsx` renders it.
  */
-export type HubKey = 'knowledge' | 'workout' | 'meal' | 'data' | 'todos' | 'scratch';
+export type HubKey = 'knowledge' | 'workout' | 'meal' | 'data' | 'todos' | 'scratch' | 'tracker' | 'roadmap';
 
 export interface HubStat {
   key: HubKey;

@@ -15,6 +15,8 @@ import { KnowledgeView } from '@/features/knowledge/KnowledgeTab';
 import { WorkoutView } from '@/features/workout/WorkoutTab';
 import { TodosView } from '@/features/todos/TodosTab';
 import { ScratchView } from '@/features/scratch/ScratchTab';
+import { StudyTrackerView } from '@/features/studytracker/StudyTracker';
+import { WGURoadmapView } from '@/features/wgu/WGURoadmap';
 
 // Historical pane ids (the meal tab's pane is #pane-weight) the CSS still targets.
 const PANE_ID: Record<Tab, string> = {
@@ -25,6 +27,8 @@ const PANE_ID: Record<Tab, string> = {
   knowledge: 'pane-knowledge',
   meal: 'pane-weight',
   data: 'pane-data',
+  tracker: 'pane-tracker',
+  roadmap: 'pane-roadmap',
 };
 
 function Section({ tab }: { tab: Tab }) {
@@ -34,6 +38,8 @@ function Section({ tab }: { tab: Tab }) {
   if (tab === 'data') return <DataView />;
   if (tab === 'meal') return <MealView />;
   if (tab === 'knowledge') return <KnowledgeView />;
+  if (tab === 'tracker') return <StudyTrackerView />;
+  if (tab === 'roadmap') return <WGURoadmapView />;
   return <WorkoutView />;
 }
 
