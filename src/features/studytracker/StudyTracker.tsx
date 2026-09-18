@@ -15,6 +15,7 @@ import {
   toggleBlock, setScore, bankToday, resetDay, resetAll,
 } from '@/features/studytracker/trackerStore';
 import { FeedSection } from '@/features/studytracker/FeedSection';
+import crestUrl from '@/features/studytracker/princeton-shield.png';
 import '@/features/studytracker/studytracker.css';
 
 const fmt = (n: number): string => n.toLocaleString('en-US');
@@ -66,39 +67,7 @@ export function StudyTrackerView() {
     <div class="pt-root">
       <div class="masthead">
         <div class="wrap mast-in">
-          <svg class="crest" viewBox="0 0 220 240" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <defs>
-              <linearGradient id="pt-fg" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#F58025" />
-                <stop offset="1" stop-color="#E77500" />
-              </linearGradient>
-              <clipPath id="pt-clip">
-                <path d="M26 24 L194 24 L194 90 C194 150 170 196 110 224 C50 196 26 150 26 90 Z" />
-              </clipPath>
-            </defs>
-            {/* orange field */}
-            <path d="M26 24 L194 24 L194 90 C194 150 170 196 110 224 C50 196 26 150 26 90 Z" fill="url(#pt-fg)" />
-            <g clip-path="url(#pt-clip)">
-              {/* black chevron in chief */}
-              <path d="M24 74 L110 33 L196 74 L196 93 L110 55 L24 93 Z" fill="#111111" stroke="#000000" stroke-width="1.5" stroke-linejoin="round" />
-              {/* open Bible */}
-              <rect x="46" y="159" width="128" height="15" rx="3" fill="#141414" />
-              <path d="M110 131 C88 122 66 120 47 125 L51 165 C70 162 92 162 110 168 Z" fill="#FBF3E8" stroke="#1a1a1a" stroke-width="1.4" stroke-linejoin="round" />
-              <path d="M110 131 C132 122 154 120 173 125 L169 165 C150 162 128 162 110 168 Z" fill="#FBF3E8" stroke="#1a1a1a" stroke-width="1.4" stroke-linejoin="round" />
-              <path d="M110 131 L110 168" fill="none" stroke="#141414" stroke-width="2.6" stroke-linecap="round" />
-              <g stroke="#2a2a2a" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="4 2.6">
-                <line x1="59" y1="135" x2="101" y2="133" /><line x1="58" y1="143" x2="102" y2="142" /><line x1="59" y1="151" x2="101" y2="151" />
-                <line x1="119" y1="133" x2="161" y2="135" /><line x1="118" y1="142" x2="162" y2="143" /><line x1="119" y1="151" x2="161" y2="151" />
-              </g>
-              {/* 1746 banner */}
-              <path d="M42 187 L55 183 L55 202 L42 207 Z" fill="#4a2500" />
-              <path d="M178 187 L165 183 L165 202 L178 207 Z" fill="#4a2500" />
-              <path d="M55 181 L165 181 L165 203 L55 203 Z" fill="#6a3500" stroke="#2c1700" stroke-width="1.2" />
-              <text x="110" y="199" text-anchor="middle" font-family="Georgia,serif" font-size="18" font-weight="700" letter-spacing="1.5" fill="#FBF3E8">1746</text>
-            </g>
-            {/* thick black border on top */}
-            <path d="M26 24 L194 24 L194 90 C194 150 170 196 110 224 C50 196 26 150 26 90 Z" fill="none" stroke="#0a0a0a" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" />
-          </svg>
+          <img class="crest" src={crestUrl} alt="Princeton University shield" />
           <div>
             <h1>The Massey Standard</h1>
             <p class="tag">Rigor, performance, follow-through; scored like a game</p>
