@@ -11,6 +11,7 @@ import type { HubStat } from '@/ui/hubTypes';
 import { core, hubStats, openSection, todosActions, tickClock, refreshWeather, setWeatherCity } from '@/ui/actions';
 import { dueTodos } from '@/features/todos/todosSelectors';
 import { weatherSvg, weatherColor, cachedWeather } from '@/services/weather';
+import crestUrl from '@/features/studytracker/princeton-shield.png';
 
 const TRACKERS = new Set(['meal', 'workout', 'knowledge', 'data', 'tracker', 'roadmap']);
 const toneColor = (t: HubStat['tone']): string | undefined =>
@@ -157,6 +158,7 @@ export function TodayView() {
       <div class="today-tiles">
         {glance.map((s) => (
           <button class="tile" onClick={() => openSection(s.key)}>
+            {s.key === 'tracker' && <img class="tile-crest" src={crestUrl} alt="" />}
             <span class="tile-l">{s.label}</span>
             <span class="tile-v" style={toneColor(s.tone) ? { color: toneColor(s.tone) } : undefined}>
               {s.dot && <span class="hdot" />}

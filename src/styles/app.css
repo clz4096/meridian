@@ -809,7 +809,8 @@ button,.chk,.setpill,.rm,a.mbtn{ min-height:44px; }
 @keyframes todayRise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.today-hero,.today-sec,.todo-row,.empty,.today-actions,.today-tiles .tile{animation:none}.today-wash,.today-wxline,.today-wxi{transition:none}}
 .today-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.tile{display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:16px;border:1px solid var(--line);background:var(--surface-1);border-radius:16px;cursor:pointer;text-align:left;width:100%;color:inherit;font:inherit;transition:border-color var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:16px;border:1px solid var(--line);background:var(--surface-1);border-radius:16px;cursor:pointer;text-align:left;width:100%;color:inherit;font:inherit;transition:border-color var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.tile-crest{position:absolute;top:12px;right:12px;width:24px;height:auto;opacity:.92;pointer-events:none}
 .tile:active{transform:scale(.98)}
 .tile:hover,.tile:focus-visible{border-color:var(--line-2);outline:none}
 .tile-l{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
