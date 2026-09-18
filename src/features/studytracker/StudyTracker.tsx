@@ -15,6 +15,7 @@ import {
   toggleBlock, setScore, bankToday, resetDay, resetAll,
 } from '@/features/studytracker/trackerStore';
 import { FeedSection } from '@/features/studytracker/FeedSection';
+import { AlgoOfDay } from '@/features/studytracker/AlgoOfDay';
 import crestUrl from '@/features/studytracker/princeton-shield.png';
 import '@/features/studytracker/studytracker.css';
 
@@ -137,6 +138,9 @@ export function StudyTrackerView() {
 
         {/* DAILY READING */}
         <FeedSection />
+
+        {/* ALGORITHM OF THE DAY */}
+        <AlgoOfDay />
 
         {/* SCHEDULE */}
         <section>
