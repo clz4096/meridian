@@ -16,6 +16,9 @@ import {
 } from '@/features/studytracker/trackerStore';
 import { FeedSection } from '@/features/studytracker/FeedSection';
 import { AlgoOfDay } from '@/features/studytracker/AlgoOfDay';
+import { CurriculumSection } from '@/features/studytracker/CurriculumSection';
+import { PapersSection } from '@/features/studytracker/PapersSection';
+import { ProofJournal } from '@/features/studytracker/ProofJournal';
 import crestUrl from '@/features/studytracker/princeton-shield.png';
 import '@/features/studytracker/studytracker.css';
 
@@ -142,10 +145,19 @@ export function StudyTrackerView() {
         {/* ALGORITHM OF THE DAY */}
         <AlgoOfDay />
 
+        {/* CURRICULUM TRACK */}
+        <CurriculumSection />
+
+        {/* PAPER OF THE WEEK */}
+        <PapersSection />
+
+        {/* PROOF & DERIVATION JOURNAL */}
+        <ProofJournal />
+
         {/* SCHEDULE */}
         <section>
           <div class="sec-h"><span class="eyebrow">The day</span><span class="n">Tick each block as you finish it</span></div>
-          <p class="hint">Eastern Time. Wake 9:00 AM, gym 3–5 PM, lights out 11:45 PM. The focus blocks point at your current phase (right now: AWS). Ticking a block banks its XP for today.</p>
+          <p class="hint">Eastern Time. Wake 9:00 AM, gym 3–5 PM, lights out 11:45 PM. The focus blocks point at the theory track: proofs and problem sets, algorithms in C++, and reproducing the week's paper. Ticking a block banks its XP for today.</p>
           <div class="rows">
             {SCHEDULE.map((r) => {
               const done = !!s.day.blocks[r.id];
@@ -195,13 +207,14 @@ export function StudyTrackerView() {
           <div class="sec-h"><span class="eyebrow">Reference</span><span class="n">The playbook</span></div>
 
           <details>
-            <summary>The three-phase ladder</summary>
+            <summary>The path, in three climbs</summary>
             <div class="det-body">
-              <p><span class="phase-n">PHASE 1 · NOW</span> <b>AWS Certified Cloud Practitioner (CLF-C02).</b> 65 questions (50 scored), 90 min, pass 700/1000, $100. Areas: Cloud Concepts 24%, Security &amp; Compliance 30%, Cloud Technology &amp; Services 34%, Billing/Pricing/Support 12%. ~20–40 study hours. Spine: <Ext href="https://skillbuilder.aws/">AWS Skill Builder</Ext> "Cloud Practitioner Essentials," a Maarek or freeCodeCamp course, official practice questions.</p>
-              <div class="boss"><b>Boss battle:</b> book the exam, then pass it. A fail is data.</div>
-              <p><span class="phase-n">PHASE 2 · NEXT</span> <b>WGU BS Software Engineering.</b> Competency-based, 6-month terms, ~$4,125/term flat (finishing more per term costs less overall). Objective + Performance assessments, not grades. ~39 courses incl. Data Structures &amp; Algorithms, discrete math, calculus, linear algebra. Bundles the <b>AWS Developer Associate</b> cert. 60% finish within 35 months; a focused pace can reach 12–24.</p>
-              <div class="boss"><b>Boss battles:</b> clear 12+ units in a term; finish the DSA and math courses; graduate.</div>
-              <p><span class="phase-n">PHASE 3 · THE CLIMB</span> <b>The full mathematics, to graduate theory</b> (see the study shelf). This is where the Princeton standard is built.</p>
+              <p><span class="phase-n">CLIMB 1 · FOUNDATIONS</span> <b>Proof and the mathematics.</b> Discrete math and induction, calculus, linear algebra, probability, real analysis. Build the habit of reconstructing a proof before you read it. See the Curriculum track above for the exact courses and problem sets.</p>
+              <div class="boss"><b>Boss battle:</b> work a full problem set unaided; write one proof from memory.</div>
+              <p><span class="phase-n">CLIMB 2 · ALGORITHMS</span> <b>Algorithms and data structures.</b> COS 226, MIT 6.006, then advanced algorithms (6.046 / COS 423). Implement each in C++, then port to Python; hunt lower bounds, not only upper bounds.</p>
+              <div class="boss"><b>Boss battles:</b> finish the DSA courses; prove one non-trivial lower bound; reconstruct the Algorithm-of-the-Day catalogue from memory.</div>
+              <p><span class="phase-n">CLIMB 3 · THEORY</span> <b>Computation and complexity.</b> Sipser's Theory of Computation, then Arora–Barak complexity. Read a foundational paper each week and reproduce one result. This is where the Princeton standard is built.</p>
+              <div class="boss"><b>Boss battle:</b> reproduce a paper's central result, then extend it by one step.</div>
             </div>
           </details>
 

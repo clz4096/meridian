@@ -53,8 +53,8 @@ export const SCHEDULE: readonly Block[] = [
   { id: 'b1', time: '9:00 AM', title: 'Wake, water, 10-min move', sub: 'Rested, up without a third alarm', xp: 20 },
   { id: 'b2', time: '9:15 AM', title: 'Morning ritual', sub: '2–3 lines on why it matters; 3 if-then quests', xp: 5 },
   { id: 'b3', time: '9:30 AM', title: 'Breakfast + light review', sub: 'Cleared flashcards / skimmed notes', xp: 5 },
-  { id: 'b4', time: '10:00 AM', title: 'Deep Block 1 — AWS focus', sub: '90 min single-tasked, phone away', xp: 20 },
-  { id: 'b5', time: '11:40 AM', title: 'Deep Block 2 — WGU / AWS', sub: 'One module advanced or a practice set', xp: 20 },
+  { id: 'b4', time: '10:00 AM', title: 'Deep Block 1 — proofs & problem set', sub: "The week's pset; reconstruct before you look", xp: 20 },
+  { id: 'b5', time: '11:40 AM', title: 'Deep Block 2 — algorithms', sub: 'The algorithm of the day, implemented in C++', xp: 20 },
   { id: 'b6', time: '12:45 PM', title: 'Lunch + a human', sub: 'Ate, and talked with or beside someone', xp: 10 },
   { id: 'b7', time: '1:30 PM', title: 'Deep Block 3 — math, paper & pen', sub: 'Fought a hard problem; reconstructed first', xp: 20 },
   { id: 'b8', time: '3:00 PM', title: 'Gym + light study (2h)', sub: 'Trained + one playlist item', xp: 20, gym: true },
@@ -62,7 +62,7 @@ export const SCHEDULE: readonly Block[] = [
   { id: 'b10', time: '5:30 PM', title: 'Deep Block 4 — math / reconstruct', sub: 'Re-derived a result, or advanced the course', xp: 20 },
   { id: 'b11', time: '7:00 PM', title: 'Dinner, off-screen', sub: 'Screens down, a real break', xp: 5 },
   { id: 'b12', time: '8:00 PM', title: 'Practice + review', sub: 'Worked a set; upsolved every miss', xp: 20 },
-  { id: 'b13', time: '9:30 PM', title: 'Lighter study', sub: 'Read ahead, or a technique note', xp: 10 },
+  { id: 'b13', time: '9:30 PM', title: 'Paper pass', sub: "One Keshav pass on the week's paper", xp: 10 },
   { id: 'b14', time: '10:30 PM', title: 'Wind-down + reflection', sub: "Scorecard + tomorrow's quests + one process line", xp: 10 },
   { id: 'b15', time: '11:15 PM', title: 'Off-screen buffer', sub: 'Reading/stretching, no bright screens', xp: 5 },
 ];
@@ -76,7 +76,7 @@ export interface ScoreItem {
 export const SCORE: readonly ScoreItem[] = [
   { id: 's1', b: 'Sleep:', t: ' 7–9 hours, no all-nighter' },
   { id: 's2', b: 'Deep work:', t: ' ~3–4 hours single-tasked, protected' },
-  { id: 's3', b: 'Phase-1 focus:', t: ' real time on the AWS cert today' },
+  { id: 's3', b: 'Core focus:', t: ' real time on the current course / problem set today' },
   { id: 's4', b: 'Reconstructed:', t: ' re-derived a result cold before reading' },
   { id: 's5', b: 'Trusted nothing:', t: ' tried a lower bound or counterexample' },
   { id: 's6', b: 'Problems:', t: ' worked a set and upsolved every miss' },

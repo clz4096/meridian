@@ -7,6 +7,7 @@
  */
 import { useState } from 'preact/hooks';
 import { ALGORITHMS, algoOfDay } from '@/features/studytracker/algorithms';
+import { ALGO_PROOFS } from '@/features/studytracker/algoProofs';
 
 export function AlgoOfDay() {
   const today = algoOfDay();
@@ -60,6 +61,13 @@ export function AlgoOfDay() {
         <p class="algo-p"><b>Idea. </b>{cur.idea}</p>
         <p class="algo-p"><b>Invariant. </b>{cur.invariant}</p>
         <p class="algo-p"><b>Correctness. </b>{cur.correctness}</p>
+
+        {ALGO_PROOFS[cur.id] && (
+          <>
+            <div class="algo-sub">Prove it</div>
+            <p class="algo-p algo-proof">{ALGO_PROOFS[cur.id]}</p>
+          </>
+        )}
 
         <div class="algo-codehead">
           <div class="algo-sub" style={{ margin: 0 }}>Implementation</div>
