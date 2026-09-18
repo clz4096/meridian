@@ -14,9 +14,11 @@ import {
   dayXP, levelIndex, scoreTotal, streakDays, streakCount,
   toggleBlock, setScore, bankToday, resetDay, resetAll,
 } from '@/features/studytracker/trackerStore';
+import { FeedSection } from '@/features/studytracker/FeedSection';
 import '@/features/studytracker/studytracker.css';
 
 const fmt = (n: number): string => n.toLocaleString('en-US');
+const SCORE_LABELS = ['Missed', 'Partial', 'Met'] as const;
 
 const CHECK = (
   <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width={3}>
@@ -98,9 +100,9 @@ export function StudyTrackerView() {
             <path d="M26 24 L194 24 L194 90 C194 150 170 196 110 224 C50 196 26 150 26 90 Z" fill="none" stroke="#0a0a0a" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" />
           </svg>
           <div>
-            <h1>The Princeton Theorist</h1>
-            <p class="tag">Your daily ritual, scored like a game</p>
-            <p class="fine">A personal study rubric, inspired by the standard of the Princeton Theory of Computation group. Not an official Princeton document, and not affiliated with or endorsed by Princeton University. Your progress saves in this browser only.</p>
+            <h1>The Massey Standard</h1>
+            <p class="tag">Rigor, performance, follow-through; scored like a game</p>
+            <p class="fine">A personal study rubric in homage to William A. Massey: Princeton mathematician (Class of 1977), queueing-theory pioneer at Bell Labs, co-founder of CAARMS, and in 2001 the first tenured African American mathematician in the Ivy League. Not affiliated with or endorsed by Princeton University or Professor Massey. Your progress saves in this browser.</p>
           </div>
         </div>
       </div>
@@ -164,6 +166,9 @@ export function StudyTrackerView() {
           </div>
         </div>
 
+        {/* DAILY READING */}
+        <FeedSection />
+
         {/* SCHEDULE */}
         <section>
           <div class="sec-h"><span class="eyebrow">The day</span><span class="n">Tick each block as you finish it</span></div>
@@ -187,8 +192,8 @@ export function StudyTrackerView() {
 
         {/* SCORECARD */}
         <section>
-          <div class="sec-h"><span class="eyebrow">Score</span><span class="n">Rate today, 0 / 1 / 2</span></div>
-          <p class="hint">0 missed, 1 partial, 2 met. Your scores fill the five meters above. Score the practice, never a grade or exam result.</p>
+          <div class="sec-h"><span class="eyebrow">Score</span><span class="n">Rate today: missed, partial, met</span></div>
+          <p class="hint">Missed, partial, or met. Your scores fill the five meters above. Score the practice, never a grade or exam result.</p>
           <div class="sc">
             {SCORE.map((r) => {
               const val = s.day.scores[r.id] || 0;
@@ -196,9 +201,9 @@ export function StudyTrackerView() {
                 <div key={r.id} class="scrow">
                   <div class="txt"><b>{r.b}</b>{r.t}</div>
                   <div class="seg" role="group">
-                    {[0, 1, 2].map((n) => (
-                      <button key={n} class={val === n ? 'on' : ''} aria-pressed={val === n} onClick={() => setScore(r.id, n)}>
-                        {n}
+                    {SCORE_LABELS.map((lbl, n) => (
+                      <button key={n} class={val === n ? 'on' : ''} aria-pressed={val === n} aria-label={lbl} onClick={() => setScore(r.id, n)}>
+                        {lbl}
                       </button>
                     ))}
                   </div>
@@ -282,7 +287,7 @@ export function StudyTrackerView() {
         </section>
 
         <div class="app-foot">
-          <p>The Princeton Theorist · a personal daily instrument · saved locally in this browser</p>
+          <p>The Massey Standard · a personal daily instrument · saved locally in this browser</p>
         </div>
       </div>
     </div>
