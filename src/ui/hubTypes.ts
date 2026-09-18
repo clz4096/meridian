@@ -15,7 +15,7 @@ export interface HubStat {
   /** Caption under the value, e.g. "mastery". */
   sub: string;
   /** Accent for the value; '' leaves it in the default ink. */
-  tone: 'cyan' | 'kcal' | 'ok' | '';
+  tone: 'cyan' | 'kcal' | 'ok' | 'orange' | 'blue' | '';
   /** Show a leading status dot before the value (used by Data · Synced). */
   dot?: boolean;
 }

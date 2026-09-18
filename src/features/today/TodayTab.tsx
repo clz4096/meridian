@@ -14,7 +14,12 @@ import { weatherSvg, weatherColor, cachedWeather } from '@/services/weather';
 
 const TRACKERS = new Set(['meal', 'workout', 'knowledge', 'data', 'tracker', 'roadmap']);
 const toneColor = (t: HubStat['tone']): string | undefined =>
-  t === 'cyan' ? 'var(--teal)' : t === 'kcal' ? 'var(--fuel)' : t === 'ok' ? 'var(--ok)' : undefined;
+  t === 'cyan' ? 'var(--teal)'
+    : t === 'kcal' ? 'var(--fuel)'
+    : t === 'ok' ? 'var(--ok)'
+    : t === 'orange' ? '#F58A2E' // Princeton orange (dark-legible shade)
+    : t === 'blue' ? '#87A2FF' // WGU blue (dark-legible shade)
+    : undefined;
 
 const WD = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MO = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
