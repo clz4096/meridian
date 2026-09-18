@@ -221,6 +221,35 @@ export interface KnowledgeState {
 }
 
 /* ------------------------------------------------------------------ */
+/* Study Tracker store (localStorage key: meridian-theorist)           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The synced backing store for the Study Tracker ("The Princeton Theorist").
+ *
+ * The feature layer (trackerStore) still speaks the legacy
+ * `{ cumXP, logged, day }` shape; this is the CRDT-friendly projection it
+ * persists through. Like {@link KnowledgeState} it has no per-id tombstones, so
+ * a global reset bumps `resetAt` and empties the store to make the wipe stick
+ * across devices.
+ *
+ * Derivations used by the trackerStore projection:
+ *  - `cumXP`  = sum of `banked` values.
+ *  - `logged` = keys of `banked` that are real ISO dates (excludes "__carry").
+ *  - streak   = derived from `logged`.
+ */
+export interface TheoristState {
+  /** ISO date (or the reserved "__carry") -> XP banked that day. */
+  banked: Record<string, number>;
+  /** Today's in-progress scorecard. */
+  day: { date: string; blocks: Record<string, boolean>; scores: Record<string, number>; banked: boolean };
+  /** LWW tiebreak for `day` when the two sides carry different dates. */
+  dayTouchedAt?: Millis;
+  /** Monotonic reset epoch (mirrors {@link KnowledgeState.resetAt}). */
+  resetAt?: Millis;
+}
+
+/* ------------------------------------------------------------------ */
 /* Derived shapes returned by the selectors                            */
 /* ------------------------------------------------------------------ */
 

@@ -15,12 +15,13 @@ function build(opts: { stored?: Partial<Record<StoreKey, string>>; anyDirtyCloud
     overload: 'overload-tracker-state',
     surplus: 'surplus-tracker-state',
     csgraph: 'csgraph_profile_v2',
+    theorist: 'meridian-theorist',
   };
   const keyToStore: Record<string, StoreKey> = Object.fromEntries(
     (Object.keys(keys) as StoreKey[]).map((k) => [keys[k], k]),
   );
 
-  const stores: Record<StoreKey, Store> = { core: {}, overload: {}, surplus: {}, csgraph: {} };
+  const stores: Record<StoreKey, Store> = { core: {}, overload: {}, surplus: {}, csgraph: {}, theorist: {} };
   const written: Array<{ key: StoreKey; data: Store }> = [];
 
   const host = { paintSaveChip: vi.fn(), flashSaved: vi.fn() };

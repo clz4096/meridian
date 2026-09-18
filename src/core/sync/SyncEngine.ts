@@ -18,8 +18,8 @@
  *     claim the data is synced.
  */
 
-export type StoreKey = 'core' | 'overload' | 'surplus' | 'csgraph';
-export const STORE_KEYS: readonly StoreKey[] = ['core', 'overload', 'surplus', 'csgraph'];
+export type StoreKey = 'core' | 'overload' | 'surplus' | 'csgraph' | 'theorist';
+export const STORE_KEYS: readonly StoreKey[] = ['core', 'overload', 'surplus', 'csgraph', 'theorist'];
 
 /** A store is any JSON-serialisable record; merge semantics are injected. */
 export type StoreData = Record<string, unknown>;
@@ -32,6 +32,7 @@ export interface CloudPayload {
   overload: StoreData;
   surplus: StoreData;
   csgraph: StoreData;
+  theorist: StoreData;
 }
 
 export type CloudErrorKind = 'offline' | 'rate-limited' | 'server' | 'not-found' | 'unknown';
@@ -147,10 +148,11 @@ export class SyncEngine {
       overload: initial?.overload ?? {},
       surplus: initial?.surplus ?? {},
       csgraph: initial?.csgraph ?? {},
+      theorist: initial?.theorist ?? {},
     };
-    this.rev = { core: 0, overload: 0, surplus: 0, csgraph: 0 };
-    this.pendingLocal = { core: false, overload: false, surplus: false, csgraph: false };
-    this.pendingCloud = { core: false, overload: false, surplus: false, csgraph: false };
+    this.rev = { core: 0, overload: 0, surplus: 0, csgraph: 0, theorist: 0 };
+    this.pendingLocal = { core: false, overload: false, surplus: false, csgraph: false, theorist: false };
+    this.pendingCloud = { core: false, overload: false, surplus: false, csgraph: false, theorist: false };
   }
 
   /* ---------------- state access ---------------- */
@@ -280,6 +282,7 @@ export class SyncEngine {
       overload: this.stores.overload,
       surplus: this.stores.surplus,
       csgraph: this.stores.csgraph,
+      theorist: this.stores.theorist,
     };
 
     const write = await this.cloud.write(payload);
@@ -377,6 +380,7 @@ export class SyncEngine {
       overload: pick('overload'),
       surplus: pick('surplus'),
       csgraph: pick('csgraph'),
+      theorist: pick('theorist'),
     };
 
     const write = await this.cloud.write(payload);

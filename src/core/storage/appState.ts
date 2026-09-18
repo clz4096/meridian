@@ -21,7 +21,7 @@
 import { addTombstone } from '@/core/util';
 import type { AppHost } from '@/core/appHost';
 
-export type StoreKey = 'core' | 'overload' | 'surplus' | 'csgraph';
+export type StoreKey = 'core' | 'overload' | 'surplus' | 'csgraph' | 'theorist';
 
 /** The subset of the SyncEngine facade (MeridianCore.sync) this module drives. */
 export interface SyncFacade {
@@ -93,10 +93,12 @@ export interface AppState {
   loadWorkout(): Promise<WorkoutStore>;
   loadMeal(): Promise<Store>;
   loadKnowledge(current: Store): Promise<Store>;
+  loadTheorist(): Promise<Store>;
   markDirty(): void;
   markWorkoutDirty(): void;
   markMealDirty(): void;
   markKnowledgeDirty(): void;
+  markTheoristDirty(): void;
   anyDirty(): boolean;
   save(): Promise<SaveResult>;
   flush(reason: string): void;
@@ -172,6 +174,11 @@ export function createAppState(deps: AppStateDeps): AppState {
     armAutosave();
   }
   function markKnowledgeDirty(): void {
+    dirtyLocal = true;
+    paintChip();
+    armAutosave();
+  }
+  function markTheoristDirty(): void {
     dirtyLocal = true;
     paintChip();
     armAutosave();
@@ -344,6 +351,83 @@ export function createAppState(deps: AppStateDeps): AppState {
     return kg;
   }
 
+  // The legacy Study Tracker blob and the one-shot migration marker are plain
+  // localStorage keys (the tracker wrote them directly, pre-sync). appState
+  // otherwise reads through deps.storeGet; these are read directly, guarded so
+  // node/private-mode never throws.
+  const LEGACY_TRACKER_KEY = 'meridian.tracker.v1';
+  const THEORIST_MIGRATED_KEY = 'meridian.theorist.migrated';
+  const ls = (): Storage | null => (typeof localStorage !== 'undefined' ? localStorage : null);
+  const localTodayISO = (): string => {
+    const d = new Date(deps.now());
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const freshTheoristDay = (): Store => ({ date: '', blocks: {}, scores: {}, banked: false });
+
+  async function loadTheorist(): Promise<Store> {
+    const s = await deps.storeGet(deps.keys.theorist);
+    let tg: Store = { banked: {}, day: freshTheoristDay() };
+    if (s) {
+      try {
+        const p = JSON.parse(s);
+        if (p && typeof p === 'object') tg = p;
+      } catch {
+        /* keep default on parse failure */
+      }
+    }
+    if (!tg.banked || typeof tg.banked !== 'object') tg.banked = {};
+    if (!tg.day || typeof tg.day !== 'object') tg.day = freshTheoristDay();
+
+    // One-shot fold-in of the pre-sync `meridian.tracker.v1` blob. Runs only when
+    // the durable store is still empty AND the migration has never been marked
+    // done, so it never doubles up (e.g. after a deliberate reset) and never
+    // touches (or deletes) the legacy blob.
+    const emptyStore = Object.keys(tg.banked).length === 0 && tg.day.banked !== true;
+    const store = ls();
+    const alreadyMigrated = store ? store.getItem(THEORIST_MIGRATED_KEY) != null : false;
+    if (emptyStore && !alreadyMigrated && store) {
+      let legacy: { cumXP?: number; logged?: unknown; day?: Store } | null = null;
+      try {
+        const raw = store.getItem(LEGACY_TRACKER_KEY);
+        if (raw) legacy = JSON.parse(raw);
+      } catch {
+        legacy = null;
+      }
+      let folded = false;
+      if (legacy && typeof legacy === 'object') {
+        const cumXP = typeof legacy.cumXP === 'number' && legacy.cumXP > 0 ? legacy.cumXP : 0;
+        const logged = Array.isArray(legacy.logged) ? legacy.logged.filter((x): x is string => typeof x === 'string') : [];
+        const banked: Record<string, number> = {};
+        for (const iso of logged) banked[iso] = 0;
+        if (cumXP > 0) banked['__carry'] = cumXP;
+        const today = localTodayISO();
+        const day =
+          legacy.day && typeof legacy.day === 'object' && legacy.day.date === today
+            ? legacy.day
+            : freshTheoristDay();
+        tg = { banked, day };
+        folded = Object.keys(banked).length > 0 || day.banked === true;
+      }
+      // ORDER MATTERS. When we actually folded data, persist it durably FIRST,
+      // THEN set the migration marker. A crash between the two then leaves the
+      // durable store NON-empty (data safe) — the fold is simply re-skipped next
+      // boot — instead of empty-with-marker, which would orphan the legacy XP
+      // forever. `deps.write` is a synchronous localStorage write (one of the
+      // three durable backends); `markTheoristDirty` schedules the fuller
+      // sync/IndexedDB/cloud propagation.
+      if (folded) {
+        deps.write('theorist', tg);
+        markTheoristDirty();
+      }
+      // Mark migrated regardless of whether a legacy blob existed — a fresh
+      // device with no legacy data must not keep re-checking on every boot. This
+      // marker must survive a resetAll (durable empty + reset epoch) so a reset
+      // is never undone by a re-import.
+      try { store.setItem(THEORIST_MIGRATED_KEY, new Date(deps.now()).toISOString()); } catch { /* best effort */ }
+    }
+    return tg;
+  }
+
   return {
     init,
     get,
@@ -352,10 +436,12 @@ export function createAppState(deps: AppStateDeps): AppState {
     loadWorkout,
     loadMeal,
     loadKnowledge,
+    loadTheorist,
     markDirty,
     markWorkoutDirty,
     markMealDirty,
     markKnowledgeDirty,
+    markTheoristDirty,
     anyDirty,
     save,
     flush,

@@ -1,5 +1,5 @@
 /**
- * Meridian — merge semantics for the four real stores.
+ * Meridian — merge semantics for the five real stores.
  *
  * Union-by-id for collections, key-wise last-writer-wins for scalars, and
  * tombstones that suppress a row from either side. Each operation is
@@ -7,12 +7,12 @@
  */
 
 import type {
-  CoreState, KnowledgeState, MealState, Millis, Tombstones, WorkoutState,
+  CoreState, KnowledgeState, MealState, Millis, TheoristState, Tombstones, WorkoutState,
 } from '@/core/types';
 import { pruneTombstones, toId, toNum } from '@/core/util';
 import { DEFAULT_CONFIG } from '@/core/types';
 
-export type StoreKey = 'core' | 'overload' | 'surplus' | 'csgraph';
+export type StoreKey = 'core' | 'overload' | 'surplus' | 'csgraph' | 'theorist';
 
 interface Identified { id: unknown }
 
@@ -161,6 +161,81 @@ export function mergeKnowledge(local: KnowledgeState, remote: KnowledgeState, lo
   };
 }
 
+const EMPTY_THEORIST: TheoristState = { banked: {}, day: { date: '', blocks: {}, scores: {}, banked: false } };
+
+/**
+ * Merge two Study Tracker stores. Mirrors {@link mergeKnowledge}: a global reset
+ * bumps `resetAt` and empties the store, and since the tracker has no per-key
+ * tombstones the union would otherwise resurrect the other device's stale
+ * banked days. Any side older than the newest epoch is discarded so the wipe
+ * propagates and sticks; sides AT the same epoch merge normally. Both 0 →
+ * ordinary merge.
+ *
+ * `banked` is a grow-only map: keys only ever added and values only ever rise
+ * (per-key `Math.max`), except when a strictly-greater `resetAt` empties it.
+ * `day` is picked by the later ISO date, or unioned (OR/max) on a tie.
+ */
+export function mergeTheorist(local: TheoristState, remote: TheoristState, _localWins: boolean): TheoristState {
+  const lEpoch = toNum(local.resetAt, 0);
+  const rEpoch = toNum(remote.resetAt, 0);
+  const epoch = Math.max(lEpoch, rEpoch);
+  const l = lEpoch === epoch ? local : EMPTY_THEORIST;
+  const r = rEpoch === epoch ? remote : EMPTY_THEORIST;
+
+  // banked: per-key union, Math.max on collision (monotone, never loses a day).
+  const banked: Record<string, number> = {};
+  for (const k of new Set([...Object.keys(l.banked ?? {}), ...Object.keys(r.banked ?? {})])) {
+    const lv = l.banked?.[k];
+    const rv = r.banked?.[k];
+    banked[k] = lv === undefined ? rv! : rv === undefined ? lv : Math.max(lv, rv);
+  }
+
+  // day: the later ISO date wins wholesale (carrying its dayTouchedAt); on the
+  // same date, OR the blocks/banked flag and max the scores so no tick is lost.
+  const ld = l.day ?? EMPTY_THEORIST.day;
+  const rd = r.day ?? EMPTY_THEORIST.day;
+  const lTouched = toNum(l.dayTouchedAt, 0);
+  const rTouched = toNum(r.dayTouchedAt, 0);
+  let day: TheoristState['day'];
+  let dayTouchedAt: number;
+  if (ld.date === rd.date) {
+    const blocks: Record<string, boolean> = {};
+    for (const k of new Set([...Object.keys(ld.blocks ?? {}), ...Object.keys(rd.blocks ?? {})])) {
+      blocks[k] = !!(ld.blocks?.[k] || rd.blocks?.[k]);
+    }
+    const scores: Record<string, number> = {};
+    for (const k of new Set([...Object.keys(ld.scores ?? {}), ...Object.keys(rd.scores ?? {})])) {
+      const lv = ld.scores?.[k];
+      const rv = rd.scores?.[k];
+      scores[k] = lv === undefined ? rv! : rv === undefined ? lv : Math.max(lv, rv);
+    }
+    day = { date: ld.date, blocks, scores, banked: !!(ld.banked || rd.banked) };
+    dayTouchedAt = Math.max(lTouched, rTouched);
+  } else {
+    // Different dates. The '' EMPTY sentinel always loses to a real day.
+    // Otherwise prefer the day touched more recently — this guards an active
+    // older-date in-progress day from being clobbered by a rolled-over EMPTY
+    // newer-date day across a midnight/timezone boundary (which would drop
+    // unbanked ticks). On a dayTouchedAt tie, the later ISO date wins.
+    // Commutative + idempotent: the choice is a pure function of the two
+    // (date, dayTouchedAt) pairs, and dayTouchedAt converges to the max.
+    const pickRemote =
+      ld.date === '' ? true :
+      rd.date === '' ? false :
+      rTouched !== lTouched ? rTouched > lTouched :
+      rd.date > ld.date;
+    day = pickRemote ? rd : ld;
+    dayTouchedAt = Math.max(lTouched, rTouched);
+  }
+
+  return {
+    banked,
+    day,
+    ...(dayTouchedAt > 0 ? { dayTouchedAt } : {}),
+    ...(epoch > 0 ? { resetAt: epoch as Millis } : {}),
+  };
+}
+
 /** Dispatch by store key. This is the `MergeFn` the SyncEngine is given. */
 export function mergeStore(
   key: StoreKey,
@@ -173,6 +248,7 @@ export function mergeStore(
     case 'surplus':  return mergeMeals(local as never, remote as never, localWins) as never;
     case 'core':     return mergeCore(local as never, remote as never, localWins) as never;
     case 'csgraph':  return mergeKnowledge(local as never, remote as never, localWins) as never;
+    case 'theorist': return mergeTheorist(local as never, remote as never, localWins) as never;
     default:         return localWins ? local : remote;
   }
 }
@@ -189,7 +265,7 @@ export function sanitizeStore(
   data: Record<string, unknown>,
   now: number,
 ): Record<string, unknown> {
-  if (key === 'csgraph') return data;
+  if (key === 'csgraph' || key === 'theorist') return data;
   const del = (data as { _del?: Tombstones })._del;
   if (!del || Object.keys(del).length === 0) return data;
   const pruned = pruneTombstones(del, now, DEFAULT_CONFIG);

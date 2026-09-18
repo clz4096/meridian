@@ -95,7 +95,7 @@ class FakePantryCloud implements CloudProvider {
   seedFromOtherDevice(store: StoreKey, items: Collection['items'], rev: number): void {
     const base: CloudPayload = this.payload
       ? structuredClone(this.payload)
-      : { rev: 0, syncedAt: 0, core: {}, overload: {}, surplus: {}, csgraph: {} };
+      : { rev: 0, syncedAt: 0, core: {}, overload: {}, surplus: {}, csgraph: {}, theorist: {} };
     base[store] = { items: items ?? [], _del: {} } satisfies Collection;
     base.rev = rev;
     this.rev = Math.max(this.rev, rev);

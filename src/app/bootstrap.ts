@@ -11,12 +11,14 @@ import { DATA } from '@/core/data/index';
 import { createAppState } from '@/core/storage/appState';
 import { host } from '@/ui/host';
 import { bump } from '@/ui/store';
+import { syncTrackerFromStore } from '@/features/studytracker/trackerStore';
 
 export const STORAGE_KEYS: Record<StoreKey, string> = {
   core: 'meridian-core',
   overload: 'overload-tracker-state',
   surplus: 'surplus-tracker-state',
   csgraph: 'csgraph_profile_v2',
+  theorist: 'meridian-theorist',
 };
 
 /* ── the four store objects (owned here; read/mutated in place by actions) ── */
@@ -25,6 +27,7 @@ export const stores: Record<StoreKey, Record<string, unknown>> = {
   overload: { settings: {}, days: {}, bw: {}, rpe: {} },
   surplus: { settings: {}, days: {}, tad: {} },
   csgraph: { mastery: {}, srs: {}, log: [], gymDone: {} },
+  theorist: { banked: {}, day: { date: '', blocks: {}, scores: {}, banked: false } },
 };
 
 /* ── SyncEngine facade (verbatim port of entry.ts's sync wiring) ── */
@@ -61,6 +64,7 @@ function createSync(config: SyncSetup): SyncEngine {
       overload: config.read('overload'),
       surplus: config.read('surplus'),
       csgraph: config.read('csgraph'),
+      theorist: config.read('theorist'),
     },
   );
   return engine;
@@ -164,7 +168,12 @@ export const appState = createAppState({
   now: () => Date.now(),
   setTimeout: (fn, ms) => window.setTimeout(fn, ms),
   clearTimeout: (h) => window.clearTimeout(h),
-  onExternalChange: () => bump(), // a discard/pull applied changes → re-derive
+  onExternalChange: () => {
+    // A discard/pull reassigned the store bindings → re-derive the UI and
+    // re-project the theorist store into the tracker signal.
+    bump();
+    syncTrackerFromStore();
+  },
   markFlush: (reason) => host.setItem('meridian_last_flush', new Date().toISOString() + ' (' + reason + ')'),
 });
 
@@ -194,6 +203,8 @@ export async function boot(): Promise<void> {
   appState.init();
   wireLifecycle();
   stores.core = await appState.loadCore();
+  stores.theorist = await appState.loadTheorist();
+  syncTrackerFromStore(); // project the durable theorist store into the tracker signal
   bump(); // core (schedule/entries/todos/scratch) is in — re-derive anything already mounted
   appState.paintChip();
   if (cloudEnabled()) {

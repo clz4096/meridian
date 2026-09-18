@@ -9,12 +9,12 @@ import type { StoreKey } from '@/core/storage/appState';
 import { sync, cloudEnabled } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import { dataRev, dataMsg } from '@/ui/store';
-import { wk, sg, kg, core, dataActions, discard } from '@/ui/actions';
+import { wk, sg, kg, core, tg, dataActions, discard } from '@/ui/actions';
 
-const KEYS: StoreKey[] = ['core', 'overload', 'surplus', 'csgraph'];
+const KEYS: StoreKey[] = ['core', 'overload', 'surplus', 'csgraph', 'theorist'];
 
 function dataVM(): DataViewModel {
-  const state = normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg() });
+  const state = normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: tg() });
   const u = host.getItem('meridian_supabase_url');
   return {
     metrics: storageMetrics(state),

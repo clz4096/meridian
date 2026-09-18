@@ -40,6 +40,7 @@ export const wk = (): Store => appState.get('overload');
 export const sg = (): Store => appState.get('surplus');
 export const kg = (): Store => appState.get('csgraph');
 export const core = (): Store => appState.get('core');
+export const tg = (): Store => appState.get('theorist');
 // One history entry per pushed nav level above home. `navDepth` lets the Home
 // button collapse the whole stack so a later hardware Back doesn't hit dead
 // intermediate entries. Back (chrome or hardware) always flows through popstate.
@@ -867,9 +868,12 @@ export const dataActions: DataActions = {
     if (applied) host.reload(700);
   },
   exportAll() {
-    const bundle = exportBundle({ core: core(), overload: wk(), surplus: sg(), csgraph: kg() }, dstr());
+    const bundle = exportBundle(
+      { core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: appState.get('theorist') as never },
+      dstr(),
+    );
     const text = serialise(bundle);
-    dmsg('Exported all 4 stores.');
+    dmsg('Exported all 5 stores.');
     host.setValue('d-io', text);
   },
   importPasted(text) {
@@ -879,9 +883,11 @@ export const dataActions: DataActions = {
     appState.set('overload', r.state.overload);
     appState.set('surplus', r.state.surplus);
     appState.set('csgraph', r.state.csgraph);
+    appState.set('theorist', r.state.theorist as never);
     appState.markDirty();
     appState.markWorkoutDirty();
     appState.markMealDirty();
+    appState.markTheoristDirty();
     void sync.save().then(() => {
       dmsg('✓ Imported' + (r.warnings.length ? ' (' + r.warnings.length + ' warning' + (r.warnings.length > 1 ? 's' : '') + ')' : '') + '. Reloading…');
       host.reload(800);
@@ -903,9 +909,11 @@ export const dataActions: DataActions = {
     if (key === 'surplus') appState.set('surplus', normaliseState({ surplus: parsed }).surplus);
     if (key === 'core') appState.set('core', normaliseState({ core: parsed }).core);
     if (key === 'csgraph') appState.set('csgraph', normaliseState({ csgraph: parsed }).csgraph);
+    if (key === 'theorist') appState.set('theorist', normaliseState({ theorist: parsed }).theorist);
     appState.markDirty();
     appState.markWorkoutDirty();
     appState.markMealDirty();
+    appState.markTheoristDirty();
     void sync.save().then(() => { dmsg('✓ Imported into ' + store + '. Reloading…'); host.reload(800); });
   },
   restoreSnapshot() {
@@ -914,7 +922,7 @@ export const dataActions: DataActions = {
     try {
       const s = JSON.parse(raw);
       if (!host.confirm('Restore the snapshot taken ' + new Date(s.at).toLocaleString() + '?')) return;
-      (['core', 'overload', 'surplus', 'csgraph'] as StoreKey[]).forEach((k) => { if (s[k]) host.setItem(STORAGE_KEYS[k], s[k]); });
+      (['core', 'overload', 'surplus', 'csgraph', 'theorist'] as StoreKey[]).forEach((k) => { if (s[k]) host.setItem(STORAGE_KEYS[k], s[k]); });
       dmsg('✓ Restored. Reloading…');
       host.reload(700);
     } catch {
@@ -924,8 +932,8 @@ export const dataActions: DataActions = {
   showDiagnostics() {
     const out = host.status('d-diagout');
     out.set('Checking…');
-    const metrics = storageMetrics(normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg() }));
-    const dirtyList = (['core', 'overload', 'surplus', 'csgraph'] as StoreKey[]).filter((k) => sync.isDirtyCloud(k));
+    const metrics = storageMetrics(normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: tg() }));
+    const dirtyList = (['core', 'overload', 'surplus', 'csgraph', 'theorist'] as StoreKey[]).filter((k) => sync.isDirtyCloud(k));
     out.set('cloud: ' + (cloudEnabled() ? 'configured' : 'not configured') + '\n' + 'payload: ' + metrics.kilobytes + 'KB\n' + 'revision: ' + sync.baseRev() + '\n' + 'unsynced stores: ' + (dirtyList.length ? dirtyList.join(', ') : 'none') + '\n' + 'tombstones: ' + metrics.counts.tombstones + ' (cap 500)');
   },
   async resetKnowledge() {
@@ -1057,7 +1065,7 @@ let kbMemoRev = -1;
 let kbMemo = 0;
 function storageKB(): number {
   if (kbMemoRev === st.dataRev.value) return kbMemo;
-  const state = normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg() });
+  const state = normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: tg() });
   kbMemo = Math.round(JSON.stringify(state).length / 102.4) / 10;
   kbMemoRev = st.dataRev.value;
   return kbMemo;
@@ -1086,7 +1094,7 @@ export function hubStats(): HubStat[] {
   const wkWord = wkGrade === 'rest' ? 'Rest' : wkGrade.charAt(0).toUpperCase() + wkGrade.slice(1);
   const G = sg();
   const todayCal = ((G.days?.[today] ?? []) as Store[]).reduce((a: number, m: Store) => a + (+m.cal || 0), 0);
-  const dirty = (['core', 'overload', 'surplus', 'csgraph'] as StoreKey[]).some((k) => sync.isDirtyCloud(k));
+  const dirty = (['core', 'overload', 'surplus', 'csgraph', 'theorist'] as StoreKey[]).some((k) => sync.isDirtyCloud(k));
   const kb = storageKB();
   const C = core();
   const openTodos = todoOpenCount(C);

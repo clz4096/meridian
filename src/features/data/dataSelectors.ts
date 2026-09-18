@@ -10,16 +10,17 @@
  * instead of silently writing garbage into storage.
  */
 
-import type { CoreState, KnowledgeItemLike, KnowledgeState, MealState, Millis, WorkoutState } from '@/core/types';
+import type { CoreState, KnowledgeItemLike, KnowledgeState, MealState, Millis, TheoristState, WorkoutState } from '@/core/types';
 import { toNum } from '@/core/util';
 
-export const BUNDLE_VERSION = 2 as const;
+export const BUNDLE_VERSION = 3 as const;
 
 export interface AppState {
   core: CoreState;
   overload: WorkoutState;
   surplus: MealState;
   csgraph: KnowledgeState;
+  theorist: TheoristState;
 }
 
 export interface Bundle {
@@ -218,6 +219,31 @@ export function normaliseKnowledge(raw: unknown): KnowledgeState {
   };
 }
 
+export function normaliseTheorist(raw: unknown): TheoristState {
+  const t = obj(raw);
+  const banked: Record<string, number> = {};
+  for (const [k, v] of Object.entries(obj(t.banked))) {
+    const n = toNum(v as never, 0);
+    if (n >= 0) banked[k] = n;
+  }
+  const d = obj(t.day);
+  const blocks: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(obj(d.blocks))) blocks[k] = v === true;
+  const scores: Record<string, number> = {};
+  // Scorecard entries are 0/1/2 only; clamp to an integer in range so a garbage
+  // import can't push a meter or scoreTotal out of bounds (mirrors mastery).
+  for (const [k, v] of Object.entries(obj(d.scores))) {
+    scores[k] = Math.max(0, Math.min(2, Math.round(toNum(v as never, 0))));
+  }
+  const day = { date: String(d.date ?? ''), blocks, scores, banked: d.banked === true };
+  return {
+    banked,
+    day,
+    ...(toNum(t.dayTouchedAt as never, 0) ? { dayTouchedAt: toNum(t.dayTouchedAt as never) as Millis } : {}),
+    ...(toNum(t.resetAt as never, 0) ? { resetAt: toNum(t.resetAt as never) as Millis } : {}),
+  };
+}
+
 export function normaliseState(raw: unknown): AppState {
   const s = obj(raw);
   return canonicalise({
@@ -225,6 +251,7 @@ export function normaliseState(raw: unknown): AppState {
     overload: normaliseWorkout(s.overload),
     surplus: normaliseMeals(s.surplus),
     csgraph: normaliseKnowledge(s.csgraph),
+    theorist: normaliseTheorist(s.theorist),
   });
 }
 
@@ -264,7 +291,7 @@ export function importBundle(text: string): ImportResult {
     if (version !== BUNDLE_VERSION) {
       warnings.push(`bundle version ${version}; expected ${BUNDLE_VERSION} — migrated on import`);
     }
-  } else if (b.core || b.overload || b.surplus || b.csgraph) {
+  } else if (b.core || b.overload || b.surplus || b.csgraph || b.theorist) {
     payload = b;                       // bare state, no envelope
     warnings.push('no bundle envelope found; treated as a bare state object');
   } else {
@@ -272,7 +299,7 @@ export function importBundle(text: string): ImportResult {
   }
 
   const state = normaliseState(payload);
-  const stores = ['core', 'overload', 'surplus', 'csgraph'] as const;
+  const stores = ['core', 'overload', 'surplus', 'csgraph', 'theorist'] as const;
   for (const key of stores) {
     if ((payload as Record<string, unknown>)[key] === undefined) {
       warnings.push(`store "${key}" missing from file; imported as empty`);
@@ -304,6 +331,8 @@ export interface StorageMetrics {
     scheduleDays: number;
     entries: number;
     tombstones: number;
+    /** Real ISO dates the Study Tracker has banked XP for (excludes "__carry"). */
+    theoristDays: number;
   };
 }
 
@@ -314,6 +343,7 @@ export function storageMetrics(state: AppState): StorageMetrics {
     overload: size(state.overload),
     surplus: size(state.surplus),
     csgraph: size(state.csgraph),
+    theorist: size(state.theorist),
   };
   const bytes = Object.values(perStore).reduce((a, b) => a + b, 0);
   const workoutSets = Object.values(state.overload.days ?? {}).reduce((a, s) => a + s.length, 0);
@@ -335,6 +365,7 @@ export function storageMetrics(state: AppState): StorageMetrics {
       scheduleDays: Object.keys(state.core.schedule ?? {}).length,
       entries: (state.core.entries ?? []).length,
       tombstones,
+      theoristDays: Object.keys(state.theorist?.banked ?? {}).filter((k) => /^\d{4}-\d\d-\d\d$/.test(k)).length,
     },
   };
 }

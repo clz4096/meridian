@@ -1,13 +1,21 @@
 /**
- * Study Tracker ("The Princeton Theorist") — ORDINARY-tier local state.
+ * Study Tracker ("The Princeton Theorist").
  *
  * Ported from ~/Brainstorm/meridian-tabs/princeton-theorist.html. This is a
  * gamified daily-study instrument: tick schedule blocks to bank XP, score the
- * day 0/1/2 to fill five meters, and keep a 7-day streak. State is a single
- * namespaced localStorage blob (`meridian.tracker.v1`) held in a signal — NOT
- * routed through the CRDT/FSRS/grading kernel (that is CRITICAL tier).
+ * day 0/1/2 to fill five meters, and keep a 7-day streak.
+ *
+ * The signal still speaks the legacy `{ cumXP, logged, day }` shape the view
+ * renders, but state is now BACKED by the synced `theorist` store (see
+ * {@link TheoristState}) so XP/streak converge across devices like the other
+ * four stores. This module is a thin projection over that store: every mutator
+ * reads the current `TheoristState` from appState, produces the next one,
+ * persists it, and re-projects the signal. `cumXP` is the sum of banked XP and
+ * `logged` is the set of real ISO banked dates.
  */
 import { signal } from '@preact/signals';
+import type { TheoristState } from '@/core/types';
+import { appState } from '@/app/bootstrap';
 
 export interface TrackerDay {
   date: string; // ISO yyyy-mm-dd
@@ -87,8 +95,6 @@ export const METERS: ReadonlyArray<readonly [string, readonly string[]]> = [
   ['Progress', ['s3', 's6', 's10']],
 ];
 
-const KEY = 'meridian.tracker.v1';
-
 export function todayISO(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -97,36 +103,54 @@ function freshDay(): TrackerDay {
   return { date: todayISO(), blocks: {}, scores: {}, banked: false };
 }
 
-function load(): TrackerState {
-  let s: Partial<TrackerState> = {};
-  try {
-    s = JSON.parse(localStorage.getItem(KEY) || '{}') as Partial<TrackerState>;
-  } catch {
-    s = {};
-  }
-  const state: TrackerState = {
-    cumXP: typeof s.cumXP === 'number' ? s.cumXP : 0,
-    logged: Array.isArray(s.logged) ? s.logged : [],
-    day: s.day && s.day.date === todayISO() ? s.day : freshDay(),
-  };
-  return state;
-}
+const ISO_DATE = /^\d{4}-\d\d-\d\d$/;
+const EMPTY_THEORIST: TheoristState = { banked: {}, day: { date: '', blocks: {}, scores: {}, banked: false } };
 
-function persist(next: TrackerState): void {
-  trackerState.value = next;
+/**
+ * Read the live `theorist` store from appState. Defensive: at module-eval time
+ * this file can be pulled in through bootstrap's import graph BEFORE bootstrap's
+ * `appState` binding is initialised (an import cycle — bootstrap imports
+ * `syncTrackerFromStore` from here). Accessing `appState` then throws a TDZ
+ * ReferenceError, so we fall back to the empty store and let boot()'s
+ * `syncTrackerFromStore()` seed the real value once everything is wired.
+ */
+function readStore(): TheoristState {
   try {
-    localStorage.setItem(KEY, JSON.stringify(next));
+    const t = appState.get('theorist') as TheoristState | undefined;
+    return t && t.banked && t.day ? t : EMPTY_THEORIST;
   } catch {
-    /* quota / private mode — ORDINARY tier, ignore */
+    return EMPTY_THEORIST;
   }
 }
 
-export const trackerState = signal<TrackerState>(load());
+/** Project the synced store into the legacy view shape the signal exposes. */
+function project(t: TheoristState): TrackerState {
+  const banked = t.banked ?? {};
+  let cumXP = 0;
+  for (const v of Object.values(banked)) if (typeof v === 'number') cumXP += v;
+  const logged = Object.keys(banked).filter((k) => ISO_DATE.test(k));
+  return { cumXP, logged, day: t.day ?? freshDay() };
+}
+
+export const trackerState = signal<TrackerState>(project(readStore()));
+
+/** Re-project the durable `theorist` store into the signal (boot / pull / discard). */
+export function syncTrackerFromStore(): void {
+  trackerState.value = project(readStore());
+}
+
+/** Persist a next `TheoristState`, re-project the signal, and mark the store dirty. */
+function commit(next: TheoristState): void {
+  appState.set('theorist', next as unknown as Record<string, unknown>);
+  trackerState.value = project(next);
+  appState.markTheoristDirty();
+}
 
 /** Roll the day over if the app has been open past midnight. Safe to call often. */
 export function ensureToday(): void {
-  if (trackerState.value.day.date !== todayISO()) {
-    persist({ ...trackerState.value, day: freshDay() });
+  const t = readStore();
+  if (t.day.date !== todayISO()) {
+    commit({ ...t, day: freshDay(), dayTouchedAt: Date.now() });
   }
 }
 
@@ -163,29 +187,34 @@ export function streakCount(logged: string[]): number {
   return streakDays(logged).filter((d) => d.on).length;
 }
 
-/* ── actions (mutate + persist the signal) ── */
+/* ── actions (mutate the synced store + re-project the signal) ── */
 export function toggleBlock(id: string): void {
-  const s = trackerState.value;
-  persist({ ...s, day: { ...s.day, blocks: { ...s.day.blocks, [id]: !s.day.blocks[id] } } });
+  const t = readStore();
+  const day = { ...t.day, blocks: { ...t.day.blocks, [id]: !t.day.blocks[id] } };
+  commit({ ...t, day, dayTouchedAt: Date.now() });
 }
 export function setScore(id: string, val: number): void {
-  const s = trackerState.value;
-  persist({ ...s, day: { ...s.day, scores: { ...s.day.scores, [id]: val } } });
+  const t = readStore();
+  const v = Math.max(0, Math.min(2, Math.round(val))); // scorecard is 0/1/2 only
+  const day = { ...t.day, scores: { ...t.day.scores, [id]: v } };
+  commit({ ...t, day, dayTouchedAt: Date.now() });
 }
 export function bankToday(): void {
-  const s = trackerState.value;
-  if (s.day.banked) return;
+  const t = readStore();
+  if (t.day.banked) return;
   const today = todayISO();
-  const logged = s.logged.indexOf(today) < 0 ? [...s.logged, today] : s.logged;
-  persist({ cumXP: s.cumXP + dayXP(s.day), logged, day: { ...s.day, banked: true } });
+  const banked = { ...t.banked, [today]: Math.max(t.banked[today] ?? 0, dayXP(t.day)) };
+  commit({ ...t, banked, day: { ...t.day, banked: true }, dayTouchedAt: Date.now() });
 }
 /** Clear today's ticks and scores; banked XP stays (mirrors the source). */
 export function resetDay(): void {
-  const s = trackerState.value;
-  persist({ ...s, day: { date: todayISO(), blocks: {}, scores: {}, banked: s.day.banked } });
+  const t = readStore();
+  commit({ ...t, day: { date: todayISO(), blocks: {}, scores: {}, banked: t.day.banked }, dayTouchedAt: Date.now() });
 }
+/** Global reset: wipe banked XP and today, and bump `resetAt` so the wipe
+ *  propagates across devices instead of union-resurrecting on the next merge. */
 export function resetAll(): void {
-  persist({ cumXP: 0, logged: [], day: freshDay() });
+  commit({ banked: {}, day: freshDay(), dayTouchedAt: Date.now(), resetAt: Date.now() });
 }
 
 /** Glanceable summary for Today's at-a-glance tile. */
