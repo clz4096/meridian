@@ -206,6 +206,26 @@ export function bankToday(): void {
   const banked = { ...t.banked, [today]: Math.max(t.banked[today] ?? 0, dayXP(t.day)) };
   commit({ ...t, banked, day: { ...t.day, banked: true }, dayTouchedAt: Date.now() });
 }
+
+/**
+ * Toggle today's banking. Banking is not one-way: pressing again un-banks the
+ * day (drops today's contribution and re-enables ticking to count), so you can
+ * add more blocks and bank again. Note: across devices `banked` merges by
+ * per-key max, so an un-bank is authoritative only until a device that still
+ * holds today's value syncs; on a single device it behaves as expected.
+ */
+export function toggleBank(): void {
+  const t = readStore();
+  const today = todayISO();
+  if (t.day.banked) {
+    const banked = { ...t.banked };
+    delete banked[today];
+    commit({ ...t, banked, day: { ...t.day, banked: false }, dayTouchedAt: Date.now() });
+  } else {
+    const banked = { ...t.banked, [today]: Math.max(t.banked[today] ?? 0, dayXP(t.day)) };
+    commit({ ...t, banked, day: { ...t.day, banked: true }, dayTouchedAt: Date.now() });
+  }
+}
 /** Clear today's ticks and scores; banked XP stays (mirrors the source). */
 export function resetDay(): void {
   const t = readStore();

@@ -12,13 +12,15 @@ import {
   trackerState, ensureToday,
   LEVELS, SCHEDULE, SCORE, METERS,
   dayXP, levelIndex, scoreTotal, streakDays, streakCount,
-  toggleBlock, setScore, bankToday, resetDay, resetAll,
+  toggleBlock, setScore, toggleBank, resetDay, resetAll,
 } from '@/features/studytracker/trackerStore';
 import { FeedSection } from '@/features/studytracker/FeedSection';
 import { AlgoOfDay } from '@/features/studytracker/AlgoOfDay';
 import { CurriculumSection } from '@/features/studytracker/CurriculumSection';
 import { PapersSection } from '@/features/studytracker/PapersSection';
 import { ProofJournal } from '@/features/studytracker/ProofJournal';
+import { PrincetonGroup } from '@/features/studytracker/PrincetonGroup';
+import { Collapsible } from '@/features/studytracker/Collapsible';
 import crestUrl from '@/features/studytracker/princeton-shield.png';
 import '@/features/studytracker/studytracker.css';
 
@@ -131,32 +133,16 @@ export function StudyTrackerView() {
             })}
           </div>
           <div class="controls">
-            <button class="primary" disabled={s.day.banked} onClick={bankToday}>
-              {s.day.banked ? "Today's XP banked ✓" : 'Log today & bank XP'}
+            <button class={'primary' + (s.day.banked ? ' banked' : '')} onClick={toggleBank}>
+              {s.day.banked ? "Banked ✓ — tap to unbank" : 'Log today & bank XP'}
             </button>
             <button class="ghost" onClick={onResetDay}>Reset today</button>
             <button class="ghost" onClick={onResetAll}>Reset everything</button>
           </div>
         </div>
 
-        {/* DAILY READING */}
-        <FeedSection />
-
-        {/* ALGORITHM OF THE DAY */}
-        <AlgoOfDay />
-
-        {/* CURRICULUM TRACK */}
-        <CurriculumSection />
-
-        {/* PAPER OF THE WEEK */}
-        <PapersSection />
-
-        {/* PROOF & DERIVATION JOURNAL */}
-        <ProofJournal />
-
-        {/* SCHEDULE */}
-        <section>
-          <div class="sec-h"><span class="eyebrow">The day</span><span class="n">Tick each block as you finish it</span></div>
+        {/* DAILY LOOP — schedule, score, algorithm (default open) */}
+        <Collapsible id="schedule" eyebrow="The day" title="Tick each block as you finish it" defaultOpen={true}>
           <p class="hint">Eastern Time. Wake 9:00 AM, gym 3–5 PM, lights out 11:45 PM. The focus blocks point at the theory track: proofs and problem sets, algorithms in C++, and reproducing the week's paper. Ticking a block banks its XP for today.</p>
           <div class="rows">
             {SCHEDULE.map((r) => {
@@ -173,11 +159,10 @@ export function StudyTrackerView() {
               );
             })}
           </div>
-        </section>
+        </Collapsible>
 
         {/* SCORECARD */}
-        <section>
-          <div class="sec-h"><span class="eyebrow">Score</span><span class="n">Rate today: missed, partial, met</span></div>
+        <Collapsible id="scorecard" eyebrow="Score" title="Rate today: missed, partial, met" defaultOpen={true}>
           <p class="hint">Missed, partial, or met. Your scores fill the five meters above. Score the practice, never a grade or exam result.</p>
           <div class="sc">
             {SCORE.map((r) => {
@@ -200,11 +185,20 @@ export function StudyTrackerView() {
             <span class="tot">{total} / 20</span>
             <span class={'band ' + scBand}>{scWord}</span>
           </div>
-        </section>
+        </Collapsible>
+
+        {/* ALGORITHM OF THE DAY (daily) */}
+        <AlgoOfDay />
+
+        {/* LIBRARY (default collapsed) */}
+        <FeedSection />
+        <PapersSection />
+        <PrincetonGroup />
+        <CurriculumSection />
+        <ProofJournal />
 
         {/* REFERENCE */}
-        <section>
-          <div class="sec-h"><span class="eyebrow">Reference</span><span class="n">The playbook</span></div>
+        <Collapsible id="reference" eyebrow="Reference" title="The playbook" defaultOpen={false}>
 
           <details>
             <summary>The path, in three climbs</summary>
@@ -270,7 +264,7 @@ export function StudyTrackerView() {
               <p class="hint">Design evidence: self-monitoring improves goal attainment (Harkin 2016); if-then plans (Gollwitzer 1999); external rewards can undermine intrinsic motivation, so XP is feedback (Deci, Koestner &amp; Ryan 1999); values &amp; process affirmation, not generic praise (Cohen &amp; Sherman 2014; Wood 2009; Mueller &amp; Dweck 1998); hard work over genius (Tao); sleep and sustainable hours (NSF 2015; Pencavel 2015); daily over binge (Boice 1990). Facts verified from AWS CLF-C02 and WGU BSSE guides, MIT OCW, Coursera, and theory.cs.princeton.edu. Rosters and course offerings change; confirm on the live pages. Charikar (Stanford) and Barak (Harvard) are theory-lineage, not current Princeton faculty.</p>
             </div>
           </details>
-        </section>
+        </Collapsible>
 
         <div class="app-foot">
           <p>The Massey Standard · a personal daily instrument · saved locally in this browser</p>

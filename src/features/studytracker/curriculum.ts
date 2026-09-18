@@ -13,7 +13,7 @@ export interface PSet {
 }
 export interface Course {
   code: string;
-  school: 'Princeton' | 'MIT';
+  school: 'Princeton' | 'MIT' | 'Yale' | 'Harvard';
   name: string;
   track: 'Algorithms' | 'Theory' | 'Math' | 'Systems';
   topics: string;
@@ -24,6 +24,32 @@ export interface Course {
 }
 
 export const CURRICULUM: readonly Course[] = [
+{
+  code: 'Yale CS202',
+  school: 'Yale',
+  name: 'Notes on Discrete Mathematics',
+  track: 'Math',
+  topics: 'Logic, proofs, sets, relations, induction, combinatorics, graphs, number theory',
+  text: 'Aspnes, Notes on Discrete Mathematics (free)',
+  url: 'https://www.cs.yale.edu/homes/aspnes/classes/202/notes.pdf',
+  psets: [
+    { name: 'Course page & assignments', url: 'https://www.cs.yale.edu/homes/aspnes/classes/202/' },
+  ],
+  targetWeek: 1,
+},
+{
+  code: 'Harvard STAT 110',
+  school: 'Harvard',
+  name: 'Probability (lecture videos)',
+  track: 'Math',
+  topics: 'Counting, conditional probability, random variables, distributions, expectation, Markov chains — watchable lectures',
+  text: 'Blitzstein & Hwang, Introduction to Probability',
+  url: 'https://projects.iq.harvard.edu/stat110',
+  psets: [
+    { name: 'Strategic practice & problems', url: 'https://projects.iq.harvard.edu/stat110' },
+  ],
+  targetWeek: 4,
+},
 {
   code: 'MIT 6.042J',
   school: 'MIT',

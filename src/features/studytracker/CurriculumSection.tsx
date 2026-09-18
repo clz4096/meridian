@@ -4,6 +4,7 @@
  * and links to real problem sets. Content in curriculum.ts; checks persisted.
  */
 import { CURRICULUM, curriculumChecks, toggleCourse, curriculumSummary, psetOfWeek, type Course } from '@/features/studytracker/curriculum';
+import { Collapsible } from '@/features/studytracker/Collapsible';
 
 const TRACK_ORDER: Course['track'][] = ['Math', 'Algorithms', 'Theory', 'Systems'];
 
@@ -14,11 +15,7 @@ export function CurriculumSection() {
   const byWeek = [...CURRICULUM].sort((a, b) => a.targetWeek - b.targetWeek);
 
   return (
-    <section class="cur">
-      <div class="sec-h">
-        <span class="eyebrow">Curriculum</span>
-        <span class="n">The theory track</span>
-      </div>
+    <Collapsible id="curriculum" eyebrow="Curriculum" title="The theory track" defaultOpen={false}>
       <p class="hint">A proof-and-pset path a Princeton theory student actually walks: discrete math and analysis, then algorithms, then computation and complexity. {done} of {total} courses done.</p>
 
       {pw && (
@@ -72,6 +69,6 @@ export function CurriculumSection() {
           </div>
         );
       })}
-    </section>
+    </Collapsible>
   );
 }

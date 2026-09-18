@@ -1,11 +1,12 @@
 /**
- * Daily Reading — a section inside the Study Tracker that shows a live reading
- * list for a CS / C++ / math student (Hacker News + arXiv). Fetches once on
+ * Daily Reading — a section in the Study Tracker that shows a live reading
+ * list for a CS / C++ / math student (Hacker News + dev.to). Fetches once on
  * mount (served from a per-day cache after that); a refresh button forces a
- * re-fetch. See feed.ts for the fetch/cache logic.
+ * re-fetch. See feedSources.ts for the fetch/cache logic.
  */
 import { useEffect, useState } from 'preact/hooks';
 import { loadDailyFeed, type FeedItem } from '@/features/studytracker/feedSources';
+import { Collapsible } from '@/features/studytracker/Collapsible';
 
 export function FeedSection() {
   const [items, setItems] = useState<FeedItem[]>([]);
@@ -24,15 +25,11 @@ export function FeedSection() {
   useEffect(() => load(false), []);
 
   return (
-    <section class="feed">
-      <div class="sec-h">
-        <span class="eyebrow">Read</span>
-        <span class="n">Today&apos;s reading</span>
-        <button class="feed-refresh" type="button" onClick={() => load(true)} disabled={loading} aria-label="Refresh reading list">
-          ↻
-        </button>
-      </div>
-      <p class="hint">A daily dispatch for the CS/math student: top Hacker News on C++, compilers and algorithms, plus popular dev.to articles on C++, algorithms, and computer science.</p>
+    <Collapsible id="feed" eyebrow="Read" title="Today's reading" defaultOpen={false}>
+      <p class="hint">
+        A daily dispatch for the CS/math student: top Hacker News on C++, compilers and algorithms, plus popular dev.to articles on C++, algorithms, and computer science.
+        <button class="feed-refresh" type="button" onClick={() => load(true)} disabled={loading} aria-label="Refresh reading list">↻</button>
+      </p>
 
       {loading && items.length === 0 ? (
         <p class="feed-msg">Loading today&apos;s reading…</p>
@@ -54,6 +51,6 @@ export function FeedSection() {
           </div>
         </>
       )}
-    </section>
+    </Collapsible>
   );
 }

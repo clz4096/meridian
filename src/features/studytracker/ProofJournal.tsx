@@ -6,6 +6,7 @@
 import { useState } from 'preact/hooks';
 import { journalEntries, addEntry, deleteEntry } from '@/features/studytracker/proofJournalStore';
 import { host } from '@/ui/host';
+import { Collapsible } from '@/features/studytracker/Collapsible';
 
 const fmtDate = (ms: number): string =>
   new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -23,11 +24,7 @@ export function ProofJournal() {
   };
 
   return (
-    <section class="pj">
-      <div class="sec-h">
-        <span class="eyebrow">Write</span>
-        <span class="n">Proof &amp; derivation journal</span>
-      </div>
+    <Collapsible id="journal" eyebrow="Write" title="Proof & derivation journal" defaultOpen={false}>
       <p class="hint">Reconstruct a proof from memory, derive a bound, or write up a problem you fought. Dated and saved in this browser.</p>
 
       <div class="pj-form">
@@ -75,6 +72,6 @@ export function ProofJournal() {
           ))}
         </div>
       )}
-    </section>
+    </Collapsible>
   );
 }

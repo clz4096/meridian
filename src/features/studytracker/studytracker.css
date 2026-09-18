@@ -247,6 +247,29 @@
 .pt-root .pj-entry-date{font-family:var(--mono,ui-monospace,monospace); font-size:11px; color:var(--muted);}
 .pt-root .pj-del{margin-left:auto; width:26px;height:26px;padding:0;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:16px;line-height:1;}
 .pt-root .pj-entry-body{font-family:var(--mono,ui-monospace,monospace); font-size:12.5px; color:var(--ink); white-space:pre-wrap; line-height:1.55; margin-top:8px;}
+/* collapsible sections */
+.pt-root .collap{margin-top:22px;}
+.pt-root .collap-head{display:flex; align-items:center; gap:10px; width:100%; background:transparent; border:0; padding:8px 0; cursor:pointer; text-align:left; border-bottom:1px solid var(--border); border-radius:0;}
+.pt-root .collap-head:hover{transform:none; background:transparent;}
+.pt-root .collap-head .n{font-family:var(--serif); font-size:18px; font-weight:700; color:var(--ink);}
+.pt-root .collap-chev{margin-left:auto; font-size:20px; font-weight:700; color:var(--accent); line-height:1; width:20px; text-align:center;}
+.pt-root .collap-body{margin-top:10px;}
+
+/* banked button (tap to unbank) */
+.pt-root button.primary.banked{background:var(--good); border-color:var(--good);}
+
+/* princeton theory group */
+.pt-root .ptg-info{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 14px; box-shadow:var(--shadow); margin-bottom:14px;}
+.pt-root .ptg-home{font-weight:700; color:var(--accent); text-decoration:none; font-size:13.5px;}
+.pt-root .ptg-lunch{font-size:12.5px; color:var(--muted); margin-top:6px; line-height:1.5;}
+.pt-root .ptg-faculty{font-size:12.5px; color:var(--ink); margin-top:6px; line-height:1.5;}
+.pt-root .ptg-sub{font:700 11px/1 var(--sans); letter-spacing:1px; text-transform:uppercase; color:var(--accent); margin:12px 0 8px;}
+.pt-root .ptg-list{display:flex; flex-direction:column; gap:8px;}
+.pt-root .ptg-paper{display:flex; flex-direction:column; gap:3px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 13px; box-shadow:var(--shadow); text-decoration:none; transition:transform .08s ease, border-color .15s;}
+.pt-root .ptg-paper:hover{transform:translateY(-1px); border-color:var(--accent);}
+.pt-root .ptg-paper-title{font-family:var(--serif); font-size:14.5px; font-weight:700; color:var(--ink);}
+.pt-root .ptg-paper-by{font-family:var(--mono,ui-monospace,monospace); font-size:11.5px; color:var(--accent);}
+.pt-root .ptg-paper-why{font-size:12.5px; color:var(--muted); line-height:1.5;}
 @media (prefers-reduced-motion:reduce){ .pt-root *{transition:none !important;} }
 @media (max-width:620px){
   .pt-root .panel-top{grid-template-columns:1fr; text-align:center; justify-items:center;}

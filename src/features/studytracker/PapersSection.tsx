@@ -5,6 +5,7 @@
  */
 import { useState } from 'preact/hooks';
 import { PAPERS, paperOfWeek, KESHAV_PASSES, paperProgress, togglePass, paperKey } from '@/features/studytracker/papers';
+import { Collapsible } from '@/features/studytracker/Collapsible';
 
 export function PapersSection() {
   const progress = paperProgress.value; // subscribe
@@ -16,11 +17,7 @@ export function PapersSection() {
   const passes = progress[paperKey(cur)] ?? [false, false, false];
 
   return (
-    <section class="pp">
-      <div class="sec-h">
-        <span class="eyebrow">Read + reproduce</span>
-        <span class="n">Paper of the week</span>
-      </div>
+    <Collapsible id="papers" eyebrow="Read + reproduce" title="Paper of the week" defaultOpen={false}>
       <p class="hint">Keshav&apos;s three-pass method: triage, grasp, then reproduce. Rotates weekly; tap any to browse. The real learning is pass 3.</p>
 
       <div class="pp-pills">
@@ -66,6 +63,6 @@ export function PapersSection() {
           ))}
         </div>
       </div>
-    </section>
+    </Collapsible>
   );
 }

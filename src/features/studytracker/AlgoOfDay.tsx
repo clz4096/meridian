@@ -8,6 +8,7 @@
 import { useState } from 'preact/hooks';
 import { ALGORITHMS, algoOfDay } from '@/features/studytracker/algorithms';
 import { ALGO_PROOFS } from '@/features/studytracker/algoProofs';
+import { Collapsible } from '@/features/studytracker/Collapsible';
 
 export function AlgoOfDay() {
   const today = algoOfDay();
@@ -16,11 +17,7 @@ export function AlgoOfDay() {
   const cur = ALGORITHMS.find((a) => a.id === selId) ?? today;
 
   return (
-    <section class="algo">
-      <div class="sec-h">
-        <span class="eyebrow">Practice</span>
-        <span class="n">Algorithm of the day</span>
-      </div>
+    <Collapsible id="algo" eyebrow="Practice" title="Algorithm of the day" defaultOpen={true}>
       <p class="hint">One algorithm a day, from first principles: C++ first, then ported to Python; rigorous and formal, but in plain English. Rotates daily; tap any to browse.</p>
 
       <div class="algo-pills">
@@ -95,6 +92,6 @@ export function AlgoOfDay() {
           ))}
         </div>
       </div>
-    </section>
+    </Collapsible>
   );
 }
