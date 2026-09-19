@@ -11,6 +11,9 @@ export interface JournalEntry {
   at: number; // epoch ms
   title: string;
   body: string;
+  /** Written cold from memory (a retrieval attempt) rather than copied. Old
+   *  entries predate the flag → undefined, treated as false. */
+  reconstructed?: boolean;
 }
 
 const KEY = 'meridian.proofjournal.v1';
@@ -42,14 +45,22 @@ function rid(): string {
 }
 
 /** Add a new entry; newest first. Returns false if both fields are blank. */
-export function addEntry(title: string, body: string): boolean {
+export function addEntry(title: string, body: string, reconstructed = false): boolean {
   const t = title.trim();
   const b = body.trim();
   if (!t && !b) return false;
-  persist([{ id: rid(), at: Date.now(), title: t || 'Untitled', body: b }, ...journalEntries.value]);
+  persist([
+    { id: rid(), at: Date.now(), title: t || 'Untitled', body: b, ...(reconstructed ? { reconstructed: true } : {}) },
+    ...journalEntries.value,
+  ]);
   return true;
 }
 
 export function deleteEntry(id: string): void {
   persist(journalEntries.value.filter((e) => e.id !== id));
+}
+
+/** Flip the "reconstructed from memory" flag on an entry. */
+export function toggleReconstructed(id: string): void {
+  persist(journalEntries.value.map((e) => (e.id === id ? { ...e, reconstructed: !e.reconstructed } : e)));
 }

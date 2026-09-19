@@ -5,6 +5,7 @@
  */
 import { useState } from 'preact/hooks';
 import { PAPERS, paperOfWeek, KESHAV_PASSES, paperProgress, togglePass, paperKey } from '@/features/studytracker/papers';
+import { creditEvent, EVENT_WEIGHTS } from '@/features/studytracker/trackerStore';
 import { Collapsible } from '@/features/studytracker/Collapsible';
 
 export function PapersSection() {
@@ -17,7 +18,7 @@ export function PapersSection() {
   const passes = progress[paperKey(cur)] ?? [false, false, false];
 
   return (
-    <Collapsible id="papers" eyebrow="Read + reproduce" title="Paper of the week" defaultOpen={false}>
+    <Collapsible id="papers" eyebrow="Reproduce" title="Paper of the week" defaultOpen={false}>
       <p class="hint">Keshav&apos;s three-pass method: triage, grasp, then reproduce. Rotates weekly; tap any to browse. The real learning is pass 3.</p>
 
       <div class="pp-pills">
@@ -50,7 +51,12 @@ export function PapersSection() {
                 role="checkbox"
                 aria-checked={passes[i]}
                 aria-label={`Pass ${pass.n} ${pass.name} done`}
-                onClick={() => togglePass(cur, i as 0 | 1 | 2)}
+                onClick={() => {
+                  const wasDone = (paperProgress.value[paperKey(cur)] ?? [false, false, false])[i];
+                  togglePass(cur, i as 0 | 1 | 2);
+                  // Only pass 3 ("reproduce") pays, and only on the false→true edge.
+                  if (i === 2 && !wasDone) creditEvent('paper:reproduce', EVENT_WEIGHTS.paperReproduce);
+                }}
               >
                 {passes[i] ? '✓' : ''}
               </button>

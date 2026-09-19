@@ -235,11 +235,42 @@ export function normaliseTheorist(raw: unknown): TheoristState {
   for (const [k, v] of Object.entries(obj(d.scores))) {
     scores[k] = Math.max(0, Math.min(2, Math.round(toNum(v as never, 0))));
   }
-  const day = { date: String(d.date ?? ''), blocks, scores, banked: d.banked === true };
+  // Phase 2 additive day fields: `events` (per-id XP credits, non-negative) and
+  // `dayType` — preserved through the round-trip so a backup doesn't silently
+  // wipe them (mirrors how normaliseKnowledge keeps `generated`/`resetAt`).
+  const events: Record<string, number> = {};
+  if (d.events && typeof d.events === 'object') {
+    for (const [k, v] of Object.entries(obj(d.events))) events[k] = Math.max(0, toNum(v as never, 0));
+  }
+  const dayType: 'full' | 'light' | undefined =
+    d.dayType === 'full' || d.dayType === 'light' ? d.dayType : undefined;
+  const day = {
+    date: String(d.date ?? ''),
+    blocks,
+    scores,
+    banked: d.banked === true,
+    ...(d.events && typeof d.events === 'object' ? { events } : {}),
+    ...(dayType ? { dayType } : {}),
+  };
+  // Phase 3 additive TOP-LEVEL field: decaying per-topic mastery. Each entry is
+  // validated ({ level ∈ [0,1], finite reviewedAt }); malformed/non-finite
+  // entries are dropped rather than defaulted so a garbage import can't inject a
+  // fake review timestamp.
+  const mastery: NonNullable<TheoristState['mastery']> = {};
+  if (t.mastery && typeof t.mastery === 'object') {
+    for (const [id, v] of Object.entries(obj(t.mastery))) {
+      const e = obj(v);
+      const level = toNum(e.level as never, NaN);
+      const reviewedAt = toNum(e.reviewedAt as never, NaN);
+      if (!Number.isFinite(level) || !Number.isFinite(reviewedAt)) continue;
+      mastery[id] = { level: Math.max(0, Math.min(1, level)), reviewedAt: reviewedAt as Millis };
+    }
+  }
   return {
     banked,
     day,
     ...(toNum(t.dayTouchedAt as never, 0) ? { dayTouchedAt: toNum(t.dayTouchedAt as never) as Millis } : {}),
+    ...(Object.keys(mastery).length ? { mastery } : {}),
     ...(toNum(t.resetAt as never, 0) ? { resetAt: toNum(t.resetAt as never) as Millis } : {}),
   };
 }

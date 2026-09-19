@@ -118,6 +118,49 @@ describe('workout field preservation (regression)', () => {
     expect(r.state.csgraph.resetAt).toBe(1734300000000);
   });
 
+  it('theorist day.events, day.dayType, and top-level mastery survive normalise + an export→import round-trip', () => {
+    const state = normaliseState({
+      theorist: {
+        banked: { '2026-01-01': 120 },
+        day: { date: '2026-01-01', blocks: { b1: true }, scores: { s2: 2 }, banked: false, events: { 'algo:studied': 20, retrieval: 50 }, dayType: 'light' },
+        mastery: { 'COS 226': { level: 0.75, reviewedAt: 1734300000000 }, 'MIT 6.006': { level: 0, reviewedAt: 1734300000001 } },
+      },
+    } as unknown as AppState);
+    // normalise keeps them
+    expect(state.theorist.day.events).toEqual({ 'algo:studied': 20, retrieval: 50 });
+    expect(state.theorist.day.dayType).toBe('light');
+    expect(state.theorist.mastery).toEqual({
+      'COS 226': { level: 0.75, reviewedAt: 1734300000000 },
+      'MIT 6.006': { level: 0, reviewedAt: 1734300000001 },
+    });
+    // and they survive a full export → import round-trip
+    const r = roundTrip(state);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.theorist.day.events).toEqual({ 'algo:studied': 20, retrieval: 50 });
+    expect(r.state.theorist.day.dayType).toBe('light');
+    expect(r.state.theorist.mastery).toEqual({
+      'COS 226': { level: 0.75, reviewedAt: 1734300000000 },
+      'MIT 6.006': { level: 0, reviewedAt: 1734300000001 },
+    });
+  });
+
+  it('theorist normalise drops malformed mastery entries and clamps level to [0,1]', () => {
+    const state = normaliseState({
+      theorist: {
+        banked: {},
+        day: { date: '', blocks: {}, scores: {}, banked: false },
+        mastery: {
+          good: { level: 1.7, reviewedAt: 100 },       // level clamped to 1
+          noAt: { level: 0.5 },                          // missing reviewedAt → dropped
+          badAt: { level: 0.5, reviewedAt: 'nope' },     // non-finite reviewedAt → dropped
+          badLvl: { level: 'x', reviewedAt: 100 },       // non-finite level → dropped
+        },
+      },
+    } as unknown as AppState);
+    expect(state.theorist.mastery).toEqual({ good: { level: 1, reviewedAt: 100 } });
+  });
+
 });
 
 describe('round-trip serialisation', () => {

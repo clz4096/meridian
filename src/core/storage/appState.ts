@@ -357,12 +357,17 @@ export function createAppState(deps: AppStateDeps): AppState {
   // node/private-mode never throws.
   const LEGACY_TRACKER_KEY = 'meridian.tracker.v1';
   const THEORIST_MIGRATED_KEY = 'meridian.theorist.migrated';
+  // Phase 3: the pre-sync per-course checkbox blob and its one-shot migration
+  // marker. Folds into the nested (synced) `mastery` map; the local key is never
+  // deleted.
+  const CURRICULUM_KEY = 'meridian.curriculum.v1';
+  const MASTERY_MIGRATED_KEY = 'meridian.mastery.migrated';
   const ls = (): Storage | null => (typeof localStorage !== 'undefined' ? localStorage : null);
   const localTodayISO = (): string => {
     const d = new Date(deps.now());
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
-  const freshTheoristDay = (): Store => ({ date: '', blocks: {}, scores: {}, banked: false });
+  const freshTheoristDay = (): Store => ({ date: '', blocks: {}, scores: {}, banked: false, events: {} });
 
   async function loadTheorist(): Promise<Store> {
     const s = await deps.storeGet(deps.keys.theorist);
@@ -377,6 +382,11 @@ export function createAppState(deps: AppStateDeps): AppState {
     }
     if (!tg.banked || typeof tg.banked !== 'object') tg.banked = {};
     if (!tg.day || typeof tg.day !== 'object') tg.day = freshTheoristDay();
+    // Phase 2 (additive): default a missing `day.events` to `{}` so downstream
+    // XP math never touches undefined; leave `dayType` undefined. Both are
+    // absent-tolerant in merge/projection, so no new migration marker is needed
+    // and the legacy fold below is untouched.
+    if (tg.day.events == null || typeof tg.day.events !== 'object') tg.day.events = {};
 
     // One-shot fold-in of the pre-sync `meridian.tracker.v1` blob. Runs only when
     // the durable store is still empty AND the migration has never been marked
@@ -424,6 +434,43 @@ export function createAppState(deps: AppStateDeps): AppState {
       // marker must survive a resetAll (durable empty + reset epoch) so a reset
       // is never undone by a re-import.
       try { store.setItem(THEORIST_MIGRATED_KEY, new Date(deps.now()).toISOString()); } catch { /* best effort */ }
+    }
+
+    // One-shot fold-in of the pre-sync `meridian.curriculum.v1` per-course
+    // checkboxes into the nested `mastery` map. Mirrors the legacy fold above:
+    // guarded by its own marker so it never doubles up (e.g. after a resetAll,
+    // which also empties `mastery`), and it never deletes the local key. A
+    // checked course seeds level 1, an unchecked one level 0, both stamped with
+    // `now` as `reviewedAt`. Existing mastery keys are never clobbered.
+    const masteryMigrated = store ? store.getItem(MASTERY_MIGRATED_KEY) != null : false;
+    if (!masteryMigrated && store) {
+      let checks: Record<string, unknown> | null = null;
+      try {
+        const raw = store.getItem(CURRICULUM_KEY);
+        if (raw) checks = JSON.parse(raw);
+      } catch {
+        checks = null;
+      }
+      if (checks && typeof checks === 'object' && !Array.isArray(checks)) {
+        const now = deps.now();
+        const mastery: Record<string, { level: number; reviewedAt: number }> =
+          tg.mastery && typeof tg.mastery === 'object' ? { ...tg.mastery } : {};
+        let folded = false;
+        for (const [code, done] of Object.entries(checks)) {
+          if (mastery[code]) continue; // never clobber a synced value
+          mastery[code] = { level: done === true ? 1 : 0, reviewedAt: now };
+          folded = true;
+        }
+        // Persist durably BEFORE the marker (same crash-safety ordering as the
+        // legacy fold): a crash between the two re-runs the harmless fold rather
+        // than orphaning the checkboxes behind a set marker.
+        if (folded) {
+          tg.mastery = mastery;
+          deps.write('theorist', tg);
+          markTheoristDirty();
+        }
+      }
+      try { store.setItem(MASTERY_MIGRATED_KEY, new Date(deps.now()).toISOString()); } catch { /* best effort */ }
     }
     return tg;
   }

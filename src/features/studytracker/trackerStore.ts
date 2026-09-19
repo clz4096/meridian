@@ -2,8 +2,10 @@
  * Study Tracker ("The Princeton Theorist").
  *
  * Ported from ~/Brainstorm/meridian-tabs/princeton-theorist.html. This is a
- * gamified daily-study instrument: tick schedule blocks to bank XP, score the
- * day 0/1/2 to fill five meters, and keep a 7-day streak.
+ * gamified daily-study instrument. Post-Phase-2 the graded 0/1/2 scorecard is
+ * the SINGLE daily input: it fills five meters AND earns the day's XP. The
+ * schedule blocks are a 0-XP hygiene/timeline checklist (the day's shape); keep
+ * a 7-day streak.
  *
  * The signal still speaks the legacy `{ cumXP, logged, day }` shape the view
  * renders, but state is now BACKED by the synced `theorist` store (see
@@ -19,9 +21,11 @@ import { appState } from '@/app/bootstrap';
 
 export interface TrackerDay {
   date: string; // ISO yyyy-mm-dd
-  blocks: Record<string, boolean>; // schedule id → ticked
-  scores: Record<string, number>; // score id → 0 | 1 | 2
+  blocks: Record<string, boolean>; // schedule id → ticked (0-XP hygiene/timeline)
+  scores: Record<string, number>; // score id → 0 | 1 | 2 (the graded, XP-earning log)
   banked: boolean; // today's XP already added to cumXP
+  events?: Record<string, number>; // per-day economy credits by event id (Phase 3)
+  dayType?: 'full' | 'light'; // whether today is a full or light day
 }
 export interface TrackerState {
   cumXP: number;
@@ -48,7 +52,8 @@ export interface Block {
   xp: number;
   gym?: boolean;
 }
-/** The day, Eastern Time. Ticking a block banks its XP for today. */
+/** The day, Eastern Time. Blocks are a 0-XP hygiene/timeline checklist — the
+ *  day's shape — not the XP source; XP is earned from the graded scorecard. */
 export const SCHEDULE: readonly Block[] = [
   { id: 'b1', time: '9:00 AM', title: 'Wake, water, 10-min move', sub: 'Rested, up without a third alarm', xp: 20 },
   { id: 'b2', time: '9:15 AM', title: 'Morning ritual', sub: '2–3 lines on why it matters; 3 if-then quests', xp: 5 },
@@ -100,7 +105,7 @@ export function todayISO(d: Date = new Date()): string {
 }
 
 function freshDay(): TrackerDay {
-  return { date: todayISO(), blocks: {}, scores: {}, banked: false };
+  return { date: todayISO(), blocks: {}, scores: {}, banked: false, events: {} };
 }
 
 const ISO_DATE = /^\d{4}-\d\d-\d\d$/;
@@ -129,7 +134,11 @@ function project(t: TheoristState): TrackerState {
   let cumXP = 0;
   for (const v of Object.values(banked)) if (typeof v === 'number') cumXP += v;
   const logged = Object.keys(banked).filter((k) => ISO_DATE.test(k));
-  return { cumXP, logged, day: t.day ?? freshDay() };
+  // Defensive: an old-shape day (loaded before Phase 2) has no `events`.
+  // Normalise it to `{}` so downstream XP math and the view never touch
+  // undefined. `dayType` stays undefined when absent.
+  const day = t.day ?? freshDay();
+  return { cumXP, logged, day: { ...day, events: day.events ?? {} } };
 }
 
 export const trackerState = signal<TrackerState>(project(readStore()));
@@ -141,26 +150,107 @@ export function syncTrackerFromStore(): void {
 
 /** Persist a next `TheoristState`, re-project the signal, and mark the store dirty. */
 function commit(next: TheoristState): void {
-  appState.set('theorist', next as unknown as Record<string, unknown>);
-  trackerState.value = project(next);
+  // Default `day.events` to `{}` on every write (leave `dayType` untouched) so
+  // the persisted shape is always Phase-2 canonical. Absent-tolerant in merge,
+  // so no migration marker is needed.
+  const norm: TheoristState = { ...next, day: { ...next.day, events: next.day.events ?? {} } };
+  appState.set('theorist', norm as unknown as Record<string, unknown>);
+  trackerState.value = project(norm);
   appState.markTheoristDirty();
 }
 
-/** Roll the day over if the app has been open past midnight. Safe to call often. */
+/**
+ * Auto Light-Sabbath heuristic: is `d` (LOCAL time) inside the approximate
+ * Sabbath window — Friday 6:00 PM through Saturday 8:00 PM local? Sundown is not
+ * computed exactly; this is a documented approximation, and a manual Full/Light
+ * toggle always overrides it.
+ */
+export function inSabbathWindow(d: Date = new Date()): boolean {
+  const wd = d.getDay(); // 0 Sun … 5 Fri, 6 Sat
+  const h = d.getHours();
+  if (wd === 5 && h >= 18) return true; // Friday evening
+  if (wd === 6 && h < 20) return true;  // Saturday until 8 PM
+  return false;
+}
+
+/**
+ * Roll the day over if the app has been open past midnight, and apply the auto
+ * Light-Sabbath: when `dayType` is unset and the local clock is in the Sabbath
+ * window, mark today `'light'`. Safe to call often; a set `dayType` (manual or
+ * already-auto) is never overwritten. */
 export function ensureToday(): void {
   const t = readStore();
-  if (t.day.date !== todayISO()) {
-    commit({ ...t, day: freshDay(), dayTouchedAt: Date.now() });
+  const now = new Date();
+  if (t.day.date !== todayISO(now)) {
+    const day = freshDay();
+    if (inSabbathWindow(now)) day.dayType = 'light';
+    commit({ ...t, day, dayTouchedAt: Date.now() });
+    return;
+  }
+  if (t.day.dayType === undefined && inSabbathWindow(now)) {
+    commit({ ...t, day: { ...t.day, dayType: 'light' }, dayTouchedAt: Date.now() });
   }
 }
 
 /* ── pure derivations ── */
-export function blockXP(id: string): number {
-  const b = SCHEDULE.find((r) => r.id === id);
-  return b ? b.xp : 0;
+
+/**
+ * Per-SCORE-item XP unit (a TUNABLE default). XP for an item = score × unit,
+ * where score ∈ {0,1,2} (Missed/Partial/Met). Deep-work items earn double the
+ * routine/logistics items, but routine items still earn (logistics XP is KEPT):
+ *  - Deep    (s2,s3,s4,s5,s6): unit 10 → Partial 10, Met 20.
+ *  - Routine (s1,s7,s8,s9,s10): unit  5 → Partial  5, Met 10.
+ * An item absent from this table earns 0.
+ */
+export const SCORE_UNIT: Readonly<Record<string, number>> = {
+  s2: 10, s3: 10, s4: 10, s5: 10, s6: 10, // deep work
+  s1: 5, s7: 5, s8: 5, s9: 5, s10: 5, // routine / logistics
+};
+
+/**
+ * Phase 3 economy weights (TUNABLE). These ride ON TOP of the per-item
+ * scorecard XP (routine items still earn) and flow into `dayXP` through
+ * `day.events`. Retrieval is by design the STRICTLY highest-paid event: cold
+ * reconstruction from memory is the behaviour worth the most. Every `creditEvent`
+ * is max-merged per id, so a same-day repeat can't double-pay.
+ */
+export const EVENT_WEIGHTS = {
+  /** Retrieval / spaced-return reconstruction success — strictly the top payout. */
+  retrieval: 50,
+  /** Paper pass-3 "reproduce" completed. */
+  paperReproduce: 30,
+  /** A curriculum topic reviewed / re-derived (pset/course retrieval). */
+  topicReview: 25,
+  /** Algorithm-of-the-day studied. */
+  algoStudied: 20,
+  /** A journal entry saved (written, not reconstructed). */
+  journalSave: 10,
+} as const;
+
+/** Mastery half-life in days (TUNABLE). A reviewed topic decays to level/2 after this long. */
+export const HALF_LIFE_DAYS = 30;
+const HALF_LIFE = HALF_LIFE_DAYS * 86_400_000; // ms
+
+/** Weekly-session target for the ring (TUNABLE). */
+export const WEEKLY_TARGET = 4;
+
+/** Blocks are a 0-XP hygiene/timeline checklist post-Phase-2, never an XP source. */
+export function blockXP(_id: string): number {
+  return 0;
 }
+
+/**
+ * Today's XP, now derived from the graded scorecard (the single daily input),
+ * not block ticks: Σ over SCORE items of `score × SCORE_UNIT[id]`, plus the
+ * face-value sum of `day.events` (wired in Phase 3; default {} ⇒ contributes 0).
+ * Historical `banked` days are frozen and never recomputed with this formula.
+ */
 export function dayXP(day: TrackerDay): number {
-  return Object.keys(day.blocks).reduce((t, id) => (day.blocks[id] ? t + blockXP(id) : t), 0);
+  let xp = 0;
+  for (const s of SCORE) xp += (day.scores[s.id] || 0) * (SCORE_UNIT[s.id] ?? 0);
+  const events = day.events ?? {};
+  for (const v of Object.values(events)) if (typeof v === 'number') xp += v;
+  return xp;
 }
 export function levelIndex(cumXP: number): number {
   let idx = 0;
@@ -169,6 +259,18 @@ export function levelIndex(cumXP: number): number {
 }
 export function scoreTotal(day: TrackerDay): number {
   return SCORE.reduce((t, s) => t + (day.scores[s.id] || 0), 0);
+}
+/**
+ * Meter fill %, 0..100, over the score `ids` feeding it. A score is UNRATED
+ * when its key is absent from `day.scores`; unrated items are excluded from the
+ * denominator so an unstarted day reads 0% (empty) instead of all-missed. An
+ * explicit 0 ("Missed") counts. `pct = round(sum(rated)/(rated*2)*100)`.
+ */
+export function meterPct(day: TrackerDay, ids: readonly string[]): number {
+  const rated = ids.filter((id) => day.scores[id] !== undefined);
+  if (!rated.length) return 0;
+  const sum = rated.reduce((t, id) => t + (day.scores[id] || 0), 0);
+  return Math.round((sum / (rated.length * 2)) * 100);
 }
 /** Last 7 calendar days (oldest→today) with an on/today flag from `logged`. */
 export function streakDays(logged: string[]): Array<{ iso: string; on: boolean; today: boolean }> {
@@ -235,6 +337,122 @@ export function resetDay(): void {
  *  propagates across devices instead of union-resurrecting on the next merge. */
 export function resetAll(): void {
   commit({ banked: {}, day: freshDay(), dayTouchedAt: Date.now(), resetAt: Date.now() });
+}
+
+/* ── Phase 3: economy, decaying mastery, weekly ring ── */
+
+/**
+ * Credit a per-day economy event by id (idempotent, max-merged). Event ids are
+ * per-day-scoped by construction — `day.events` resets with the day — and
+ * namespaced, so a same-day repeat of the same id can't double-pay: the stored
+ * credit is `max(existing, xp)`. Flows into `dayXP` via `day.events`.
+ */
+export function creditEvent(id: string, xp: number): void {
+  const t = readStore();
+  const prev = t.day.events?.[id] ?? 0;
+  const next = Math.max(prev, xp);
+  const events = { ...(t.day.events ?? {}), [id]: next };
+  commit({ ...t, day: { ...t.day, events }, dayTouchedAt: Date.now() });
+}
+
+/** Set today's day-type (manual Full/Light override). */
+export function setDayType(dt: 'full' | 'light'): void {
+  const t = readStore();
+  commit({ ...t, day: { ...t.day, dayType: dt }, dayTouchedAt: Date.now() });
+}
+
+/**
+ * Current, decayed mastery for a topic in [0,1]. FSRS-style exponential decay:
+ * `level * 0.5 ** ((now - reviewedAt)/HALF_LIFE)`. An absent topic reads 0.
+ */
+export function currentMastery(topicId: string, now: number = Date.now()): number {
+  const m = readStore().mastery?.[topicId];
+  // A record missing/garbage `level` or `reviewedAt` would make the decay NaN
+  // (and NaN survives both clamps → a NaN-width meter bar); treat it as 0.
+  if (!m || !Number.isFinite(m.level) || !Number.isFinite(m.reviewedAt)) return 0;
+  const decayed = m.level * Math.pow(0.5, (now - m.reviewedAt) / HALF_LIFE);
+  return decayed < 0 ? 0 : decayed > 1 ? 1 : decayed;
+}
+
+/**
+ * Mastery-only update: reset a topic to a full level 1 at now. Persists + marks
+ * dirty via `commit`, but credits NO economy event. This is the primitive the
+ * spaced-return path uses so it can pay the single top retrieval event (50)
+ * WITHOUT also stacking the topic-review credit — keeping retrieval the strictly
+ * highest single payout.
+ */
+export function markTopicReviewed(topicId: string): void {
+  const t = readStore();
+  const mastery = { ...(t.mastery ?? {}), [topicId]: { level: 1, reviewedAt: Date.now() } };
+  commit({ ...t, mastery, dayTouchedAt: Date.now() });
+}
+
+/**
+ * Mark a topic reviewed / re-derived from the Curriculum list: reset its mastery
+ * to a full level 1 at now, and credit the topic-review event (25). Persists +
+ * marks dirty via `commit`; both changes land in a single write.
+ */
+export function reviewTopic(topicId: string): void {
+  const t = readStore();
+  const now = Date.now();
+  const mastery = { ...(t.mastery ?? {}), [topicId]: { level: 1, reviewedAt: now } };
+  const eid = 'topic:' + topicId;
+  const prev = t.day.events?.[eid] ?? 0;
+  const events = { ...(t.day.events ?? {}), [eid]: Math.max(prev, EVENT_WEIGHTS.topicReview) };
+  commit({ ...t, mastery, day: { ...t.day, events }, dayTouchedAt: now });
+}
+
+/**
+ * The stalest reviewed topic: the one with the LOWEST current (decayed) mastery
+ * that has fallen below 0.5 ("no longer reconstructable"). Returns null when no
+ * tracked topic has gone stale. Only topics with a mastery record are
+ * considered — a never-reviewed topic isn't "going stale".
+ */
+export function stalestTopic(now: number = Date.now()): { id: string; level: number } | null {
+  const m = readStore().mastery ?? {};
+  let best: { id: string; level: number } | null = null;
+  for (const id of Object.keys(m)) {
+    const level = currentMastery(id, now);
+    // `level > 0` excludes never-reviewed / migrated-unchecked (seeded level 0)
+    // topics — you can't "reconstruct from memory" something never studied, and
+    // a level-0 entry would otherwise always win. Only once-reviewed topics that
+    // have decayed below the reconstructable line surface here.
+    if (level > 0 && level < 0.5 && (best === null || level < best.level)) best = { id, level };
+  }
+  return best;
+}
+
+/** Does today qualify as a weekly session? A light day clears a lower bar. */
+function todayIsSession(day: TrackerDay): boolean {
+  const hasScore = Object.keys(day.scores ?? {}).length > 0;
+  const hasEvent = Object.values(day.events ?? {}).some((v) => typeof v === 'number' && v > 0);
+  if (day.dayType === 'light') {
+    const hasBlock = Object.values(day.blocks ?? {}).some(Boolean);
+    return hasScore || hasEvent || hasBlock;
+  }
+  return hasScore || hasEvent;
+}
+
+/**
+ * Weekly sessions: how many of the trailing 7 local days (including today) count
+ * as a study session. A past day counts when it was banked (a real ISO key in
+ * `banked`). Today also counts when it clears the session bar even before it is
+ * banked — a light/Sabbath day clears a lower bar (any score, event, or block).
+ */
+export function weeklySessions(now: number = Date.now()): number {
+  const t = readStore();
+  const banked = t.banked ?? {};
+  const todayIso = todayISO(new Date(now));
+  let count = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const iso = todayISO(d);
+    if (!ISO_DATE.test(iso)) continue;
+    if (iso in banked) { count++; continue; }
+    if (iso === todayIso && t.day.date === todayIso && todayIsSession(t.day)) count++;
+  }
+  return count;
 }
 
 /** Glanceable summary for Today's at-a-glance tile. */

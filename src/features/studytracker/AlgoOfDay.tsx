@@ -9,15 +9,18 @@ import { useState } from 'preact/hooks';
 import { ALGORITHMS, algoOfDay } from '@/features/studytracker/algorithms';
 import { ALGO_PROOFS } from '@/features/studytracker/algoProofs';
 import { Collapsible } from '@/features/studytracker/Collapsible';
+import { trackerState, creditEvent, EVENT_WEIGHTS } from '@/features/studytracker/trackerStore';
 
 export function AlgoOfDay() {
   const today = algoOfDay();
   const [selId, setSelId] = useState(today.id);
   const [lang, setLang] = useState<'cpp' | 'python'>('cpp');
   const cur = ALGORITHMS.find((a) => a.id === selId) ?? today;
+  // Subscribe so the button reflects today's credited state (events reset daily).
+  const studied = (trackerState.value.day.events?.['algo:studied'] ?? 0) > 0;
 
   return (
-    <Collapsible id="algo" eyebrow="Practice" title="Algorithm of the day" defaultOpen={true}>
+    <Collapsible id="algo" eyebrow="Practice" title="Algorithm of the day" defaultOpen={false}>
       <p class="hint">One algorithm a day, from first principles: C++ first, then ported to Python; rigorous and formal, but in plain English. Rotates daily; tap any to browse.</p>
 
       <div class="algo-pills">
@@ -90,6 +93,17 @@ export function AlgoOfDay() {
               <span class="algo-prob-note">{pr.note}</span>
             </a>
           ))}
+        </div>
+
+        <div class="algo-studied">
+          <button
+            class={'primary' + (studied ? ' banked' : '')}
+            type="button"
+            aria-pressed={studied}
+            onClick={() => creditEvent('algo:studied', EVENT_WEIGHTS.algoStudied)}
+          >
+            {studied ? 'Studied ✓' : 'Studied ✓ — mark today'}
+          </button>
         </div>
       </div>
     </Collapsible>

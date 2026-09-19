@@ -174,6 +174,15 @@ const EMPTY_THEORIST: TheoristState = { banked: {}, day: { date: '', blocks: {},
  * `banked` is a grow-only map: keys only ever added and values only ever rise
  * (per-key `Math.max`), except when a strictly-greater `resetAt` empties it.
  * `day` is picked by the later ISO date, or unioned (OR/max) on a tie.
+ *
+ * Phase 2 adds two ADDITIVE, absent-safe day fields: `events` (per-key max
+ * union) and `dayType` (LWW by `dayTouchedAt`, tie → 'light'). On different
+ * dates both ride with the winning `day`; a `resetAt` wipe drops them with the
+ * day (EMPTY_THEORIST carries neither).
+ *
+ * Phase 3 adds a TOP-LEVEL, absent-safe `mastery` map merged per-topic LWW by
+ * the larger `reviewedAt` (tie → larger `level`). It is date-independent (unlike
+ * `day`) and a `resetAt` wipe clears it with the stale side.
  */
 export function mergeTheorist(local: TheoristState, remote: TheoristState, _localWins: boolean): TheoristState {
   const lEpoch = toNum(local.resetAt, 0);
@@ -209,7 +218,38 @@ export function mergeTheorist(local: TheoristState, remote: TheoristState, _loca
       const rv = rd.scores?.[k];
       scores[k] = lv === undefined ? rv! : rv === undefined ? lv : Math.max(lv, rv);
     }
-    day = { date: ld.date, blocks, scores, banked: !!(ld.banked || rd.banked) };
+    // events (Phase 3, additive): per-key max union, absent-safe. Only present
+    // when at least one side carried the field, so an old-shape day (no events)
+    // merges to an old-shape day. Max is an idempotent lattice op → CRDT-safe.
+    let events: Record<string, number> | undefined;
+    if (ld.events || rd.events) {
+      events = {};
+      for (const k of new Set([...Object.keys(ld.events ?? {}), ...Object.keys(rd.events ?? {})])) {
+        const lv = ld.events?.[k];
+        const rv = rd.events?.[k];
+        events[k] = lv === undefined ? rv! : rv === undefined ? lv : Math.max(lv, rv);
+      }
+    }
+    // dayType (additive): absent-safe LWW by dayTouchedAt. Equal values need no
+    // tiebreak (keeps it idempotent even though dayTouchedAt converges to the
+    // max); a touch tie between DIFFERING values prefers 'light' (deterministic
+    // ⇒ commutative).
+    const ldt = ld.dayType;
+    const rdt = rd.dayType;
+    let dayType: 'full' | 'light' | undefined;
+    if (ldt === undefined) dayType = rdt;
+    else if (rdt === undefined) dayType = ldt;
+    else if (ldt === rdt) dayType = ldt;
+    else if (lTouched !== rTouched) dayType = lTouched > rTouched ? ldt : rdt;
+    else dayType = 'light';
+    day = {
+      date: ld.date,
+      blocks,
+      scores,
+      banked: !!(ld.banked || rd.banked),
+      ...(events ? { events } : {}),
+      ...(dayType ? { dayType } : {}),
+    };
     dayTouchedAt = Math.max(lTouched, rTouched);
   } else {
     // Different dates. The '' EMPTY sentinel always loses to a real day.
@@ -228,10 +268,29 @@ export function mergeTheorist(local: TheoristState, remote: TheoristState, _loca
     dayTouchedAt = Math.max(lTouched, rTouched);
   }
 
+  // mastery (Phase 3, additive, TOP-LEVEL): per-topic LWW by the LARGER
+  // `reviewedAt`. Only present when at least one (current-epoch) side carried
+  // it, so an old-shape store stays old-shape and a reset wipe drops it with the
+  // stale side (EMPTY_THEORIST carries no mastery). A `reviewedAt` tie takes the
+  // larger `level` — deterministic, so the result is commutative + idempotent.
+  let mastery: TheoristState['mastery'];
+  if (l.mastery || r.mastery) {
+    mastery = {};
+    for (const k of new Set([...Object.keys(l.mastery ?? {}), ...Object.keys(r.mastery ?? {})])) {
+      const lv = l.mastery?.[k];
+      const rv = r.mastery?.[k];
+      if (lv === undefined) { mastery[k] = rv!; continue; }
+      if (rv === undefined) { mastery[k] = lv; continue; }
+      if (lv.reviewedAt !== rv.reviewedAt) mastery[k] = lv.reviewedAt > rv.reviewedAt ? lv : rv;
+      else mastery[k] = lv.level >= rv.level ? lv : rv;
+    }
+  }
+
   return {
     banked,
     day,
     ...(dayTouchedAt > 0 ? { dayTouchedAt } : {}),
+    ...(mastery ? { mastery } : {}),
     ...(epoch > 0 ? { resetAt: epoch as Millis } : {}),
   };
 }

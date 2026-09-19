@@ -5,6 +5,7 @@
  */
 import { useState } from 'preact/hooks';
 import { journalEntries, addEntry, deleteEntry } from '@/features/studytracker/proofJournalStore';
+import { creditEvent, EVENT_WEIGHTS } from '@/features/studytracker/trackerStore';
 import { host } from '@/ui/host';
 import { Collapsible } from '@/features/studytracker/Collapsible';
 
@@ -15,11 +16,23 @@ export function ProofJournal() {
   const entries = journalEntries.value; // subscribe
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [recon, setRecon] = useState(false);
 
   const save = (): void => {
-    if (addEntry(title, body)) {
+    if (addEntry(title, body, recon)) {
+      // Saving a journal entry is a small credit; a reconstructed (cold-recall)
+      // entry additionally pays the top retrieval payout. The retrieval credit is
+      // keyed by the new entry's id (newest is first) so a second distinct
+      // reconstruction the same day still pays, while a repeat of the same entry
+      // can't double-pay (max per id). journal:save stays a fixed once-a-day id.
+      creditEvent('journal:save', EVENT_WEIGHTS.journalSave);
+      if (recon) {
+        const id = journalEntries.value[0]?.id;
+        if (id) creditEvent('journal:retrieval:' + id, EVENT_WEIGHTS.retrieval);
+      }
       setTitle('');
       setBody('');
+      setRecon(false);
     }
   };
 
@@ -42,6 +55,10 @@ export function ProofJournal() {
           value={body}
           onInput={(e) => setBody((e.target as HTMLTextAreaElement).value)}
         />
+        <label class="pj-recon">
+          <input type="checkbox" checked={recon} onInput={(e) => setRecon((e.target as HTMLInputElement).checked)} />
+          <span>Reconstructed from memory (retrieval)</span>
+        </label>
         <div class="pj-actions">
           <button class="primary" type="button" onClick={save} disabled={!title.trim() && !body.trim()}>Save entry</button>
         </div>
@@ -55,6 +72,7 @@ export function ProofJournal() {
             <div class="pj-entry" key={e.id}>
               <div class="pj-entry-head">
                 <span class="pj-entry-title">{e.title}</span>
+                {e.reconstructed && <span class="pj-recon-badge">retrieval</span>}
                 <span class="pj-entry-date">{fmtDate(e.at)}</span>
                 <button
                   class="pj-del"
