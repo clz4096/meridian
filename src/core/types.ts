@@ -241,10 +241,36 @@ export interface KnowledgeState {
 export interface TheoristState {
   /** ISO date (or the reserved "__carry") -> XP banked that day. */
   banked: Record<string, number>;
-  /** Today's in-progress scorecard. */
-  day: { date: string; blocks: Record<string, boolean>; scores: Record<string, number>; banked: boolean };
+  /**
+   * Today's in-progress scorecard. Post-Phase-2, `blocks` are 0-XP
+   * hygiene/timeline ticks (the day's shape); `scores` is the graded day-log
+   * that drives XP AND the meters. Two ADDITIVE optional fields:
+   *  - `events`: per-day economy credits by event id (wired in Phase 3;
+   *    absent ⇒ contributes 0). Merged per-key `max`, absent-safe.
+   *  - `dayType`: whether today is a `'full'` or `'light'` day. Merged LWW by
+   *    `dayTouchedAt`; on a tie prefer `'light'` (deterministic ⇒ commutative).
+   * Both ride with the winning `day` when the two sides carry different dates.
+   */
+  day: {
+    date: string;
+    blocks: Record<string, boolean>;
+    scores: Record<string, number>;
+    banked: boolean;
+    events?: Record<string, number>;
+    dayType?: 'full' | 'light';
+  };
   /** LWW tiebreak for `day` when the two sides carry different dates. */
   dayTouchedAt?: Millis;
+  /**
+   * Per-topic decaying mastery (Phase 3), keyed by curriculum code. TOP-LEVEL —
+   * mastery persists across days, unlike `day`. `level` is the mastery at the
+   * moment of `reviewedAt` (epoch ms), clamped to [0,1]; the *current* value is
+   * `level * 0.5 ** ((now - reviewedAt)/HALF_LIFE)` (FSRS-style decay). Merged
+   * per-topic LWW by the LARGER `reviewedAt` (level rides with the newest
+   * review; a `reviewedAt` tie takes the larger `level`, deterministic ⇒
+   * commutative). Absent-safe; a `resetAt` wipe clears it (EMPTY carries none).
+   */
+  mastery?: Record<string, { level: number; reviewedAt: Millis }>;
   /** Monotonic reset epoch (mirrors {@link KnowledgeState.resetAt}). */
   resetAt?: Millis;
 }
@@ -274,6 +300,8 @@ export interface ExercisePlan {
   autoDeload: boolean;
   /** rep ceiling for this exercise's class (compound vs isolation) */
   repHigh: number;
+  /** reps to hit at `top.weight` to earn the next bump (double-progression goal) */
+  targetReps: number;
   /**
    * True when the load already sits below one increment, so a deload cannot
    * lower it further without prescribing zero. In this case `top.weight`
@@ -339,11 +367,16 @@ export interface ProgressionConfig {
   repsAfterBumpIsolation: number;
   /** consecutive sessions without an estimated-1RM improvement before an auto-deload */
   stallSessions: number;
-  /** per-lift gap (days) that triggers a mild layoff deload; a longer gap deloads more */
+  /** per-lift gap (days) beyond which a long layoff triggers a single deload off best */
   gapRepeatDays: number;
   gapDeloadDays: number;
-  /** deload multiplier for a short layoff (milder than the full `deloadFactor`) */
+  /**
+   * Reserved (unused by buildPlan). The graduated mild-layoff deload was removed:
+   * moderate gaps no longer suppress a bump, so there is no longer a "mild" tier.
+   */
   layoffMildFactor: number;
+  /** sessions the best-recent recovery anchor looks back over (double-progression cap) */
+  recoveryWindow: number;
   /** per-exercise e1RM ratio (actual/prescribed) thresholds for the day's effort grade */
   effortStrong: number;
   effortModerate: number;
@@ -383,6 +416,7 @@ export const DEFAULT_CONFIG: ProgressionConfig = {
   gapRepeatDays: 4,
   gapDeloadDays: 7,
   layoffMildFactor: 0.95,
+  recoveryWindow: 8,
   effortStrong: 1.0,
   effortModerate: 0.95,
   sessionStrong: 0.85,

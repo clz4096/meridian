@@ -120,6 +120,13 @@ export const workoutActions: WorkoutActions = {
     // any logged history of its own to read a muscle from.
     const muscle = m.muscle || AWAY_START[ex]?.muscle || '';
     W.days[td].push({ id: uid(), ex, muscle, group: m.group || '', type, weight, reps });
+    // One-shot manual deload: once today's TOP set is logged, clear the flag so the
+    // eased prescription isn't re-applied on the next render (buildPlan also guards
+    // on the logged top, but clearing keeps the toggle's UI state honest).
+    if (type === 'top' && st.wkDeload.value[ex]) {
+      const { [ex]: _drop, ...rest } = st.wkDeload.value;
+      st.wkDeload.value = rest;
+    }
     appState.markWorkoutDirty();
     // auto-complete: tick the exercise once every prescribed set is in. Use the SAME
     // plannedSetCount the completion check reads (isExerciseComplete) so the two can't

@@ -19,6 +19,7 @@ import {
 import {
   allExercises,
   bandScore,
+  bestRecentTopWeight,
   buildPlan,
   canonicalSlot,
   dayGrade,
@@ -33,7 +34,9 @@ import {
   isSessionComplete,
   isStalled,
   repCeiling,
+  repsAfterBumpFor,
   restSeconds,
+  roundDownTo,
   selectWorkoutView,
   sessionEffort,
   splitOfDate,
@@ -196,7 +199,10 @@ describe('progression invariant', () => {
           // already excluded by the plan.deload guard below alongside stalls and manual deloads.
           if (!plan || plan.cardio || plan.deload) continue;
           if (plan.bumped) {
-            expect(plan.lastTopReps).toBeGreaterThanOrEqual(plan.repHigh);
+            // A bump follows EITHER reaching the ceiling (normal) OR clearing the class
+            // reset floor while below the recent best (recovery). The plan doesn't expose
+            // `best`, so assert the weaker floor bound that covers both.
+            expect(plan.lastTopReps).toBeGreaterThanOrEqual(repsAfterBumpFor(state, ex, DEFAULT_CONFIG));
           } else {
             expect(plan.top.weight).toBe(plan.lastTopWeight);
             expect(plan.lastTopReps).toBeLessThan(plan.repHigh);
@@ -221,14 +227,19 @@ describe('progression invariant', () => {
     );
   });
 
-  it('a deload never prescribes more than the previous top weight', () => {
+  it('a deload never prescribes more than the recovery-anchor best', () => {
     fc.assert(
       fc.property(arbWorkoutState, arbDate, (state, date) => {
         for (const ex of allExercises(state)) {
           const plan = buildPlan(state, ex, date, { deload: { [ex]: true } });
           if (!plan || plan.cardio) continue;
-          expect(plan.top.weight).toBeLessThanOrEqual(plan.lastTopWeight);
-          expect(plan.bumped).toBe(false);
+          // A manual deload is a one-shot: it may not fire if today's top is already
+          // logged, so only assert the bound on a plan that actually deloaded.
+          if (!plan.deload) continue;
+          // The cut anchors on best (derived), clamped to the current working weight,
+          // so it never rises above best — the invariant that kills the geometric decay.
+          const best = bestRecentTopWeight(state, ex, date) ?? plan.lastTopWeight;
+          expect(plan.top.weight).toBeLessThanOrEqual(best);
         }
       }),
       opts,
@@ -258,16 +269,24 @@ describe('increment invariant', () => {
             expect(isMultipleOf(s.weight, step)).toBe(true);
           }
           // The top set is a multiple of the increment whenever it was actually
-          // recomputed. It legitimately is not in two cases, both of which
-          // preserve the user's real working weight rather than distorting it:
+          // recomputed. It legitimately is not in three cases, all of which
+          // preserve a real, previously-lifted weight rather than distorting it:
           //   - holding: it echoes exactly what was lifted (e.g. 47.5 on a 5 lb bar)
           //   - atMinimum: the load is below one increment, so a deload would
           //     round to zero; the plan floors to the previous weight instead.
-          if ((plan.bumped || plan.deload) && !plan.atMinimum) {
+          //   - recovery bump capped at best: Math.min(stepped, best) can echo an
+          //     off-grid best (a real prior top set), same justification as a hold.
+          const best = bestRecentTopWeight(state, ex, date) ?? plan.lastTopWeight;
+          const belowBest = plan.lastTopWeight < best - 1e-9;
+          const recoveryCapped = plan.bumped && belowBest;
+          if ((plan.bumped || plan.deload) && !plan.atMinimum && !recoveryCapped) {
             expect(isMultipleOf(plan.top.weight, step)).toBe(true);
-          } else {
-            expect(plan.top.weight).toBe(plan.lastTopWeight);
+          } else if (!plan.bumped && !plan.deload) {
+            expect(plan.top.weight).toBe(plan.lastTopWeight); // hold echoes the logged weight
+          } else if (plan.atMinimum) {
+            expect(plan.top.weight).toBe(plan.lastTopWeight); // deload floored below one increment
           }
+          // recoveryCapped: exempt — it echoes a real logged best, not snapped to grid.
         }
       }),
       opts,
@@ -792,24 +811,31 @@ describe('deload does not spiral', () => {
   });
 });
 
-describe('time off (layoff) handling — graduated', () => {
-  const hist = [{ date: D(0), ex: 'Bench Press', weight: 135, reps: 6, muscle: 'chest' as Muscle }]; // hit the ceiling → would bump
+describe('time off (layoff) handling — inverted', () => {
+  // At the ceiling: only a LONG layoff cuts, and only once. Moderate gaps no longer
+  // suppress a bump (the old graduated mild/full tiers are gone — single deloadFactor).
+  const ceilingHist = [{ date: D(0), ex: 'Bench Press', weight: 135, reps: 6, muscle: 'chest' as Muscle }]; // at ceiling
   it('a normal few-day cadence is unaffected (still bumps off the ceiling)', () => {
-    const plan = buildPlan(stateOf(hist), 'Bench Press', D(4))!; // 4d: at the threshold, not over
+    const plan = buildPlan(stateOf(ceilingHist), 'Bench Press', D(4))!; // 4d
     expect(plan.autoDeload).toBe(false);
     expect(plan.bumped).toBe(true);
   });
-  it('a short layoff eases back with a MILD deload', () => {
-    const plan = buildPlan(stateOf(hist), 'Bench Press', D(6))!; // 6d: > gapRepeatDays(4), <= gapDeloadDays(7)
-    expect(plan.autoDeload).toBe(true);
-    expect(plan.bumped).toBe(false);
-    expect(plan.top.weight).toBeLessThan(135);
+  it('a moderate gap at the ceiling BUMPS (no longer suppressed)', () => {
+    const plan = buildPlan(stateOf(ceilingHist), 'Bench Press', D(6))!; // 6d: > gapRepeatDays, <= gapDeloadDays
+    expect(plan.bumped).toBe(true);
+    expect(plan.autoDeload).toBe(false);
+    expect(plan.top.weight).toBeGreaterThan(135);
   });
-  it('a long layoff deloads MORE than a short one', () => {
-    const short = buildPlan(stateOf(hist), 'Bench Press', D(6))!; // mild (×0.95)
-    const long = buildPlan(stateOf(hist), 'Bench Press', D(30))!; // full (×0.9)
+  it('a long layoff from an established (sub-ceiling) weight deloads ONCE off best', () => {
+    // Sub-ceiling last session so normalBump is false and the layoff cut can fire.
+    const establishedHist = [{ date: D(0), ex: 'Bench Press', weight: 135, reps: 5, muscle: 'chest' as Muscle }];
+    const s = stateOf(establishedHist);
+    const long = buildPlan(s, 'Bench Press', D(30))!; // 30d: > gapDeloadDays
+    const best = bestRecentTopWeight(s, 'Bench Press', D(30))!; // 135
     expect(long.autoDeload).toBe(true);
-    expect(long.top.weight).toBeLessThan(short.top.weight);
+    expect(long.deload).toBe(true);
+    expect(long.bumped).toBe(false);
+    expect(long.top.weight).toBe(roundDownTo(best * DEFAULT_CONFIG.deloadFactor, long.incr));
     expect(long.top.weight).toBeLessThan(135);
   });
 });

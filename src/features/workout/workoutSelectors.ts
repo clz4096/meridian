@@ -378,7 +378,7 @@ export function repCeiling(state: WorkoutState, exercise: string, config: Progre
   if (isCardio(state, exercise)) return config.repHigh;
   return isCompound(state, exercise, config) ? config.repHighCompound : config.repHighIsolation;
 }
-function repsAfterBumpFor(state: WorkoutState, exercise: string, config: ProgressionConfig): number {
+export function repsAfterBumpFor(state: WorkoutState, exercise: string, config: ProgressionConfig): number {
   if (isCardio(state, exercise)) return config.repsAfterBump;
   return isCompound(state, exercise, config) ? config.repsAfterBumpCompound : config.repsAfterBumpIsolation;
 }
@@ -468,6 +468,38 @@ export function sessionEffort(
 }
 
 /**
+ * Best top-set weight over the last `recoveryWindow` sessions strictly before
+ * `before` — the recovery anchor. This is DERIVED from history (never persisted),
+ * so it survives a sync/merge without a schema change. A deload eases off THIS
+ * value rather than off the last logged weight, which is what stops the geometric
+ * decay (90→81→72…) when a lifter keeps obeying a still-active deload flag, and it
+ * caps a recovery bump so a lifter climbs back to their best without overshooting.
+ * Returns null when no session in the window has a usable top set.
+ */
+export function bestRecentTopWeight(
+  state: WorkoutState,
+  exercise: string,
+  before: string,
+  config: ProgressionConfig = DEFAULT_CONFIG,
+): number | null {
+  const recent = exerciseDates(state, exercise)
+    .filter((d) => d < before)
+    .slice(-config.recoveryWindow);
+  const cardio = isCardio(state, exercise);
+  let best: number | null = null;
+  for (const d of recent) {
+    const sets = setsOn(state, exercise, d);
+    // Same top-set extraction buildPlan uses: the tagged top set, else the heaviest
+    // non-cardio set for a strength lift that logged only back-offs.
+    const top = topSetOf(sets) ?? (cardio ? null : heaviestSet(sets));
+    if (!top) continue;
+    const w = toNum(top.weight, 1) || 1;
+    if (best === null || w > best) best = w;
+  }
+  return best;
+}
+
+/**
  * The prescription for one exercise on one date.
  *
  * Returns `null` when the exercise has no prior history (nothing to progress
@@ -508,6 +540,7 @@ export function buildPlan(
       // read the class off the Away seed's muscle so a compound sub shows its compound
       // ceiling (6) from the start instead of defaulting to the isolation ceiling (12).
       repHigh: repCeilingForMuscle(seed.muscle, config),
+      targetReps: repCeilingForMuscle(seed.muscle, config),
       atMinimum: false,
       incr: step,
       lastTopWeight: seed.weight,
@@ -534,6 +567,7 @@ export function buildPlan(
       deload: false,
       autoDeload: false,
       repHigh,
+      targetReps: repHigh,
       atMinimum: false,
       incr: inferIncrement(state, exercise, config),
       lastTopWeight: 0,
@@ -545,40 +579,65 @@ export function buildPlan(
   const lastWeight = toNum(top.weight, 1) || 1;
   const lastReps = toNum(top.reps);
   const step = inferIncrement(state, exercise, config);
+  // The class reset reps after a bump (compound 3 / isolation 8). Doubles as the
+  // rep threshold a recovery session must clear to earn a climb back toward best.
+  const repFloor = repsAfterBumpFor(state, exercise, config);
 
-  // Time off (per lift): a short layoff eases you back with a *mild* deload; a
-  // longer one detrains more, so it takes the full deload. On a normal 3–4 day
-  // split cadence neither fires — the thresholds sit just above it.
+  // The recovery anchor: the best top-set weight over the recent window (derived,
+  // never persisted). Deloads ease off THIS, and recovery bumps cap at it.
+  const best = bestRecentTopWeight(state, exercise, date, config) ?? lastWeight;
+  const belowBest = lastWeight < best - 1e-9;
+
+  // Time off (per lift): only a LONG layoff backs the load off, and only once —
+  // moderate gaps no longer suppress a bump.
   const gap = daysSinceLast(state, exercise, date);
   const longLayoff = gap != null && gap > config.gapDeloadDays;
-  const shortLayoff = gap != null && gap > config.gapRepeatDays && !longLayoff;
 
-  let bumped = lastReps >= repHigh && !shortLayoff && !longLayoff;
-  const stalled = !bumped && isStalled(state, exercise, date, config);
-  // Auto-deload: a strength stall, or any layoff, backs the load off — but only
-  // when the lift isn't already about to progress.
-  const autoDeload = !bumped && (stalled || shortLayoff || longLayoff);
-  const manual = overrides.deload?.[exercise] === true;
+  // Hitting the rep ceiling earns a genuine bump (double progression). Sitting
+  // below the recent best while clearing the reset floor earns a recovery climb.
+  const normalBump = lastReps >= repHigh;
+  const recoveryBump = belowBest && lastReps >= repFloor;
+
+  // Auto-deload: a flat strength stall, or a single cut after a long layoff. Never
+  // while recovering (belowBest) — that would fight the climb back to best.
+  const stalled = !normalBump && !belowBest && isStalled(state, exercise, date, config);
+  const layoffDeload = longLayoff && !belowBest;
+  const autoDeload = !normalBump && (stalled || layoffDeload);
+
+  // Manual deload is a ONE-SHOT: honor the flag only until today's top set is logged,
+  // so obeying the eased prescription doesn't re-trigger the cut next render.
+  const manual =
+    overrides.deload?.[exercise] === true &&
+    topSetOf(setsOn(state, exercise, date)) === null;
   const deload = manual || autoDeload;
-  // A short layoff alone eases back mildly; a stall, a long layoff, or a manual
-  // deload takes the full step.
-  const factor = shortLayoff && !stalled && !manual ? config.layoffMildFactor : config.deloadFactor;
+  const bumped = !deload && (normalBump || recoveryBump);
 
   let atMinimum = false;
-  let weight = bumped ? roundTo(lastWeight + step, step) : lastWeight;
-  let reps = bumped ? repsAfterBumpFor(state, exercise, config) : lastReps;
-
+  let weight: number;
+  let reps: number;
   if (deload) {
-    // A deload must never out-prescribe the previous session. Applying the
-    // factor to an already-bumped weight could exceed `lastWeight` whenever the
-    // increment is large relative to the load (e.g. 5 lb top set on a 20 lb
-    // stack), so deload always derives from `lastWeight` and is clamped.
-    bumped = false;
-    const target = roundDownTo(lastWeight * factor, step);
-    // target is now guaranteed <= lastWeight and on the increment.
-    weight = target > 0 ? target : lastWeight;
-    atMinimum = target <= 0;   // load is already below one increment
-    reps = Math.max(5, Math.min(lastReps, repHigh - 2));
+    // Anchor the cut on BEST, not lastWeight. This kills the geometric decay
+    // (obeying a held deload flag no longer ratchets 90→81→72…) and makes the
+    // deload idempotent: repeated obeyed deloads all land on the same floor.
+    const target = roundDownTo(best * config.deloadFactor, step);
+    // A manual deload fired while below best could otherwise RAISE the bar (best*0.9
+    // can exceed the current working weight, e.g. last did 85, best*0.9 = 90). Clamp
+    // so a deload never rises above the current working weight, on-grid. No-op for
+    // auto-deloads, which only fire when !belowBest (so best ≈ lastWeight).
+    const clamped = Math.min(target, roundDownTo(lastWeight, step));
+    weight = clamped > 0 ? clamped : lastWeight;
+    atMinimum = clamped <= 0; // load already below one increment
+    reps = repFloor;
+  } else if (bumped) {
+    // Snap onto the grid before adding a step, so an off-grid entry (102.5 on a
+    // 5 lb step) advances to 105 rather than 107.5→110. A recovery bump caps at
+    // best; a genuine ceiling PR climbs past it.
+    const stepped = roundDownTo(lastWeight, step) + step;
+    weight = belowBest ? Math.min(stepped, best) : stepped;
+    reps = repFloor;
+  } else {
+    weight = lastWeight;
+    reps = lastReps;
   }
 
   const template = setTemplate(state, exercise, config);
@@ -604,6 +663,7 @@ export function buildPlan(
     deload,
     autoDeload,
     repHigh,
+    targetReps: repHigh,
     atMinimum,
     incr: step,
     lastTopWeight: lastWeight,
@@ -995,7 +1055,14 @@ function gradingTarget(
   plan: ExercisePlan,
   config: ProgressionConfig,
 ): { weight: number; reps: number } {
-  const prescribed = { weight: plan.top.weight, reps: plan.top.reps };
+  // A below-best RECOVERY bump resets prescribed reps to the class floor to rebuild,
+  // so grade its reps against the double-progression GOAL (repHigh) instead — otherwise
+  // a grinder who merely scrapes the floor reads as hitting target. Holds, deloads, and
+  // normal (not-below-best) ceiling bumps grade against the plan's prescribed reps as-is.
+  const best = bestRecentTopWeight(state, active, date, config) ?? plan.lastTopWeight;
+  const belowBest = plan.lastTopWeight < best - 1e-9;
+  const repTarget = plan.bumped && belowBest ? plan.repHigh : plan.top.reps;
+  const prescribed = { weight: plan.top.weight, reps: repTarget };
   const held = { weight: plan.lastTopWeight, reps: Math.min(plan.lastTopReps, plan.repHigh) };
   if (!plan.deload || !plan.autoDeload) return prescribed;
   const sub = GYM_TO_SUB[active]; // `active` is the gym lift here (it logged a top set)

@@ -227,6 +227,10 @@ describe('progression algorithm — simulated training blocks', () => {
           expect(plan5.top.weight).toBeGreaterThan(0);
           expect(plan5.bumped).toBe(false);
           expect(plan5.autoDeload).toBe(true);
+          // A deload resets reps to the class floor (not the old dead min-5) and
+          // publishes the double-progression goal reps for the next bump.
+          expect(plan5.top.reps).toBe(C.repsAfterBumpCompound);
+          expect(plan5.targetReps).toBe(C.repHighCompound);
         } else {
           record(n, 'plateauer auto-deload (n/a)', !fired,
             `only ${nSessions} sessions (< 5) → no stall window yet, correctly no deload`);
@@ -377,26 +381,38 @@ describe('progression algorithm — adversarial edge cases', () => {
     expect(dsl).toBeNull();
   });
 
-  it('layoffs are graduated: a short gap deloads mildly, a long gap deloads more', () => {
-    const seed = () => {
+  it('layoffs inverted: a moderate gap at the ceiling BUMPS; a long gap deloads once off best', () => {
+    const seedCeiling = () => {
       const s = emptyState();
       s.incr[BENCH] = 5;
-      logTop(s, BENCH, START, 100, C.repHighCompound, 'chest'); // at the ceiling → would bump on a normal cadence
+      logTop(s, BENCH, START, 100, C.repHighCompound, 'chest'); // at the ceiling → earns a bump
       return s;
     };
-    const shortGap = buildPlan(seed(), BENCH, shiftDate(START, 6))!; // 6d: > gapRepeatDays(4), <= gapDeloadDays(7) → mild
-    const longGap = buildPlan(seed(), BENCH, shiftDate(START, 30))!; // 30d: > gapDeloadDays → full
-    const dsl = daysSinceLast(seed(), BENCH, shiftDate(START, 30));
+    const seedEstablished = () => {
+      const s = emptyState();
+      s.incr[BENCH] = 5;
+      logTop(s, BENCH, START, 100, C.repHighCompound - 1, 'chest'); // established, below the ceiling
+      return s;
+    };
+    // 6-day gap (> gapRepeatDays, <= gapDeloadDays) no longer suppresses the bump.
+    const moderateGap = buildPlan(seedCeiling(), BENCH, shiftDate(START, 6))!;
+    // 30-day gap (> gapDeloadDays) from an established weight → a single cut off best.
+    const longGap = buildPlan(seedEstablished(), BENCH, shiftDate(START, 30))!;
+    const dsl = daysSinceLast(seedEstablished(), BENCH, shiftDate(START, 30));
+    const expectedLong = roundDownTo(100 * C.deloadFactor, 5); // 90, anchored on best
     notes.push(
-      `Layoffs graduated (thresholds ${C.gapRepeatDays}/${C.gapDeloadDays}d): 6-day gap → mild deload, ` +
-      `autoDeload=${shortGap.autoDeload}, top ${shortGap.top.weight}; 30-day gap (daysSinceLast=${dsl}) → ` +
-      `full deload, top ${longGap.top.weight} — a longer break backs off more.`,
+      `Layoffs inverted (threshold ${C.gapDeloadDays}d): a 6-day gap at the ceiling now BUMPS ` +
+      `(bumped=${moderateGap.bumped}, autoDeload=${moderateGap.autoDeload}, top ${moderateGap.top.weight}); ` +
+      `a 30-day gap (daysSinceLast=${dsl}) from an established weight deloads ONCE off best to ${longGap.top.weight}.`,
     );
-    expect(shortGap.autoDeload).toBe(true);
-    expect(shortGap.bumped).toBe(false);
-    expect(shortGap.top.weight).toBeLessThan(100);
+    expect(moderateGap.bumped).toBe(true);
+    expect(moderateGap.autoDeload).toBe(false);
+    expect(moderateGap.top.weight).toBeGreaterThan(100);
     expect(longGap.autoDeload).toBe(true);
-    expect(longGap.top.weight).toBeLessThan(shortGap.top.weight); // long deloads more than short
+    expect(longGap.deload).toBe(true);
+    expect(longGap.bumped).toBe(false);
+    expect(longGap.top.weight).toBe(expectedLong);
+    expect(longGap.top.weight).toBeLessThan(100);
   });
 
   it('fractional & string weights: toNum coerces, held top echoes logged weight exactly', () => {
@@ -453,30 +469,47 @@ describe('progression algorithm — adversarial edge cases', () => {
     expect(ok).toBe(true);
   });
 
-  it('follow-the-deload does NOT spiral: obeyed deloads are spaced by a rebuild window', () => {
-    // A lifter who logs exactly the deloaded prescription each session must NOT be
-    // deloaded again the next session — the drop opens a rebuild window first.
+  it('follow-the-deload does NOT spiral: one cut to the floor, then a monotonic recovery to best', () => {
+    // A lifter plateaus one rep shy of the ceiling → earns a single stall deload.
+    // Obeying it, they rebuild by hitting the ceiling at the lighter recovery loads,
+    // so the weight recovers monotonically and resumes double progression past best —
+    // never a second back-to-back cut, never a ratchet to atMinimum.
     const s = emptyState();
     s.incr[BENCH] = 5;
     const dates = trainingDates(START, 40);
-    logTop(s, BENCH, dates[0], 100, 5, 'chest');
+    const ceil = C.repHighCompound; // 6
+    logTop(s, BENCH, dates[0], 100, 5, 'chest'); // one shy of the ceiling
     const deloadAt: number[] = [];
     const weights = [100];
-    for (let i = 1; i < Math.min(dates.length, 12); i++) {
+    let deloaded = false;
+    for (let i = 1; i < 12; i++) {
       const plan = buildPlan(s, BENCH, dates[i])!;
-      if (plan.autoDeload) deloadAt.push(i);
-      logTop(s, BENCH, dates[i], plan.top.weight, plan.top.reps, 'chest'); // OBEY the plan
+      if (plan.autoDeload) { deloadAt.push(i); deloaded = true; }
+      expect(plan.atMinimum).toBe(false); // never ratchets to the floor
+      // Before the deload the lifter is stuck at 5 reps; once deloaded they rebuild by
+      // maxing the ceiling at the lighter recovery loads.
+      const reps = deloaded ? ceil : 5;
+      logTop(s, BENCH, dates[i], plan.top.weight, reps, 'chest'); // OBEY
       weights.push(plan.top.weight);
     }
     const consecutive = deloadAt.some((v, k) => k > 0 && v === deloadAt[k - 1] + 1);
-    const deloadCount = deloadAt.length;
+    const floorIdx = weights.indexOf(Math.min(...weights));
+    const before = weights.slice(0, floorIdx + 1);
+    const after = weights.slice(floorIdx);
+    const nonIncreasingBefore = before.every((w, k) => k === 0 || w <= before[k - 1]);
+    const monotonicAfter = after.every((w, k) => k === 0 || w >= after[k - 1]);
     notes.push(
-      `Deload spiral fixed: a lifter who obeys is deloaded only on sessions [${deloadAt.join(', ')}] — each followed ` +
-      `by a rebuild window, never two in a row. Weights: [${weights.join(', ')}]. No single-session ratchet to atMinimum.`,
+      `Deload spiral fixed: obeying yields a single cut at session(s) [${deloadAt.join(', ')}], then a monotonic ` +
+      `recovery. Weights: [${weights.join(', ')}]. Non-increasing to the floor, monotonic back to best, past it → ` +
+      `double progression resumes. No back-to-back cuts, no atMinimum ratchet.`,
     );
     expect(weights.every((w) => Number.isFinite(w) && w >= 0)).toBe(true);
-    expect(consecutive).toBe(false); // the fix: no back-to-back auto-deloads
-    traj.spiral = { weights, deloadCount };
+    expect(consecutive).toBe(false); // no back-to-back auto-deloads
+    expect(deloadAt.length).toBe(1); // exactly one cut across the block
+    expect(nonIncreasingBefore).toBe(true);
+    expect(monotonicAfter).toBe(true);
+    expect(Math.max(...after)).toBeGreaterThan(100); // recovered past best → progression resumed
+    traj.spiral = { weights, deloadCount: deloadAt.length };
   });
 
   it('effort is absolute: exactly repeating a mid-range session is not auto-strong', () => {
@@ -493,6 +526,127 @@ describe('progression algorithm — adversarial edge cases', () => {
       `(was 'strong' under the old self-referential grade). Strong requires hitting the ceiling this session.`,
     );
     expect(eff).toBe('moderate');
+  });
+
+  it('no geometric decay: an obeyed manual deload holds flat at the best-anchored floor', () => {
+    // Holding the manual flag and obeying every session must NOT compound the cut
+    // (90→81→72…). The deload anchors on best (derived), so it is idempotent.
+    const s = emptyState();
+    s.incr[BENCH] = 5;
+    const dates = trainingDates(START, 30);
+    logTop(s, BENCH, dates[0], 100, 5, 'chest'); // established best
+    const ov = { deload: { [BENCH]: true } };
+    const floorW = roundDownTo(100 * C.deloadFactor, 5); // 90
+    const seen: number[] = [];
+    // Fewer sessions than recoveryWindow so best (100) never ages out of the anchor.
+    for (let i = 1; i <= 6; i++) {
+      const plan = buildPlan(s, BENCH, dates[i], ov)!;
+      seen.push(plan.top.weight);
+      expect(plan.deload).toBe(true);
+      logTop(s, BENCH, dates[i], plan.top.weight, plan.top.reps, 'chest'); // OBEY
+    }
+    notes.push(
+      `No geometric decay: an obeyed held manual deload stays flat at the best-anchored floor ` +
+      `[${seen.join(', ')}] — never the old 90→81→72 spiral.`,
+    );
+    expect(seen.every((w) => w === floorW)).toBe(true);
+    expect(seen).not.toContain(81);
+    expect(seen).not.toContain(72);
+  });
+
+  it('recovery climb: after a deload, obeying at the floor adds a step per session to best, then resumes double progression', () => {
+    const s = emptyState();
+    s.incr[BENCH] = 5;
+    const dates = trainingDates(START, 40);
+    logTop(s, BENCH, dates[0], 100, 5, 'chest'); // establish best = 100
+    const climb: number[] = [];
+    for (let i = 1; i < 8; i++) {
+      const ov = i === 1 ? { deload: { [BENCH]: true } } : {};
+      const plan = buildPlan(s, BENCH, dates[i], ov)!;
+      climb.push(plan.top.weight);
+      // Obey at the reset floor while recovering; once back at best, push the ceiling.
+      const reps = plan.top.weight >= 100 ? C.repHighCompound : C.repsAfterBumpCompound;
+      logTop(s, BENCH, dates[i], plan.top.weight, reps, 'chest');
+    }
+    notes.push(`Recovery climb after a deload: [${climb.join(', ')}] — +step/session to best, then double progression resumes.`);
+    expect(climb[0]).toBe(90); // the cut
+    expect(climb[1]).toBe(95); // +step
+    expect(climb[2]).toBe(100); // back to best, capped (no overshoot)
+    expect(climb[3]).toBe(105); // resumes double progression past best
+    expect(Math.max(...climb)).toBeGreaterThan(100);
+    for (let k = 1; k < climb.length; k++) expect(climb[k]).toBeGreaterThanOrEqual(climb[k - 1]);
+    expect(climb.every((w) => w % 5 === 0)).toBe(true);
+  });
+
+  it('manual one-shot guard: a flag set after today\'s top is already logged does not apply', () => {
+    const s = emptyState();
+    s.incr[BENCH] = 5;
+    const dates = trainingDates(START, 10);
+    logTop(s, BENCH, dates[0], 100, 5, 'chest');
+    const date = dates[1];
+    logTop(s, BENCH, date, 100, 5, 'chest'); // today's top logged FIRST
+    const plan = buildPlan(s, BENCH, date, { deload: { [BENCH]: true } })!;
+    notes.push(`Manual one-shot guard: flag set but today's top already logged → deload=${plan.deload} (ignored).`);
+    expect(plan.deload).toBe(false);
+    expect(plan.autoDeload).toBe(false);
+  });
+
+  it('intermittent lifter: weekly at the ceiling bumps each week; a longer cadence deloads once then holds', () => {
+    // Once a week (7-day gap = gapDeloadDays, not beyond it) at the ceiling → bump weekly.
+    const weekly = emptyState();
+    weekly.incr[BENCH] = 5;
+    let d = START;
+    logTop(weekly, BENCH, d, 100, C.repHighCompound, 'chest');
+    const weeklyWeights = [100];
+    for (let k = 0; k < 4; k++) {
+      d = shiftDate(d, 7);
+      const plan = buildPlan(weekly, BENCH, d)!;
+      expect(plan.bumped).toBe(true);
+      expect(plan.autoDeload).toBe(false);
+      weeklyWeights.push(plan.top.weight);
+      logTop(weekly, BENCH, d, plan.top.weight, C.repHighCompound, 'chest');
+    }
+    for (let k = 1; k < weeklyWeights.length; k++) expect(weeklyWeights[k]).toBe(weeklyWeights[k - 1] + 5);
+
+    // A cadence beyond the threshold from an established sub-ceiling weight: cut ONCE, then hold.
+    const sparse = emptyState();
+    sparse.incr[BENCH] = 5;
+    let e = START;
+    logTop(sparse, BENCH, e, 100, 5, 'chest'); // established, below ceiling
+    e = shiftDate(e, 10); // 10-day gap > gapDeloadDays(7)
+    const first = buildPlan(sparse, BENCH, e)!;
+    expect(first.autoDeload).toBe(true);
+    expect(first.top.weight).toBe(roundDownTo(100 * C.deloadFactor, 5)); // 90, off best
+    logTop(sparse, BENCH, e, first.top.weight, 5, 'chest'); // obey, still below the ceiling
+    e = shiftDate(e, 10); // another long gap
+    const second = buildPlan(sparse, BENCH, e)!;
+    notes.push(
+      `Intermittent lifter: weekly@ceiling bumps [${weeklyWeights.join(', ')}]; a >7-day cadence cuts once to ` +
+      `${first.top.weight} then holds (second long-gap autoDeload=${second.autoDeload}, top ${second.top.weight}).`,
+    );
+    expect(second.autoDeload).toBe(false); // below best now → no second layoff cut
+    expect(second.top.weight).toBeGreaterThanOrEqual(first.top.weight); // recovers, never drops again
+  });
+
+  it('off-grid bump snaps to the grid before stepping: 102.5 @ ceiling, step 5 → 105 not 110', () => {
+    const s = emptyState();
+    s.incr[BENCH] = 5;
+    logTop(s, BENCH, START, '102.5', C.repHighCompound, 'chest'); // off-grid, at the ceiling
+    const plan = buildPlan(s, BENCH, shiftDate(START, 2))!;
+    notes.push(`Off-grid bump: 102.5 @ ceiling, step 5 → top ${plan.top.weight} (roundDown(102.5,5)=100, +5=105; not 107.5→110).`);
+    expect(plan.bumped).toBe(true);
+    expect(plan.top.weight).toBe(105);
+  });
+
+  it('downward floor: a deload weight is always > 0 and never exceeds best', () => {
+    const s = emptyState();
+    s.incr[BENCH] = 5;
+    for (let i = 0; i < 5; i++) logTop(s, BENCH, shiftDate(START, i * 2), 100, 5, 'chest');
+    const plan = buildPlan(s, BENCH, shiftDate(START, 10))!;
+    notes.push(`Downward floor: deload top ${plan.top.weight} is > 0 and <= best (100).`);
+    expect(plan.autoDeload).toBe(true);
+    expect(plan.top.weight).toBeGreaterThan(0);
+    expect(plan.top.weight).toBeLessThanOrEqual(100);
   });
 });
 
@@ -515,7 +669,7 @@ afterAll(() => {
   lines.push('');
   lines.push(
     verdict
-      ? 'The double-progression + auto-deload engine in `workoutSelectors.ts` is **correct and robust** across every simulated 5/10/15/30-day block and every adversarial edge case. e1RM is strictly monotonic for a progressor, perfectly flat for a plateauer with a clean auto-deload at the expected session, per-class rep ceilings (compound 6 / isolation 12) fire exactly, deloads never round up or go non-positive, and no `NaN`/`Infinity`/negative weight appears anywhere. The three design issues from the first pass are now **resolved**: the deload spiral is fixed (a drop in the stall window suppresses re-deloads, so an obeyed deload opens a rebuild window), layoff handling is wired into `buildPlan` and graduated (a short gap eases back with a mild deload, a longer gap deloads more), and effort is now graded absolutely from the current session (reps within the class range) rather than self-referentially.'
+      ? 'The double-progression + auto-deload engine in `workoutSelectors.ts` is **correct and robust** across every simulated 5/10/15/30-day block and every adversarial edge case. e1RM is strictly monotonic for a progressor, perfectly flat for a plateauer with a clean auto-deload at the expected session, per-class rep ceilings (compound 6 / isolation 12) fire exactly, deloads never round up or go non-positive, and no `NaN`/`Infinity`/negative weight appears anywhere. The progression/deload rework holds: deloads anchor on the derived best-recent weight (no geometric decay when an obeyed flag is held, and the cut is idempotent), a manual deload is a one-shot (ignored once today’s top is logged), moderate gaps no longer suppress a bump (only a long layoff cuts, and only once, never while recovering), a recovery bump climbs a step per session back to best and then resumes double progression, and an off-grid load snaps to the grid before stepping.'
       : 'One or more checks FAILED — see the table. Investigate before shipping.',
   );
   lines.push('');
@@ -572,13 +726,15 @@ afterAll(() => {
 
   lines.push('## Resolution');
   lines.push('');
-  lines.push('The three issues from the first verification pass have been fixed and are re-verified above:');
+  lines.push('The progression/deload rework is re-verified above:');
   lines.push('');
-  lines.push('1. **Gap handling — WIRED & GRADUATED.** `buildPlan` reads `daysSinceLast`: a gap over `gapRepeatDays` (4) eases back with a *mild* deload (×`layoffMildFactor` 0.95), and a gap over `gapDeloadDays` (7) takes the *full* deload (×`deloadFactor` 0.9) — a longer break backs off more. Thresholds sit just above the normal 3–4 day per-lift split cadence, so ordinary training is unaffected.');
-  lines.push('2. **Deload spiral — FIXED.** `isStalled` now requires the window to be flat with *no e1RM drop*. Once an auto-deload lowers the load and the lifter obeys, that drop sits in the window and suppresses further deloads until `stallSessions` fresh sessions have rebuilt — deload-once-then-reattempt instead of spiralling to `atMinimum`.');
-  lines.push('3. **Effort — ABSOLUTE.** `sessionEffort` now grades the current session alone by where each top set lands in its class rep range (ceiling = strong, floor = weak, middle = moderate). Exactly repeating a mid-range session reads `moderate`, not `strong`; it no longer echoes the prior session.');
+  lines.push('1. **Deload anchors on best (derived) — no geometric decay.** A deload eases off `bestRecentTopWeight` (max top set over the last `recoveryWindow` sessions), not off the last logged weight. Holding a manual flag and obeying every session lands on the same best-anchored floor every time (idempotent) rather than compounding 90→81→72.');
+  lines.push('2. **Manual deload is a one-shot.** `buildPlan` ignores the flag once today’s top set is logged, and `logSet` clears the flag on the first top — so obeying the eased prescription never re-triggers the cut.');
+  lines.push('3. **Layoffs no longer suppress a bump.** Only a gap over `gapDeloadDays` (7) cuts, and only once (never while recovering below best); moderate gaps at the ceiling bump normally.');
+  lines.push('4. **Recovery + off-grid.** Below best, a bump climbs one step per session capped at best, resuming double progression once back; an off-grid load snaps to the grid before stepping (102.5 → 105, not 110).');
+  lines.push('5. **Effort — ABSOLUTE.** `sessionEffort` grades the current session by where each top set lands in its class rep range (ceiling = strong, floor = weak, middle = moderate).');
   lines.push('');
-  lines.push('_Remaining note: with `stallSessions = 3` a flat plateau first auto-deloads on the session after the 4th flat session; the config value, not a bug — tune `stallSessions` if a different cadence is wanted._');
+  lines.push('_Note: `layoffMildFactor` is retained in the config but is now reserved/unused — the graduated mild-layoff tier was removed. With `stallSessions = 3` a flat plateau first auto-deloads on the session after the 4th flat session; tune `stallSessions` to change the cadence._');
 
   const outPath = fileURLToPath(new URL('../../../docs/algo-verification-findings.md', import.meta.url));
   mkdirSync(fileURLToPath(new URL('../../../docs', import.meta.url)), { recursive: true });
