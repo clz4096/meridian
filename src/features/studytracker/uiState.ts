@@ -37,17 +37,20 @@ export function toggleSection(id: string, def: boolean): void {
 }
 
 /**
- * Active sub-tab (Today / Library / Playbook). Kept in its OWN key rather than
- * the OpenMap above, whose `load()` blind-casts values to booleans — a tab is a
- * string enum, not a boolean. Local-only, ORDINARY tier.
+ * Active sub-tab (the Standard surface / Playbook). Kept in its OWN key rather
+ * than the OpenMap above, whose `load()` blind-casts values to booleans — a tab
+ * is a string enum, not a boolean. Local-only, ORDINARY tier. The former
+ * 'library' sub-tab merged into the Standard surface (kept under the 'today'
+ * key), so an old persisted 'library' value falls back to 'today'.
  */
-export type TrackerTab = 'today' | 'library' | 'playbook';
+export type TrackerTab = 'today' | 'playbook';
 const TAB_KEY = 'meridian.tracker.tab.v1';
 
 function loadTab(): TrackerTab {
   try {
     const v = localStorage.getItem(TAB_KEY);
-    if (v === 'today' || v === 'library' || v === 'playbook') return v;
+    if (v === 'today' || v === 'playbook') return v;
+    if (v === 'library') return 'today'; // migrate the merged sub-tab
   } catch {
     /* ignore */
   }

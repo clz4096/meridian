@@ -5,10 +5,11 @@
  */
 import { GROUP_INFO, PRINCETON_THEORY } from '@/features/studytracker/princetonTheory';
 import { Collapsible } from '@/features/studytracker/Collapsible';
+import { ReadingNote } from '@/features/studytracker/ReadingNote';
 
 export function PrincetonGroup() {
   return (
-    <Collapsible id="ptgroup" eyebrow="The group" title="Princeton theory of computation" defaultOpen={false}>
+    <Collapsible id="ptgroup" eyebrow="The group" title="Princeton theory of computation" defaultOpen={true}>
       <p class="hint">{GROUP_INFO.blurb}</p>
       <div class="ptg-info">
         <a class="ptg-home" href={GROUP_INFO.url} target="_blank" rel="noopener noreferrer">theory.cs.princeton.edu ↗</a>
@@ -26,6 +27,7 @@ export function PrincetonGroup() {
           </a>
         ))}
       </div>
+      <ReadingNote id="ptg" prompt="One takeaway from the theory reading (optional — earns credit)" />
     </Collapsible>
   );
 }

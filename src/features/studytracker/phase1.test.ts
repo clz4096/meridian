@@ -121,15 +121,12 @@ describe('sub-tab persistence', () => {
   afterEach(() => localStorage.removeItem(KEY));
 
   it('setTab round-trips through localStorage and updates the signal', () => {
-    setTab('library');
-    expect(activeTab.value).toBe('library');
-    expect(localStorage.getItem(KEY)).toBe('library');
-
     setTab('playbook');
     expect(activeTab.value).toBe('playbook');
     expect(localStorage.getItem(KEY)).toBe('playbook');
 
     setTab('today');
+    expect(activeTab.value).toBe('today');
     expect(localStorage.getItem(KEY)).toBe('today');
   });
 });

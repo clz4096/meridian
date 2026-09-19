@@ -1125,3 +1125,38 @@ export function algoOfDay(d: Date = new Date()): AlgoEntry {
   const i = ((epochDay(d) % n) + n) % n;
   return ALGORITHMS[i]!;
 }
+
+/**
+ * The verified home course for each algorithm (the Massey Standard 13-topic spine).
+ * Powers surface #3's unit chip AND the optional "watch the lecture" link — both point
+ * at a fetch-verified MIT OCW course (see docs/massey-standard-2026-09-19.md resource
+ * index). Foundations sit in 6.006; the advanced/analysis topics in 6.046J.
+ */
+export interface AlgoSource {
+  label: string;
+  url: string;
+}
+const OCW_6006: AlgoSource = {
+  label: 'MIT 6.006 · Intro to Algorithms',
+  url: 'https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/',
+};
+const OCW_6046: AlgoSource = {
+  label: 'MIT 6.046J · Design & Analysis',
+  url: 'https://ocw.mit.edu/courses/6-046j-design-and-analysis-of-algorithms-spring-2015/',
+};
+export const ALGO_SOURCE: Record<string, AlgoSource> = {
+  'binary-search': OCW_6006,
+  'two-pointers': OCW_6006,
+  'sliding-window': OCW_6006,
+  'prefix-sums': OCW_6006,
+  kadane: OCW_6006,
+  'merge-sort': OCW_6006,
+  quicksort: OCW_6006,
+  'union-find': OCW_6046,
+  bfs: OCW_6006,
+  dfs: OCW_6006,
+  dijkstra: OCW_6006,
+  'dynamic-programming-lis': OCW_6006,
+  'topological-sort': OCW_6006,
+  'greedy-interval-scheduling': OCW_6046,
+};

@@ -7,9 +7,12 @@
  * artifact's own light/dark handling is preserved; its global theme-toggle
  * button is dropped (Meridian owns the app theme).
  *
- * Layout (Phase 1): a persistent glance strip (today's XP hero + level + streak)
- * sits above a three-way segmented control — Today / Library / Playbook — and
- * only the active tab's sections render.
+ * Layout: a persistent glance strip (today's XP hero + level + streak) sits
+ * above a two-way segmented control — the Standard surface (Today) and Playbook.
+ * The Standard surface is one continuous scroll of the brief's six surfaces in
+ * literal 1–6 order (community readings, Princeton theory reading, algorithm of
+ * the day, courses + psets, the daily schedule, the check-in); Playbook is the
+ * sole secondary tab. Only the active tab's sections render.
  */
 import { useEffect } from 'preact/hooks';
 import { host } from '@/ui/host';
@@ -45,7 +48,6 @@ const CHECK = (
 
 const TABS: ReadonlyArray<readonly [TrackerTab, string]> = [
   ['today', 'Today'],
-  ['library', 'Library'],
   ['playbook', 'Playbook'],
 ];
 
@@ -195,23 +197,22 @@ export function StudyTrackerView() {
 
         {tab === 'today' && (
           <>
-            {/* DAY TYPE — Full / Light (auto-Light in the Sabbath window; override here) */}
-            <div class="pt-daytype" role="group" aria-label="Day type">
-              <span class="pt-daytype-lbl">Today is a</span>
-              <button class={'pt-daytype-btn' + (!isLight ? ' on' : '')} type="button" aria-pressed={!isLight} onClick={() => setDayType('full')}>Full day</button>
-              <button class={'pt-daytype-btn' + (isLight ? ' on' : '')} type="button" aria-pressed={isLight} onClick={() => setDayType('light')}>Light day</button>
-            </div>
+            {/* THE STANDARD SURFACE — one continuous scroll of the six surfaces
+                in the brief's literal 1–6 order. The glance strip above is #0. */}
 
-            {/* SPACED RETURN — the single stalest signal to reconstruct from memory */}
-            {retrieval && (
-              <div class="pt-retrieval" role="region" aria-label="Spaced return">
-                <div class="pt-retrieval-lbl">Reconstruct from memory</div>
-                <div class="pt-retrieval-topic">{retrieval.label}</div>
-                <button class="primary" type="button" onClick={retrieval.run}>I re-derived it ✓</button>
-              </div>
-            )}
+            {/* #1 COMMUNITY READINGS */}
+            <FeedSection />
 
-            {/* DAILY LOOP — schedule (default open) */}
+            {/* #2 PRINCETON THEORY READING */}
+            <PrincetonGroup />
+
+            {/* #3 ALGORITHM OF THE DAY (now default-open) */}
+            <AlgoOfDay />
+
+            {/* #4 COURSES OF THE DAY + PSETS */}
+            <CurriculumSection />
+
+            {/* #5 PRINCETON BSE DAILY SCHEDULE (default open) */}
             <Collapsible id="schedule" eyebrow="The day" title="Tick each block as you finish it" defaultOpen={true}>
               <p class="hint">Eastern Time. Wake 9:00 AM, gym 3–5 PM, lights out 11:45 PM. The focus blocks point at the theory track: proofs and problem sets, algorithms in C++, and reproducing the week's paper. This is the day's shape; tick what you did.</p>
               <div class="rows">
@@ -229,6 +230,25 @@ export function StudyTrackerView() {
                 })}
               </div>
             </Collapsible>
+
+            {/* #6 THE CHECK-IN — scorecard + meters + XP bank + weekly ring.
+                Day-type and the spaced-return prompt lead the day-level cluster. */}
+
+            {/* DAY TYPE — Full / Light (auto-Light in the Sabbath window; override here) */}
+            <div class="pt-daytype" role="group" aria-label="Day type">
+              <span class="pt-daytype-lbl">Today is a</span>
+              <button class={'pt-daytype-btn' + (!isLight ? ' on' : '')} type="button" aria-pressed={!isLight} onClick={() => setDayType('full')}>Full day</button>
+              <button class={'pt-daytype-btn' + (isLight ? ' on' : '')} type="button" aria-pressed={isLight} onClick={() => setDayType('light')}>Light day</button>
+            </div>
+
+            {/* SPACED RETURN — the single stalest signal to reconstruct from memory */}
+            {retrieval && (
+              <div class="pt-retrieval" role="region" aria-label="Spaced return">
+                <div class="pt-retrieval-lbl">Reconstruct from memory</div>
+                <div class="pt-retrieval-topic">{retrieval.label}</div>
+                <button class="primary" type="button" onClick={retrieval.run}>I re-derived it ✓</button>
+              </div>
+            )}
 
             {/* SCORECARD (default open) */}
             <Collapsible id="scorecard" eyebrow="Score" title="Rate today: missed, partial, met" defaultOpen={true}>
@@ -283,17 +303,9 @@ export function StudyTrackerView() {
               </button>
             </div>
 
-            {/* ALGORITHM OF THE DAY (collapsed) */}
-            <AlgoOfDay />
-          </>
-        )}
-
-        {tab === 'library' && (
-          <>
-            <FeedSection />
+            {/* BONUS — beyond the six surfaces; placed AFTER the check-in so the
+                literal 1–6 scroll stays contiguous. Collapsed by default. */}
             <PapersSection />
-            <PrincetonGroup />
-            <CurriculumSection />
             <ProofJournal />
           </>
         )}

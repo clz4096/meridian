@@ -1,12 +1,15 @@
 /**
- * Daily Reading — a section in the Study Tracker that shows a live reading
- * list for a CS / C++ / math student (Hacker News + dev.to). Fetches once on
- * mount (served from a per-day cache after that); a refresh button forces a
- * re-fetch. See feedSources.ts for the fetch/cache logic.
+ * Daily Reading — a section in the Study Tracker that shows a live, taste-ranked
+ * reading list for a systems / distributed-systems / applied-CS-theory student.
+ * Hacker News (Algolia API) is the sole discovery engine (Amendment A1); a
+ * curated eng-blog allowlist ranks up. Fetches once on mount (served from a
+ * per-day cache after that); a refresh button forces a re-fetch. See
+ * feedSources.ts for the fetch/rank/cache logic.
  */
 import { useEffect, useState } from 'preact/hooks';
 import { loadDailyFeed, type FeedItem } from '@/features/studytracker/feedSources';
 import { Collapsible } from '@/features/studytracker/Collapsible';
+import { ReadingNote } from '@/features/studytracker/ReadingNote';
 
 export function FeedSection() {
   const [items, setItems] = useState<FeedItem[]>([]);
@@ -25,9 +28,9 @@ export function FeedSection() {
   useEffect(() => load(false), []);
 
   return (
-    <Collapsible id="feed" eyebrow="Read" title="Today's reading" defaultOpen={false}>
+    <Collapsible id="feed" eyebrow="Read" title="Today's reading" defaultOpen={true}>
       <p class="hint">
-        A daily dispatch for the CS/math student: top Hacker News on C++, compilers and algorithms, plus popular dev.to articles on C++, algorithms, and computer science.
+        A daily dispatch of deep systems, distributed-systems and applied-CS-theory writing — top Hacker News stories on that taste, with curated engineering blogs (Cloudflare, Dan Luu, Julia Evans, Russ Cox, the Morning Paper, Brendan Gregg) ranked to the top.
         <button class="feed-refresh" type="button" onClick={() => load(true)} disabled={loading} aria-label="Refresh reading list">↻</button>
       </p>
 
@@ -41,16 +44,18 @@ export function FeedSection() {
           <div class="feed-list">
             {items.map((it) => (
               <a class="feed-item" key={it.url} href={it.url} target="_blank" rel="noopener noreferrer">
-                <span class={'feed-src ' + (it.source === 'HN' ? 'hn' : 'dev')}>{it.source === 'HN' ? 'HN' : 'DEV'}</span>
+                <span class="feed-src hn">HN</span>
                 <span class="feed-body">
                   <span class="feed-title">{it.title}</span>
                   <span class="feed-meta">{it.meta}</span>
+                  <span class="feed-meta feed-why">{it.why}</span>
                 </span>
               </a>
             ))}
           </div>
         </>
       )}
+      <ReadingNote id="feed" prompt="One takeaway from today's reading (optional — earns credit)" />
     </Collapsible>
   );
 }

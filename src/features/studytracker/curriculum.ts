@@ -13,7 +13,7 @@ export interface PSet {
 }
 export interface Course {
   code: string;
-  school: 'Princeton' | 'MIT' | 'Yale' | 'Harvard';
+  school: 'Princeton' | 'MIT' | 'Yale' | 'Harvard' | 'Stanford';
   name: string;
   track: 'Algorithms' | 'Theory' | 'Math' | 'Systems';
   topics: string;
@@ -21,9 +21,31 @@ export interface Course {
   url: string;
   psets: PSet[];
   targetWeek: number;
+  /**
+   * A2: a high-priority CURRENT course, featured near the top of surface #4.
+   * Additive/optional; unset on ordinary courses leaves their behavior unchanged.
+   */
+  featured?: boolean;
 }
 
 export const CURRICULUM: readonly Course[] = [
+{
+  // A2: currently taken to pass the WGU statistics course — a high-priority
+  // CURRENT course, featured near the top; regression/ANOVA modules are NOT
+  // deferred. Sorted first in the Math track (targetWeek 1, leads the array).
+  code: 'Stanford Stats',
+  school: 'Stanford',
+  name: 'Introduction to Statistics',
+  track: 'Math',
+  topics: 'Exploratory data analysis, probability, sampling, estimation, hypothesis testing, regression, ANOVA',
+  text: 'Stanford Online — Guenther Walther (Coursera)',
+  url: 'https://www.coursera.org/learn/stanford-statistics',
+  psets: [
+    { name: 'Graded quizzes & assignments (in Coursera)', url: 'https://www.coursera.org/learn/stanford-statistics' },
+  ],
+  targetWeek: 1,
+  featured: true,
+},
 {
   code: 'Yale CS202',
   school: 'Yale',

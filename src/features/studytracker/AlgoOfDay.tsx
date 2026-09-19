@@ -6,9 +6,9 @@
  * Content and rotation live in algorithms.ts.
  */
 import { useState } from 'preact/hooks';
-import { ALGORITHMS, algoOfDay } from '@/features/studytracker/algorithms';
-import { ALGO_PROOFS } from '@/features/studytracker/algoProofs';
+import { ALGORITHMS, algoOfDay, ALGO_SOURCE } from '@/features/studytracker/algorithms';
 import { Collapsible } from '@/features/studytracker/Collapsible';
+import { ProveItYourself } from '@/features/studytracker/ProveItYourself';
 import { trackerState, creditEvent, EVENT_WEIGHTS } from '@/features/studytracker/trackerStore';
 
 export function AlgoOfDay() {
@@ -20,7 +20,7 @@ export function AlgoOfDay() {
   const studied = (trackerState.value.day.events?.['algo:studied'] ?? 0) > 0;
 
   return (
-    <Collapsible id="algo" eyebrow="Practice" title="Algorithm of the day" defaultOpen={false}>
+    <Collapsible id="algo" eyebrow="Practice" title="Algorithm of the day" defaultOpen={true}>
       <p class="hint">One algorithm a day, from first principles: C++ first, then ported to Python; rigorous and formal, but in plain English. Rotates daily; tap any to browse.</p>
 
       <div class="algo-pills">
@@ -52,6 +52,15 @@ export function AlgoOfDay() {
 
         <p class="algo-one">{cur.oneLiner}</p>
 
+        {ALGO_SOURCE[cur.id] && (
+          <div class="algo-src">
+            <span class="algo-src-chip">Currently · {cur.category}</span>
+            <a class="algo-src-link" href={ALGO_SOURCE[cur.id]!.url} target="_blank" rel="noopener noreferrer">
+              ▶ Watch · {ALGO_SOURCE[cur.id]!.label} ↗
+            </a>
+          </div>
+        )}
+
         <div class="algo-sub">In plain English</div>
         {cur.plain.map((p, i) => (
           <p key={i} class="algo-p">{p}</p>
@@ -62,12 +71,7 @@ export function AlgoOfDay() {
         <p class="algo-p"><b>Invariant. </b>{cur.invariant}</p>
         <p class="algo-p"><b>Correctness. </b>{cur.correctness}</p>
 
-        {ALGO_PROOFS[cur.id] && (
-          <>
-            <div class="algo-sub">Prove it</div>
-            <p class="algo-p algo-proof">{ALGO_PROOFS[cur.id]}</p>
-          </>
-        )}
+        <ProveItYourself key={cur.id} algoId={cur.id} algoName={cur.name} />
 
         <div class="algo-codehead">
           <div class="algo-sub" style={{ margin: 0 }}>Implementation</div>
