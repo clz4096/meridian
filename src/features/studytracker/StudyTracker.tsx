@@ -29,6 +29,7 @@ import { activeTab, setTab, type TrackerTab } from '@/features/studytracker/uiSt
 import { nowTick, startNowClock, currentBlockId } from '@/features/studytracker/now';
 import { FeedSection } from '@/features/studytracker/FeedSection';
 import { AlgoOfDay } from '@/features/studytracker/AlgoOfDay';
+import { TeachSection } from '@/features/teaching/TeachSection';
 import { CurriculumSection } from '@/features/studytracker/CurriculumSection';
 import { PapersSection } from '@/features/studytracker/PapersSection';
 import { ProofJournal } from '@/features/studytracker/ProofJournal';
@@ -208,6 +209,10 @@ export function StudyTrackerView() {
 
             {/* #3 ALGORITHM OF THE DAY (now default-open) */}
             <AlgoOfDay />
+
+            {/* #3b LEARN BY TEACHING — an extension of surface #3's practice:
+                teach the day's algorithm and defend it in AI office hours. */}
+            <TeachSection />
 
             {/* #4 COURSES OF THE DAY + PSETS */}
             <CurriculumSection />

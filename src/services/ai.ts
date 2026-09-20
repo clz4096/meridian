@@ -164,3 +164,158 @@ export async function generateQuestions(topicName: string, count: number, avoidP
   if (!Array.isArray(o.cards)) return { ok: false, error: 'model returned no cards' };
   return { ok: true, raw: o.cards };
 }
+
+// ── Learn by Teaching (the PhD teaching simulator) ────────────────────────────
+// See docs/learn-by-teaching-2026-09-20.md. Three calls: grade the lecture, run
+// office hours (the make-or-break probing questions), grade the defense. Each is a
+// thin transport — it validates shape/bounds here and returns typed data.
+
+/** Pull the first JSON object out of a (possibly fenced) model reply. */
+function parseJsonObject(text: string): Record<string, unknown> | null {
+  const m = text.replace(/```json|```/g, '').match(/\{[\s\S]*\}/);
+  try {
+    return JSON.parse(m ? m[0] : text) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+const clampScore = (v: unknown): number => Math.max(0, Math.min(2, Math.round(Number(v) || 0)));
+
+export interface LectureGrade {
+  scores: number[]; // length 6, each 0/1/2
+  feedback: string[]; // length 6
+  total: number; // 0..12
+}
+
+const LECTURE_RUBRIC =
+  '1 CORRECTNESS — 2: all definitions/claims/proofs/code precise and error-free; 1: minor imprecision or one non-fatal error; 0: a definition/proof/claim is wrong.\n' +
+  '2 EXPLAINS THE WHY — 2: every key rule justified from a definition/first principle; 1: some justification but at least one key idea asserted without its why; 0: rules presented as things to accept.\n' +
+  '3 CLARITY FOR THE AUDIENCE — 2: the target-level person could follow it and every acronym/term is expanded on first use; 1: mostly clear but at least one unexplained jump or undefined term; 0: assumes knowledge the audience lacks.\n' +
+  '4 STRUCTURE/ARC — 2: intuition then formal then application, motivation precedes formalism; 1: has structure but a segment is out of order or motivation is missing; 0: no discernible arc.\n' +
+  '5 USE OF EXAMPLES — 2: at least one concrete worked example (code or a worked proof) illustrating the abstract idea; 1: an example is present but underexplained or trivial; 0: none.\n' +
+  '6 PACING/COMPRESSION — 2: fits the target length, no bloat, no critical omission; 1: notably too long or short, or a segment rushed or padded; 0: wildly off or omits core content.';
+
+/** Grade a lecture transcript against the fixed 6-dimension rubric (each 0/1/2, total /12). */
+export async function gradeLecture(
+  topicName: string,
+  targetAudience: string,
+  transcript: string,
+): Promise<{ ok: true; grade: LectureGrade } | { ok: false; error: string }> {
+  const system =
+    'You are a rigorous computer-science teaching evaluator. Grade a lecture TRANSCRIPT against a fixed six-dimension rubric, scoring each dimension exactly 0, 1, or 2. ' +
+    'For any dimension you score below 2, the feedback MUST quote the specific words or step in the transcript that cost the point and say what was needed — never generic advice. For a 2, give one short confirming sentence. ' +
+    'Never give a holistic overall rating; only the six dimension scores. Be exacting: reward precision and the generative "why", penalise hand-waving. Output strict JSON only.';
+  const user =
+    `TOPIC: ${topicName}\nTARGET AUDIENCE: ${targetAudience}\n\nRUBRIC (score each 0, 1, or 2):\n${LECTURE_RUBRIC}\n\n` +
+    `LECTURE TRANSCRIPT:\n"""${transcript}"""\n\n` +
+    'Reply with ONLY this JSON, no prose:\n' +
+    '{"scores":[s1,s2,s3,s4,s5,s6],"feedback":["f1","f2","f3","f4","f5","f6"],"total":<sum of scores>}';
+  const res = await aiCall({ maxTokens: 1400, temperature: 0.2, jsonMode: true, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] });
+  if (!res.ok) return { ok: false, error: res.error };
+  const o = parseJsonObject(res.text);
+  const scoresRaw = (o?.scores as unknown[]) ?? [];
+  const fbRaw = (o?.feedback as unknown[]) ?? [];
+  if (!Array.isArray(scoresRaw) || scoresRaw.length !== 6) return { ok: false, error: 'bad grade shape' };
+  const scores = scoresRaw.map(clampScore);
+  const feedback = Array.from({ length: 6 }, (_, i) => String((fbRaw[i] as string) ?? '').trim());
+  const total = scores.reduce((a, b) => a + b, 0);
+  return { ok: true, grade: { scores, feedback, total } };
+}
+
+export type PersonaKey = 'maya' | 'devin' | 'priya' | 'chen';
+export interface OHQuestion {
+  persona: PersonaKey;
+  text: string;
+  targetsUncovered: boolean;
+}
+const PERSONA_ORDER: PersonaKey[] = ['maya', 'devin', 'priya', 'chen'];
+
+/**
+ * Generate the four escalating office-hours questions. This is the make-or-break call:
+ * every question must reference SPECIFIC content of THIS transcript, must not be answerable
+ * by quoting one sentence, and Priya's must target something the lecture did NOT cover.
+ */
+export async function officeHoursQuestions(
+  topicName: string,
+  targetAudience: string,
+  transcript: string,
+): Promise<{ ok: true; questions: OHQuestion[] } | { ok: false; error: string }> {
+  const system =
+    'You simulate four graduate-level students in office hours immediately after a lecture. You have READ the user\'s ACTUAL transcript and must target ITS specific content. Produce EXACTLY four questions, one per persona, in escalating difficulty.\n' +
+    'HARD RULES (a question that breaks any of these is a failure):\n' +
+    '(a) Every question must quote or reference a SPECIFIC part of THIS lecture. Priya instead references a SPECIFIC thing the lecture OMITTED. A question generic enough to apply to a different topic is forbidden.\n' +
+    '(b) No question may be answerable by simply repeating a sentence from the lecture — each must force the student to go BEYOND what was said (justify it, extend it, handle a new case, or explain a deeper why).\n' +
+    '(c) Difficulty escalates: Maya (easiest) → Devin → Priya → Chen (hardest).\n' +
+    'PERSONAS:\n' +
+    '- MAYA, confused beginner: pick a step the lecture moved through too fast or assumed obvious, and ask about its mechanics ("why can we just…?"). targetsUncovered=false.\n' +
+    '- DEVIN, sharp student: pick a specific claim or boundary the lecture stated and probe its limits ("you said X — does that still hold if…?"). targetsUncovered=false.\n' +
+    '- PRIYA, edge-case skeptic: MANDATORY — pick something the lecture did NOT cover (an edge case, empty/degenerate input, a tight-vs-loose distinction, or a counterexample) and ask about it. targetsUncovered=true.\n' +
+    '- PROFESSOR CHEN, deep questioner: ask why the subject is defined/built THIS way rather than a named alternative, and what that choice buys or breaks (push toward deeper theory). targetsUncovered=false.\n' +
+    'Output strict JSON only.';
+  const user =
+    `TOPIC: ${topicName}\nTARGET AUDIENCE (the level the lecture was pitched at): ${targetAudience}\n\n` +
+    `LECTURE TRANSCRIPT (the ONLY material to target — quote from it; for Priya, find a real omission):\n"""${transcript}"""\n\n` +
+    'Reply with ONLY this JSON, no prose:\n' +
+    '{"questions":[' +
+    '{"persona":"maya","text":"...","targetsUncovered":false},' +
+    '{"persona":"devin","text":"...","targetsUncovered":false},' +
+    '{"persona":"priya","text":"...","targetsUncovered":true},' +
+    '{"persona":"chen","text":"...","targetsUncovered":false}]}';
+  const res = await aiCall({ maxTokens: 1400, temperature: 0.7, jsonMode: true, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] });
+  if (!res.ok) return { ok: false, error: res.error };
+  const o = parseJsonObject(res.text);
+  const arr = (o?.questions as Array<Record<string, unknown>>) ?? [];
+  if (!Array.isArray(arr) || arr.length < 4) return { ok: false, error: 'model returned too few questions' };
+  // Normalise to the canonical persona order and coerce Priya's mandatory flag.
+  const byPersona = new Map<PersonaKey, Record<string, unknown>>();
+  for (const q of arr) {
+    const p = String(q.persona ?? '').toLowerCase() as PersonaKey;
+    if (PERSONA_ORDER.includes(p) && !byPersona.has(p)) byPersona.set(p, q);
+  }
+  const questions: OHQuestion[] = [];
+  for (const p of PERSONA_ORDER) {
+    const q = byPersona.get(p);
+    const text = String(q?.text ?? '').trim();
+    if (!text) return { ok: false, error: 'model omitted the ' + p + ' question' };
+    questions.push({ persona: p, text, targetsUncovered: p === 'priya' ? true : Boolean(q?.targetsUncovered) });
+  }
+  return { ok: true, questions };
+}
+
+export interface DefenseGrade {
+  scores: number[]; // length 4, each 0/1/2
+  feedback: string[]; // length 4
+}
+
+/** Grade the four office-hours answers (each 0/1/2) with feedback stating what a full answer needs. */
+export async function gradeDefense(
+  topicName: string,
+  transcript: string,
+  qas: Array<{ persona: PersonaKey; question: string; answer: string }>,
+): Promise<{ ok: true; grade: DefenseGrade } | { ok: false; error: string }> {
+  const system =
+    'You grade a student\'s answers to office-hours questions about their own lecture. Score EACH answer exactly 0, 1, or 2.\n' +
+    '2 ADDRESSED: directly answers the specific question, is correct, and adds reasoning beyond the bare fact; for an edge-case question the case is handled or honestly reasoned; for a "why" question the generative reason is engaged.\n' +
+    '1 PARTIAL: addresses only part, or is correct but hand-wavy, or misses a subtlety.\n' +
+    '0 HAND-WAVED/WRONG/DODGED: restates the lecture without answering, is incorrect, or deflects.\n' +
+    'For EVERY answer, the feedback must state what a full answer would include (the substance, not just the score). Output strict JSON only.';
+  const qaBlock = qas
+    .map((qa, i) => `Q${i + 1} [${qa.persona}]: ${qa.question}\nANSWER ${i + 1}: ${qa.answer || '(no answer given)'}`)
+    .join('\n\n');
+  const user =
+    `TOPIC: ${topicName}\n\nThe student's own lecture (for grounding):\n"""${transcript}"""\n\n` +
+    `The office-hours exchange to grade:\n${qaBlock}\n\n` +
+    'Reply with ONLY this JSON, no prose:\n' +
+    `{"scores":[${qas.map(() => 's').join(',')}],"feedback":[${qas.map(() => '"..."').join(',')}]}`;
+  const res = await aiCall({ maxTokens: 1600, temperature: 0.2, jsonMode: true, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] });
+  if (!res.ok) return { ok: false, error: res.error };
+  const o = parseJsonObject(res.text);
+  const scoresRaw = (o?.scores as unknown[]) ?? [];
+  const fbRaw = (o?.feedback as unknown[]) ?? [];
+  const n = qas.length;
+  if (!Array.isArray(scoresRaw) || scoresRaw.length !== n) return { ok: false, error: 'bad defense grade shape' };
+  const scores = scoresRaw.map(clampScore);
+  const feedback = Array.from({ length: n }, (_, i) => String((fbRaw[i] as string) ?? '').trim());
+  return { ok: true, grade: { scores, feedback } };
+}
