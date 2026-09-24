@@ -11,7 +11,7 @@ import { DATA } from '@/core/data/index';
 import { createAppState } from '@/core/storage/appState';
 import { host } from '@/ui/host';
 import { bump } from '@/ui/store';
-import { syncTrackerFromStore } from '@/features/studytracker/trackerStore';
+import { syncTrackerFromStore, ensureToday as ensureTrackerToday } from '@/features/studytracker/trackerStore';
 import { span, count } from '@/core/telemetry';
 
 export const STORAGE_KEYS: Record<StoreKey, string> = {
@@ -54,6 +54,12 @@ const everyStoreLoaded = (): boolean => STORE_KEYS.every((k) => loadedKeys.has(k
 let loadAll: () => Promise<void> = () => Promise.resolve();
 export function registerLoadAll(fn: () => Promise<void>): void {
   loadAll = fn;
+}
+// Work that must reach the store before the page-hide save captures it (a delete
+// waiting behind its Undo toast). Registered by ui/actions for the same reason.
+let beforeHide: () => void = () => {};
+export function registerBeforeHide(fn: () => void): void {
+  beforeHide = fn;
 }
 const GATE_TIMEOUT_MS = 15_000;
 /** Wait for every store to load, starting the loaders; reject if they don't finish. */
@@ -283,8 +289,13 @@ export const appState = createAppState({
 });
 
 /* ── window lifecycle: flush on background, opportunistic pull on foreground, ⌘S save ── */
+/** Page going to the background: apply pending work, then save synchronously. */
+export function handleHide(): void {
+  beforeHide();
+  appState.flush('hidden');
+}
 function wireLifecycle(): void {
-  const onHide = () => appState.flush('hidden');
+  const onHide = handleHide;
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) onHide();
   });
@@ -315,6 +326,10 @@ export async function boot(): Promise<void> {
   markStoreLoaded('core');
   stores.theorist = await appState.loadTheorist();
   markStoreLoaded('theorist');
+  syncTrackerFromStore();
+  // A new day since last use: auto-bank the old one now, before the boot pull
+  // could replace this device's unbanked day with another device's newer one.
+  ensureTrackerToday();
   // Saves before the gate opened were local-only; publish them once it does.
   void allStoresLoaded.then(() => { if (sync.anyDirty()) void appState.save(); });
   syncTrackerFromStore(); // project the durable theorist store into the tracker signal

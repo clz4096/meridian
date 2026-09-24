@@ -13,7 +13,7 @@ import { domId } from '@/ui/html';
 import { ProgControls, Carousel, Chart, LiftPicker } from '@/ui/components/Charts';
 import { wk, currentBW, exVideo, displayExercise, exSwap, workoutActions, loadWorkout } from '@/ui/actions';
 import { DATA } from '@/core/data/index';
-import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkShowAll, wkProgOpen, activeExercise, awayMode, editingSet, progPeriod, progLift, dataRev } from '@/ui/store';
+import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkShowAll, wkProgOpen, activeExercise, awayMode, editingSet, progPeriod, progLift, dataRev, notPending } from '@/ui/store';
 import { dstr, dateLabel } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 
@@ -502,8 +502,8 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
   const ph = awayMode.value && exSwap(exercise) ? null : platesFor(exercise, curWeight);
 
   let body: preact.JSX.Element;
-  if (vm.isPast && performed.length > 0) {
-    body = <div class="sets">{performed.map((s) => <PastSetRow date={vm.date} s={s} />)}</div>;
+  if (vm.isPast && performed.filter(notPending).length > 0) {
+    body = <div class="sets">{performed.filter(notPending).map((s) => <PastSetRow date={vm.date} s={s} />)}</div>;
   } else if (!plan) {
     // No history yet (a manually-added lift): we can't prescribe a set structure, so
     // show the sets already logged AND keep an input open so more than one set can be

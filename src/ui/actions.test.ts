@@ -11,12 +11,12 @@
  * touch document.getElementById — harmlessly no-op when the element is absent.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, dataActions, restTimer, openSection, goHome, handleBack, todaySession, topicReviewSession, sessionForTopic, REVIEW_PREFIX, INTERVIEW_PREFIX, hubStats, allKGItems, sg, kg, core, wk } from '@/ui/actions';
-import { appState, dstr, sync } from '@/app/bootstrap';
+import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, dataActions, restTimer, flushPendingDelete, undoDelete, openSection, goHome, handleBack, todaySession, topicReviewSession, sessionForTopic, REVIEW_PREFIX, INTERVIEW_PREFIX, hubStats, allKGItems, sg, kg, core, wk } from '@/ui/actions';
+import { appState, dstr, sync, handleHide } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import { selectWorkoutView } from '@/features/workout/workoutSelectors';
 import defaultWorkout from '@/core/data/defaultWorkout.json';
-import { dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems, kgOverview, kgSession, kgInterview, kgGym, currentTab, activeExercise } from '@/ui/store';
+import { pendingDeletes, undoToast, dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems, kgOverview, kgSession, kgInterview, kgGym, currentTab, activeExercise } from '@/ui/store';
 
 const today = dstr();
 
@@ -118,7 +118,8 @@ describe('hubStats knowledge tile — mastery % of the whole curriculum', () => 
   it('a beginner who mastered 1 of 20 curriculum questions reads ~5%, NOT 100%', () => {
     // Reality check: a known beginner state must not read near-full mastery.
     kgItems.value = { algorithms: Array.from({ length: 20 }, (_, i) => ({ id: `q${i}`, mins: 5 })) as never };
-    Object.assign(kg(), { mastery: { q0: 5 }, srs: {}, log: [], gymDone: {} });
+    // A real grade leaves a review record; mastery % counts only recently-reviewed cards.
+    Object.assign(kg(), { mastery: { q0: 5 }, srs: { q0: reviewedToday() }, log: [], gymDone: {} });
     const tile = hubStats().find((s) => s.key === 'knowledge')!;
     expect(tile.value).toBe('5'); // 1 / 20, not 1 / 1 attempted
   });
@@ -133,12 +134,17 @@ describe('hubStats knowledge tile — mastery % of the whole curriculum', () => 
     kgItems.value = { algorithms: Array.from({ length: 20 }, (_, i) => ({ id: `q${i}`, mins: 5 })) as never };
     // 1 curated card mastered → 5%. Adding a generated pool (even a mastered one) must not change it.
     Object.assign(kg(), {
-      mastery: { q0: 5, 'ai-1': 5 }, srs: {}, log: [], gymDone: {},
+      mastery: { q0: 5, 'ai-1': 5 }, srs: { q0: reviewedToday(), 'ai-1': reviewedToday() }, log: [], gymDone: {},
       generated: { algorithms: [{ id: 'ai-1', prompt: 'p', reveal: 'r', mins: 5, flow: 'flip', src: { book: '', ref: 'AI' }, tags: ['algorithms'], ai: true }] },
     });
     expect(hubStats().find((s) => s.key === 'knowledge')!.value).toBe('5'); // still 1/20, not 2/21
   });
 });
+
+/** An FSRS row for a card graded today (well within its recall window). */
+function reviewedToday() {
+  return { due: '2999-01-01', stability: 30, difficulty: 5, reps: 3, lapses: 0, state: 2, lastReview: dstr() };
+}
 
 describe('allKGItems memoization', () => {
   it('returns the SAME array reference while kgItems and generated are unchanged, a fresh one after they change', () => {
@@ -171,10 +177,13 @@ describe('allKGItems memoization', () => {
   });
 
   it('discardGenerated invalidates the memo — a removed card disappears immediately (not stale)', () => {
+    // The discard saves at once; sync isn't initialised in this file, so stub the save.
+    vi.spyOn(sync, 'save').mockResolvedValue({ localOk: true, localFailed: [], cloud: 'skipped' });
     kgItems.value = {} as never;
     kg().generated = { algorithms: [{ id: 'ai-1', prompt: 'p', reveal: 'r', mins: 5, flow: 'flip', src: { book: '', ref: 'AI' }, tags: ['algorithms'], ai: true }] };
     expect(allKGItems().some((c: { id: string }) => c.id === 'ai-1')).toBe(true); // primes the memo
     knowledgeActions.discardGenerated('ai-1', 'algorithms');
+    flushPendingDelete(); // deletes wait behind the Undo toast
     expect(allKGItems().some((c: { id: string }) => c.id === 'ai-1')).toBe(false); // in-place mutation swaps the ref → memo invalidated
     kg().generated = undefined;
   });
@@ -333,8 +342,62 @@ describe('todosActions (nested in core)', () => {
     todosActions.add('x');
     const id = String(core().todos[0].id);
     todosActions.remove(id);
+    flushPendingDelete(); // deletes wait behind the Undo toast
     expect(core().todos).toHaveLength(0);
     expect(core()._del[id]).toBeTruthy();
+  });
+
+  it('remove is pending until the Undo toast expires: hidden, untouched, and undoable', () => {
+    vi.useFakeTimers();
+    // Advancing past the 1 s autosave triggers a save; sync isn't initialised here.
+    vi.spyOn(sync, 'save').mockResolvedValue({ localOk: true, localFailed: [], cloud: 'skipped' });
+    try {
+      todosActions.add('keep me');
+      const id = String(core().todos[0].id);
+      todosActions.remove(id);
+      expect(pendingDeletes.value.has(id)).toBe(true); // hidden from lists
+      expect(undoToast.value).toBe('Todo deleted');
+      expect(core().todos).toHaveLength(1); // data untouched
+      expect(core()._del?.[id]).toBeUndefined(); // no tombstone yet, so nothing can sync
+      undoDelete();
+      expect(pendingDeletes.value.has(id)).toBe(false);
+      expect(undoToast.value).toBeNull();
+      vi.advanceTimersByTime(6_000);
+      expect(core().todos).toHaveLength(1); // undo means it never happens
+      todosActions.remove(id);
+      vi.advanceTimersByTime(5_000); // toast expires -> the delete applies
+      expect(core().todos).toHaveLength(0);
+      expect(core()._del[id]).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hiding the app applies a pending delete BEFORE the on-hide save captures the stores', () => {
+    let savedWithTodo: boolean | null = null;
+    const save = vi.spyOn(sync, 'save').mockImplementation(async () => {
+      // Record what the flush would persist (asserting in here would be swallowed).
+      savedWithTodo = core().todos.some((t: { text: string }) => t.text === 'gone');
+      return { localOk: true, localFailed: [], cloud: 'skipped' };
+    });
+    todosActions.add('gone');
+    todosActions.remove(String(core().todos.find((t: { text: string }) => t.text === 'gone').id));
+    handleHide(); // what visibilitychange-hidden / pagehide run
+    expect(save).toHaveBeenCalled();
+    expect(savedWithTodo).toBe(false); // the delete was applied before the save captured the stores
+    expect(core().todos.some((t: { text: string }) => t.text === 'gone')).toBe(false);
+  });
+
+  it('a second delete applies the first one before taking its place', () => {
+    todosActions.add('a');
+    todosActions.add('b');
+    const [a, b] = core().todos.map((t: { id: unknown }) => String(t.id));
+    todosActions.remove(a);
+    todosActions.remove(b);
+    expect(core().todos.map((t: { id: unknown }) => String(t.id))).toEqual([b]);
+    undoDelete();
+    expect(core().todos.map((t: { id: unknown }) => String(t.id))).toEqual([b]);
+    flushPendingDelete(); // leave no pending delete for later tests
   });
 });
 
@@ -362,6 +425,7 @@ describe('scratchActions (nested in core)', () => {
     scratchActions.add('x', '');
     const id = String(core().scratch[0].id);
     scratchActions.remove(id);
+    flushPendingDelete();
     expect(core().scratch).toHaveLength(0);
     expect(core()._del[id]).toBeTruthy();
   });

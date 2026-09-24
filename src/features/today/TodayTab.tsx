@@ -6,7 +6,7 @@
  */
 import { useEffect } from 'preact/hooks';
 import { dstr } from '@/app/bootstrap';
-import { dataRev, clockNow, weather } from '@/ui/store';
+import { dataRev, clockNow, weather, notPending } from '@/ui/store';
 import type { HubStat } from '@/ui/hubTypes';
 import { core, hubStats, openSection, todosActions, tickClock, refreshWeather, setWeatherCity } from '@/ui/actions';
 import { dueTodos } from '@/features/todos/todosSelectors';
@@ -79,7 +79,7 @@ export function TodayView() {
   }, []);
 
   const today = dstr();
-  const due = dueTodos(core(), today);
+  const due = dueTodos(core(), today).filter(notPending);
   const glance = hubStats().filter((s) => TRACKERS.has(s.key));
   const { hm, ss, ap } = clockParts(now);
   const tod = periodOf(new Date(now).getHours());

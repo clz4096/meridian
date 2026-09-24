@@ -86,6 +86,11 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 /* saved on the device, cloud pending: informative, not an error */
 .savestat.cloud{color:var(--fuel);border-color:rgba(224,166,75,.35)}
 .savestat.cloud .dot{background:var(--fuel)}
+/* Undo for a pending delete: bottom-center, above the home indicator */
+.undotoast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:62;display:flex;align-items:center;gap:14px;background:var(--surface-3);border:1px solid var(--line-2);color:var(--text);border-radius:14px;padding:6px 6px 6px 16px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.45);white-space:nowrap}
+.undotoast button{min-height:40px;background:transparent;border:0;color:var(--teal);font:600 13.5px var(--sans);padding:0 12px;cursor:pointer}
+body:has(.fab) .undotoast{bottom:calc(90px + env(safe-area-inset-bottom))}
+body.resting .undotoast{bottom:calc(104px + env(safe-area-inset-bottom))}
 .appwrap{padding-bottom:100px}
 .savechip .dot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
 .savechip.dirty{cursor:pointer;border-color:var(--fuel);color:var(--fuel)}

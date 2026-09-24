@@ -20,6 +20,10 @@ export interface RestTimerHooks {
   clearInterval(handle: number): void;
   /** Called when the timer stops *non-silently* (user pressed Done) so the workout can re-render. */
   onVisibleStop?(): void;
+  /** Called from start(), i.e. inside the tap that logged the set (iOS only unlocks audio in a gesture). */
+  onStart?(): void;
+  /** Called once per countdown, when the rest target is first reached. */
+  onDone?(): void;
 }
 
 export class RestTimer {
@@ -28,6 +32,7 @@ export class RestTimer {
   /** "exercise|type", or '' when idle. */
   private forKey = '';
   private targetSec = 0;
+  private alerted = false;
 
   constructor(private readonly h: RestTimerHooks) {
     // The bar's Stop ("Done") button belongs to the timer; bound once.
@@ -44,6 +49,8 @@ export class RestTimer {
     this.forKey = exercise + '|' + type;
     this.startedAt = this.h.now();
     this.targetSec = targetSec;
+    this.alerted = false;
+    this.h.onStart?.();
     if (this.handle !== null) this.h.clearInterval(this.handle);
     this.handle = this.h.setInterval(() => this.paint(), 250);
     this.paint();
@@ -67,5 +74,9 @@ export class RestTimer {
     const elapsed = Math.floor((this.h.now() - this.startedAt) / 1000);
     const over = elapsed >= this.targetSec;
     this.h.bar.paint(this.activeExercise, elapsed, this.targetSec, over);
+    if (over && !this.alerted) {
+      this.alerted = true;
+      this.h.onDone?.();
+    }
   }
 }

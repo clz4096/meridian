@@ -109,12 +109,19 @@ function doGrade(S: AscSt, g: Grade, reduced: boolean): void {
 }
 
 /**
- * Skip the current card: auto-grade it "Again" (grade 1 → back tomorrow under the SRS
- * lapse interval) and advance, WITHOUT needing to Reveal. For a card you don't want to
- * answer right now but still want to see again.
+ * Skip the current card: defer it to tomorrow and advance, WITHOUT needing to Reveal.
+ * Not a grade: grading it "Again" (the old behavior) recorded a lapse, collapsed
+ * stability, and dropped mastery for a card the user never attempted.
  */
 function doSkip(S: AscSt, reduced: boolean): void {
-  applyGrade(S, 1, reduced);
+  if (S.locked.current) return;
+  const item = S.deckRef.current[S.cursor.value];
+  if (!item) return;
+  S.locked.current = true;
+  S.note.value = knowledgeActions.defer(item.id) ? 'tomorrow' : '';
+  S.completed.value = S.completed.value + 1; // the rail counts cards dealt with, graded or skipped
+  if (!reduced) S.cardPhase.value = 'recede';
+  advance(S, reduced ? 120 : 420, reduced);
 }
 
 function applyGrade(S: AscSt, g: Grade, reduced: boolean): void {
@@ -133,7 +140,7 @@ function applyGrade(S: AscSt, g: Grade, reduced: boolean): void {
 
   const afterM = GRADE_MASTERY[g];
   S.history.push({ id: item.id, startBand: beforeBand, grade: g });
-  S.completed.value = S.history.length; // rail advances one notch (CSS .5s width)
+  S.completed.value = S.completed.value + 1; // rail advances one notch (CSS .5s width)
 
   // Again/Hard reassurance — honest, from the REAL previewed interval (Again ≈ 1d
   // under enable_short_term:false, so "tomorrow", not the proto's "<10m / today").
@@ -146,9 +153,13 @@ function applyGrade(S: AscSt, g: Grade, reduced: boolean): void {
 
   if (bandOf(afterM) > beforeBand) fireReceipt(S, `${MWORD[beforeM]} → ${MWORD[afterM]} ↑`, reduced);
 
-  const M = deck.length;
-  const delay = reduced ? 120 : g === 1 || g === 2 ? 620 : 420;
   if (!reduced) S.cardPhase.value = 'recede';
+  advance(S, reduced ? 120 : g === 1 || g === 2 ? 620 : 420, reduced);
+}
+
+/** Move to the next card (or the summit) after the recede delay, then unlock. */
+function advance(S: AscSt, delay: number, reduced: boolean): void {
+  const M = S.deckRef.current.length;
   window.setTimeout(() => {
     const next = S.cursor.value + 1;
     if (next >= M) {
@@ -425,7 +436,7 @@ function Card({ S, item, reduced, cardRef }: { S: AscSt; item: DeckItem; reduced
             <button class="asc-btn-reveal" onClick={() => doReveal(S)}>
               Reveal <span class="asc-k">R</span>
             </button>
-            <button class="asc-skip" onClick={() => doSkip(S, reduced)} title="Skip — you'll see this again tomorrow">
+            <button class="asc-skip" onClick={() => doSkip(S, reduced)} title="Skip for now: no grade; a due card comes back tomorrow">
               Skip for now <span class="asc-k">S</span>
             </button>
           </div>

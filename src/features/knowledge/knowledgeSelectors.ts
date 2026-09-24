@@ -9,6 +9,24 @@
 
 import type { KnowledgeItemLike, KnowledgeState, Mastery, SrsEntry } from '@/core/types';
 import { shiftDate, toNum } from '@/core/util';
+import { readFsrs, retrievability } from '@/features/knowledge/fsrs';
+
+/** Recall probability below which a card stops counting as mastered (FSRS targets 0.9 at due). */
+export const MASTERED_RECALL = 0.8;
+
+/**
+ * Mastered = last grade Good or better AND still likely remembered today. The grade
+ * alone never decayed, so a card last reviewed months ago kept counting forever.
+ */
+export function isMastered(K: Pick<KnowledgeState, 'mastery' | 'srs'>, id: string, today: string): boolean {
+  if (Number(K.mastery?.[id] ?? 0) < 4) return false;
+  // A grade with no schedule at all (imported data) has nothing to decay from, so it
+  // doesn't count. A legacy SM-2 row has no review date: retrievability treats it as
+  // remembered until it falls due, so pre-FSRS progress doesn't vanish on upgrade.
+  const raw = K.srs?.[id];
+  if (!raw || !readFsrs(raw).due) return false;
+  return retrievability(raw, today) >= MASTERED_RECALL;
+}
 
 export interface SrsConfig {
   /** rating at or below which the card lapses */

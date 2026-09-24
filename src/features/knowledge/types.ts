@@ -77,6 +77,9 @@ export interface KnowledgeActions {
   toggleGymDone(key: string): void;
   reveal(id: string): void;
   rate(id: string, score: Mastery): void;
+  /** Skip for now: due tomorrow, without a grade (review history, mastery, and log untouched). */
+  /** Returns whether the card was moved (false: unscheduled, or not due before tomorrow). */
+  defer(id: string): boolean;
   queueForReview(id: string): void;
   gradeWithAI(id: string): void;
   /** Generate an AI answer to the question (Opus), shown in the note area. */

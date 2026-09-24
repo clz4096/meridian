@@ -15,6 +15,7 @@ import { useState } from 'preact/hooks';
 import { ALGO_FLAW } from '@/features/studytracker/algoProveIt';
 import { ALGO_PROOFS } from '@/features/studytracker/algoProofs';
 import { GatedReveal } from '@/features/studytracker/GatedReveal';
+import { addEntry } from '@/features/studytracker/proofJournalStore';
 import { trackerState, creditEvent, EVENT_WEIGHTS } from '@/features/studytracker/trackerStore';
 
 export function ProveItYourself(
@@ -41,7 +42,12 @@ export function ProveItYourself(
 
   // algoStudied-class (not the top retrieval payout): Tier C credits the ATTEMPT,
   // is unverified, and would otherwise be farmable across all 14 algorithms.
-  const creditRecon = (): void => creditEvent('algo:proveit:' + algoId, EVENT_WEIGHTS.algoStudied);
+  // The attempt itself goes to the proof journal; it used to live only in this
+  // component's state and vanished on reload.
+  const creditRecon = (): void => {
+    addEntry(`Proof attempt: ${algoName}`, attempt, true);
+    creditEvent('algo:proveit:' + algoId, EVENT_WEIGHTS.algoStudied);
+  };
 
   return (
     <div class="algo-pi">

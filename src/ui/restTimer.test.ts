@@ -109,3 +109,30 @@ describe('RestTimer', () => {
     expect(h.timer.activeExercise).toBe('');
   });
 });
+
+describe('RestTimer done alert', () => {
+  it('fires onDone exactly once when the target is reached, and again after a restart', () => {
+    let t = 0;
+    const ticks: Array<() => void> = [];
+    const onDone = vi.fn();
+    const onStart = vi.fn();
+    const timer = new RestTimer({
+      bar: { paint: () => {}, hide: () => {}, onStop: () => {} } as never,
+      now: () => t,
+      setInterval: (fn) => { ticks.push(fn); return ticks.length; },
+      clearInterval: () => {},
+      onDone,
+      onStart,
+    });
+    timer.start('Bench', 'top', 90);
+    expect(onStart).toHaveBeenCalledTimes(1);
+    t = 89_000; ticks.at(-1)!();
+    expect(onDone).not.toHaveBeenCalled();
+    t = 90_000; ticks.at(-1)!();
+    t = 95_000; ticks.at(-1)!();
+    expect(onDone).toHaveBeenCalledTimes(1);
+    timer.start('Bench', 'back', 60);
+    t = 160_000; ticks.at(-1)!();
+    expect(onDone).toHaveBeenCalledTimes(2);
+  });
+});

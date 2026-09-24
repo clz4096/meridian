@@ -8,12 +8,13 @@
  * components (Preact keeps DOM identity across renders).
  */
 import { RestTimer } from '@/ui/restTimer';
+import { chime, unlockChime } from '@/ui/chime';
 import { inferIncrement, restSeconds, plannedSetCount, isExerciseComplete, weekStrength, trainedDaysInWeek, WEEK_TRAINING_TARGET } from '@/features/workout/workoutSelectors';
 import type { WorkoutActions } from '@/features/workout/types';
 import { shiftDate } from '@/core/util';
 import { navStart } from '@/core/telemetry';
 import { DEFAULT_CONFIG, type SetType, type SessionOverrides } from '@/core/types';
-import { dueCards, isDue, interviewDeck, interviewRelevant, interviewPreset, normalizeGenerated } from '@/features/knowledge/knowledgeSelectors';
+import { dueCards, isDue, interviewDeck, interviewRelevant, interviewPreset, normalizeGenerated, isMastered } from '@/features/knowledge/knowledgeSelectors';
 import { scheduleFsrs, queuedEntry, readFsrs, type Grade } from '@/features/knowledge/fsrs';
 import { GRADE_MASTERY } from '@/features/knowledge/ascent';
 import type { KnowledgeActions } from '@/features/knowledge/types';
@@ -28,10 +29,10 @@ import { openCount as todoOpenCount, dueTodos } from '@/features/todos/todosSele
 import { nextStatus, cardCount as scratchCardCount } from '@/features/scratch/scratchSelectors';
 import { loadWeather, savedCity, setSavedCity } from '@/services/weather';
 import { DATA } from '@/core/data/index';
-import { appState, stores, uid, dstr, sync, cloudEnabled, STORAGE_KEYS, markStoreLoaded, registerLoadAll } from '@/app/bootstrap';
+import { appState, stores, uid, dstr, sync, cloudEnabled, STORAGE_KEYS, markStoreLoaded, registerLoadAll, registerBeforeHide } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import * as st from '@/ui/store';
-import { trackerSummary } from '@/features/studytracker/trackerStore';
+import { trackerSummary, ensureToday as ensureTrackerToday } from '@/features/studytracker/trackerStore';
 import { roadmapSummary } from '@/features/wgu/roadmapStore';
 
 // Stores are dynamically-shaped legacy blobs; the typed selectors own the real
@@ -58,6 +59,8 @@ export const restTimer = new RestTimer({
   setInterval: (fn, ms) => window.setInterval(fn, ms),
   clearInterval: (h) => window.clearInterval(h),
   onVisibleStop: () => st.bump(),
+  onStart: unlockChime,
+  onDone: chime,
 });
 
 /* ── static build-time content ── */
@@ -172,11 +175,13 @@ export const workoutActions: WorkoutActions = {
     st.bump();
   },
   deleteSet(date, id) {
-    const W = wk();
-    appState.tomb(W, id);
-    W.days[date] = (W.days[date] || []).filter((s: Store) => String(s.id) !== String(id));
-    appState.markWorkoutDirty();
-    st.bump();
+    deleteWithUndo(id, 'Set removed', () => {
+      const W = wk();
+      appState.tomb(W, id);
+      W.days[date] = (W.days[date] || []).filter((s: Store) => String(s.id) !== String(id));
+      appState.markWorkoutDirty();
+      st.bump();
+    });
   },
   editSet(date, id, patch) {
     const W = wk();
@@ -322,9 +327,18 @@ export const workoutActions: WorkoutActions = {
 /* ── knowledge helpers ── */
 async function loadQuestionBank(): Promise<boolean> {
   const bank = await fetchQuestionBank();
+  // Without this flag a failed download rendered as an empty bank ("Nothing due today").
+  st.kgBankError.value = !bank;
   if (!bank) return false;
   st.kgItems.value = bank.items as typeof st.kgItems.value;
   return true;
+}
+/** Retry the question-bank download after a failure (Knowledge error panel). */
+export async function retryQuestionBank(): Promise<void> {
+  st.kgBankError.value = false;
+  st.bump();
+  await loadQuestionBank();
+  st.bump();
 }
 export const loadKnowledge = once(async () => {
   // Read the store before the (network) bank fetch so the sync gate isn't held
@@ -620,6 +634,17 @@ export const knowledgeActions: KnowledgeActions = {
     appState.markKnowledgeDirty();
     st.bump();
   },
+  defer(id) {
+    const K = kg();
+    const cur = K.srs?.[id] as Store | undefined;
+    if (!cur) return false; // never scheduled: it just leaves this session
+    const tomorrow = shiftDate(dstr(), 1);
+    if (typeof cur.due === 'string' && cur.due >= tomorrow) return false; // not due before tomorrow anyway
+    K.srs[id] = { ...cur, due: tomorrow };
+    appState.markKnowledgeDirty();
+    st.bump();
+    return true;
+  },
   rate(id, grade) {
     const K = kg();
     const g = (grade as Grade) in GRADE_MASTERY ? (grade as Grade) : (3 as Grade);
@@ -756,21 +781,7 @@ export const knowledgeActions: KnowledgeActions = {
     }
   },
   discardGenerated(cardId, topicId) {
-    const K = kg();
-    if (K.generated?.[topicId]) {
-      K.generated[topicId] = K.generated[topicId].filter((c: Store) => String(c.id) !== String(cardId));
-      if (K.generated[topicId].length === 0) delete K.generated[topicId];
-      K.generated = { ...K.generated }; // new reference so allKGItems' memo invalidates
-    }
-    if (K.mastery) delete K.mastery[cardId]; // discard its progress too
-    if (K.srs) delete K.srs[cardId];
-    if (K.log) K.log = K.log.filter((e: Store) => String(e.qid) !== String(cardId)); // and its study log (chart overcount)
-    // Grow-only tombstone so the discard sticks across a sync merge (no resurrection).
-    if (!K.genDiscarded) K.genDiscarded = [];
-    if (!K.genDiscarded.includes(cardId)) K.genDiscarded.push(cardId);
-    appState.markKnowledgeDirty();
-    st.bump();
-    void appState.save();
+    deleteWithUndo(cardId, 'Card discarded', () => commitDiscardGenerated(cardId, topicId));
   },
   setChartPeriod(p) {
     st.progPeriod.value = p as import("@/ui/charts/progress").Period;
@@ -789,13 +800,80 @@ export const MEAL_PRESETS: readonly MealPreset[] = [
 ];
 let estimating = false; // an AI meal estimate is in flight
 
+/* ── undoable deletes ──
+ * A delete waits UNDO_MS behind an Undo toast before it touches data: the row is
+ * hidden at once, and the real delete (with its tombstone) runs only when the
+ * toast expires, another delete replaces it, or the app goes to the background.
+ * Undo just unhides the row, so nothing was ever written or synced. (Undoing an
+ * applied delete can't work reliably: the tombstone reaches the cloud within a
+ * second and wins every merge after that.) */
+const UNDO_MS = 5_000;
+let pendingDelete: { id: string; commit: () => void; timer: number } | null = null;
+function unhide(id: string): void {
+  const next = new Set(st.pendingDeletes.value);
+  next.delete(id);
+  st.pendingDeletes.value = next;
+}
+export function deleteWithUndo(id: unknown, label: string, commit: () => void): void {
+  flushPendingDelete();
+  const key = String(id);
+  st.pendingDeletes.value = new Set([...st.pendingDeletes.value, key]);
+  st.undoToast.value = label;
+  pendingDelete = { id: key, commit, timer: window.setTimeout(flushPendingDelete, UNDO_MS) };
+}
+/** Apply the pending delete now (toast expired, a new delete, or the app backgrounded). */
+export function flushPendingDelete(): void {
+  const p = pendingDelete;
+  if (!p) return;
+  pendingDelete = null;
+  window.clearTimeout(p.timer);
+  p.commit();
+  unhide(p.id);
+  st.undoToast.value = null;
+}
+function commitMealDelete(id: unknown, d: string): void {
+  const G = sg();
+  appState.tomb(G, id);
+  G.days[d] = (G.days[d] || []).filter((m: Store) => String(m.id) !== String(id));
+  appState.markMealDirty();
+  st.bump();
+}
+function commitDiscardGenerated(cardId: string, topicId: string): void {
+  const K = kg();
+  if (K.generated?.[topicId]) {
+    K.generated[topicId] = K.generated[topicId].filter((c: Store) => String(c.id) !== String(cardId));
+    if (K.generated[topicId].length === 0) delete K.generated[topicId];
+    K.generated = { ...K.generated }; // new reference so allKGItems' memo invalidates
+  }
+  if (K.mastery) delete K.mastery[cardId]; // discard its progress too
+  if (K.srs) delete K.srs[cardId];
+  if (K.log) K.log = K.log.filter((e: Store) => String(e.qid) !== String(cardId)); // and its study log (chart overcount)
+  // Grow-only tombstone so the discard sticks across a sync merge (no resurrection).
+  if (!K.genDiscarded) K.genDiscarded = [];
+  if (!K.genDiscarded.includes(cardId)) K.genDiscarded.push(cardId);
+  appState.markKnowledgeDirty();
+  st.bump();
+  void appState.save();
+}
+registerBeforeHide(flushPendingDelete);
+
+export function undoDelete(): void {
+  const p = pendingDelete;
+  if (!p) return;
+  pendingDelete = null;
+  window.clearTimeout(p.timer);
+  unhide(p.id);
+  st.undoToast.value = null;
+  st.bump();
+}
+
 registerLoadAll(() => Promise.all([loadWorkout(), loadKnowledge(), loadMeal()]).then(() => undefined));
 
 /**
  * Midnight passed with the app open (or it came back to the foreground on a new
  * day). Dates that were following "today" move to the new day; a date the user
- * navigated to on purpose stays. The tracker day is left alone: rolling it here
- * would discard an unbanked day at midnight (whether to auto-bank is undecided).
+ * navigated to on purpose stays. The tracker rolls over too, auto-banking the
+ * finished day under its own date.
  */
 let anchorDay = dstr();
 export function rolloverIfNewDay(): void {
@@ -804,6 +882,7 @@ export function rolloverIfNewDay(): void {
   if (st.wkDate.value === anchorDay) st.wkDate.value = today;
   if (st.sgDate.value === anchorDay) st.sgDate.value = today;
   anchorDay = today;
+  ensureTrackerToday();
   st.bump();
 }
 
@@ -837,12 +916,8 @@ export const mealActions: MealActions = {
     st.bump();
   },
   deleteMeal(id) {
-    const G = sg();
-    const d = st.sgDate.value ?? dstr();
-    appState.tomb(G, id);
-    G.days[d] = (G.days[d] || []).filter((m: Store) => String(m.id) !== String(id));
-    appState.markMealDirty();
-    st.bump();
+    const d = st.sgDate.value ?? dstr(); // the day shown when deleting, not when the toast expires
+    deleteWithUndo(id, 'Meal removed', () => commitMealDelete(id, d));
   },
   async estimateWithAI(desc) {
     if (!desc || estimating) return; // a second tap during the wait would add a duplicate meal
@@ -1120,11 +1195,13 @@ export const todosActions = {
     if (it) { it.text = t; appState.markDirty(); st.bump(); }
   },
   remove(id: string): void {
-    const C = core();
-    appState.tomb(C, id);
-    C.todos = (C.todos || []).filter((x: Store) => String(x.id) !== String(id));
-    appState.markDirty();
-    st.bump();
+    deleteWithUndo(id, 'Todo deleted', () => {
+      const C = core();
+      appState.tomb(C, id);
+      C.todos = (C.todos || []).filter((x: Store) => String(x.id) !== String(id));
+      appState.markDirty();
+      st.bump();
+    });
   },
 };
 
@@ -1170,11 +1247,13 @@ export const scratchActions = {
     st.bump();
   },
   remove(id: string): void {
-    const C = core();
-    appState.tomb(C, id);
-    C.scratch = (C.scratch || []).filter((x: Store) => String(x.id) !== String(id));
-    appState.markDirty();
-    st.bump();
+    deleteWithUndo(id, 'Idea deleted', () => {
+      const C = core();
+      appState.tomb(C, id);
+      C.scratch = (C.scratch || []).filter((x: Store) => String(x.id) !== String(id));
+      appState.markDirty();
+      st.bump();
+    });
   },
 };
 
@@ -1204,7 +1283,7 @@ export function hubStats(): HubStat[] {
   const validIds = new Set<string>();
   Object.keys(bank).forEach((tp) => (bank[tp] || []).forEach((it: Store) => validIds.add(String(it.id))));
   const totalQ = validIds.size;
-  const mastered = Object.entries(K.mastery ?? {}).filter(([id, r]) => validIds.has(id) && Number(r) >= 4).length;
+  const mastered = Object.keys(K.mastery ?? {}).filter((id) => validIds.has(id) && isMastered(K, id, today)).length;
   const masteryPct = totalQ ? Math.round((100 * mastered) / totalQ) : 0;
   const W = wk();
   // Week strength is a qualitative grade of how the training week actually went

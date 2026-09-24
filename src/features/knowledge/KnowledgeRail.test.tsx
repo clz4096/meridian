@@ -37,6 +37,11 @@ function seed(opts: {
   kgItems.value = opts.items ?? {};
   const srs: Record<string, unknown> = {};
   (opts.dueIds ?? []).forEach((id) => (srs[id] = { due: '2000-01-01' }));
+  // Mastered cards carry the review record a real grade leaves (mastery % decays without one).
+  const today = new Date().toISOString().slice(0, 10);
+  for (const [id, m] of Object.entries(opts.masteryById ?? {})) {
+    if (m >= 4 && !srs[id]) srs[id] = { due: '2999-01-01', stability: 30, difficulty: 5, reps: 3, lapses: 0, state: 2, lastReview: today };
+  }
   appState.set('csgraph', { mastery: opts.masteryById ?? {}, gymDone: {}, srs, log: [] });
 }
 

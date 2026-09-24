@@ -182,9 +182,16 @@ export function ensureToday(): void {
   const t = readStore();
   const now = new Date();
   if (t.day.date !== todayISO(now)) {
+    // Auto-bank: the day being replaced keeps its XP under its own date instead of
+    // being discarded (app left open past midnight, or closed without banking).
+    // Max with anything already banked, so credits earned after banking count too.
+    let banked = t.banked;
+    const old = t.day;
+    const xp = old.date && ISO_DATE.test(old.date) ? dayXP(old as TrackerDay) : 0;
+    if (xp > 0 && xp > (banked[old.date] ?? 0)) banked = { ...banked, [old.date]: xp };
     const day = freshDay();
     if (inSabbathWindow(now)) day.dayType = 'light';
-    commit({ ...t, day, dayTouchedAt: Date.now() });
+    commit({ ...t, banked, day, dayTouchedAt: Date.now() });
     return;
   }
   if (t.day.dayType === undefined && inSabbathWindow(now)) {

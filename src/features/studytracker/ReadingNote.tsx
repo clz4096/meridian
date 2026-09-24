@@ -9,6 +9,7 @@
  */
 import { useState } from 'preact/hooks';
 import { trackerState, creditEvent, EVENT_WEIGHTS } from '@/features/studytracker/trackerStore';
+import { addEntry } from '@/features/studytracker/proofJournalStore';
 
 export function ReadingNote({ id, prompt }: { id: string; prompt: string }) {
   const events = trackerState.value.day.events ?? {}; // subscribe: resets daily
@@ -18,6 +19,8 @@ export function ReadingNote({ id, prompt }: { id: string; prompt: string }) {
 
   const save = (): void => {
     if (!text.trim()) return;
+    // Keep the note itself (in the proof journal), not just the credit for writing it.
+    if (!addEntry('Reading takeaway', text, false)) return;
     creditEvent('read:' + id, EVENT_WEIGHTS.journalSave);
     setSaved(true);
   };
@@ -26,7 +29,7 @@ export function ReadingNote({ id, prompt }: { id: string; prompt: string }) {
     <div class="read-note">
       <label class="read-note-lbl" htmlFor={'rn-' + id}>
         {prompt}
-        {(done || saved) && <span class="read-note-done">✓ logged</span>}
+        {(done || saved) && <span class="read-note-done">✓ saved to your journal</span>}
       </label>
       <div class="read-note-row">
         <input

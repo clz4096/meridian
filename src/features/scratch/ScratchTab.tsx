@@ -5,7 +5,7 @@
  */
 import { organizeScratch, SCRATCH_STATUSES, STATUS_LABEL } from '@/features/scratch/scratchSelectors';
 import type { ScratchCard, ScratchStatus } from '@/core/types';
-import { dataRev, scratchFilter, scratchOpen, scratchAdding } from '@/ui/store';
+import { dataRev, scratchFilter, scratchOpen, scratchAdding, notPending } from '@/ui/store';
 import { core, scratchActions } from '@/ui/actions';
 import { host } from '@/ui/host';
 
@@ -67,7 +67,7 @@ function Card({ c }: { c: ScratchCard }) {
 export function ScratchView() {
   dataRev.value; // subscribe: re-derive on add/edit/status/delete
   const filter = scratchFilter.value;
-  const cards = organizeScratch(core(), filter);
+  const cards = organizeScratch(core(), filter).filter(notPending);
   const all = core().scratch ?? [];
   const total = all.length;
   const trying = all.filter((c: ScratchCard) => c.status === 'trying').length;

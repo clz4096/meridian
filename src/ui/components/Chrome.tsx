@@ -4,7 +4,8 @@
  * adapter now just sets `saveState` / `savedFlash` / `restState` and these render.
  */
 import { useEffect } from 'preact/hooks';
-import { saveState, savedFlash, restState } from '@/ui/store';
+import { saveState, savedFlash, restState, undoToast } from '@/ui/store';
+import { undoDelete } from '@/ui/actions';
 import { stopRest } from '@/ui/host';
 import { appState } from '@/app/bootstrap';
 
@@ -28,6 +29,18 @@ export function SaveChip() {
       )}
       <div class={'savedflash' + (flash ? ' show' : '')}>Saved ✓</div>
     </>
+  );
+}
+
+/** Undo for the last delete, while it is still pending (see deleteWithUndo). */
+export function UndoToast() {
+  const label = undoToast.value;
+  if (!label) return null;
+  return (
+    <div class="undotoast" role="status">
+      <span>{label}</span>
+      <button type="button" onClick={undoDelete}>Undo</button>
+    </div>
   );
 }
 

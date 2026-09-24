@@ -8,7 +8,7 @@
  */
 import { organizeTodos } from '@/features/todos/todosSelectors';
 import type { TodoItem } from '@/core/types';
-import { dataRev, todoView, todoAdding, editingTodo } from '@/ui/store';
+import { dataRev, todoView, todoAdding, editingTodo, notPending } from '@/ui/store';
 import { core, todosActions } from '@/ui/actions';
 import { dstr } from '@/app/bootstrap';
 import { host } from '@/ui/host';
@@ -142,7 +142,7 @@ export function TodosView() {
       )}
 
       <div class="todo-list">
-        {list.length ? list.map((t) => <Row t={t} today={today} />) : <div class="empty">{emptyMsg}</div>}
+        {list.filter(notPending).length ? list.filter(notPending).map((t) => <Row t={t} today={today} />) : <div class="empty">{emptyMsg}</div>}
       </div>
 
       <button class={'fab' + (adding ? ' on' : '')} onClick={() => (todoAdding.value = !adding)} aria-label={adding ? 'Close' : 'Add a todo'}>

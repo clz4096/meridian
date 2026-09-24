@@ -12,7 +12,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render } from '@testing-library/preact';
 import { AscentSession } from '@/features/knowledge/AscentSession';
-import { appState } from '@/app/bootstrap';
+import { appState, dstr } from '@/app/bootstrap';
+import { shiftDate } from '@/core/util';
 import { kgItems, kgTopic } from '@/ui/store';
 import type { KnowledgeItem } from '@/features/knowledge/types';
 
@@ -98,25 +99,37 @@ describe('AscentSession — motion crux', () => {
 });
 
 describe('AscentSession — skip', () => {
-  it('Skip auto-fails the card (Again → back tomorrow) and advances WITHOUT revealing', () => {
+  it('Skip advances WITHOUT revealing and does not grade the card', () => {
     vi.useFakeTimers();
     seedFresh(2);
     const { container, getByText } = render(<AscentSession />);
     fireEvent.click(getByText('Begin the climb'));
-    const node = card(container);
-    expect(node.querySelector('.asc-prompt')!.textContent).toContain('Prompt zero');
+    expect(card(container).querySelector('.asc-prompt')!.textContent).toContain('Prompt zero');
 
     // Skip is available before Reveal; clicking it needs no reveal.
     fireEvent.click(container.querySelector('.asc-skip') as HTMLElement);
-    // grade-1 (Again) uses the longer 620ms recede window before advancing
-    act(() => { vi.advanceTimersByTime(620); });
+    act(() => { vi.advanceTimersByTime(420); });
     expect(card(container).querySelector('.asc-prompt')!.textContent).toContain('Prompt one');
 
-    // the skipped card was graded Again: mastery 1, and rescheduled (due set)
+    // Not a grade: no mastery, no review log, no XP entry for the skipped card.
     const K = appState.get('csgraph');
-    expect(K.mastery.c0).toBe(1);
-    expect(typeof K.srs.c0.due).toBe('string');
-    expect(K.srs.c0.due).not.toBe('');
+    expect(K.mastery.c0).toBeUndefined();
+    expect(K.log).toHaveLength(0);
+    expect(appState.get('core').entries).toHaveLength(0);
+  });
+
+  it('Skip on a reviewed, due card moves it to tomorrow and keeps its FSRS state', () => {
+    vi.useFakeTimers();
+    seedFresh(1);
+    const today = dstr();
+    const row = { due: today, stability: 42, difficulty: 4, reps: 6, lapses: 0, state: 2, lastReview: '2025-01-01' };
+    appState.set('csgraph', { mastery: { c0: 4 }, srs: { c0: row }, log: [], gymDone: {} });
+    const { container, getByText } = render(<AscentSession />);
+    fireEvent.click(getByText('Begin the climb'));
+    fireEvent.click(container.querySelector('.asc-skip') as HTMLElement);
+    const K = appState.get('csgraph');
+    expect(K.srs.c0).toEqual({ ...row, due: shiftDate(today, 1) });
+    expect(K.mastery.c0).toBe(4);
   });
 });
 

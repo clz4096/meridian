@@ -4,8 +4,7 @@ import type { KnowledgeState, Mastery, SrsEntry } from '@/core/types';
 import {
   DEFAULT_SRS, daysBetween, dueCards, isDue, normaliseEntry,
   schedule, selectStudyView, studyStreak, toCard,
-  INTERVIEW_PRESETS, interviewPreset, interviewRelevant, interviewDeck, normalizeGenerated, knowledgeGrowth,
-} from '@/features/knowledge/knowledgeSelectors';
+  INTERVIEW_PRESETS, interviewPreset, interviewRelevant, interviewDeck, normalizeGenerated, knowledgeGrowth, isMastered, MASTERED_RECALL} from '@/features/knowledge/knowledgeSelectors';
 import { shiftDate } from '@/core/util';
 
 const RUNS = Number(process.env.FC_RUNS ?? 150);
@@ -377,5 +376,25 @@ describe('knowledgeGrowth scopes solid/seen to the curated bank (AI pool exclude
     // without a valid-id set (back-compat), both count
     const gAll = knowledgeGrowth(state, '2025-06-01');
     expect(gAll.solid).toBe(2);
+  });
+});
+
+describe('isMastered decays with the forgetting curve', () => {
+  const row = (lastReview: string, stability: number) => ({ due: '2026-10-01', stability, difficulty: 5, reps: 5, lapses: 0, state: 2, lastReview });
+  it('needs a Good-or-better last grade', () => {
+    expect(isMastered({ mastery: { a: 3 }, srs: { a: row('2026-09-20', 30) } } as never, 'a', '2026-09-24')).toBe(false);
+    expect(isMastered({ mastery: { a: 4 }, srs: { a: row('2026-09-20', 30) } } as never, 'a', '2026-09-24')).toBe(true);
+  });
+  it('stops counting once recall probability falls below the threshold, and never counts unreviewed cards', () => {
+    // stability 10 d: ~0.82 recall at 20 d, ~0.71 at 60 d
+    expect(isMastered({ mastery: { a: 5 }, srs: { a: row('2026-09-01', 10) } } as never, 'a', '2026-09-21')).toBe(true);
+    expect(isMastered({ mastery: { a: 5 }, srs: { a: row('2026-07-01', 10) } } as never, 'a', '2026-09-24')).toBe(false);
+    expect(isMastered({ mastery: {}, srs: {} } as never, 'a', '2026-09-24')).toBe(false);
+    // A grade with no review record (legacy/imported) can't decay, so it doesn't count.
+    expect(isMastered({ mastery: { a: 5 }, srs: {} } as never, 'a', '2026-09-24')).toBe(false);
+    // Legacy SM-2 row: counts until it falls due, then stops.
+    expect(isMastered({ mastery: { a: 5 }, srs: { a: { due: '2026-12-01', ivl: 60, ease: 2.5, n: 4 } } } as never, 'a', '2026-09-24')).toBe(true);
+    expect(isMastered({ mastery: { a: 5 }, srs: { a: { due: '2026-09-01', ivl: 60, ease: 2.5, n: 4 } } } as never, 'a', '2026-09-24')).toBe(false);
+    expect(MASTERED_RECALL).toBe(0.8);
   });
 });

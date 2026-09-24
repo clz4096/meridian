@@ -56,6 +56,7 @@ export const kgSession = signal<'choose' | 'home' | 'gym' | 'interview'>('choose
 export const kgInterview = signal<string>(''); // chosen interview preset id ('' = show the picker)
 export const kgGenerating = signal(false); // an AI card-generation request is in flight
 export const kgGenMsg = signal<string>(''); // transient status/error from the last generation
+export const kgBankError = signal(false); // the question bank couldn't be downloaded and there's no offline copy
 
 // ── meal UI state ──
 export const sgLoaded = signal(false);
@@ -94,3 +95,9 @@ export interface RestState {
   over: boolean;
 }
 export const restState = signal<RestState | null>(null);
+
+// ── undoable deletes ── (see deleteWithUndo in actions.ts)
+export const pendingDeletes = signal<ReadonlySet<string>>(new Set()); // ids hidden while their Undo is offered
+export const undoToast = signal<string | null>(null); // what can still be restored, e.g. 'Todo deleted'
+/** List filter: drop rows whose delete is pending behind the Undo toast. */
+export const notPending = (x: { id?: unknown }): boolean => !pendingDeletes.value.has(String(x.id));

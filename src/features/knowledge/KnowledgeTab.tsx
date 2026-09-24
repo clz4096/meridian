@@ -9,12 +9,12 @@ import type { KnowledgeViewModel, KnowledgeItem, GymLink } from '@/features/know
 import { masterySeries, questionsSolvedSeries, xpSeries, studyDaysSeries, currentStreak } from '@/ui/charts/progress';
 import { ProgControls, Carousel, Chart } from '@/ui/components/Charts';
 import { SecHero } from '@/ui/components/SecHero';
-import { kg, core, dueItems, allTargetItems, todayPathItems, knowledgeActions, loadKnowledge } from '@/ui/actions';
-import { knowledgeGrowth, INTERVIEW_PRESETS } from '@/features/knowledge/knowledgeSelectors';
+import { kg, core, dueItems, allTargetItems, todayPathItems, knowledgeActions, loadKnowledge, retryQuestionBank } from '@/ui/actions';
+import { knowledgeGrowth, INTERVIEW_PRESETS, isMastered } from '@/features/knowledge/knowledgeSelectors';
 import { AscentSession } from '@/features/knowledge/AscentSession';
 import { srcHref, practiceLinks, seeLinks } from '@/features/knowledge/source';
 import { KnowledgeRail } from '@/features/knowledge/KnowledgeRail';
-import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgGraded, kgOverview, kgSession, kgInterview, kgGenerating, kgGenMsg, progPeriod, dataRev } from '@/ui/store';
+import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgGraded, kgOverview, kgSession, kgInterview, kgGenerating, kgGenMsg, kgBankError, progPeriod, dataRev, notPending } from '@/ui/store';
 import { dstr } from '@/app/bootstrap';
 import { previewIntervals, readFsrs, type Grade } from '@/features/knowledge/fsrs';
 
@@ -47,7 +47,7 @@ function knowledgeVM(): KnowledgeViewModel {
     topicId,
     topics: KG_TOPICS.map((tp: Any) => {
       const arr: Any[] = kgItems.value[tp.id] || [];
-      const mastered = arr.filter((it) => (K.mastery[it.id] || 0) >= 4).length;
+      const mastered = arr.filter((it) => isMastered(K, it.id, dstr())).length;
       return { id: tp.id, name: tp.name, books: tp.books, total: arr.length, mastered, percent: arr.length ? Math.round((100 * mastered) / arr.length) : 0 };
     }),
     items: shown.map((it) => {
@@ -445,8 +445,8 @@ function KnowledgeBody({ vm }: { vm: KnowledgeViewModel }) {
       </div>
 
       <div aria-label="Cards">
-        {vm.items.length ? (
-          vm.items.map((it) => <TopicCard it={it} vm={vm} />)
+        {vm.items.filter(notPending).length ? (
+          vm.items.filter(notPending).map((it) => <TopicCard it={it} vm={vm} />)
         ) : (
           <div class="tpc-empty">
             {vm.timeFilter === 'all' ? 'Questions for this topic are still being written.' : `No ${vm.timeFilter}m cards in this topic.`}
@@ -487,7 +487,7 @@ export function overviewTopics(): OverviewTopic[] {
   dueItems().forEach((it: Any) => { dueByTopic[it.topic] = (dueByTopic[it.topic] || 0) + 1; });
   return KG_TOPICS.map((tp: Any): OverviewTopic => {
     const arr: Any[] = kgItems.value[tp.id] || [];
-    const mastered = arr.filter((it) => (K.mastery?.[it.id] || 0) >= 4).length;
+    const mastered = arr.filter((it) => isMastered(K, it.id, dstr())).length;
     const domain = TOPIC_DOMAIN[tp.id] ?? 'Systems';
     return {
       id: tp.id, name: tp.name, domain, code: TOPIC_CODE[tp.id] ?? tp.id.slice(0, 3).toUpperCase(),
@@ -569,6 +569,16 @@ export function KnowledgeView() {
   }, []);
   dataRev.value; // re-derive
   if (!kgLoaded.value) return <div class="empty">Loading…</div>;
+  if (kgBankError.value) {
+    return (
+      <div class="empty" role="alert">
+        Couldn’t download the questions, and there’s no offline copy on this device yet. Check your connection.
+        <div class="dactions" style="justify-content:center">
+          <button class="mbtn" type="button" onClick={() => void retryQuestionBank()}>Try again</button>
+        </div>
+      </div>
+    );
+  }
 
   // Study-mode router: the tab opens on a chooser, then routes into a mode.
   const mode = kgSession.value;

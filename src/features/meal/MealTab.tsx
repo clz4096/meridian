@@ -10,7 +10,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { selectMealView } from '@/features/meal/mealSelectors';
 import { calorieSeries, proteinSeries, calorieTarget, proteinTarget } from '@/ui/charts/progress';
 import { ProgControls, Carousel, Chart } from '@/ui/components/Charts';
-import { sgLoaded, sgExtrasOpen, sgDate, progPeriod, dataRev } from '@/ui/store';
+import { sgLoaded, sgExtrasOpen, sgDate, progPeriod, dataRev, notPending } from '@/ui/store';
 import { sg, wk, mealActions, workoutActions, loadMeal, toggleMealExtras, MEAL_PRESETS } from '@/ui/actions';
 import { dateLabel, dstr } from '@/app/bootstrap';
 import { host } from '@/ui/host';
@@ -294,9 +294,9 @@ export function MealView() {
       <div class="sec-h">
         {vm.isToday ? 'Today' : dateLabel(vm.date)} · {vm.meals.length} meal{vm.meals.length === 1 ? '' : 's'}
       </div>
-      {vm.meals.length ? (
+      {vm.meals.filter(notPending).length ? (
         <ul class="jfeed">
-          {vm.meals.map((m) => (
+          {vm.meals.filter(notPending).map((m) => (
             <li class="jentry" key={m.id}>
               <span class="jnode" aria-hidden="true" />
               <div class="jentry-row">

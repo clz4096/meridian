@@ -20,7 +20,7 @@ import {
 import { appState } from '@/app/bootstrap';
 import {
   syncTrackerFromStore, trackerState, levelIndex, dayXP, streakCount, todayISO,
-  creditEvent, currentMastery, reviewTopic, markTopicReviewed, stalestTopic,
+  creditEvent, currentMastery, reviewTopic, markTopicReviewed, stalestTopic, ensureToday,
   weeklySessions, setDayType,
   EVENT_WEIGHTS, HALF_LIFE_DAYS, WEEKLY_TARGET,
 } from '@/features/studytracker/trackerStore';
@@ -844,5 +844,38 @@ describe('sync registration completeness', () => {
     const res = await b.pull();
     expect(res.applied).toBe(true);
     expect((b.getStore('theorist') as unknown as TheoristState).banked).toEqual({ '2026-01-01': 123, '__carry': 77 });
+  });
+});
+
+describe('auto-bank at rollover', () => {
+  const yesterday = (): string => { const d = new Date(); d.setDate(d.getDate() - 1); return todayISO(d); };
+  const seed = (day: Partial<TheoristState['day']>, banked: Record<string, number> = {}) => {
+    const t: TheoristState = { banked, day: { date: yesterday(), blocks: {}, scores: {}, banked: false, events: {}, ...day } };
+    appState.set('theorist', t as unknown as Record<string, unknown>);
+    syncTrackerFromStore();
+  };
+  const bankedNow = (): Record<string, number> => (appState.get('theorist') as unknown as TheoristState).banked;
+
+  it("banks an unbanked day's XP under its own date and starts a fresh day", () => {
+    seed({ scores: { s2: 2 }, events: { retrieval: 50 } }); // 20 + 50
+    ensureToday();
+    expect(bankedNow()[yesterday()]).toBe(70);
+    expect(trackerState.value.day.date).toBe(todayISO());
+    expect(dayXP(trackerState.value.day)).toBe(0);
+  });
+
+  it('raises an already-banked day to include credits earned after banking, never lowers it', () => {
+    seed({ scores: { s2: 2 }, banked: true, events: { retrieval: 50 } }, { [yesterday()]: 20 });
+    ensureToday();
+    expect(bankedNow()[yesterday()]).toBe(70);
+    seed({ scores: {}, banked: true, events: {} }, { [yesterday()]: 90 });
+    ensureToday();
+    expect(bankedNow()[yesterday()]).toBe(90);
+  });
+
+  it('banks nothing for a zero-XP day', () => {
+    seed({});
+    ensureToday();
+    expect(bankedNow()[yesterday()]).toBeUndefined();
   });
 });

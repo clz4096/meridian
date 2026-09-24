@@ -10,7 +10,7 @@ import type { ComponentType } from 'preact';
 import { currentTab, sgLogOpen, kgProgressOpen, kgGym, kgOverview, kgSession, kgInterview, type Tab } from '@/ui/store';
 import { navHome, onPopNav, loadForHome, rolloverIfNewDay } from '@/ui/actions';
 import { navEnd } from '@/core/telemetry';
-import { SaveChip, RestBar } from '@/ui/components/Chrome';
+import { SaveChip, RestBar, UndoToast } from '@/ui/components/Chrome';
 import { TodayView } from '@/features/today/TodayTab';
 import { DataView } from '@/features/data/DataTab';
 import { MealView } from '@/features/meal/MealTab';
@@ -98,6 +98,7 @@ export function App() {
     idle(() => void loadTracker());
     window.addEventListener('popstate', onPopNav);
     // Catch midnight while open, and a new day on return from the background.
+    // (A pending delete is applied on hide by bootstrap, before its save.)
     const onVisible = (): void => { if (!document.hidden) rolloverIfNewDay(); };
     document.addEventListener('visibilitychange', onVisible);
     const tick = window.setInterval(rolloverIfNewDay, 60_000);
@@ -157,6 +158,7 @@ export function App() {
         </div>
       </div>
       <RestBar />
+      <UndoToast />
       <SaveChip />
     </>
   );
