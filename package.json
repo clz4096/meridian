@@ -19,7 +19,8 @@
     "bench": "vitest bench --run",
     "deep:1": "FC_RUNS=10000 vitest run src/workoutSelectors.test.ts src/coreSelectors.test.ts src/mergeStores.test.ts src/syncEngine.test.ts",
     "deep:2": "FC_RUNS=10000 vitest run src/workoutView.test.ts src/mealView.test.ts src/knowledgeView.test.ts src/knowledgeSelectors.test.ts",
-    "deep:3": "FC_RUNS=10000 vitest run src/mealSelectors.test.ts src/dataSelectors.test.ts"
+    "deep:3": "FC_RUNS=10000 vitest run src/mealSelectors.test.ts src/dataSelectors.test.ts",
+    "perf": "node perf/run.mjs"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.6",
@@ -30,6 +31,8 @@
     "fake-indexeddb": "^6.2.5",
     "fast-check": "^3.23.2",
     "jsdom": "^30.0.1",
+    "lighthouse": "^12.8.2",
+    "puppeteer-core": "^24.43.1",
     "three": "^0.185.1",
     "typescript": "^5.9.3",
     "vite": "^5.4.21",

@@ -6,3 +6,5 @@ dev-dist/
 *.prewire
 .claude/settings.local.json
 .ctx/
+
+perf/results/
