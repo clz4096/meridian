@@ -14,15 +14,19 @@
 import { useState } from 'preact/hooks';
 import { ALGO_FLAW } from '@/features/studytracker/algoProveIt';
 import { ALGO_PROOFS } from '@/features/studytracker/algoProofs';
+import { GatedReveal } from '@/features/studytracker/GatedReveal';
 import { trackerState, creditEvent, EVENT_WEIGHTS } from '@/features/studytracker/trackerStore';
 
-export function ProveItYourself({ algoId, algoName }: { algoId: string; algoName: string }) {
+export function ProveItYourself(
+  { algoId, algoName, invariant, correctness }: {
+    algoId: string; algoName: string; invariant: string; correctness: string;
+  },
+) {
   const events = trackerState.value.day.events ?? {}; // subscribe: credited state resets daily
   // All hooks are called BEFORE the early return so the hook order is stable even
   // if a future caller flips algoId across a null/non-null algorithm without a key.
   const [picked, setPicked] = useState<number | null>(null);
   const [attempt, setAttempt] = useState('');
-  const [revealed, setRevealed] = useState(false);
   const flaw = ALGO_FLAW[algoId];
   const proof = ALGO_PROOFS[algoId];
   if (!flaw && !proof) return null;
@@ -35,13 +39,9 @@ export function ProveItYourself({ algoId, algoName }: { algoId: string; algoName
     if (flaw && i === flaw.correct) creditEvent('algo:flaw:' + algoId, EVENT_WEIGHTS.algoStudied);
   };
 
-  const reveal = (): void => {
-    if (!attempt.trim()) return;
-    setRevealed(true);
-    // algoStudied-class (not the top retrieval payout): Tier C credits the ATTEMPT,
-    // is unverified, and would otherwise be farmable across all 14 algorithms.
-    creditEvent('algo:proveit:' + algoId, EVENT_WEIGHTS.algoStudied);
-  };
+  // algoStudied-class (not the top retrieval payout): Tier C credits the ATTEMPT,
+  // is unverified, and would otherwise be farmable across all 14 algorithms.
+  const creditRecon = (): void => creditEvent('algo:proveit:' + algoId, EVENT_WEIGHTS.algoStudied);
 
   return (
     <div class="algo-pi">
@@ -98,17 +98,20 @@ export function ProveItYourself({ algoId, algoName }: { algoId: string; algoName
             value={attempt}
             onInput={(e) => setAttempt((e.target as HTMLTextAreaElement).value)}
           />
-          <div class="algo-pi-actions">
-            <button class="primary" type="button" disabled={!attempt.trim() || revealed} onClick={reveal}>
-              {revealed ? 'Revealed — compare below' : 'Reveal & compare'}
-            </button>
-          </div>
-          {revealed && (
+          <GatedReveal
+            triggerLabel="Reveal & compare"
+            revealedLabel="Revealed — compare below"
+            lockUntil={!!attempt.trim()}
+            lockedHint="Write your attempt first"
+            onReveal={creditRecon}
+          >
             <div class="algo-pi-model">
               <div class="algo-pi-model-h">Authored proof / challenge</div>
               <p class="algo-p algo-proof">{proof}</p>
+              <p class="algo-p algo-pi-reveal-item"><b>Invariant. </b>{invariant}</p>
+              <p class="algo-p algo-pi-reveal-item"><b>Correctness. </b>{correctness}</p>
             </div>
-          )}
+          </GatedReveal>
         </div>
       )}
     </div>

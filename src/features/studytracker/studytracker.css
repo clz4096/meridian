@@ -351,6 +351,16 @@
 .pt-root .algo-pi-actions{display:flex; justify-content:flex-end; margin-top:8px;}
 .pt-root .algo-pi-model{margin-top:12px; padding-top:10px; border-top:1px solid var(--border);}
 .pt-root .algo-pi-model-h{font:700 11px/1 var(--sans); letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:6px;}
+/* revealed proof items: divider + breathing room between proof / invariant / correctness */
+.pt-root .algo-pi-reveal-item{margin:12px 0 0; padding-top:12px; border-top:1px solid var(--border);}
+
+/* GatedReveal — recall-before-reveal / opt-in disclosure primitive */
+.pt-root .gr{display:flex; flex-direction:column; gap:8px; align-items:flex-start;}
+.pt-root .algo-pi .gr{margin-top:10px;}
+.pt-root .gr-locked-hint{font-size:12px; color:var(--muted); line-height:1.5;}
+.pt-root .gr-panel{width:100%; background:var(--card); border:1px solid var(--border); border-radius:12px;
+  box-shadow:var(--shadow-raised); padding:14px 16px;}
+.pt-root .teach-peek{display:flex; flex-direction:column; gap:2px;}
 /* collapsible sections */
 .pt-root .collap{margin-top:22px;}
 .pt-root .collap-head{display:flex; align-items:center; gap:10px; width:100%; background:transparent; border:0; padding:8px 0; cursor:pointer; text-align:left; border-bottom:1px solid var(--border); border-radius:0;}
@@ -398,9 +408,9 @@
 .pt-root .teach-topic-eyebrow{font:700 10px/1 var(--sans); letter-spacing:1.2px; text-transform:uppercase; color:var(--accent);}
 .pt-root .teach-topic-name{font-family:var(--serif); font-size:18px; font-weight:700; color:var(--ink);}
 
-.pt-root .teach-field{display:flex; flex-direction:column; gap:5px;}
+.pt-root .teach-field{display:flex; flex-direction:column; gap:7px;}
 .pt-root .teach-field-lbl{font:700 11px/1 var(--sans); letter-spacing:1px; text-transform:uppercase; color:var(--accent-text);}
-.pt-root .teach-field-hint{font-size:12px; color:var(--muted); line-height:1.4;}
+.pt-root .teach-field-hint{font-size:12px; color:var(--muted); line-height:1.5;}
 .pt-root .teach-input{width:100%; background:var(--paper); border:1px solid var(--border); border-radius:10px;
   padding:10px 12px; color:var(--ink); font-family:var(--sans); font-size:13.5px; line-height:1.55; resize:vertical;}
 .pt-root .teach-transcript{font-size:14px; line-height:1.6;}

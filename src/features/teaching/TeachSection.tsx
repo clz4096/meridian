@@ -10,9 +10,12 @@
  */
 import { useEffect, useState } from 'preact/hooks';
 import { Collapsible } from '@/features/studytracker/Collapsible';
+import { GatedReveal } from '@/features/studytracker/GatedReveal';
 import { trackerState } from '@/features/studytracker/trackerStore';
+import { ALGORITHMS, algoOfDay, type AlgoEntry } from '@/features/studytracker/algorithms';
+import { host } from '@/ui/host';
 import {
-  teachLoop, ensureTeachToday, updatePlan, setManualTopic, setTranscript, setStage,
+  teachLoop, ensureTeachToday, updatePlan, setManualTopic, setTopicFromAlgo, setTranscript, setStage,
   setEvaluation, setQuestions, setAnswer, setDefenseGrade, setReflection, completeLoop, resetLoop,
   loopResult, teachXpEarned, type TeachStage,
 } from '@/features/teaching/teachingStore';
@@ -58,8 +61,35 @@ export function TeachSection() {
   trackerState.value; // subscribe so banked XP + completion re-render
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [showCustom, setShowCustom] = useState(false);
 
   useEffect(() => { ensureTeachToday(); }, []);
+
+  // True when the user has entered anything worth losing on a topic switch.
+  const planDirty = (): boolean => {
+    const p = l.plan;
+    return (
+      p.objectives.some((s) => s.trim()) || p.arc.some((s) => s.trim()) ||
+      p.definitions.some((s) => s.trim()) || p.examples.some((s) => s.trim()) ||
+      !!p.anticipatedHardQuestion.trim() || !!l.transcript.trim()
+    );
+  };
+  const confirmSwitch = (): boolean =>
+    !planDirty() || host.confirm('Discard your in-progress plan and switch topics?');
+  const switchToAlgo = (entry: AlgoEntry): void => {
+    if (entry.id === l.plan.topicId || !confirmSwitch()) return;
+    setTopicFromAlgo(entry);
+  };
+  const useManualTopic = (name: string): boolean => {
+    if (!confirmSwitch()) return false;
+    setManualTopic(name);
+    return true;
+  };
+  const today = algoOfDay();
+  const isCustom = l.plan.topicId.startsWith('custom:');
+  const peekEntry = ALGORITHMS.find((a) => a.id === l.plan.topicId);
+  // Textarea auto-grow: rows track the live line count, clamped to a per-field floor.
+  const rowsFor = (min: number, lines: number): number => Math.max(min, lines + 2);
 
   const runGradeLecture = async (): Promise<void> => {
     setBusy(true); setErr(null);
@@ -121,10 +151,32 @@ export function TeachSection() {
       {/* ── DESIGN ── */}
       {l.stage === 'design' && (
         <div class="teach-stage">
-          <div class="teach-topic">
-            <span class="teach-topic-eyebrow">Teaching</span>
-            <span class="teach-topic-name">{l.plan.topicName}</span>
+          {/* Choosing the topic is the first action. Reuses Algorithm-of-the-Day pill styling. */}
+          <div class="algo-pills">
+            {ALGORITHMS.map((a) => (
+              <button
+                key={a.id}
+                class={'algo-pill' + (a.id === l.plan.topicId ? ' on' : '') + (a.id === today.id ? ' today' : '')}
+                type="button"
+                onClick={() => switchToAlgo(a)}
+              >
+                {a.name}
+              </button>
+            ))}
+            <button
+              class={'algo-pill' + (isCustom ? ' on' : '')}
+              type="button"
+              onClick={() => setShowCustom((v) => !v)}
+            >
+              Custom…
+            </button>
           </div>
+          {(showCustom || isCustom) && (
+            <div class="teach-manual">
+              <span class="teach-field-lbl">Teach a different topic instead</span>
+              <ManualTopic onUse={useManualTopic} />
+            </div>
+          )}
 
           <label class="teach-field">
             <span class="teach-field-lbl">Target audience</span>
@@ -136,29 +188,48 @@ export function TeachSection() {
             />
           </label>
 
-          <ListField label="Objectives" hint="What the learner should walk away able to do — one per line." rows={3}
+          <ListField label="Objectives"
+            hint="From memory: what should the learner be able to DO after your lesson? One per line."
+            rows={rowsFor(4, l.plan.objectives.length)}
             value={l.plan.objectives} onChange={(objectives) => updatePlan({ objectives })} />
-          <ListField label="Arc" hint="The path: intuition → formal → application. One beat per line." rows={4}
+          <ListField label="Arc"
+            hint="Sequence it yourself — intuition, then the formal idea, then invariant/correctness, then a worked example. One beat per line, in your own words."
+            rows={rowsFor(6, l.plan.arc.length)}
             value={l.plan.arc} onChange={(arc) => updatePlan({ arc })} />
-          <ListField label="Definitions & claims" hint="The precise statements you will make." rows={3}
+          <ListField label="Definitions & claims"
+            hint="State the precise claims from memory — don't re-read the card above."
+            rows={rowsFor(5, l.plan.definitions.length)}
             value={l.plan.definitions} onChange={(definitions) => updatePlan({ definitions })} />
-          <ListField label="Examples" hint="Concrete worked examples that ground the abstraction." rows={3}
+          <ListField label="Examples"
+            hint="A concrete worked example that grounds the abstraction."
+            rows={rowsFor(4, l.plan.examples.length)}
             value={l.plan.examples} onChange={(examples) => updatePlan({ examples })} />
 
           <label class="teach-field">
             <span class="teach-field-lbl">Anticipated hard question</span>
-            <span class="teach-field-hint">The toughest question you expect — pre-plan your answer.</span>
             <textarea
-              class="teach-input" rows={2}
+              class="teach-input" rows={rowsFor(3, l.plan.anticipatedHardQuestion.split('\n').length)}
+              placeholder="The single toughest thing a sharp student could ask — and how you'd handle it."
               value={l.plan.anticipatedHardQuestion}
               onInput={(e) => updatePlan({ anticipatedHardQuestion: (e.target as HTMLTextAreaElement).value })}
             />
           </label>
 
-          <div class="teach-manual">
-            <span class="teach-field-lbl">Teach a different topic instead</span>
-            <ManualTopic />
-          </div>
+          {/* Opt-in retrieval check: the notes stay hidden until the user asks for them. */}
+          <GatedReveal triggerLabel="Peek at your notes">
+            {peekEntry ? (
+              <div class="teach-peek">
+                <p class="algo-p"><b>Idea. </b>{peekEntry.idea}</p>
+                <p class="algo-p"><b>Invariant. </b>{peekEntry.invariant}</p>
+                <p class="algo-p"><b>Correctness. </b>{peekEntry.correctness}</p>
+                {peekEntry.plain.map((p, i) => (
+                  <p key={i} class="algo-p">{p}</p>
+                ))}
+              </div>
+            ) : (
+              <p class="algo-p">No notes for a custom topic — teach it from your own understanding.</p>
+            )}
+          </GatedReveal>
 
           <div class="teach-actions">
             <button class="primary" type="button" onClick={() => setStage('present')}>Start teaching →</button>
@@ -291,8 +362,12 @@ export function TeachSection() {
   );
 }
 
-/** Manual topic override input, isolated so its draft state doesn't re-render the loop. */
-function ManualTopic() {
+/**
+ * Manual topic override input, isolated so its draft state doesn't re-render the
+ * loop. `onUse` performs the guarded switch and returns whether it went through;
+ * the draft is only cleared on a successful switch (so a declined confirm keeps it).
+ */
+function ManualTopic({ onUse }: { onUse: (name: string) => boolean }) {
   const [draft, setDraft] = useState('');
   return (
     <div class="teach-manual-row">
@@ -301,7 +376,7 @@ function ManualTopic() {
         value={draft}
         onInput={(e) => setDraft((e.target as HTMLInputElement).value)}
       />
-      <button class="ghost" type="button" disabled={!draft.trim()} onClick={() => { setManualTopic(draft); setDraft(''); }}>
+      <button class="ghost" type="button" disabled={!draft.trim()} onClick={() => { if (onUse(draft)) setDraft(''); }}>
         Use this topic
       </button>
     </div>

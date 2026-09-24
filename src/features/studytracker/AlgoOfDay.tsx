@@ -7,6 +7,7 @@
  */
 import { useState } from 'preact/hooks';
 import { ALGORITHMS, algoOfDay, ALGO_SOURCE } from '@/features/studytracker/algorithms';
+import { ALGO_PROOFS } from '@/features/studytracker/algoProofs';
 import { Collapsible } from '@/features/studytracker/Collapsible';
 import { ProveItYourself } from '@/features/studytracker/ProveItYourself';
 import { trackerState, creditEvent, EVENT_WEIGHTS } from '@/features/studytracker/trackerStore';
@@ -68,10 +69,22 @@ export function AlgoOfDay() {
 
         <div class="algo-sub">Why it works</div>
         <p class="algo-p"><b>Idea. </b>{cur.idea}</p>
-        <p class="algo-p"><b>Invariant. </b>{cur.invariant}</p>
-        <p class="algo-p"><b>Correctness. </b>{cur.correctness}</p>
+        {/* When a Tier-C proof exists, the invariant + correctness move behind the
+            retrieval gate in ProveItYourself so they aren't visible while reconstructing. */}
+        {!ALGO_PROOFS[cur.id] && (
+          <>
+            <p class="algo-p"><b>Invariant. </b>{cur.invariant}</p>
+            <p class="algo-p"><b>Correctness. </b>{cur.correctness}</p>
+          </>
+        )}
 
-        <ProveItYourself key={cur.id} algoId={cur.id} algoName={cur.name} />
+        <ProveItYourself
+          key={cur.id}
+          algoId={cur.id}
+          algoName={cur.name}
+          invariant={cur.invariant}
+          correctness={cur.correctness}
+        />
 
         <div class="algo-codehead">
           <div class="algo-sub" style={{ margin: 0 }}>Implementation</div>

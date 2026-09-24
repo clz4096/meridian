@@ -15,9 +15,12 @@ PRACTICE, never frame as a grade; a low defense score is feedback about what to 
 
 ## Curriculum integration
 - Default topic = today's Massey algo-of-the-day; pre-load it.
-- Seed the lesson objective from that item's own material: `idea` (definition/mechanism),
-  `invariant`, `correctness` (how to prove), `plain[]` (intuition), `cpp`/`python` (code
-  example), `pitfalls[]`, and `oneLiner`/`category`.
+- Generate the lesson FROM MEMORY (generate-then-check): the plan seeds with the topic
+  identity only (`topicId`/`topicName`/audience) and leaves objectives/arc/definitions/
+  examples/anticipated-question BLANK, so the user retrieves them rather than editing
+  pre-supplied text. The item's own material (`idea`, `invariant`, `correctness`,
+  `plain[]`, `cpp`/`python`, `pitfalls[]`, `oneLiner`/`category`) is available behind an
+  opt-in "Peek at your notes" reveal — visible only when the user chooses to look.
 - Teaching the day's topic IS the day's mastery check. Manual topic override allowed.
 
 ## The five-stage loop

@@ -16,7 +16,7 @@ import { algoOfDay } from '@/features/studytracker/algorithms';
 import { lectureBand, type LessonPlan } from '@/features/teaching/teachingTypes';
 import {
   DEFAULT_AUDIENCE, defaultLessonPlan, freshLoop, ensureTeachToday, teachLoop,
-  updatePlan, setManualTopic, setTranscript, setStage, setEvaluation, setQuestions,
+  updatePlan, setManualTopic, setTopicFromAlgo, setTranscript, setStage, setEvaluation, setQuestions,
   setAnswer, setDefenseGrade, setReflection, completeLoop, resetLoop, teachXpEarned, loopResult,
 } from '@/features/teaching/teachingStore';
 
@@ -36,30 +36,23 @@ beforeEach(() => {
 });
 afterEach(() => localStorage.clear());
 
-describe('defaultLessonPlan seeds from an AlgoEntry', () => {
-  it('carries the entry id/name and seeds fields from the entry material', () => {
+describe('defaultLessonPlan seeds a blank-but-structured plan (generate-from-memory)', () => {
+  it('carries the entry id/name/audience but leaves the generative fields blank', () => {
     const entry = algoOfDay();
     const plan = defaultLessonPlan(entry);
+    // structural scaffold is preserved
     expect(plan.topicId).toBe(entry.id);
     expect(plan.topicName).toBe(entry.name);
     expect(plan.targetAudience).toBe(DEFAULT_AUDIENCE);
-    // objectives lead with the entry's oneLiner; definitions include idea + invariant.
-    expect(plan.objectives[0]).toBe(entry.oneLiner);
-    expect(plan.definitions).toContain(entry.idea);
-    expect(plan.definitions).toContain(entry.invariant);
-    // arc/examples are non-empty seeds drawn from the entry.
-    expect(plan.arc.length).toBeGreaterThan(0);
-    expect(plan.examples.length).toBeGreaterThan(0);
-    expect(plan.anticipatedHardQuestion.length).toBeGreaterThan(0);
+    // generative fields are blank on purpose — the user fills them from memory
+    expect(plan.objectives).toEqual([]);
+    expect(plan.arc).toEqual([]);
+    expect(plan.definitions).toEqual([]);
+    expect(plan.examples).toEqual([]);
+    expect(plan.anticipatedHardQuestion).toBe('');
   });
 
-  it('falls back to a placeholder anticipated question when the entry has no pitfalls', () => {
-    const entry = { ...algoOfDay(), pitfalls: [] as string[] };
-    const plan = defaultLessonPlan(entry);
-    expect(plan.anticipatedHardQuestion).toMatch(/skeptical student/i);
-  });
-
-  it('freshLoop starts in design with a seeded plan and empty work', () => {
+  it('freshLoop starts in design with a blank-but-structured plan and empty work', () => {
     const l = freshLoop();
     expect(l.stage).toBe('design');
     expect(l.date).toBe(todayISO());
@@ -67,6 +60,25 @@ describe('defaultLessonPlan seeds from an AlgoEntry', () => {
     expect(l.evaluation).toBeNull();
     expect(l.session).toBeNull();
     expect(l.plan.topicId).toBe(algoOfDay().id);
+    expect(l.plan.objectives).toEqual([]);
+  });
+});
+
+describe('setTopicFromAlgo switches topic to a catalogue entry', () => {
+  it('reseeds a blank-but-structured plan for the chosen entry', () => {
+    // seed some content, then switch — the new plan is blank but carries the entry.
+    updatePlan({ objectives: ['x'], anticipatedHardQuestion: 'y' });
+    const entry = algoOfDay();
+    setTopicFromAlgo(entry);
+    const p = teachLoop.value.plan;
+    expect(p.topicId).toBe(entry.id);
+    expect(p.topicName).toBe(entry.name);
+    expect(p.targetAudience).toBe(DEFAULT_AUDIENCE);
+    expect(p.objectives).toEqual([]);
+    expect(p.arc).toEqual([]);
+    expect(p.definitions).toEqual([]);
+    expect(p.examples).toEqual([]);
+    expect(p.anticipatedHardQuestion).toBe('');
   });
 });
 

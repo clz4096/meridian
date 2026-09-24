@@ -38,33 +38,24 @@ const KEY = 'meridian.teach.v1';
 export const DEFAULT_AUDIENCE = 'a Princeton CS freshman who can code but is new to this topic';
 
 /**
- * Seed a fresh, editable LessonPlan from the day's algorithm entry. The seeds
- * are drawn from the entry's own material (oneLiner, idea, invariant,
- * correctness, plain, pitfalls) so the designer starts full, not blank — the
- * user edits from there. Nothing here is sent to the grader; the plan is the
- * user's own scaffold (the AI grades the transcript, not the plan).
+ * Seed a fresh LessonPlan for the given algorithm entry. The structural scaffold
+ * is preserved (topicId/topicName/targetAudience) but the generative fields are
+ * left BLANK on purpose: the user fills objectives/arc/definitions/examples and
+ * the anticipated hard question FROM MEMORY (generate-then-check), with an opt-in
+ * "Peek at your notes" reveal if they get stuck. Pre-supplying the entry's own
+ * material here would defeat the retrieval practice. Nothing here is sent to the
+ * grader; the plan is the user's own scaffold (the AI grades the transcript).
  */
 export function defaultLessonPlan(entry: AlgoEntry): LessonPlan {
   return {
     topicId: entry.id,
     topicName: entry.name,
     targetAudience: DEFAULT_AUDIENCE,
-    objectives: [
-      entry.oneLiner,
-      `Explain the generative "why" behind ${entry.name}, not just the steps.`,
-      'State the invariant and argue correctness under questioning.',
-    ],
-    arc: [
-      entry.plain[0] ? `Intuition: ${entry.plain[0]}` : `Intuition for ${entry.name}.`,
-      `Formal idea: ${entry.idea}`,
-      `Invariant & correctness: ${entry.invariant}`,
-      'Worked example — trace the code or a small case end to end.',
-    ],
-    definitions: [entry.idea, entry.invariant, entry.correctness].filter((s): s is string => !!s),
-    examples: entry.plain.slice(0, 2),
-    anticipatedHardQuestion: entry.pitfalls[0]
-      ? `A sharp student might push on: ${entry.pitfalls[0]}`
-      : 'What is the hardest question a skeptical student could ask here? Pre-plan your answer.',
+    objectives: [],
+    arc: [],
+    definitions: [],
+    examples: [],
+    anticipatedHardQuestion: '',
   };
 }
 
@@ -129,6 +120,14 @@ export function updatePlan(patch: Partial<LessonPlan>): void {
  * entry-seeded fields for a blank plan. `topicId` becomes `custom:<slug>`. The
  * target audience (not an entry-seeded field) is kept.
  */
+/**
+ * Switch the topic to a catalogue algorithm, reseeding a blank-but-structured
+ * plan (see defaultLessonPlan). Used by the Design-stage topic pills.
+ */
+export function setTopicFromAlgo(entry: AlgoEntry): void {
+  persist({ ...teachLoop.value, plan: defaultLessonPlan(entry) });
+}
+
 export function setManualTopic(name: string): void {
   const trimmed = name.trim();
   if (!trimmed) return;
