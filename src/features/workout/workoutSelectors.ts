@@ -99,13 +99,93 @@ export function roundDownTo(value: number, step: number): number {
 /* Primitive lookups over WorkoutState                                 */
 /* ================================================================== */
 
+/* ── Per-call history index ──
+ * Grading walks every date and, per date, asks history questions (isCardio,
+ * splitOfDate) that each rescan every date: O(D^2 * S) in the log length, which
+ * took Enter -> Today past 10 s at ~90 days of history. The entry points below
+ * build this index once and the history helpers read from it, making each
+ * lookup O(1). It lives only for one synchronous call: the stores are mutated
+ * in place between calls, so a cache keyed on state identity would go stale. */
+interface HistoryIndex {
+  state: WorkoutState;
+  dead: Set<string>;
+  dates: string[];
+  byEx: Map<string, Map<string, WorkoutSet[]>>; // exercise -> date -> live sets, dates ascending
+  meta: Map<string, { muscle: Muscle | null; group: string | null }>;
+  cardio: Map<string, boolean>;
+  exSplit: Map<ProgressionConfig, Map<string, Split>>;
+  dateSplit: Map<ProgressionConfig, Map<string, Split | null>>;
+}
+
+let activeIndex: HistoryIndex | null = null;
+let indexEnabled = true;
+
+/** Test hook: run the selectors unindexed so tests can prove both paths agree. */
+export function setHistoryIndexEnabled(on: boolean): void {
+  indexEnabled = on;
+}
+
+function buildIndex(state: WorkoutState): HistoryIndex {
+  const dead = tombstoneIds(state);
+  const dates = Object.keys(state.days ?? {}).sort();
+  const byEx = new Map<string, Map<string, WorkoutSet[]>>();
+  for (const date of dates) {
+    for (const s of state.days[date] ?? []) {
+      if (dead.has(toId(s.id))) continue;
+      let perDate = byEx.get(s.ex);
+      if (!perDate) byEx.set(s.ex, (perDate = new Map()));
+      const sets = perDate.get(date);
+      if (sets) sets.push(s);
+      else perDate.set(date, [s]);
+    }
+  }
+  return { state, dead, dates, byEx, meta: new Map(), cardio: new Map(), exSplit: new Map(), dateSplit: new Map() };
+}
+
+function historyIndex(state: WorkoutState): HistoryIndex | null {
+  return activeIndex && activeIndex.state === state ? activeIndex : null;
+}
+
+function memo<K, V>(map: Map<K, V>, key: K, compute: () => V): V {
+  if (map.has(key)) return map.get(key)!;
+  const v = compute();
+  map.set(key, v);
+  return v;
+}
+
+function byConfig<V>(outer: Map<ProgressionConfig, Map<string, V>>, config: ProgressionConfig): Map<string, V> {
+  return memo(outer, config, () => new Map<string, V>());
+}
+
+/** Wrap a selector so one call (and everything it calls) shares a single index. */
+function indexed<A extends unknown[], R>(fn: (state: WorkoutState, ...rest: A) => R): (state: WorkoutState, ...rest: A) => R {
+  return (state, ...rest) => {
+    if (!indexEnabled || historyIndex(state)) return fn(state, ...rest);
+    const prev = activeIndex;
+    activeIndex = buildIndex(state);
+    try {
+      return fn(state, ...rest);
+    } finally {
+      activeIndex = prev;
+    }
+  };
+}
+
+function deadIds(state: WorkoutState): Set<string> {
+  return historyIndex(state)?.dead ?? tombstoneIds(state);
+}
+
 /** All dates holding at least one set, ascending. */
 export function sortedDates(state: WorkoutState): string[] {
+  const ix = historyIndex(state);
+  if (ix) return ix.dates.slice();
   return Object.keys(state.days ?? {}).sort();
 }
 
 /** Sets logged for `exercise` on `date`, tombstoned rows excluded. */
 export function setsOn(state: WorkoutState, exercise: string, date: string): WorkoutSet[] {
+  const ix = historyIndex(state);
+  if (ix) return ix.byEx.get(exercise)?.get(date)?.slice() ?? [];
   const dead = tombstoneIds(state);
   return (state.days?.[date] ?? []).filter(
     (s) => s.ex === exercise && !dead.has(toId(s.id)),
@@ -114,6 +194,8 @@ export function setsOn(state: WorkoutState, exercise: string, date: string): Wor
 
 /** Dates on which `exercise` was performed, ascending. */
 export function exerciseDates(state: WorkoutState, exercise: string): string[] {
+  const ix = historyIndex(state);
+  if (ix) return [...(ix.byEx.get(exercise)?.keys() ?? [])];
   return sortedDates(state).filter((d) => setsOn(state, exercise, d).length > 0);
 }
 
@@ -154,6 +236,12 @@ export function exerciseMeta(
   state: WorkoutState,
   exercise: string,
 ): { muscle: Muscle | null; group: string | null } {
+  const ix = historyIndex(state);
+  if (ix) return { ...memo(ix.meta, exercise, () => exerciseMetaScan(state, exercise)) };
+  return exerciseMetaScan(state, exercise);
+}
+
+function exerciseMetaScan(state: WorkoutState, exercise: string): { muscle: Muscle | null; group: string | null } {
   const dates = exerciseDates(state, exercise);
   for (let i = dates.length - 1; i >= 0; i--) {
     const set = setsOn(state, exercise, dates[i])[0];
@@ -163,6 +251,12 @@ export function exerciseMeta(
 }
 
 export function isCardio(state: WorkoutState, exercise: string): boolean {
+  const ix = historyIndex(state);
+  if (ix) return memo(ix.cardio, exercise, () => isCardioScan(state, exercise));
+  return isCardioScan(state, exercise);
+}
+
+function isCardioScan(state: WorkoutState, exercise: string): boolean {
   if (exerciseMeta(state, exercise).muscle === 'cardio') return true;
   return sortedDates(state).some((d) =>
     setsOn(state, exercise, d).some((s) => s.type === 'cardio'),
@@ -807,6 +901,12 @@ export function exerciseSplit(
   exercise: string,
   config: ProgressionConfig = DEFAULT_CONFIG,
 ): Split {
+  const ix = historyIndex(state);
+  if (ix) return memo(byConfig(ix.exSplit, config), exercise, () => exerciseSplitScan(state, exercise, config));
+  return exerciseSplitScan(state, exercise, config);
+}
+
+function exerciseSplitScan(state: WorkoutState, exercise: string, config: ProgressionConfig): Split {
   const muscle = exerciseMeta(state, exercise).muscle;
   if (muscle === 'cardio' || isCardio(state, exercise)) return 'both';
   if (muscle !== null && config.lowerMuscles.includes(muscle)) return 'lower';
@@ -820,7 +920,13 @@ export function splitOfDate(
   date: string,
   config: ProgressionConfig = DEFAULT_CONFIG,
 ): Split | null {
-  const dead = tombstoneIds(state);
+  const ix = historyIndex(state);
+  if (ix) return memo(byConfig(ix.dateSplit, config), date, () => splitOfDateScan(state, date, config));
+  return splitOfDateScan(state, date, config);
+}
+
+function splitOfDateScan(state: WorkoutState, date: string, config: ProgressionConfig): Split | null {
+  const dead = deadIds(state);
   const sets = (state.days?.[date] ?? []).filter(
     (s) => s.type !== 'cardio' && !dead.has(toId(s.id)),
   );
@@ -842,7 +948,7 @@ export function splitOfDate(
  * alternate away from the most recent prior session. Never reads the clock —
  * this is why navigating dates yields a stable, testable answer.
  */
-export function suggestSplit(
+export const suggestSplit = indexed(function suggestSplit(
   state: WorkoutState,
   date: string,
   config: ProgressionConfig = DEFAULT_CONFIG,
@@ -863,7 +969,7 @@ export function suggestSplit(
     }
   }
   return { due: 'upper', last: null, lastDate: null, logged: false };
-}
+});
 
 /* ================================================================== */
 /* Completion                                                          */
@@ -1093,7 +1199,7 @@ export const STAPLE_WINDOW = 4;
  * non-optional, non-cardio lifts that clear the ≥50% bar. With no prior
  * same-split history there are no staples (nothing is habitual yet).
  */
-export function habitualStaples(
+export const habitualStaples = indexed(function habitualStaples(
   state: WorkoutState,
   date: string,
   config: ProgressionConfig = DEFAULT_CONFIG,
@@ -1119,7 +1225,7 @@ export function habitualStaples(
   const staples: string[] = [];
   for (const [slot, count] of seen) if (count / sessions >= 0.5) staples.push(slot);
   return staples;
-}
+});
 
 /**
  * Grade a whole day.
@@ -1135,7 +1241,7 @@ export function habitualStaples(
  * to Weak and drag the week down, so the week median simply skips it. A day
  * whose only work is cardio, by contrast, is a genuinely Weak lifting day.
  */
-export function dayGrade(
+export const dayGrade = indexed(function dayGrade(
   state: WorkoutState,
   date: string,
   overrides: SessionOverrides = {},
@@ -1167,7 +1273,7 @@ export function dayGrade(
   const hasStrength = logged.some((ex) => !isCardio(state, ex) && !isOptional(ex));
   if (hasStrength) return null; // only first-timers / no targets → ungradable, skip it
   return 'weak'; // cardio-only (or accessory-only) training day is a weak lifting day
-}
+});
 
 /** Days with at least one live (non-tombstoned) set in the 7 days ending at `today`. */
 export function trainedDaysInWeek(state: WorkoutState, today: string): string[] {
@@ -1235,7 +1341,7 @@ export function weekGrade(
  * as training days for the frequency cap. Zero trained days, or a week with
  * nothing gradable, is `rest`.
  */
-export function weekStrength(
+export const weekStrength = indexed(function weekStrength(
   state: WorkoutState,
   today: string,
   overrides: SessionOverrides = {},
@@ -1250,7 +1356,7 @@ export function weekStrength(
     days.map((d) => dayGrade(state, d, overrides, config)),
     n,
   );
-}
+});
 
 /* ================================================================== */
 /* Date arithmetic — pure, no Date.now()                               */
@@ -1268,7 +1374,7 @@ export function weekStrength(
  * layer becomes a pure function of this object, so it can be snapshot-tested
  * and this can be property-tested, independently.
  */
-export function selectWorkoutView(
+export const selectWorkoutView = indexed(function selectWorkoutView(
   state: WorkoutState,
   date: string,
   today: string,
@@ -1341,4 +1447,4 @@ export function selectWorkoutView(
     sessionComplete: isSessionComplete(state, date, today),
     estimate: estimateSession(state, exercises, date, overrides, config),
   };
-}
+});

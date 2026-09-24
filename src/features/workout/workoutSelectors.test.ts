@@ -39,6 +39,7 @@ import {
   roundDownTo,
   selectWorkoutView,
   sessionEffort,
+  setHistoryIndexEnabled,
   splitOfDate,
   STAPLE_WINDOW,
   suggestSplit,
@@ -1182,5 +1183,67 @@ describe('week strength on the REAL seeded default program', () => {
 
   it('a full training week reads Strong end-to-end', () => {
     expect(weekStrength(real(), '2026-07-09')).toBe('strong');
+  });
+});
+
+/* ================================================================== */
+/* Per-call history index: same answers, linear cost                    */
+/* ================================================================== */
+
+describe('history index', () => {
+  // The random histories, with a random subset of sets tombstoned so the index's
+  // dead-set filtering is exercised too (arbWorkoutState itself never deletes).
+  const arbWithTombstones = arbWorkoutState.chain((st) =>
+    fc
+      .subarray(Object.values(st.days).flat().map((x) => String(x.id)))
+      .map((ids) => ({ ...st, _del: Object.fromEntries(ids.map((id) => [id, 1])) }) satisfies WorkoutState),
+  );
+
+  const both = <T>(fn: () => T): [T, T] => {
+    setHistoryIndexEnabled(false);
+    try {
+      const plain = fn();
+      setHistoryIndexEnabled(true);
+      return [plain, fn()];
+    } finally {
+      setHistoryIndexEnabled(true);
+    }
+  };
+
+  it('indexed and unindexed selectors agree on every entry point', () => {
+    fc.assert(
+      fc.property(arbWithTombstones, arbDate, (state, date) => {
+        deepFreeze(state);
+        const picks: Array<() => unknown> = [
+          () => weekStrength(state, date),
+          () => dayGrade(state, date),
+          () => habitualStaples(state, date),
+          () => suggestSplit(state, date),
+          () => selectWorkoutView(state, date, date),
+        ];
+        for (const pick of picks) {
+          const [plain, indexedResult] = both(pick);
+          expect(indexedResult).toEqual(plain);
+        }
+      }),
+      opts,
+    );
+  });
+
+  it('grades a year of history in well under a second (was ~36 s unindexed)', () => {
+    // 208 training days cycling the shipped template: the shape that made
+    // Enter -> Today take tens of seconds before the index.
+    const tpl = Object.values(defaultWorkoutData.days) as unknown as WorkoutSet[][];
+    const days: Record<string, WorkoutSet[]> = {};
+    for (let i = 0; i < 208; i++) {
+      const date = shiftDate('2025-09-24', Math.floor(i * 1.75));
+      days[date] = tpl[i % tpl.length]!.map((x, j) => ({ ...x, id: `y${i}-${j}` as EntityId }));
+    }
+    const state: WorkoutState = { settings: {}, days, bw: {}, rpe: {}, done: {}, sessionDone: {}, incr: {}, _del: {} };
+    const today = shiftDate('2025-09-24', 364);
+    const t0 = performance.now();
+    weekStrength(state, today);
+    selectWorkoutView(state, today, today);
+    expect(performance.now() - t0).toBeLessThan(1000);
   });
 });
