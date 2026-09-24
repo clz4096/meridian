@@ -7,6 +7,8 @@
  *   npm run perf -- --runs 3          fewer runs
  *   npm run perf -- --no-build        reuse dist/ (single mode only)
  *   npm run perf -- --only runtime    skip Lighthouse (or --only load)
+ *   npm run perf -- --only resources  process CPU/memory vs src/core/resourceBudgets.json
+ *   npm run perf -- --only resources --check   exit 1 if any resource limit is exceeded
  *   npm run perf -- --seed-days 365   longer synthetic history (default 90)
  *   npm run perf -- --save-baseline   also write perf/baseline.json (single mode)
  *
@@ -27,6 +29,8 @@ import { preview } from 'vite';
 import puppeteer from 'puppeteer-core';
 import lighthouse from 'lighthouse';
 import { makeSeed } from './seed.mjs';
+
+const BUDGET = JSON.parse(readFileSync(new URL('../src/core/resourceBudgets.json', import.meta.url), 'utf8'));
 
 const args = process.argv.slice(2);
 const flag = (f) => args.includes(f);
@@ -179,6 +183,127 @@ function summariseRuntime(runs) {
   return s;
 }
 
+/* ── resources: the renderer process's real CPU and memory (not throttled) ──
+ * CPU and RSS come from `ps` on Chrome's renderer processes (summed: conservative);
+ * main-thread busy and JS heap from CDP Performance metrics; DOM size counts live
+ * elements only (CDP's Nodes metric also counts detached, not-yet-collected ones). */
+/** ps cputime "[DD-][HH:]MM:SS[.ss]" (macOS and Linux) -> seconds. */
+function cpuSeconds(time) {
+  const [days, rest] = time.includes('-') ? time.split('-') : ['0', time];
+  const parts = rest.split(':').map(Number).reverse(); // seconds, minutes, hours
+  return Number(days) * 86400 + (parts[0] ?? 0) + (parts[1] ?? 0) * 60 + (parts[2] ?? 0) * 3600;
+}
+/** Every descendant of the browser process (Linux renderers hang off the zygote). */
+function descendants(pid) {
+  const out = [];
+  const stack = [pid];
+  while (stack.length) {
+    const kids = execSync(`pgrep -P ${stack.pop()} || true`).toString().trim().split('\n').filter(Boolean).map(Number);
+    out.push(...kids);
+    stack.push(...kids);
+  }
+  return out;
+}
+/** Per-renderer cpu seconds and RSS; throws if no renderer is found (a silent 0 would pass every check). */
+function rendererStats(browserPid) {
+  const pids = descendants(browserPid);
+  const stats = new Map();
+  if (pids.length) {
+    const lines = execSync(`ps -o pid=,rss=,time=,command= -p ${pids.join(',')} || true`).toString().trim().split('\n').filter(Boolean);
+    for (const line of lines) {
+      const [pid, rss, time, ...cmd] = line.trim().split(/\s+/);
+      if (cmd.join(' ').includes('--type=renderer')) stats.set(pid, { cpuS: cpuSeconds(time), rssMB: Number(rss) / 1024 });
+    }
+  }
+  if (!stats.size) throw new Error('no Chrome renderer process found; cannot measure CPU/memory');
+  return stats;
+}
+/** CPU seconds used between two samples, counting only renderers present in both. */
+function cpuDelta(a, b) {
+  let s = 0;
+  for (const [pid, v] of b) if (a.has(pid)) s += Math.max(0, v.cpuS - a.get(pid).cpuS);
+  return s;
+}
+const totalRss = (stats) => [...stats.values()].reduce((sum, v) => sum + v.rssMB, 0);
+
+async function resourceRun(t, seed) {
+  const browser = await launch();
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+    await page.setRequestInterception(true);
+    page.on('request', (r) => (r.url().startsWith(`http://localhost:${t.port}/`) ? r.continue() : r.abort()));
+    await page.evaluateOnNewDocument(PRELUDE, seed);
+    const cdp = await page.createCDPSession();
+    await cdp.send('Performance.enable');
+    const metric = async (name) => (await cdp.send('Performance.getMetrics')).metrics.find((m) => m.name === name)?.value ?? 0;
+    const pid = browser.process().pid;
+    await page.goto(t.url, { waitUntil: 'load' });
+    await page.waitForSelector('#enter');
+    await sleep(1500);
+    await page.click('#enter');
+    await page.waitForSelector('button.tile');
+    await sleep(3000); // boot, lazy loads, deferred pull
+    let peakRss = 0;
+    const idle = async (ms) => {
+      const a = rendererStats(pid); const busy0 = await metric('TaskDuration'); const t0 = Date.now();
+      await sleep(ms);
+      const dt = (Date.now() - t0) / 1000; const b = rendererStats(pid);
+      peakRss = Math.max(peakRss, totalRss(b));
+      return { cpuPct: (100 * cpuDelta(a, b)) / dt, busyPct: (100 * ((await metric('TaskDuration')) - busy0)) / dt };
+    };
+    const idleToday = await idle(10_000);
+    // active: open and close every section twice
+    const lt0 = await page.evaluate(() => window.__lt.length);
+    const busy0 = await metric('TaskDuration'); const t0 = Date.now();
+    let peakDom = 0;
+    for (let round = 0; round < 2; round++) {
+      for (const [label, how] of SECTIONS) {
+        await page.evaluate((l, h) => {
+          const el = h === 'tile'
+            ? [...document.querySelectorAll('button.tile')].find((b) => b.querySelector('.tile-l')?.textContent === l)
+            : document.querySelector(h);
+          el?.click();
+        }, label, how);
+        await page.waitForSelector('[id^="pane-"]:not(#pane-today):not(:has(.pane-loading))', { timeout: 60_000 });
+        await sleep(300);
+        peakDom = Math.max(peakDom, await page.evaluate(() => document.getElementsByTagName('*').length));
+        peakRss = Math.max(peakRss, totalRss(rendererStats(pid))); // memory likely peaks while switching
+        await page.evaluate(() => history.back());
+        await page.waitForSelector('button.tile');
+      }
+    }
+    const activeDt = (Date.now() - t0) / 1000;
+    const activeBusyPct = (100 * ((await metric('TaskDuration')) - busy0)) / activeDt;
+    const longest = Math.max(0, ...(await page.evaluate((k) => window.__lt.slice(k), lt0)));
+    await page.evaluate(() => [...document.querySelectorAll('button.tile')].find((b) => b.querySelector('.tile-l')?.textContent === 'Workout')?.click());
+    await page.waitForSelector('#pane-workout:not(:has(.pane-loading))', { timeout: 60_000 });
+    await sleep(1500); // let the first render settle before the idle window
+    const idleWorkout = await idle(10_000);
+    const heapMB = (await metric('JSHeapUsedSize')) / 1_048_576;
+    return {
+      idleTodayCpu: idleToday.cpuPct, idleTodayBusy: idleToday.busyPct,
+      idleWorkoutCpu: idleWorkout.cpuPct, idleWorkoutBusy: idleWorkout.busyPct,
+      activeBusy: activeBusyPct, longestTaskMs: longest, peakDom, heapMB, peakRssMB: peakRss,
+    };
+  } finally {
+    await browser.close();
+  }
+}
+
+// [key, label, limit, unit]
+const RESOURCE_CHECKS = [
+  ['idleTodayCpu', 'Idle on Today: CPU (% of a core)', BUDGET.idle.cpuPctOfCore, '%'],
+  ['idleTodayBusy', 'Idle on Today: main thread busy', BUDGET.idle.mainThreadBusyPct, '%'],
+  ['idleWorkoutCpu', 'Idle on Workout: CPU (% of a core)', BUDGET.idle.cpuPctOfCore, '%'],
+  ['idleWorkoutBusy', 'Idle on Workout: main thread busy', BUDGET.idle.mainThreadBusyPct, '%'],
+  ['activeBusy', 'Switching tabs: main thread busy', BUDGET.active.mainThreadBusyPct, '%'],
+  ['longestTaskMs', 'Switching tabs: longest freeze', BUDGET.active.longestTaskMs, ' ms'],
+  ['heapMB', 'JS memory (1 year of data)', BUDGET.jsHeapMB, ' MB'],
+  ['peakDom', 'Page elements (peak)', BUDGET.domNodes, ''],
+  ['peakRssMB', 'Renderer process memory', BUDGET.rendererRssMB, ' MB'],
+];
+
 /* ── targets: the working tree, plus a git ref in a throwaway worktree for A/B ── */
 const cwd = process.cwd();
 const targets = [{ name: 'current', dir: cwd, port: 4317 }];
@@ -192,7 +317,7 @@ if (AGAINST) {
 for (const t of targets) t.url = `http://localhost:${t.port}/meridian/`;
 
 const result = {
-  at: new Date().toISOString(), sha: sh('git rev-parse --short HEAD'), runs: RUNS, seedDays: SEED_DAYS,
+  at: new Date().toISOString(), sha: sh('git rev-parse --short HEAD'), runs: RUNS, seedDays: ONLY === 'resources' ? 365 : SEED_DAYS,
   dirty: sh('git status --porcelain -- src index.html vite.config.ts') !== '',
   loadavgStart: loadavg().map((x) => round(x, 2)), targets: {},
 };
@@ -203,7 +328,7 @@ try {
     servers.push(await preview({ root: t.dir, preview: { port: t.port, strictPort: true }, logLevel: 'silent' }));
   }
   // Interleave: every round runs each target once, so background load hits both alike.
-  if (ONLY !== 'runtime') {
+  if (ONLY === 'all' || ONLY === 'load') {
     const load = Object.fromEntries(targets.map((t) => [t.name, []]));
     for (let i = 0; i < RUNS; i++) for (const t of targets) load[t.name].push(await loadRun(t));
     for (const t of targets) {
@@ -213,7 +338,14 @@ try {
       result.targets[t.name].load.failing = [...new Set(L.flatMap((x) => x.failing))];
     }
   }
-  if (ONLY !== 'load') {
+  if (ONLY === 'resources') {
+    const seed = makeSeed({ days: 365 }); // the limits are stated for a full year of data
+    const runs = Object.fromEntries(targets.map((t) => [t.name, []]));
+    for (let i = 0; i < RUNS; i++) for (const t of targets) runs[t.name].push(await resourceRun(t, seed));
+    for (const t of targets) {
+      result.targets[t.name].resources = Object.fromEntries(RESOURCE_CHECKS.map(([k]) => [k, stat(runs[t.name].map((r) => r[k]))]));
+    }
+  } else if (ONLY !== 'load') {
     const seed = makeSeed({ days: SEED_DAYS });
     result.seedKB = Object.values(seed).reduce((s, v) => s + v.length, 0) / 1024;
     for (const [name, s] of [['empty', null], ['seeded', seed]]) {
@@ -288,3 +420,18 @@ for (const name of ['empty', 'seeded']) {
   if (errs.length) console.log('  PAGE ERRORS:', errs);
 }
 if (cur.load?.failing?.length) console.log('\nfailing binary audits:', cur.load.failing.join(', '));
+
+if (cur.resources) {
+  console.log('\nresources vs limits (src/core/resourceBudgets.json), median of', RUNS);
+  let failed = 0;
+  for (const [k, label, limit, unit] of RESOURCE_CHECKS) {
+    const p = unit === '%' ? 1 : 0;
+    const v = round(cur.resources[k].median, p); // judge the same value that's printed
+    const ok = v <= limit;
+    if (!ok) failed++;
+    line(`  ${ok ? 'PASS' : 'FAIL'} ${label}`.padEnd(26), `resources.${k}`, unit, unit === '%' ? 1 : 0);
+    console.log(`${' '.repeat(10)}limit ${limit}${unit}`);
+  }
+  console.log(failed ? `\n${failed} resource limit(s) exceeded` : '\nall resource limits met');
+  if (failed && flag('--check')) process.exitCode = 1;
+}

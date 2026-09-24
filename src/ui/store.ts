@@ -4,7 +4,7 @@
  * `useComputed(() => (dataRev.value, selectXView(...)))`, and every store mutation
  * calls `bump()` so those computeds re-run.
  */
-import { signal } from '@preact/signals';
+import { signal, computed } from '@preact/signals';
 import type { KnowledgeItem } from '@/features/knowledge/types';
 import type { Period } from '@/ui/charts/progress';
 import type { Split, ScratchStatus } from '@/core/types';
@@ -16,7 +16,10 @@ export type Tab = 'today' | 'todos' | 'scratch' | 'workout' | 'meal' | 'knowledg
 export const currentTab = signal<Tab>('today'); // boot lands on Today (the home)
 
 // ── Today home ──
-export const clockNow = signal(Date.now()); // ticked each minute by the Today screen
+export const clockNow = signal(Date.now()); // ticked each second by the Today screen
+/** clockNow floored to the minute: only changes once a minute, so views that need the
+ *  date or time of day (not the seconds) don't re-render every second. */
+export const clockMinute = computed(() => Math.floor(clockNow.value / 60_000) * 60_000);
 export const weather = signal<Weather | null>(null);
 
 // ── shared chart controls ──

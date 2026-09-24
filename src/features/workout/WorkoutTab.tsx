@@ -4,7 +4,7 @@
  * tuck behind the ⚙. Ports workoutCharts (app.ts) + renderWorkoutHTML to JSX.
  */
 import { useEffect } from 'preact/hooks';
-import { selectWorkoutView, restSeconds, inferIncrement, splitOfDate, sortedDates, sessionEffort, exerciseSplit } from '@/features/workout/workoutSelectors';
+import { selectWorkoutView, restSeconds, inferIncrement, splitOfDate, sortedDates, sessionEffort, exerciseSplit, withHistoryIndex} from '@/features/workout/workoutSelectors';
 import type { WorkoutViewOptions } from '@/features/workout/types';
 import { bodyweightGoal, trackedLifts, bodyweightSeries, strengthSeries, volumeSeries, tonnageSeries } from '@/ui/charts/progress';
 import { DEFAULT_CONFIG, type SetType, type ExercisePlan, type Split, type WorkoutState } from '@/core/types';
@@ -108,7 +108,9 @@ interface PlanDay {
  * (no back-fill); today onward shows the plan. Rest days never shift the
  * Upper/Lower alternation, so a Friday-Upper still hands Monday a Lower.
  */
-function weekPlan(state: WorkoutState, days: string[], today: string, sundayFullBody: boolean): Record<string, PlanDay> {
+// Indexed: this loops splitOfDate over the week, and each unindexed call rescans the
+// whole log per set (measured: a 700-800 ms freeze opening Workout with a year of data).
+const weekPlan = withHistoryIndex(function weekPlan(state: WorkoutState, days: string[], today: string, sundayFullBody: boolean): Record<string, PlanDay> {
   // most recent real session strictly before the week → seeds the alternation
   let last: Split | null = null;
   const before = sortedDates(state).filter((d) => d < days[0]);
@@ -141,7 +143,7 @@ function weekPlan(state: WorkoutState, days: string[], today: string, sundayFull
     last = next;
   });
   return plan;
-}
+});
 
 /** The plan entry for a single date, consistent with the week strip's dots. */
 function dayPlan(state: WorkoutState, date: string, today: string, sundayFullBody: boolean): PlanDay | undefined {
@@ -234,7 +236,9 @@ function uniqueExercises(state: Any): string[] {
   for (const sets of Object.values(state.days ?? {}) as Any[]) for (const s of sets) seen.add(s.ex);
   return [...seen];
 }
-function buildOptions(state: Any, date: string, today: string, bw: { current: number | null; goal: number | null }): WorkoutViewOptions {
+// Indexed for the same reason as weekPlan: restSeconds/inferIncrement per exercise
+// each rescanned the whole log.
+const buildOptions = withHistoryIndex(function buildOptions(state: Any, date: string, today: string, bw: { current: number | null; goal: number | null }): WorkoutViewOptions {
   const rest: WorkoutViewOptions['restSeconds'] = {};
   const increments: Record<string, number> = {};
   for (const ex of Object.keys(state.days ?? {}).length ? uniqueExercises(state) : []) {
@@ -243,7 +247,8 @@ function buildOptions(state: Any, date: string, today: string, bw: { current: nu
   }
   const toGoal = bw.current !== null && bw.goal !== null ? Math.round((bw.goal - bw.current) * 10) / 10 : null;
   return { restSeconds: rest, increments, videoUrl: exVideo, bodyweight: { ...bw, toGoal }, dateLabel, isToday: date === today };
-}
+});
+const effortOf = withHistoryIndex(sessionEffort);
 
 /* ── Progress charts (collapsed by default, below the session) ── */
 function WorkoutCharts() {
@@ -639,6 +644,7 @@ export function WorkoutView() {
   const status = vm.sessionComplete ? '✓ complete' : `${done} / ${vm.exercises.length} logged`;
   const splitLabel = vm.split === 'upper' ? 'Upper' : vm.split === 'lower' ? 'Lower' : vm.split === 'all' ? 'Full body' : 'Session';
   const progOpen = wkProgOpen.value;
+  const effort = effortOf(W, date);
 
   // Master–detail: an active exercise takes over the whole screen. Resolve it in
   // its own split's view so it opens whether it's in today's split or the other one.
@@ -661,7 +667,7 @@ export function WorkoutView() {
           <div class="todayhd">
             <div class="todayhd-split">{vm.isPast ? o.dateLabel(vm.date) : `${splitLabel} day`}</div>
             <span class="exhead-r">
-              {sessionEffort(W, date) && <span class={'effchip eff-' + sessionEffort(W, date)}>{sessionEffort(W, date)}</span>}
+              {effort && <span class={'effchip eff-' + effort}>{effort}</span>}
               <span class="exhead-m">{status}</span>
               <button
                 class={'ex-opts' + (awayMode.value ? ' on' : '')}

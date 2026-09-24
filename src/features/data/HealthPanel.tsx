@@ -6,7 +6,8 @@
  */
 import { useEffect, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
-import { snapshot, resetTelemetry, telemetryJSON, type MetricSummary, type TelemetrySnapshot } from '@/core/telemetry';
+import { snapshot, resetTelemetry, telemetryJSON, domNodeCount, jsHeapMB, type MetricSummary, type TelemetrySnapshot } from '@/core/telemetry';
+import BUDGET from '@/core/resourceBudgets.json';
 import { STORAGE_KEYS } from '@/app/bootstrap';
 
 type Tone = 'ok' | 'warn' | 'bad' | '';
@@ -23,6 +24,9 @@ const TAB_LABELS: Record<string, string> = {
   todos: 'Todos', scratch: 'Scratchpad', knowledge: 'Knowledge', tracker: 'Princeton Roadmap',
   roadmap: 'WGU Roadmap', workout: 'Workout', meal: 'Food & Body', data: 'Data',
 };
+
+const pctFmt = (v: number): string => v.toFixed(1) + '%';
+const mbFmt = (v: number): string => v.toFixed(1) + ' MB';
 
 function ms(v: number): string {
   return v >= 1000 ? (v / 1000).toFixed(2) + ' s' : Math.round(v) + ' ms';
@@ -100,6 +104,7 @@ function Body() {
 
   const m = snap.metrics;
   const c = snap.counts;
+  const heapNow = jsHeapMB(); // Chromium only
   const tabs = Object.keys(m).filter((k) => k.startsWith('tab:')).sort();
   const errKinds = Object.keys(c).filter((k) => k.startsWith('ai:error:'));
   const syncOutcomes = Object.keys(c).filter((k) => k.startsWith('sync:save:'));
@@ -132,6 +137,18 @@ function Body() {
         {tabs.map((k) => <Row key={k} label={'Open ' + (TAB_LABELS[k.slice(4)] ?? k.slice(4))} s={m[k]} good={100} poor={300} />)}
         <Row label={`Long tasks (${c.longtask ?? 0} total)`} s={m.longtask} good={100} poor={250} />
       </Table>
+
+      <div class="dadv-sec">Resources</div>
+      <Table>
+        <Row label="Main thread busy, per minute" s={m['res:busyPct']} good={BUDGET.active.mainThreadBusyPct} poor={BUDGET.active.mainThreadBusyPct * 2} fmt={pctFmt} />
+        <Row label="JS memory" s={m['res:heapMB']} good={BUDGET.jsHeapMB} poor={BUDGET.jsHeapMB * 1.5} fmt={mbFmt} />
+        <Row label="Page elements" s={m['res:domNodes']} good={BUDGET.domNodes} poor={BUDGET.domNodes * 1.5} fmt={(v) => String(Math.round(v))} />
+      </Table>
+      <div class="note hp-kv">
+        Now: {domNodeCount()} elements{heapNow !== null ? ` · ${mbFmt(heapNow)} JS memory` : ''}
+        <br />Limits: busy {BUDGET.idle.mainThreadBusyPct}% idle, {BUDGET.active.mainThreadBusyPct}% in use · JS memory {BUDGET.jsHeapMB} MB · {BUDGET.domNodes} elements
+        <br />CPU and process memory aren't visible to web pages on iPhone; measure them with Safari Web Inspector.
+      </div>
 
       <div class="dadv-sec">Sync</div>
       <Table>

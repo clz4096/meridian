@@ -84,6 +84,74 @@ export function navEnd(tab: string): void {
   afterPaint(p.end);
 }
 
+/* ── resource sampling (only while the app is on screen) ──
+ * Safari gives a page no process CPU or memory figures, so on the phone this
+ * measures what a page can see:
+ *  - main-thread busy %: how late a 250 ms heartbeat fires, summed over a minute
+ *    (blocking delay, a lower bound on busy time; ~0.4% floor from timer jitter);
+ *  - live DOM size;
+ *  - JS heap, where the browser reports it (Chromium only).
+ * One summary per minute; the timer stops while hidden, so it costs nothing then. */
+const BEAT_MS = 250;
+const WINDOW_MS = 60_000;
+// A beat this late is a suspension (sleep, iOS freezing the page before or without
+// a hidden event), not work: counting the gap would record ~100% busy.
+const SUSPEND_MS = 1_000;
+let beat = 0;
+let expected = 0;
+let windowStart = 0;
+let lagSum = 0;
+
+export function domNodeCount(): number {
+  return document.getElementsByTagName('*').length;
+}
+export function jsHeapMB(): number | null {
+  const m = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory;
+  return m ? m.usedJSHeapSize / 1_048_576 : null;
+}
+
+function closeWindow(now: number): void {
+  const span = now - windowStart;
+  if (span >= 10_000) { // a partial window shorter than 10 s is too noisy to keep
+    record('res:busyPct', (100 * lagSum) / span);
+    record('res:domNodes', domNodeCount());
+    const heap = jsHeapMB();
+    if (heap !== null) record('res:heapMB', heap);
+  }
+  windowStart = now;
+  lagSum = 0;
+}
+
+function startSampler(): void {
+  if (beat) return;
+  windowStart = performance.now();
+  expected = windowStart + BEAT_MS;
+  lagSum = 0;
+  beat = window.setInterval(() => {
+    const now = performance.now();
+    const lag = Math.max(0, now - expected);
+    expected = now + BEAT_MS;
+    if (lag > SUSPEND_MS) {
+      windowStart = now; // drop the window that spanned the suspension
+      lagSum = 0;
+      return;
+    }
+    lagSum += lag;
+    if (now - windowStart >= WINDOW_MS) closeWindow(now);
+  }, BEAT_MS);
+}
+
+function stopSampler(): void {
+  if (!beat) return;
+  window.clearInterval(beat);
+  beat = 0;
+  const now = performance.now();
+  // A late hidden event can arrive after a suspension: keep the window only if the
+  // timer was still firing on schedule.
+  if (now - expected > SUSPEND_MS) windowStart = now;
+  closeWindow(now);
+}
+
 /* ── browser observers ── */
 function observe(type: string, cb: (e: PerformanceEntry) => void): void {
   try {
@@ -136,8 +204,16 @@ export function startTelemetry(): void {
     if (worstInteraction) { record('interaction:worst', worstInteraction); worstInteraction = 0; }
     save();
   };
-  document.addEventListener('visibilitychange', () => { if (document.hidden) onHide(); });
-  window.addEventListener('pagehide', onHide);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stopSampler(); // before onHide, so the partial minute is saved with the rest
+      onHide();
+    } else {
+      startSampler();
+    }
+  });
+  window.addEventListener('pagehide', () => { stopSampler(); onHide(); });
+  if (!document.hidden) startSampler();
 }
 
 /* ── read side (the health panel) ── */

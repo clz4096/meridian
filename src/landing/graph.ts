@@ -39,6 +39,8 @@ export interface GraphConfig {
   ringOpacity: number;
   /** attach drag-to-rotate; false leaves the graph a passive background */
   interactive: boolean;
+  /** paint one frame and idle (no drift loop); re-paints on resize and on return to the tab */
+  still?: boolean;
   /** overall brightness multiplier (background preset dims to < 1) */
   dim: number;
   /** opt-in UnrealBloom; off by default (the additive glow already reads right) */
@@ -307,7 +309,7 @@ export function mount(el: HTMLElement, config: GraphConfig): GraphHandle {
     // animate once drift is off: paint one static frame, then idle instead of
     // holding a rAF slot every frame for an unchanging image. The landing stays
     // interactive, so it keeps looping for drag inertia.
-    raf = reduce && !config.interactive ? 0 : requestAnimationFrame(tick);
+    raf = (reduce || config.still) && !config.interactive ? 0 : requestAnimationFrame(tick);
   };
   const start = (): void => {
     if (!raf) tick();
@@ -321,6 +323,9 @@ export function mount(el: HTMLElement, config: GraphConfig): GraphHandle {
     else start();
   };
   on(document, 'visibilitychange', onVisibility);
+  // A still graph has no loop to repaint after iOS drops and restores the GL context
+  // (common for a backgrounded page), so repaint on restore.
+  on(canvas, 'webglcontextrestored', () => tick());
   start();
 
   return {

@@ -40,6 +40,7 @@ import {
   selectWorkoutView,
   sessionEffort,
   setHistoryIndexEnabled,
+  withHistoryIndex,
   splitOfDate,
   STAPLE_WINDOW,
   suggestSplit,
@@ -1220,6 +1221,12 @@ describe('history index', () => {
           () => habitualStaples(state, date),
           () => suggestSplit(state, date),
           () => selectWorkoutView(state, date, date),
+          // helpers the Workout screen calls directly, now under withHistoryIndex
+          () => withHistoryIndex((st: WorkoutState, d: string) => ({
+            rest: allExercises(st).map((ex) => [restSeconds(st, ex, 'top', DEFAULT_CONFIG), inferIncrement(st, ex, DEFAULT_CONFIG)]),
+            effort: sessionEffort(st, d),
+            splits: [splitOfDate(st, d, DEFAULT_CONFIG), splitOfDate(st, shiftDate(d, -1), DEFAULT_CONFIG)],
+          }))(state, date),
         ];
         for (const pick of picks) {
           const [plain, indexedResult] = both(pick);

@@ -6,7 +6,7 @@
  */
 import { useEffect } from 'preact/hooks';
 import { dstr } from '@/app/bootstrap';
-import { dataRev, clockNow, weather, notPending } from '@/ui/store';
+import { dataRev, clockNow, clockMinute, weather, notPending } from '@/ui/store';
 import type { HubStat } from '@/ui/hubTypes';
 import { core, hubStats, openSection, todosActions, tickClock, refreshWeather, setWeatherCity } from '@/ui/actions';
 import { dueTodos } from '@/features/todos/todosSelectors';
@@ -66,8 +66,21 @@ function ripple(e: PointerEvent): void {
   window.setTimeout(() => s.remove(), 600);
 }
 
+/** The only part of Today that changes every second, so only it re-renders each tick
+ *  (the whole screen used to, re-deriving every tile once a second). */
+function LiveClock() {
+  const { hm, ss, ap } = clockParts(clockNow.value);
+  return (
+    <div class="today-time">
+      {hm}
+      <span class="today-secs">:{ss}</span>
+      <span class="today-ampm">{ap}</span>
+    </div>
+  );
+}
+
 export function TodayView() {
-  const now = clockNow.value;
+  const now = clockMinute.value;
   const w = weather.value;
   dataRev.value; // subscribe: re-derive on store mutations
 
@@ -81,7 +94,6 @@ export function TodayView() {
   const today = dstr();
   const due = dueTodos(core(), today).filter(notPending);
   const glance = hubStats().filter((s) => TRACKERS.has(s.key));
-  const { hm, ss, ap } = clockParts(now);
   const tod = periodOf(new Date(now).getHours());
 
   return (
@@ -99,11 +111,7 @@ export function TodayView() {
         </div>
         <div class="today-herorow">
           <div>
-            <div class="today-time">
-              {hm}
-              <span class="today-secs">:{ss}</span>
-              <span class="today-ampm">{ap}</span>
-            </div>
+            <LiveClock />
           </div>
           <div class="today-wxblock" onClick={setWeatherCity} title="Set location">
             {w ? (

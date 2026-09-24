@@ -17,9 +17,13 @@ const KEYS: StoreKey[] = ['core', 'overload', 'surplus', 'csgraph', 'theorist'];
 function dataVM(): DataViewModel {
   const state = normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: tg() });
   const u = host.getItem('meridian_supabase_url');
+  // One size figure: storageMetrics already measures every store. A second
+  // whole-state stringify here cost time on every render and disagreed with the
+  // Storage tile.
+  const metrics = storageMetrics(state);
   return {
-    metrics: storageMetrics(state),
-    payloadKb: Math.round(JSON.stringify(state).length / 102.4) / 10,
+    metrics,
+    payloadKb: metrics.kilobytes,
     sync: {
       cloudConfigured: cloudEnabled(),
       pantryId: u ? (u.split('//')[1]?.split('.')[0] ?? '') + '...' : '',

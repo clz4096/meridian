@@ -171,6 +171,7 @@ async function syncSave(opts: { cloud?: boolean } = {}): Promise<SaveResult> {
   count('sync:save:' + result.cloud);
   setup.onStatus?.(result);
   writeBack(before);
+  bump(); // sync status changed (Today's Data tile reads it)
   return result;
 }
 

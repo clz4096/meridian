@@ -1,0 +1,14 @@
+{
+  "_about": "Approved resource limits (2026-09-24). Read by the in-app Performance & health panel and by `npm run perf -- --only resources`. CPU and process memory are measured in desktop Chrome by the harness; on iPhone use Safari Web Inspector's CPU and Memory timelines (see perf/README.md).",
+  "idle": {
+    "cpuPctOfCore": 5,
+    "mainThreadBusyPct": 2
+  },
+  "active": {
+    "mainThreadBusyPct": 25,
+    "longestTaskMs": 200
+  },
+  "jsHeapMB": 50,
+  "domNodes": 3000,
+  "rendererRssMB": 500
+}

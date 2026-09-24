@@ -46,6 +46,10 @@ export function backgroundPreset(): GraphConfig {
     bridges: 6,
     autoRotateSpeed: 0.0008,
     interactive: false,
+    // Behind the app the graph is decoration: one painted frame, no animation loop.
+    // Animating it cost about half the app's idle CPU (measured 16-18% -> 8-10% of a
+    // core with it removed), which on a phone is battery drain while nothing happens.
+    still: true,
     dim: 0.55,
     maxDpr: 1.5,
   };

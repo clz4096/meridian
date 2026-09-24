@@ -157,7 +157,14 @@ function byConfig<V>(outer: Map<ProgressionConfig, Map<string, V>>, config: Prog
   return memo(outer, config, () => new Map<string, V>());
 }
 
-/** Wrap a selector so one call (and everything it calls) shares a single index. */
+/**
+ * Wrap a selector so one call (and everything it calls) shares a single index.
+ * Exported as `withHistoryIndex` for view code that loops history selectors
+ * itself (the week strip), which would otherwise rescan the log per call.
+ */
+export function withHistoryIndex<A extends unknown[], R>(fn: (state: WorkoutState, ...rest: A) => R): (state: WorkoutState, ...rest: A) => R {
+  return indexed(fn);
+}
 function indexed<A extends unknown[], R>(fn: (state: WorkoutState, ...rest: A) => R): (state: WorkoutState, ...rest: A) => R {
   return (state, ...rest) => {
     if (!indexEnabled || historyIndex(state)) return fn(state, ...rest);
