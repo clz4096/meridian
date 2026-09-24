@@ -7,8 +7,10 @@ import { render } from 'preact';
 import { App } from '@/ui/App';
 import { boot } from '@/app/bootstrap';
 import { startTelemetry, span, afterPaint } from '@/core/telemetry';
+import { installExternalLinks } from '@/ui/externalLinks';
 
 startTelemetry();
+installExternalLinks();
 
 const body = document.body;
 body.classList.add('pre-enter'); // hide the dashboard until Enter
