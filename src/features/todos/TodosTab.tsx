@@ -115,7 +115,18 @@ export function TodosView() {
       {adding && (
         <div class="addcard">
           <div class="addrow">
-            <input id="todo-text" class="minp name" placeholder="Something to do…" />
+            <input
+              id="todo-text"
+              class="minp name"
+              placeholder="Something to do…"
+              enterKeyHint="done"
+              onKeyDown={(e) => {
+                // keyCode 229: iOS commits an IME candidate with Enter while isComposing is false.
+                if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229 || !rv('todo-text').trim()) return;
+                todosActions.add(rv('todo-text'), rv('todo-due'));
+                todoView.value = 'all';
+              }}
+            />
             <input id="todo-due" class="minp num" type="date" aria-label="Due date (optional)" />
             <button
               class="madd"

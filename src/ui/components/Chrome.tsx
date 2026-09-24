@@ -13,10 +13,17 @@ export function SaveChip() {
   const flash = savedFlash.value;
   return (
     <>
-      {(s.dirty || s.failed) && (
-        <button class={'savestat ' + (s.failed ? 'failed' : 'dirty')} id="savechip" onClick={() => void appState.save()}>
+      {(s.dirty || s.failed || s.cloud) && (
+        <button
+          class={'savestat ' + (s.failed ? 'failed' : s.dirty ? 'dirty' : 'cloud')}
+          id="savechip"
+          onClick={() => void appState.save()}
+          aria-label={s.cloud && !s.dirty && !s.failed ? 'Retry cloud sync' : 'Save now'}
+        >
           <span class="dot" />
-          <span id="savetxt">{s.failed ? 'Save failed' : 'Unsaved'}</span>
+          <span id="savetxt">
+            {s.failed ? 'Save failed' : s.dirty ? 'Unsaved' : s.cloud === 'offline' ? 'Offline · saved here' : 'Not synced · tap to retry'}
+          </span>
         </button>
       )}
       <div class={'savedflash' + (flash ? ' show' : '')}>Saved ✓</div>

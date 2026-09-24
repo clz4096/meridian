@@ -14,7 +14,7 @@ import { shiftDate } from '@/core/util';
 import { navStart } from '@/core/telemetry';
 import { DEFAULT_CONFIG, type SetType, type SessionOverrides } from '@/core/types';
 import { dueCards, isDue, interviewDeck, interviewRelevant, interviewPreset, normalizeGenerated } from '@/features/knowledge/knowledgeSelectors';
-import { scheduleFsrs, queuedEntry, type Grade } from '@/features/knowledge/fsrs';
+import { scheduleFsrs, queuedEntry, readFsrs, type Grade } from '@/features/knowledge/fsrs';
 import { GRADE_MASTERY } from '@/features/knowledge/ascent';
 import type { KnowledgeActions } from '@/features/knowledge/types';
 import { fetchQuestionBank } from '@/features/knowledge/questionBank';
@@ -28,7 +28,7 @@ import { openCount as todoOpenCount, dueTodos } from '@/features/todos/todosSele
 import { nextStatus, cardCount as scratchCardCount } from '@/features/scratch/scratchSelectors';
 import { loadWeather, savedCity, setSavedCity } from '@/services/weather';
 import { DATA } from '@/core/data/index';
-import { appState, stores, uid, dstr, sync, cloudEnabled, STORAGE_KEYS } from '@/app/bootstrap';
+import { appState, stores, uid, dstr, sync, cloudEnabled, STORAGE_KEYS, markStoreLoaded, registerLoadAll } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import * as st from '@/ui/store';
 import { trackerSummary } from '@/features/studytracker/trackerStore';
@@ -96,12 +96,20 @@ export const currentBW = (): unknown => {
 const restSecs = (ex: string, type: SetType): number => restSeconds(wk(), ex, type);
 
 /* ── lazy load (triggered by the WorkoutView component on first open) ── */
-export async function loadWorkout(): Promise<void> {
+// Each loader runs once and shares its promise: two overlapping loads (Today's
+// preload plus a tab's own) would let the later one overwrite edits made in between.
+function once(load: () => Promise<void>): () => Promise<void> {
+  let inflight: Promise<void> | null = null;
+  return () => (inflight ??= load().catch((e: unknown) => { inflight = null; throw e; }));
+}
+
+export const loadWorkout = once(async () => {
   stores.overload = await appState.loadWorkout();
+  markStoreLoaded('overload');
   st.wkLoaded.value = true;
   if (!st.wkDate.value) st.wkDate.value = dstr();
   st.bump();
-}
+});
 
 /* ── workout actions ── */
 export const workoutActions: WorkoutActions = {
@@ -174,6 +182,8 @@ export const workoutActions: WorkoutActions = {
     const W = wk();
     const s = (W.days[date] || []).find((x: Store) => String(x.id) === String(id));
     if (!s) return;
+    // Same floor as logSet: a cleared field must not store a 0 lb / 0 rep set.
+    if (s.type !== 'cardio' && ((patch.weight !== undefined && !(+patch.weight > 0)) || (patch.reps !== undefined && !(+patch.reps > 0)))) return;
     if (patch.weight !== undefined) s.weight = patch.weight;
     if (patch.reps !== undefined) s.reps = patch.reps;
     if (patch.mins !== undefined) s.mins = patch.mins;
@@ -243,9 +253,19 @@ export const workoutActions: WorkoutActions = {
     const sets = W.days[td];
     for (let i = sets.length - 1; i >= 0; i--) {
       if (sets[i].ex === ex) {
+        // Tombstone it like deleteSet: sync merges sets by id, so a bare splice let the
+        // cloud copy come back. A ticked exercise is also reopened, since `done` merges
+        // as a union (a synced tick can still return: reopened doesn't override done).
+        appState.tomb(W, sets[i].id);
         sets.splice(i, 1);
+        const wasTicked = !!W.done?.[td]?.includes(ex);
+        if (wasTicked) {
+          W.done[td] = W.done[td].filter((e: string) => e !== ex);
+          if (!W.reopened) W.reopened = {};
+          if (!W.reopened[td]) W.reopened[td] = [];
+          if (!W.reopened[td].includes(ex)) W.reopened[td].push(ex);
+        }
         appState.markWorkoutDirty();
-        if (W.done && W.done[td]) W.done[td] = W.done[td].filter((e: string) => e !== ex);
         st.bump();
         return;
       }
@@ -264,7 +284,7 @@ export const workoutActions: WorkoutActions = {
   logBodyweight(v) {
     if (!v) return;
     const W = wk();
-    W.bw[st.wkDate.value ?? dstr()] = v;
+    W.bw[dstr()] = v; // "Log today's weight" — never the date Workout happens to be browsing
     if (!W.settings.bwCurrent) W.settings.bwCurrent = v;
     appState.markWorkoutDirty();
     st.bump();
@@ -306,12 +326,15 @@ async function loadQuestionBank(): Promise<boolean> {
   st.kgItems.value = bank.items as typeof st.kgItems.value;
   return true;
 }
-export async function loadKnowledge(): Promise<void> {
-  await loadQuestionBank();
+export const loadKnowledge = once(async () => {
+  // Read the store before the (network) bank fetch so the sync gate isn't held
+  // shut by a slow download; the tab still waits for both via kgLoaded.
   appState.set('csgraph', await appState.loadKnowledge(kg()));
+  markStoreLoaded('csgraph');
+  await loadQuestionBank();
   st.kgLoaded.value = true;
   st.bump();
-}
+});
 const itemMatchesTarget = (it: Store): boolean =>
   st.kgTarget.value === 'all' ? true : (it.tags || []).includes(st.kgTarget.value);
 export function allTargetItems(): Store[] {
@@ -354,7 +377,8 @@ export function dueItems(): Store[] {
 function scheduleCard(id: string, grade: Grade): void {
   const K = kg();
   if (!K.srs) K.srs = {};
-  K.srs[id] = scheduleFsrs(K.srs[id] as never, grade, new Date(dstr() + 'T00:00:00Z')) as never;
+  // readFsrs migrates a legacy SM-2 row; passed raw, it would be scheduled as a brand-new card.
+  K.srs[id] = scheduleFsrs(readFsrs(K.srs[id]), grade, new Date(dstr() + 'T00:00:00Z')) as never;
 }
 
 /**
@@ -763,12 +787,33 @@ export const MEAL_PRESETS: readonly MealPreset[] = [
   { label: 'Core Power Elite · 230 / 42g', name: 'Core Power Elite', cal: 230, protein: 42 },
   { label: 'Cook Unity · 900 / 40g', name: 'Cook Unity', cal: 900, protein: 40 },
 ];
-export async function loadMeal(): Promise<void> {
+let estimating = false; // an AI meal estimate is in flight
+
+registerLoadAll(() => Promise.all([loadWorkout(), loadKnowledge(), loadMeal()]).then(() => undefined));
+
+/**
+ * Midnight passed with the app open (or it came back to the foreground on a new
+ * day). Dates that were following "today" move to the new day; a date the user
+ * navigated to on purpose stays. The tracker day is left alone: rolling it here
+ * would discard an unbanked day at midnight (whether to auto-bank is undecided).
+ */
+let anchorDay = dstr();
+export function rolloverIfNewDay(): void {
+  const today = dstr();
+  if (today === anchorDay) return;
+  if (st.wkDate.value === anchorDay) st.wkDate.value = today;
+  if (st.sgDate.value === anchorDay) st.sgDate.value = today;
+  anchorDay = today;
+  st.bump();
+}
+
+export const loadMeal = once(async () => {
   stores.surplus = await appState.loadMeal();
+  markStoreLoaded('surplus');
   st.sgLoaded.value = true;
   if (!st.sgDate.value) st.sgDate.value = dstr();
   st.bump();
-}
+});
 export const mealActions: MealActions = {
   addMeal(name, cal, protein) {
     if (!name && !cal && !protein) {
@@ -800,20 +845,34 @@ export const mealActions: MealActions = {
     st.bump();
   },
   async estimateWithAI(desc) {
-    if (!desc) return;
+    if (!desc || estimating) return; // a second tap during the wait would add a duplicate meal
     const out = host.status('meal-eststatus');
-    out.set('Asking DeepSeek…', 'muted');
-    const res = await estimateMacros(desc);
+    // Capture the date now: the reply can take up to 45 s and the user may browse away.
+    const d = st.sgDate.value ?? dstr();
+    estimating = true;
+    out.set('Estimating…', 'muted');
+    let res: Awaited<ReturnType<typeof estimateMacros>>;
+    try {
+      res = await estimateMacros(desc);
+    } finally {
+      estimating = false;
+    }
     if ('error' in res) {
-      out.set(res.error === 'no proxy' ? 'Set up cloud sync (Data → Cloud backend) to enable AI estimation.' : 'Estimate failed: ' + res.error + ' — enter macros manually.', 'bad');
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      out.set(res.error === 'no proxy' ? 'Set up cloud sync (Data → Cloud backend) to enable AI estimation.'
+        : offline ? "You're offline. Enter calories and protein manually."
+        : 'Estimate failed: ' + res.error + ' — enter macros manually.', 'bad');
       return;
     }
-    const d = st.sgDate.value ?? dstr();
-    st.sgDate.value = d;
+    if (!(+res.cal > 0) && !(+res.protein > 0)) {
+      out.set("Couldn't estimate that. Try a more specific description, or enter macros manually.", 'bad');
+      return;
+    }
     const G = sg();
     (G.days[d] = G.days[d] || []).push({ id: uid(), name: res.name, cal: res.cal, protein: res.protein, est: true });
     appState.markMealDirty();
     st.bump();
+    host.setValue('meal-desc', '');
     out.set('✓ ' + res.cal + ' kcal · ' + res.protein + 'g', 'ok');
   },
   changeDate(which) {
@@ -852,6 +911,26 @@ function dmsg(text: string, bad?: boolean): void {
   st.dataMsg.value = { text, bad: !!bad };
   st.bump();
 }
+const SNAPSHOT_KEY = 'meridian_prev_snapshot';
+/**
+ * Keep a restorable copy of every store before a bulk overwrite (import, pull,
+ * reset). Returns false when the copy could not be kept (storage full), after
+ * dropping any older snapshot so Undo can never restore the wrong data.
+ */
+function takeSnapshot(): boolean {
+  const snap: Record<string, unknown> = { at: Date.now() };
+  for (const k of Object.keys(STORAGE_KEYS) as StoreKey[]) snap[k] = JSON.stringify(appState.get(k));
+  const text = JSON.stringify(snap);
+  try {
+    localStorage.setItem(SNAPSHOT_KEY, text);
+    if (localStorage.getItem(SNAPSHOT_KEY) === text) return true;
+  } catch {
+    /* quota */
+  }
+  try { localStorage.removeItem(SNAPSHOT_KEY); } catch { /* blocked storage */ }
+  return false;
+}
+const NO_SNAPSHOT = "Couldn't keep a backup copy (storage is full), so nothing was changed. Export your data first, then try again.";
 export const dataActions: DataActions = {
   savePantryId(url, key) {
     host.setItem('meridian_supabase_url', url);
@@ -859,7 +938,7 @@ export const dataActions: DataActions = {
     dmsg(url ? 'Saved. Cloud sync is ON — tap Test connection.' : 'Cleared. Cloud sync is OFF.');
   },
   async testConnection() {
-    if (!cloudEnabled()) return dmsg('Add a Pantry ID first.', true);
+    if (!cloudEnabled()) return dmsg('Add your Supabase project URL and key first.', true);
     dmsg('Testing…');
     const r = await sync.save();
     dmsg(r.cloud === 'synced' || r.cloud === 'noop' ? '✓ Connection works. Cloud sync is live.' : 'Could not reach cloud: ' + ((r.cloudError && r.cloudError.message) || r.cloud), r.cloud === 'failed');
@@ -871,9 +950,18 @@ export const dataActions: DataActions = {
   },
   async pull() {
     dmsg('Pulling…');
-    const applied = await sync.pull();
-    dmsg(applied ? '✓ Pulled. Reloading…' : 'Already up to date.');
-    if (applied) host.reload(700);
+    try {
+      await sync.whenLoaded(); // snapshot real stores, never placeholders
+      // Keep the previous snapshot unless this pull actually changes something.
+      const prev = host.getItem(SNAPSHOT_KEY);
+      const kept = takeSnapshot();
+      const applied = await sync.pull();
+      if (!applied && prev !== null) host.setItem(SNAPSHOT_KEY, prev);
+      dmsg(applied ? '✓ Pulled. Reloading…' + (kept ? '' : ' (no undo copy: storage is full)') : 'Already up to date.');
+      if (applied) host.reload(700);
+    } catch (e) {
+      dmsg('Pull failed: ' + ((e as Error)?.message || 'unknown error') + '. Your data on this device is unchanged.', true);
+    }
   },
   exportAll() {
     const bundle = exportBundle(
@@ -887,6 +975,8 @@ export const dataActions: DataActions = {
   importPasted(text) {
     const r = importBundle(text);
     if (!r.ok) return dmsg('Import failed: ' + r.errors.join('; '), true);
+    if (!host.confirm('Replace ALL data on this device (workouts, meals, knowledge, todos, ideas, tracker) with this backup? A copy of the current data is kept: Advanced → Undo restores it.')) return;
+    if (!takeSnapshot()) return dmsg(NO_SNAPSHOT, true);
     appState.set('core', r.state.core);
     appState.set('overload', r.state.overload);
     appState.set('surplus', r.state.surplus);
@@ -913,6 +1003,8 @@ export const dataActions: DataActions = {
     let parsed: Store;
     try { parsed = JSON.parse(text); } catch (e: Store) { return dmsg('Invalid JSON: ' + e.message, true); }
     const key = store as StoreKey;
+    if (!host.confirm('Replace this app\'s data on this device with the pasted backup? A copy of the current data is kept: Undo restores it.')) return;
+    if (!takeSnapshot()) return dmsg(NO_SNAPSHOT, true);
     if (key === 'overload') appState.set('overload', normaliseState({ overload: parsed }).overload);
     if (key === 'surplus') appState.set('surplus', normaliseState({ surplus: parsed }).surplus);
     if (key === 'core') appState.set('core', normaliseState({ core: parsed }).core);
@@ -924,17 +1016,34 @@ export const dataActions: DataActions = {
     appState.markTheoristDirty();
     void sync.save().then(() => { dmsg('✓ Imported into ' + store + '. Reloading…'); host.reload(800); });
   },
-  restoreSnapshot() {
-    const raw = host.getItem('meridian_prev_snapshot');
+  async restoreSnapshot() {
+    const raw = host.getItem(SNAPSHOT_KEY);
     if (!raw) return dmsg('No snapshot found on this device.', true);
+    let snap: Record<string, string>;
     try {
-      const s = JSON.parse(raw);
-      if (!host.confirm('Restore the snapshot taken ' + new Date(s.at).toLocaleString() + '?')) return;
-      (['core', 'overload', 'surplus', 'csgraph', 'theorist'] as StoreKey[]).forEach((k) => { if (s[k]) host.setItem(STORAGE_KEYS[k], s[k]); });
+      snap = JSON.parse(raw);
+    } catch {
+      return dmsg('Snapshot unreadable.', true);
+    }
+    const note = cloudEnabled() ? ' Cloud sync is on, so other devices may merge rows back in; use Overwrite cloud afterwards to make this copy authoritative.' : '';
+    if (!host.confirm('Restore this device to the copy saved ' + new Date(+snap.at).toLocaleString() + '?' + note)) return;
+    try {
+      await sync.whenLoaded();
+      // Through the engine, not raw localStorage: the save stamps both tiers, and the
+      // in-memory stores already hold the restored data when the reload's flush runs.
+      for (const k of Object.keys(STORAGE_KEYS) as StoreKey[]) if (snap[k]) appState.set(k, JSON.parse(snap[k]));
+      // Local only: a normal push reads the cloud and merges it in, which would bring
+      // back exactly the rows being undone.
+      const r = await sync.save({ cloud: false });
+      if (!r.localOk) return dmsg('Restore failed: could not write ' + r.localFailed.join(', ') + '.', true);
+      if (cloudEnabled() && host.confirm('Restored on this device. Also overwrite the cloud with this copy? If you skip this, the next sync merges the cloud\'s rows back in.')) {
+        const f = await sync.forcePush();
+        if (f.cloud !== 'synced') return dmsg('Restored here, but the cloud overwrite failed: ' + ((f.cloudError && f.cloudError.message) || f.cloud) + '.', true);
+      }
       dmsg('✓ Restored. Reloading…');
       host.reload(700);
-    } catch {
-      dmsg('Snapshot unreadable.', true);
+    } catch (e) {
+      dmsg('Restore failed: ' + ((e as Error)?.message || 'unknown error'), true);
     }
   },
   showDiagnostics() {
@@ -946,6 +1055,7 @@ export const dataActions: DataActions = {
   },
   async resetKnowledge() {
     if (!host.confirm('Erase ALL knowledge progress (mastery, reviews, history) and overwrite it in the cloud? If you use another device, reset it there too. This cannot be undone.')) return;
+    if (!takeSnapshot()) return dmsg(NO_SNAPSHOT, true); // local undo via Advanced → Undo
     dmsg('Resetting knowledge…');
     // Wipe the knowledge store, stamping a reset epoch so the wipe PROPAGATES to
     // other devices (phone + browser) through the merge instead of being
@@ -971,10 +1081,14 @@ export const dataActions: DataActions = {
   },
   async overwriteCloud() {
     if (!cloudEnabled()) return dmsg('Cloud sync is off — nothing to overwrite.', true);
-    if (!host.confirm('Make THIS device authoritative and OVERWRITE the cloud with ALL of its data (workout, meals, knowledge, schedule)? Other devices will be replaced on their next sync.')) return;
+    if (!host.confirm('Make THIS device authoritative and OVERWRITE the cloud with ALL of its data (workouts, meals, knowledge, todos, ideas, tracker)? Other devices will be replaced on their next sync.')) return;
     dmsg('Overwriting cloud…');
-    const r = await sync.forcePush();
-    dmsg(r.cloud === 'synced' ? '✓ Cloud overwritten from this device.' : 'Overwrite failed: ' + ((r.cloudError && r.cloudError.message) || r.cloud), r.cloud === 'failed');
+    try {
+      const r = await sync.forcePush();
+      dmsg(r.cloud === 'synced' ? '✓ Cloud overwritten from this device.' : 'Overwrite failed: ' + ((r.cloudError && r.cloudError.message) || r.cloud), r.cloud !== 'synced');
+    } catch (e) {
+      dmsg('Overwrite failed: ' + ((e as Error)?.message || 'unknown error'), true);
+    }
   },
 };
 
@@ -1127,7 +1241,10 @@ export function ensureLoaded(tab: st.Tab): void {
   if (tab === 'today') loadForHome();
   else if (tab === 'workout' && !st.wkLoaded.value) void loadWorkout();
   else if (tab === 'knowledge' && !st.kgLoaded.value) void loadKnowledge();
-  else if (tab === 'meal' && !st.sgLoaded.value) void loadMeal();
+  else if (tab === 'meal') {
+    if (!st.sgLoaded.value) void loadMeal();
+    if (!st.wkLoaded.value) void loadWorkout(); // the weigh-in writes W.bw
+  }
 }
 
 /** Return to the Today home (the pill-Back target for trackers). */

@@ -196,9 +196,15 @@ export class SyncEngine {
    * Local and cloud outcomes are independent: a cloud failure leaves
    * `pendingCloud` set so the UI can honestly report "saved here, not synced".
    */
-  async save(): Promise<SaveResult> {
+  async save(opts: { cloud?: boolean } = {}): Promise<SaveResult> {
     const localFailed: StoreKey[] = [];
 
+    // Start every store's write before awaiting any of them. The adapter's
+    // synchronous tier (localStorage) runs inside set() itself, so all stores
+    // reach it in this same task. Awaiting one store before starting the next
+    // left later stores unwritten if the page was suspended mid-save (iOS
+    // backgrounding), since each waited on the previous store's IndexedDB write.
+    const inflight: Array<{ key: StoreKey; revAtCapture: number; payload: string; write: Promise<boolean> }> = [];
     for (const key of STORE_KEYS) {
       if (!this.pendingLocal[key]) continue;
       const revAtCapture = this.rev[key];
@@ -206,13 +212,17 @@ export class SyncEngine {
       // bytes are written, so the leak cannot reach storage or the cloud.
       this.stores[key] = this.sanitize(key, this.stores[key], this.clock.now());
       const payload = JSON.stringify(this.stores[key]);
-
-      let wrote = false;
+      let write: Promise<boolean>;
       try {
-        wrote = await this.storage.set(key, payload);
+        write = this.storage.set(key, payload).catch(() => false);
       } catch {
-        wrote = false;
+        write = Promise.resolve(false);
       }
+      inflight.push({ key, revAtCapture, payload, write });
+    }
+
+    for (const { key, revAtCapture, payload, write } of inflight) {
+      const wrote = await write;
       let verified = false;
       if (wrote) {
         try {
@@ -225,13 +235,15 @@ export class SyncEngine {
       // Only clear if the store did not change while the write was in flight.
       if (verified && this.rev[key] === revAtCapture) {
         this.pendingLocal[key] = false;
-      } else if (!verified) {
+      } else if (!verified && this.rev[key] === revAtCapture) {
+        // A mismatch after a newer edit is an overlapping save's newer bytes, not a
+        // failed write; pendingLocal stays set and that save verifies its own copy.
         localFailed.push(key);
       }
     }
 
     const localOk = localFailed.length === 0;
-    if (!localOk) return { localOk, localFailed, cloud: 'skipped' };
+    if (!localOk || opts.cloud === false) return { localOk, localFailed, cloud: 'skipped' };
 
     const push = await this.push();
     return { localOk, localFailed, cloud: push.cloud, cloudError: push.cloudError };
@@ -239,7 +251,38 @@ export class SyncEngine {
 
   /* ---------------- push ---------------- */
 
-  async push(force = false): Promise<{ cloud: SaveResult['cloud']; cloudError?: SaveResult['cloudError'] }> {
+  private pushInflight: Promise<{ cloud: SaveResult['cloud']; cloudError?: SaveResult['cloudError'] }> | null = null;
+  private pushAgain = false;
+
+  /**
+   * Single-flight: a push requested while one is in flight joins it, and the
+   * in-flight one pushes again after a success so the joined caller's newer edits
+   * go out. Two concurrent pushes would both write rev N+1, and the later-landing
+   * older one could leave stale state in the cloud behind a clean fingerprint.
+   */
+  push(force = false): Promise<{ cloud: SaveResult['cloud']; cloudError?: SaveResult['cloudError'] }> {
+    if (this.pushInflight) {
+      this.pushAgain = true;
+      return this.pushInflight;
+    }
+    this.pushInflight = (async () => {
+      try {
+        let r = await this.pushOnce(force);
+        while (this.pushAgain && r.cloud === 'synced') {
+          this.pushAgain = false;
+          const again = await this.pushOnce(true); // the gap was just satisfied by this same flight
+          if (again.cloud !== 'noop') r = again; // noop: the first write already carried it
+        }
+        return r;
+      } finally {
+        this.pushAgain = false;
+        this.pushInflight = null;
+      }
+    })();
+    return this.pushInflight;
+  }
+
+  private async pushOnce(force: boolean): Promise<{ cloud: SaveResult['cloud']; cloudError?: SaveResult['cloudError'] }> {
     const now = this.clock.now();
     if (now < this.backoffUntil) {
       return { cloud: 'throttled', cloudError: { kind: 'rate-limited', message: 'backing off' } };
@@ -274,6 +317,10 @@ export class SyncEngine {
       this.stores[key] = this.sanitize(key, this.stores[key], now);
     }
     const revsAtCapture: Record<StoreKey, number> = { ...this.rev };
+    // Fingerprint what is being SENT. Taking it after the write captured any edit
+    // made during the await as "already in the cloud", so the follow-up push
+    // no-oped and that edit stayed off the cloud until some later change.
+    const sentFingerprint = JSON.stringify(this.stores);
 
     const payload: CloudPayload = {
       rev: (read.ok && read.payload ? read.payload.rev : this.baseRev) + 1,
@@ -294,7 +341,7 @@ export class SyncEngine {
 
     this.baseRev = write.rev ?? payload.rev;
     this.lastPushAt = now;
-    this.lastFingerprint = JSON.stringify(this.stores);
+    this.lastFingerprint = sentFingerprint;
     for (const key of STORE_KEYS) {
       if (this.rev[key] === revsAtCapture[key]) this.pendingCloud[key] = false;
     }
@@ -321,6 +368,9 @@ export class SyncEngine {
    * failed cloud write never clears `pendingCloud`.
    */
   async forcePush(only: readonly StoreKey[] = STORE_KEYS): Promise<{ cloud: SaveResult['cloud']; cloudError?: SaveResult['cloudError'] }> {
+    // Let an in-flight push land first: both write the same rev with a plain
+    // upsert, so a stale push landing after this one would undo the overwrite.
+    if (this.pushInflight) await this.pushInflight.catch(() => undefined);
     const now = this.clock.now();
     if (now < this.backoffUntil) {
       return { cloud: 'throttled', cloudError: { kind: 'rate-limited', message: 'backing off' } };
@@ -373,6 +423,10 @@ export class SyncEngine {
       authoritative.has(key) ? this.stores[key] : (remote?.[key] ?? this.stores[key]);
 
     const revsAtCapture: Record<StoreKey, number> = { ...this.rev };
+    // Fingerprint what is being SENT. Taking it after the write captured any edit
+    // made during the await as "already in the cloud", so the follow-up push
+    // no-oped and that edit stayed off the cloud until some later change.
+    const sentFingerprint = JSON.stringify(this.stores);
     const payload: CloudPayload = {
       rev: cloudRev + 1,
       syncedAt: now,
@@ -392,7 +446,7 @@ export class SyncEngine {
 
     this.baseRev = write.rev ?? payload.rev;
     this.lastPushAt = now;
-    this.lastFingerprint = JSON.stringify(this.stores);
+    this.lastFingerprint = sentFingerprint;
     for (const key of only) {
       if (this.rev[key] === revsAtCapture[key]) this.pendingCloud[key] = false;
     }
@@ -441,6 +495,7 @@ export class SyncEngine {
    * and merging never discards local rows — union semantics come from `merge`.
    */
   async pull(): Promise<PullResult> {
+    if (this.pushInflight) await this.pushInflight.catch(() => undefined); // same ordering as forcePush
     const read = await this.cloud.read();
     if (!read.ok) {
       if (read.kind === 'rate-limited') this.backoffUntil = this.clock.now() + this.rateLimitBackoff;

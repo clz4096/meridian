@@ -84,7 +84,7 @@ export const bump = (): void => {
 };
 
 // ── chrome (save chip + rest bar) ──
-export const saveState = signal<{ dirty: boolean; failed: boolean }>({ dirty: false, failed: false });
+export const saveState = signal<{ dirty: boolean; failed: boolean; cloud?: 'offline' | 'failed' }>({ dirty: false, failed: false });
 export const savedFlash = signal(false); // transient "saved ✓" pulse
 export interface RestState {
   label: string;

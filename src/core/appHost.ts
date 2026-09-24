@@ -36,6 +36,8 @@ export interface SaveChipState {
   text?: string;
   /** Force the dirty styling even when `text` reads as saved — the save-failed case. */
   failed?: boolean;
+  /** Saved on this device but not in the cloud yet (retrying). */
+  cloud?: 'offline' | 'failed';
 }
 
 /**

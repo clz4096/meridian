@@ -22,6 +22,8 @@ const arbAppState: fc.Arbitrary<AppState> = fc.record({
       { maxKeys: 6 },
     ),
     entries: fc.array(fc.record({ id: arbId, date: arbDate, stream: fc.string({ maxLength: 8 }), source: fc.string({ maxLength: 8 }), xp: fc.integer({ min: 0, max: 500 }) }), { maxLength: 12 }),
+    todos: fc.array(fc.record({ id: arbId, text: fc.string({ maxLength: 30 }), done: fc.boolean(), created: fc.integer({ min: 0 }), due: fc.option(arbDate, { nil: undefined }) }, { requiredKeys: ['id', 'text', 'done', 'created'] }), { maxLength: 6 }),
+    scratch: fc.array(fc.record({ id: arbId, title: fc.string({ maxLength: 20 }), body: fc.string({ maxLength: 60 }), status: fc.constantFrom('idea', 'trying', 'shipped', 'parked'), created: fc.integer({ min: 0 }), updated: fc.integer({ min: 0 }) }), { maxLength: 6 }),
     _del: fc.dictionary(arbId, fc.integer({ min: 0 }), { maxKeys: 4 }),
   }),
   overload: fc.record({
@@ -374,5 +376,59 @@ describe('metrics and CSV', () => {
       }),
       { numRuns: Math.min(RUNS, 3000) },
     );
+  });
+});
+
+describe('core todos + scratch survive a backup (regression: normaliseCore dropped them)', () => {
+  it('normalise keeps every todo and scratch card field', () => {
+    const core = {
+      schedule: {}, entries: [],
+      todos: [{ id: 't1', text: 'Call the bank', done: false, created: 5, due: '2026-09-30' }, { id: 't2', text: 'x', done: true, created: 6 }],
+      scratch: [{ id: 's1', title: 'Idea', body: 'Long notes', status: 'trying', created: 1, updated: 2 }],
+      _del: {},
+    };
+    const n = normaliseState({ core } as unknown as AppState).core;
+    expect(n.todos).toEqual(core.todos);
+    expect(n.scratch).toEqual(core.scratch);
+  });
+
+  it('an export -> import round-trip returns them unchanged', () => {
+    fc.assert(
+      fc.property(arbAppState, (raw) => {
+        const state = normaliseState(raw);
+        const r = roundTrip(state);
+        if (!r.ok) throw new Error('import failed: ' + r.errors.join('; '));
+        expect(r.state.core.todos).toEqual(state.core.todos);
+        expect(r.state.core.scratch).toEqual(state.core.scratch);
+        expect(state.core.todos).toHaveLength((raw.core as { todos: unknown[] }).todos.length);
+      }),
+      opts,
+    );
+  });
+});
+
+describe('knowledge FSRS state survives a backup (regression: rebuilt as legacy SM-2)', () => {
+  it('keeps stability, difficulty, lapses, state, and lastReview through export -> import', () => {
+    const fsrsRow = { due: '2026-11-20', stability: 61.2, difficulty: 4.3, reps: 7, lapses: 1, state: 2, lastReview: '2026-09-20' };
+    const state = normaliseState({ csgraph: { mastery: { q1: 4 }, srs: { q1: fsrsRow, q2: { due: '2025-02-01', ivl: 10, ease: 2.5, n: 3 } }, log: [], gymDone: {} } } as unknown as AppState);
+    expect(state.csgraph.srs.q1).toEqual(fsrsRow);
+    const r = roundTrip(state);
+    if (!r.ok) throw new Error(r.errors.join('; '));
+    expect(r.state.csgraph.srs.q1).toEqual(fsrsRow);
+    expect(r.state.csgraph.srs.q2).toEqual({ due: '2025-02-01', ivl: 10, ease: 2.5, n: 3 }); // legacy rows unchanged
+  });
+});
+
+describe('normaliseCore drops rows that cannot be merged', () => {
+  it('drops non-objects and empty ids, keeps the first of a duplicate id', () => {
+    const core = {
+      schedule: {}, entries: [],
+      todos: [null, 'x', { id: '', text: 'no id', done: false, created: 1 }, { id: 't1', text: 'first', done: false, created: 1 }, { id: 't1', text: 'dup', done: true, created: 2 }],
+      scratch: [{ id: 's1', title: 'A', body: '', status: 'bogus', created: 1, updated: 1 }],
+      _del: {},
+    };
+    const n = normaliseState({ core } as unknown as AppState).core;
+    expect(n.todos!.map((t) => t.text)).toEqual(['first']);
+    expect(n.scratch![0]!.status).toBe('idea'); // unknown status falls back
   });
 });

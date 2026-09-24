@@ -86,6 +86,9 @@ export class BrowserStorageAdapter implements StorageAdapter {
   private lsSet(key: string, value: string): boolean {
     try { localStorage.setItem(key, value); return true; } catch { return false; }
   }
+  private lsRemove(key: string): void {
+    try { localStorage.removeItem(key); } catch { /* blocked storage */ }
+  }
 
   async get(key: string): Promise<string | null> {
     const k = this.realKey(key);
@@ -105,7 +108,15 @@ export class BrowserStorageAdapter implements StorageAdapter {
     const k = this.realKey(key);
     const stamp = String(Date.now());
     const sync = this.lsSet(k, value);
-    this.lsSet(`${k}__v`, stamp);
+    if (sync) {
+      this.lsSet(`${k}__v`, stamp);
+    } else {
+      // Quota (or blocked storage): the old value is now stale. Stamping it would
+      // make it win the next newest-copy read and overwrite the good IndexedDB
+      // copy, so drop it and let IndexedDB be the source.
+      this.lsRemove(k);
+      this.lsRemove(`${k}__v`);
+    }
     const durable = await this.idb.set(k, value);
     void this.idb.set(`${k}__v`, stamp);
     return sync || durable;          // one tier surviving is enough

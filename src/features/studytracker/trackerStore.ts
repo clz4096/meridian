@@ -318,7 +318,9 @@ export function bankToday(): void {
  */
 export function toggleBank(): void {
   const t = readStore();
-  const today = todayISO();
+  // The day being banked, not the wall clock: a day left open past midnight banks
+  // under its own date instead of pre-filling the next one.
+  const today = t.day.date || todayISO();
   if (t.day.banked) {
     const banked = { ...t.banked };
     delete banked[today];

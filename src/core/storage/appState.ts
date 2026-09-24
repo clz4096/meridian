@@ -40,7 +40,7 @@ export interface SaveResult {
   localOk: boolean;
   localFailed: string[];
   cloud: 'synced' | 'noop' | 'throttled' | 'failed' | 'skipped' | string;
-  cloudError?: { message?: string } | null;
+  cloudError?: { kind?: string; message?: string } | null;
 }
 
 export interface AppStateDeps {
@@ -81,7 +81,13 @@ interface WorkoutStore extends Store {
 
 // Debounce after the last edit before autosaving. Short enough that the quiet
 // save status clears promptly; each edit resets it, so a burst still saves once.
-const AUTOSAVE_MS = 5_000;
+// Short on purpose: edits live only in memory until a save, so this bounds what a
+// crash can lose (measured: a hard kill 1 s after an edit lost it at 5 s). Cloud
+// pushes stay rate-limited by the engine's minPushGap.
+const AUTOSAVE_MS = 1_000;
+/** Cloud retry after a failed push: 5 s, then x3 each time, capped at 5 min. */
+const RETRY_FIRST_MS = 5_000;
+const RETRY_MAX_MS = 300_000;
 
 export interface AppState {
   init(): void;
@@ -114,6 +120,9 @@ export function createAppState(deps: AppStateDeps): AppState {
   let dirtyLocal = false;
   let saveTimer: number | null = null;
   let flushing = false;
+  let cloudIssue: 'offline' | 'failed' | undefined;
+  let retryTimer: number | null = null;
+  let retryDelay = 0;
 
   function anyDirty(): boolean {
     return deps.sync.anyDirty() || dirtyLocal;
@@ -122,13 +131,33 @@ export function createAppState(deps: AppStateDeps): AppState {
   function paintChip(text?: string, failed = false): void {
     // The floating status reflects LOCAL data safety (unsaved local edits), not cloud
     // sync — cloud state lives in the Data tab. So it clears as soon as the local write lands.
-    deps.host.paintSaveChip({ dirty: dirtyLocal, text, failed });
+    deps.host.paintSaveChip({ dirty: dirtyLocal, text, failed, cloud: cloudIssue });
+  }
+
+  /** Keep publishing after a throttled or failed push; the local copy is already safe. */
+  function scheduleCloudRetry(r: SaveResult): void {
+    if (retryTimer !== null) deps.clearTimeout(retryTimer);
+    retryTimer = null;
+    // not-found = no credentials, or a wrong URL/bucket: retrying can't fix it.
+    if ((r.cloud !== 'throttled' && r.cloud !== 'failed') || r.cloudError?.kind === 'not-found') {
+      retryDelay = 0;
+      return;
+    }
+    retryDelay = r.cloud === 'throttled' ? RETRY_FIRST_MS : Math.min(retryDelay ? retryDelay * 3 : RETRY_FIRST_MS, RETRY_MAX_MS);
+    retryTimer = deps.setTimeout(() => {
+      retryTimer = null;
+      void save();
+    }, retryDelay);
   }
 
   /** Faithful port of the legacy onStatus switch: chip messaging + dirty reset. */
   function onStatus(r: SaveResult): void {
     dirtyLocal = false;
     let clean = true;
+    // A throttled push is routine (retried in 5 s); only a real failure is surfaced.
+    if (r.cloud === 'synced' || r.cloud === 'noop') cloudIssue = undefined;
+    else if (r.cloud === 'failed') cloudIssue = r.cloudError?.kind === 'offline' ? 'offline' : 'failed';
+    scheduleCloudRetry(r);
     if (!r.localOk) {
       paintChip('Save failed: ' + r.localFailed.join(', '), true);
       clean = false;
@@ -146,7 +175,7 @@ export function createAppState(deps: AppStateDeps): AppState {
     }
     // The pill now hides on a clean save, so confirm the save with the transient flash.
     // A failure keeps the pill visible instead (no flash).
-    if (clean) deps.host.flashSaved();
+    if (clean && r.cloud !== 'failed') deps.host.flashSaved(); // no "Saved ✓" beside "Not synced"
   }
 
   function armAutosave(): void {

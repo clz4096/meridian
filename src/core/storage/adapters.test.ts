@@ -100,6 +100,25 @@ describe('BrowserStorageAdapter', () => {
 });
 
 /* ================================================================== */
+describe('BrowserStorageAdapter under a full localStorage', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('does not stamp a stale localStorage copy when the value write fails', async () => {
+    const ls = fakeLs();
+    ls._map.set('k', 'old');
+    ls._map.set('k__v', '1');
+    // Quota: the big value write throws; small writes (the stamp) would still succeed.
+    const quotaLs = { ...ls, setItem: (k: string, v: string) => { if (k === 'k') throw new Error('QuotaExceededError'); ls._map.set(k, v); } };
+    vi.stubGlobal('localStorage', quotaLs);
+    const kv = fakeKv();
+    const a = new BrowserStorageAdapter({}, kv);
+    expect(await a.set('k', 'new')).toBe(true); // IndexedDB still took it
+    expect(ls._map.has('k')).toBe(false);       // stale copy dropped, not re-stamped
+    expect(ls._map.has('k__v')).toBe(false);
+    expect(await a.get('k')).toBe('new');       // the read resolves to the good copy
+  });
+});
+
 describe('SupabaseCloudProvider', () => {
   const creds = { projectUrl: 'https://proj.supabase.co', anonKey: 'anon-123' };
   afterEach(() => vi.unstubAllGlobals());

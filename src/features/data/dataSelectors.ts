@@ -10,8 +10,9 @@
  * instead of silently writing garbage into storage.
  */
 
-import type { CoreState, KnowledgeItemLike, KnowledgeState, MealState, Millis, TheoristState, WorkoutState } from '@/core/types';
+import type { CoreState, KnowledgeItemLike, KnowledgeState, MealState, Millis, ScratchCard, ScratchStatus, TheoristState, TodoItem, WorkoutState } from '@/core/types';
 import { toNum } from '@/core/util';
+import { readFsrs } from '@/features/knowledge/fsrs';
 
 export const BUNDLE_VERSION = 3 as const;
 
@@ -154,10 +155,42 @@ export function normaliseCore(raw: unknown): CoreState {
       xp: toNum(o.xp as never, 0),
     } as CoreState['entries'][number];
   });
+  // Todos and scratch cards live nested in core; dropping them here made every
+  // export/import silently erase them.
+  // Rows without an id can't be merged, toggled, or deleted; drop them, and keep
+  // the first of any duplicate id (the id-keyed merge would collapse them anyway).
+  const firstById = <T extends { id: string }>(rows: T[]): T[] => {
+    const seen = new Set<string>();
+    return rows.filter((r) => r.id !== '' && !seen.has(r.id) && (seen.add(r.id), true));
+  };
+  const todos = firstById(arr(c.todos).filter((x) => x && typeof x === 'object').map((x) => {
+    const o = obj(x);
+    const t: TodoItem = {
+      id: String(o.id ?? '') as TodoItem['id'],
+      text: String(o.text ?? ''),
+      done: o.done === true,
+      created: toNum(o.created as never, 0),
+    };
+    if (typeof o.due === 'string' && o.due) t.due = o.due;
+    return t;
+  }));
+  const scratch = firstById(arr(c.scratch).filter((x) => x && typeof x === 'object').map((x) => {
+    const o = obj(x);
+    return {
+      id: String(o.id ?? '') as ScratchCard['id'],
+      title: String(o.title ?? ''),
+      body: String(o.body ?? ''),
+      status: (SCRATCH_STATUSES.includes(o.status as ScratchStatus) ? o.status : 'idea') as ScratchStatus,
+      created: toNum(o.created as never, 0),
+      updated: toNum(o.updated as never, 0),
+    };
+  }));
   const del: Record<string, number> = {};
   for (const [k, v] of Object.entries(obj(c._del))) del[k] = toNum(v as never, 0);
-  return { schedule, entries, _del: del };
+  return { schedule, entries, todos, scratch, _del: del };
 }
+
+const SCRATCH_STATUSES: readonly ScratchStatus[] = ['idea', 'trying', 'shipped', 'parked'];
 
 export function normaliseKnowledge(raw: unknown): KnowledgeState {
   const k = obj(raw);
@@ -169,6 +202,12 @@ export function normaliseKnowledge(raw: unknown): KnowledgeState {
   const srs: KnowledgeState['srs'] = {};
   for (const [id, v] of Object.entries(obj(k.srs))) {
     const e = obj(v);
+    // Current rows are FSRS; rebuilding them in the legacy shape dropped stability,
+    // difficulty, lapses, and state, so a restored backup reset every interval.
+    if (typeof e.stability === 'number' && e.stability > 0) {
+      srs[id] = readFsrs(e) as unknown as KnowledgeState['srs'][string];
+      continue;
+    }
     srs[id] = {
       due: String(e.due ?? ''),
       ivl: toNum((e.ivl ?? e.interval) as never, 0),

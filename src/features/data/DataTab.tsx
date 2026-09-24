@@ -68,6 +68,13 @@ export function DataView() {
         </div>
       </div>
 
+      {/* Result of the last Push / Pull / Export / Import, visible without opening Settings. */}
+      {s.lastMessage && (
+        <div id="d-cloudmsg" class="note" role="status" style={'margin-top:12px;color:' + (s.lastMessageBad ? 'var(--deficit)' : 'var(--ok)')}>
+          {s.lastMessage}
+        </div>
+      )}
+
       <div class="tilegrid">
         <div class="tile">
           <span class="tile-l">Storage</span>
@@ -137,9 +144,6 @@ export function DataView() {
               </button>
             </div>
             <div id="d-diagout" class="note" style="font-family:var(--mono);font-size:12px;white-space:pre-line" />
-            <div id="d-cloudmsg" class="note" style={'color:' + (s.lastMessageBad ? 'var(--deficit)' : 'var(--ok)')}>
-              {s.lastMessage || ''}
-            </div>
           </div>
         </details>
       </div>
@@ -196,7 +200,7 @@ export function DataView() {
             payload {vm.payloadKb}KB · {c.tombstones} tombstones · {c.workoutDays}d workouts · {c.mealDays}d meals
           </div>
           <button class="dadv-btn" onClick={dataActions.restoreSnapshot}>
-            Undo last cloud overwrite<small>restore the snapshot from before the last sync</small>
+            Undo last import, pull, or reset<small>restore this device's data from just before it (this device only)</small>
           </button>
           <div class="dadv-sec">Restore a single-app backup</div>
           <div class="dactions">

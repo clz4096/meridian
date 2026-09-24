@@ -42,7 +42,7 @@ function build(opts: { stored?: Partial<Record<StoreKey, string>>; anyDirtyCloud
   };
 
   let timers: Array<() => void> = [];
-  const setTimeout = vi.fn((fn: () => void) => {
+  const setTimeout = vi.fn((fn: () => void, _ms?: number) => {
     timers.push(fn);
     return timers.length;
   });
@@ -248,21 +248,29 @@ describe('appState save / flush / discard', () => {
 });
 
 describe('appState onStatus chip messaging', () => {
-  const cases: Array<[Partial<SaveResult>, string, boolean]> = [
+  const cases: Array<[Partial<SaveResult>, string, boolean, ('offline' | 'failed')?]> = [
     [{ localOk: false, localFailed: ['core', 'surplus'] }, 'Save failed: core, surplus', true],
     [{ cloud: 'synced' }, 'All changes saved', false],
     [{ cloud: 'noop' }, 'All changes saved · cloud already in sync', false],
     [{ cloud: 'throttled' }, 'Saved · cloud sync queued', false],
-    // Local write ok + cloud failed = data-safe → not flagged failed (cloud retries; Data tab shows it).
-    [{ cloud: 'failed', cloudError: { message: 'boom' } }, 'Saved here only — cloud: boom', false],
+    // Local write ok + cloud failed = data-safe → not flagged failed, but the chip says "not synced".
+    [{ cloud: 'failed', cloudError: { message: 'boom' } }, 'Saved here only — cloud: boom', false, 'failed'],
+    [{ cloud: 'failed', cloudError: { kind: 'offline', message: 'offline' } }, 'Saved here only — cloud: offline', false, 'offline'],
   ];
-  it.each(cases)('maps %o to the right chip', (partial, text, failed) => {
+  it.each(cases)('maps %o to the right chip', (partial, text, failed, cloud) => {
     const t = build();
     t.appState.markDirty(); // set local dirty first
     t.onStatus({ localOk: true, localFailed: [], cloud: 'synced', cloudError: null, ...partial });
     // onStatus resets local dirty and the fake cloud is clean, so `dirty` is false;
     // the `failed` flag is what drives the dirty *styling* in the host.
-    expect(t.host.paintSaveChip).toHaveBeenLastCalledWith({ dirty: false, text, failed });
+    expect(t.host.paintSaveChip).toHaveBeenLastCalledWith({ dirty: false, text, failed, cloud });
+  });
+
+  it('clears the not-synced state once a later save syncs', () => {
+    const t = build();
+    t.onStatus({ localOk: true, localFailed: [], cloud: 'failed', cloudError: { kind: 'server', message: 'x' } });
+    t.onStatus({ localOk: true, localFailed: [], cloud: 'synced', cloudError: null });
+    expect(t.host.paintSaveChip).toHaveBeenLastCalledWith(expect.objectContaining({ cloud: undefined }));
   });
 
   it('onStatus resets the local dirty flag', () => {
@@ -289,5 +297,62 @@ describe('appState store bridge', () => {
     expect(t.stores.overload).toEqual({ days: { a: 1 } });
     expect(t.appState.get('overload')).toEqual({ days: { a: 1 } });
     expect(t.written).toContainEqual({ key: 'overload', data: { days: { a: 1 } } });
+  });
+});
+
+describe('appState cloud retry', () => {
+  const failed: SaveResult = { localOk: true, localFailed: [], cloud: 'failed', cloudError: { kind: 'server', message: 'x' } };
+  const lastDelay = (t: ReturnType<typeof build>): number => t.setTimeout.mock.calls.at(-1)![1]!;
+
+  it('retries a throttled push after 5 s', () => {
+    const t = build();
+    t.onStatus({ localOk: true, localFailed: [], cloud: 'throttled', cloudError: null });
+    expect(lastDelay(t)).toBe(5_000);
+    t.runTimers();
+    expect(t.sync.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('backs off 5 s, 15 s, 45 s ... capped at 5 min on repeated failures', () => {
+    const t = build();
+    const seen: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      t.onStatus(failed);
+      seen.push(lastDelay(t));
+    }
+    expect(seen).toEqual([5_000, 15_000, 45_000, 135_000, 300_000, 300_000]);
+  });
+
+  it('a successful push resets the backoff and schedules nothing', () => {
+    const t = build();
+    t.onStatus(failed);
+    t.onStatus(failed);
+    const before = t.setTimeout.mock.calls.length;
+    t.onStatus({ localOk: true, localFailed: [], cloud: 'synced', cloudError: null });
+    expect(t.setTimeout.mock.calls.length).toBe(before);
+    t.onStatus(failed);
+    expect(lastDelay(t)).toBe(5_000);
+  });
+
+  it('autosave fires 1 s after an edit', () => {
+    const t = build();
+    t.appState.markDirty();
+    expect(lastDelay(t)).toBe(1_000);
+  });
+});
+
+describe('appState: permanent cloud errors and the saved flash', () => {
+  it('does not retry a not-found (no credentials / wrong bucket) failure', () => {
+    const t = build();
+    const before = t.setTimeout.mock.calls.length;
+    t.onStatus({ localOk: true, localFailed: [], cloud: 'failed', cloudError: { kind: 'not-found', message: 'no Supabase credentials configured' } });
+    expect(t.setTimeout.mock.calls.length).toBe(before);
+  });
+
+  it('does not flash "Saved" when the cloud push failed', () => {
+    const t = build();
+    t.onStatus({ localOk: true, localFailed: [], cloud: 'failed', cloudError: { kind: 'server', message: 'x' } });
+    expect(t.host.flashSaved).not.toHaveBeenCalled();
+    t.onStatus({ localOk: true, localFailed: [], cloud: 'synced', cloudError: null });
+    expect(t.host.flashSaved).toHaveBeenCalledTimes(1);
   });
 });

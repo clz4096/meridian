@@ -69,7 +69,7 @@ export const host = {
 
   // save chip → signal
   paintSaveChip: (state: SaveChipState): void => {
-    saveState.value = { dirty: state.dirty || !!state.failed, failed: !!state.failed };
+    saveState.value = { dirty: state.dirty || !!state.failed, failed: !!state.failed, cloud: state.cloud };
   },
   flashSaved: (): void => {
     savedFlash.value = true;

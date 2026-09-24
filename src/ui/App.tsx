@@ -8,7 +8,7 @@ import { useEffect } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import type { ComponentType } from 'preact';
 import { currentTab, sgLogOpen, kgProgressOpen, kgGym, kgOverview, kgSession, kgInterview, type Tab } from '@/ui/store';
-import { navHome, onPopNav, loadForHome } from '@/ui/actions';
+import { navHome, onPopNav, loadForHome, rolloverIfNewDay } from '@/ui/actions';
 import { navEnd } from '@/core/telemetry';
 import { SaveChip, RestBar } from '@/ui/components/Chrome';
 import { TodayView } from '@/features/today/TodayTab';
@@ -97,7 +97,15 @@ export function App() {
     const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
     idle(() => void loadTracker());
     window.addEventListener('popstate', onPopNav);
-    return () => window.removeEventListener('popstate', onPopNav);
+    // Catch midnight while open, and a new day on return from the background.
+    const onVisible = (): void => { if (!document.hidden) rolloverIfNewDay(); };
+    document.addEventListener('visibilitychange', onVisible);
+    const tick = window.setInterval(rolloverIfNewDay, 60_000);
+    return () => {
+      window.removeEventListener('popstate', onPopNav);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearInterval(tick);
+    };
   }, []);
 
   // A key unique per screen/subscreen — changing it replays the paneIn entrance

@@ -104,8 +104,12 @@ async function fetchWeatherAt(lat: number, lon: number): Promise<{ tempF: number
   const r = await fetch(
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`,
   );
-  const j = (await r.json()) as { current?: { temperature_2m: number; weather_code: number } };
-  return { tempF: Math.round(j.current?.temperature_2m ?? 0), code: j.current?.weather_code ?? 0 };
+  // A failed or partial response must throw, not read as "0°, clear" (which was then cached).
+  if (!r.ok) throw new Error('weather HTTP ' + r.status);
+  const j = (await r.json()) as { current?: { temperature_2m?: number; weather_code?: number } };
+  const t = j.current?.temperature_2m;
+  if (typeof t !== 'number' || !Number.isFinite(t)) throw new Error('weather: no current reading');
+  return { tempF: Math.round(t), code: j.current?.weather_code ?? 0 };
 }
 
 function geolocate(): Promise<{ lat: number; lon: number } | null> {

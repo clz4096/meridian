@@ -191,6 +191,94 @@ describe('no spurious data loss', () => {
   });
 });
 
+describe('save writes every store in one synchronous pass', () => {
+  it('starts all local writes before the first await (iOS may suspend right after pagehide)', () => {
+    const { engine, storage } = makeEngine();
+    engine.edit('core', () => ({ items: [{ id: 'a' }] }));
+    engine.edit('overload', () => ({ items: [{ id: 'b' }] }));
+    engine.edit('theorist', () => ({ items: [{ id: 'c' }] }));
+    void engine.save(); // deliberately not awaited
+    expect(storage.raw('core')).not.toBeNull();
+    expect(storage.raw('overload')).not.toBeNull();
+    expect(storage.raw('theorist')).not.toBeNull();
+  });
+
+  it('save({ cloud: false }) persists locally and leaves the cloud pending', async () => {
+    const { engine, storage, cloud } = makeEngine();
+    engine.edit('core', () => ({ items: [{ id: 'a' }] }));
+    const r = await engine.save({ cloud: false });
+    expect(r).toEqual({ localOk: true, localFailed: [], cloud: 'skipped' });
+    expect(storage.raw('core')).not.toBeNull();
+    expect(cloud.writes).toBe(0);
+    expect(engine.isDirtyCloud('core')).toBe(true);
+    expect(engine.isDirtyLocal('core')).toBe(false);
+  });
+});
+
+describe('overlapping saves (reviewer panel D3)', () => {
+  it('a push requested mid-push joins it and the newer edit still reaches the cloud', async () => {
+    const { engine, cloud } = makeEngine();
+    engine.edit('core', () => ({ items: [{ id: 'a' }] }));
+    const first = engine.push();
+    engine.edit('core', () => ({ items: [{ id: 'a' }, { id: 'b' }] }));
+    const second = engine.push();
+    const [r1, r2] = await Promise.all([first, second]);
+    expect(r1).toEqual(r2); // joined, not a second racing write
+    expect(r2.cloud).toBe('synced');
+    const read = await cloud.read();
+    expect(idsOf(read.payload?.core)).toEqual(['a', 'b']);
+    expect(engine.isDirtyCloud('core')).toBe(false);
+  });
+
+  it('an edit made while a push is on the wire is pushed by the next push, not skipped as a no-op', async () => {
+    const { engine, cloud } = makeEngine();
+    engine.edit('core', () => ({ items: [{ id: 'a' }] }));
+    const first = engine.push();
+    await Promise.resolve(); // push is now awaiting the cloud read
+    engine.edit('core', () => ({ items: [{ id: 'a' }, { id: 'b' }] }));
+    await first;
+    const again = await engine.push();
+    expect(again.cloud).not.toBe('noop');
+    const read = await cloud.read();
+    expect(idsOf(read.payload?.core)).toEqual(['a', 'b']);
+  });
+
+  it('forcePush waits for an in-flight push, so the overwrite lands last', async () => {
+    const { engine, cloud } = makeEngine();
+    // Hold the first (stale) write on the wire until the test releases it.
+    let release!: () => void;
+    const held = new Promise<void>((r) => { release = r; });
+    const realWrite = cloud.write.bind(cloud);
+    let n = 0;
+    cloud.write = async (payload) => {
+      if (n++ === 0) await held;
+      return realWrite(payload);
+    };
+    engine.edit('core', () => ({ items: [{ id: 'stale' }] }));
+    const push = engine.push();
+    await new Promise((r) => setTimeout(r, 0)); // push is now parked in its write
+    engine.edit('core', () => ({ items: [{ id: 'clean' }] }));
+    const force = engine.forcePush();
+    await new Promise((r) => setTimeout(r, 0)); // without the wait, forcePush would land now
+    release();
+    await Promise.all([push, force]);
+    const read = await cloud.read();
+    expect(idsOf(read.payload?.core)).toEqual(['clean']);
+  });
+
+  it('an overlapping save that writes newer bytes is not reported as a failed save', async () => {
+    const { engine } = makeEngine();
+    engine.edit('core', () => ({ items: [{ id: 'a' }] }));
+    const a = engine.save({ cloud: false });
+    engine.edit('core', () => ({ items: [{ id: 'a' }, { id: 'b' }] })); // B's edit lands before A verifies
+    const b = engine.save({ cloud: false });
+    const [ra, rb] = await Promise.all([a, b]);
+    expect(ra.localOk).toBe(true);
+    expect(rb.localOk).toBe(true);
+    expect(engine.isDirtyLocal('core')).toBe(false);
+  });
+});
+
 describe('forcePush — repair path that defeats the grow-only union', () => {
   it('overwrites the cloud WITHOUT folding its stale entries back in', async () => {
     const { engine, cloud } = makeEngine();

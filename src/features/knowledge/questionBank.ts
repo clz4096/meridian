@@ -36,6 +36,17 @@ export async function fetchQuestionBank(): Promise<QuestionBank | null> {
         /* skip a topic file that fails; the rest still load */
       }
     }));
+    // A topic that failed this time keeps its last good copy, so one flaky request
+    // can't drop a topic (and its due reviews) from the offline cache.
+    const missing = topics.filter((t) => !items[t]);
+    if (missing.length) {
+      try {
+        const old = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') as Record<string, unknown[]>;
+        for (const t of missing) if (old[t]) items[t] = old[t];
+      } catch {
+        /* no usable cache */
+      }
+    }
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify(items));
     } catch {
