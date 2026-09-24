@@ -7,6 +7,8 @@
  * with the proxy's ALLOWED_MODELS and index.html.
  */
 
+import { span, count, record } from '@/core/telemetry';
+
 const AI_MODEL = 'deepseek/deepseek-v4-pro';
 
 export interface AiRequest {
@@ -52,6 +54,28 @@ function anonKey(): string {
  * use it to steer determinism.
  */
 export async function aiCall(req: AiRequest): Promise<AiResult> {
+  const end = span('ai:latency');
+  const res = await aiCallRaw(req);
+  end();
+  if (res.ok) {
+    count('ai:ok');
+    const total = (res.usage as { total_tokens?: unknown } | undefined)?.total_tokens;
+    if (typeof total === 'number') record('ai:tokens', total);
+  } else {
+    count('ai:error:' + aiErrorKind(res.error));
+  }
+  return res;
+}
+
+// Server messages are free text; bucket them so the counters stay a fixed, small set.
+const AI_ERROR_KINDS = ['no proxy', 'proxy auth failed', 'rate limited', 'timed out', 'model returned no text'];
+function aiErrorKind(message: string | undefined): string {
+  const m = message ?? '';
+  if (AI_ERROR_KINDS.includes(m)) return m;
+  return m.startsWith('HTTP ') ? 'http' : 'other';
+}
+
+async function aiCallRaw(req: AiRequest): Promise<AiResult> {
   const url = proxyUrl();
   const anon = anonKey();
   if (!url || !anon) return { ok: false, error: 'no proxy' };

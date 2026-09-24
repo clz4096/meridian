@@ -11,6 +11,7 @@ import { RestTimer } from '@/ui/restTimer';
 import { inferIncrement, restSeconds, plannedSetCount, isExerciseComplete, weekStrength, trainedDaysInWeek, WEEK_TRAINING_TARGET } from '@/features/workout/workoutSelectors';
 import type { WorkoutActions } from '@/features/workout/types';
 import { shiftDate } from '@/core/util';
+import { navStart } from '@/core/telemetry';
 import { DEFAULT_CONFIG, type SetType, type SessionOverrides } from '@/core/types';
 import { dueCards, isDue, interviewDeck, interviewRelevant, interviewPreset, normalizeGenerated } from '@/features/knowledge/knowledgeSelectors';
 import { scheduleFsrs, queuedEntry, type Grade } from '@/features/knowledge/fsrs';
@@ -1154,6 +1155,7 @@ export function onPopNav(): void {
 
 /** Drill into a tracker section (from Today's at-a-glance); pushes history for back. */
 export function openSection(tab: st.Tab): void {
+  navStart(tab);
   st.currentTab.value = tab;
   st.activeExercise.value = null; // never re-enter a stale exercise detail
   // Entering Knowledge always asks which study mode (At Home / Gym / Interview) first.

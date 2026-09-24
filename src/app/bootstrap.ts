@@ -12,6 +12,7 @@ import { createAppState } from '@/core/storage/appState';
 import { host } from '@/ui/host';
 import { bump } from '@/ui/store';
 import { syncTrackerFromStore } from '@/features/studytracker/trackerStore';
+import { span, count } from '@/core/telemetry';
 
 export const STORAGE_KEYS: Record<StoreKey, string> = {
   core: 'meridian-core',
@@ -72,11 +73,14 @@ function createSync(config: SyncSetup): SyncEngine {
 
 async function syncSave(): Promise<SaveResult> {
   if (!engine || !setup) throw new Error('sync not initialised');
+  const end = span('sync:save');
   for (const key of Object.keys(STORAGE_KEYS) as StoreKey[]) {
     const live = setup.read(key);
     if (JSON.stringify(live) !== JSON.stringify(engine.getStore(key))) engine.edit(key, () => live);
   }
   const result = await engine.save();
+  end();
+  count('sync:save:' + result.cloud);
   for (const key of Object.keys(STORAGE_KEYS) as StoreKey[]) setup.write(key, engine.getStore(key));
   setup.onStatus?.(result);
   return result;
@@ -88,7 +92,16 @@ async function syncPull(): Promise<boolean> {
     const live = setup.read(key);
     if (JSON.stringify(live) !== JSON.stringify(engine.getStore(key))) engine.edit(key, () => live);
   }
-  const res = await engine.pull();
+  const end = span('sync:pull');
+  let res: Awaited<ReturnType<SyncEngine['pull']>>;
+  try {
+    res = await engine.pull();
+  } catch (e) {
+    count('sync:pull:error');
+    throw e;
+  }
+  end();
+  count(res.applied ? 'sync:pull:applied' : 'sync:pull:unchanged');
   if (res.applied) for (const key of Object.keys(STORAGE_KEYS) as StoreKey[]) setup.write(key, engine.getStore(key));
   return res.applied;
 }

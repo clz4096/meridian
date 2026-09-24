@@ -10,6 +10,7 @@ import { sync, cloudEnabled } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import { dataRev, dataMsg } from '@/ui/store';
 import { wk, sg, kg, core, tg, dataActions, discard } from '@/ui/actions';
+import { HealthPanel } from '@/features/data/HealthPanel';
 
 const KEYS: StoreKey[] = ['core', 'overload', 'surplus', 'csgraph', 'theorist'];
 
@@ -185,6 +186,8 @@ export function DataView() {
         <textarea id="d-io" class="dictxt" placeholder="Exported JSON appears here." />
         <div id="d-msg" class="note" style="color:var(--ok)" />
       </div>
+
+      <HealthPanel />
 
       <details class="ddisc dadv">
         <summary>Advanced &amp; recovery</summary>

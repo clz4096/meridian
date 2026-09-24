@@ -474,6 +474,21 @@ body:has(.wk-finish):not(.resting) .savestat{bottom:calc(92px + env(safe-area-in
 .dadv-btn:hover{border-color:var(--dim)}
 .dadv-btn small{font-family:var(--mono);font-size:11px;color:var(--faint)}
 .dadv-btn.danger{color:var(--deficit);border-color:rgba(216,101,79,.32)}
+/* Performance & health panel */
+.hp-scroll{overflow-x:auto}
+.hp-table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.hp-table th,.hp-table td{padding:7px 0;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.hp-table thead th{font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.08em;color:var(--faint);padding-top:0}
+.hp-table tbody th{text-align:left;font-weight:400;color:var(--text);white-space:normal;padding-right:10px}
+.hp-table td{color:var(--muted);padding-left:12px}
+.hp-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:8px;vertical-align:1px;background:var(--line)}
+.hp-dot.ok{background:var(--ok)}
+.hp-dot.warn{background:var(--fuel)}
+.hp-dot.bad{background:var(--deficit)}
+.hp-kv{font-family:var(--mono);line-height:1.7}
+.hp-errors{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:12px;color:var(--muted)}
+.hp-errors li{display:grid;gap:2px;overflow-wrap:anywhere}
+.hp-errors span{font-family:var(--mono);font-size:11px;color:var(--faint)}
 /* study */
 .slabel{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)}
 .sched-edit{display:flex;align-items:center;gap:8px;padding:8px 4px;border-radius:8px;margin:2px 0;font-size:13.5px;border:1px solid transparent}

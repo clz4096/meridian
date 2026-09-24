@@ -6,6 +6,9 @@ import '@/styles/app.css';
 import { render } from 'preact';
 import { App } from '@/ui/App';
 import { boot } from '@/app/bootstrap';
+import { startTelemetry, span, afterPaint } from '@/core/telemetry';
+
+startTelemetry();
 
 const body = document.body;
 body.classList.add('pre-enter'); // hide the dashboard until Enter
@@ -18,6 +21,7 @@ let entered = false;
 function enter(): void {
   if (entered) return;
   entered = true;
+  const endEnter = span('boot:enter');
   body.classList.remove('pre-enter');
   root.style.background = '';
   if (landing) {
@@ -27,6 +31,7 @@ function enter(): void {
   void boot(); // appState.init() runs synchronously before render; core loads async
   const mount = document.getElementById('app');
   if (mount) render(<App />, mount);
+  afterPaint(endEnter);
   // Revive the graph as a persistent, passive background behind the app. Three is
   // already loaded (the landing chunk pulled it in), so this import resolves from cache;
   // if the landing failed to load, this just loads it now and the background still appears.
