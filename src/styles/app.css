@@ -88,6 +88,12 @@ body.resting .savestat{bottom:calc(104px + env(safe-area-inset-bottom))}
 .savestat.cloud .dot{background:var(--fuel)}
 /* Undo for a pending delete: bottom-center, above the home indicator */
 .undotoast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:62;display:flex;align-items:center;gap:14px;background:var(--surface-3);border:1px solid var(--line-2);color:var(--text);border-radius:14px;padding:6px 6px 6px 16px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.45);white-space:nowrap}
+/* While a field is being edited (iOS keyboard up), iOS scrolls the row being edited to just
+   above the keyboard, which is exactly where these fixed overlays sit. They then cover
+   "Log set" and swallow the first tap (the save chip is itself a button). Hide them while a
+   field has focus: the tap target is picked at touchstart, before the field blurs, so the tap
+   reaches the button, and the overlays return as soon as editing ends. */
+body:has(input:focus, textarea:focus, select:focus) :is(.restbar, .savestat, .undotoast, .savedflash){visibility:hidden;pointer-events:none}
 .undotoast button{min-height:40px;background:transparent;border:0;color:var(--teal);font:600 13.5px var(--sans);padding:0 12px;cursor:pointer}
 body:has(.fab) .undotoast{bottom:calc(90px + env(safe-area-inset-bottom))}
 body.resting .undotoast{bottom:calc(104px + env(safe-area-inset-bottom))}
