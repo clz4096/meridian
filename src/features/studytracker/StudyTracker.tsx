@@ -33,7 +33,6 @@ import { TeachSection } from '@/features/teaching/TeachSection';
 import { CurriculumSection } from '@/features/studytracker/CurriculumSection';
 import { PapersSection } from '@/features/studytracker/PapersSection';
 import { ProofJournal } from '@/features/studytracker/ProofJournal';
-import { PrincetonGroup } from '@/features/studytracker/PrincetonGroup';
 import { Collapsible } from '@/features/studytracker/Collapsible';
 import crestUrl from '@/features/studytracker/princeton-shield.png';
 import '@/features/studytracker/studytracker.css';
@@ -201,11 +200,8 @@ export function StudyTrackerView() {
             {/* THE STANDARD SURFACE — one continuous scroll of the six surfaces
                 in the brief's literal 1–6 order. The glance strip above is #0. */}
 
-            {/* #1 COMMUNITY READINGS */}
+            {/* #1-2 READING — community feed + Princeton theory group, one section, collapsed */}
             <FeedSection />
-
-            {/* #2 PRINCETON THEORY READING */}
-            <PrincetonGroup />
 
             {/* #3 ALGORITHM OF THE DAY (now default-open) */}
             <AlgoOfDay />
@@ -320,7 +316,7 @@ export function StudyTrackerView() {
             <details>
               <summary>The path, in three climbs</summary>
               <div class="det-body">
-                <p><span class="phase-n">CLIMB 1 · FOUNDATIONS</span> <b>Proof and the mathematics.</b> Discrete math and induction, calculus, linear algebra, probability, real analysis. Build the habit of reconstructing a proof before you read it. See the Curriculum track in Library for the exact courses and problem sets.</p>
+                <p><span class="phase-n">CLIMB 1 · FOUNDATIONS</span> <b>Proof and the mathematics.</b> Discrete math and induction, calculus, linear algebra, probability, real analysis. Build the habit of reconstructing a proof before you read it. See the Curriculum section on Today for the exact courses and problem sets.</p>
                 <div class="boss"><b>Boss battle:</b> work a full problem set unaided; write one proof from memory.</div>
                 <p><span class="phase-n">CLIMB 2 · ALGORITHMS</span> <b>Algorithms and data structures.</b> COS 226, MIT 6.006, then advanced algorithms (6.046 / COS 423). Implement each in C++, then port to Python; hunt lower bounds, not only upper bounds.</p>
                 <div class="boss"><b>Boss battles:</b> finish the DSA courses; prove one non-trivial lower bound; reconstruct the Algorithm-of-the-Day catalogue from memory.</div>
@@ -344,7 +340,7 @@ export function StudyTrackerView() {
             <details>
               <summary>The study shelf — extras beyond the ladder</summary>
               <div class="det-body">
-                <p class="hint">The full course ladder lives in the <b>Curriculum</b> section (Library). These are the shelf-only extras it doesn't cover.</p>
+                <p class="hint">The full course ladder lives in the <b>Curriculum</b> section on Today. These are the shelf-only extras it doesn't cover.</p>
                 <table>
                   <tr><th>Course</th><th>Builds</th></tr>
                   <tr><td><Ext href="https://www.coursera.org/specializations/algorithms">Stanford Algorithms</Ext></td><td>Algorithms — a second pass alongside 6.006 / 6.046J</td></tr>
@@ -352,7 +348,6 @@ export function StudyTrackerView() {
                   <tr><td><Ext href="https://www.cs.princeton.edu/~hy2/teaching/fall25-cos521/index.html">Princeton COS 521</Ext></td><td>Advanced algorithm design — train on their gym</td></tr>
                   <tr><td><Ext href="https://www.cs.princeton.edu/courses/archive/spring25/cos445/">COS 445</Ext></td><td>Economics & computation / algorithmic game theory</td></tr>
                 </table>
-                <p class="hint">The group works in complexity, algorithms, cryptography, ML theory, and algorithmic game theory (faculty incl. Braverman, Tarjan, Raz, Weinberg, Kol, Yu, Dvir, Kothari, Lombardi, Arora). Theory Lunch: Fridays 12:15 PM.</p>
               </div>
             </details>
 

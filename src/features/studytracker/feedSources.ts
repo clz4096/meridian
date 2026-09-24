@@ -11,6 +11,11 @@
  * rest are ranked toward the taste by points + theme heuristics. We only ever
  * render items HN actually returned — no fabricated sources or URLs.
  *
+ * Freshness: HN's /search ranks by relevance over ALL time, so unbounded queries
+ * returned the same classics every day. Queries are limited to the last
+ * RECENT_DAYS, and anything shown in the last HISTORY_DAYS is skipped, so each
+ * day's list is new.
+ *
  * Cached per day in localStorage (`meridian.feed.v2`) so the list is stable
  * through the day and still shows (stale) when offline. Best-effort: each query
  * fails independently and never throws to the caller.
@@ -28,6 +33,8 @@ export interface FeedResult {
   items: FeedItem[];
   stale: boolean; // served from a previous day's cache (the fetch failed)
   error: string | null;
+  fetchedAt: number | null; // when these items were fetched (epoch ms)
+  unchanged?: boolean; // a forced refresh found nothing new, so the list is as it was
 }
 
 const KEY = 'meridian.feed.v2';
@@ -48,16 +55,15 @@ const ALLOWLIST: readonly string[] = [
   'tj-zhang.com',
 ];
 
-/** HN Algolia queries aimed at the A1 taste. */
+/**
+ * HN Algolia queries aimed at the A1 taste. Single words on purpose: Algolia
+ * requires every query word to match, so phrases like "database internals"
+ * found almost nothing within the recent window (11 hits a week across 8
+ * phrases vs 41 unique stories for these words, measured 2026-09-24).
+ */
 const TASTE_QUERIES: readonly string[] = [
-  'distributed systems',
-  'systems programming',
-  'performance latency',
-  'algorithm',
-  'database internals',
-  'compiler',
-  'operating system kernel',
-  'formal proof verification',
+  'distributed', 'consensus', 'database', 'postgres', 'compiler', 'kernel', 'linux',
+  'latency', 'performance', 'algorithm', 'cpu', 'memory', 'proof', 'concurrency',
 ];
 
 /** Theme heuristics — a matched theme both ranks up and names the why-chosen line. */
@@ -71,6 +77,9 @@ const THEMES: ReadonlyArray<{ label: string; re: RegExp }> = [
 ];
 
 const MIN_POINTS = 60; // server-side floor on how popular a story must be
+const RECENT_DAYS = 7; // only stories posted this recently
+const HISTORY_DAYS = 14; // don't re-show a story for this long
+const DAY_MS = 86_400_000;
 const HIGH_SIGNAL_POINTS = 150; // keep an untagged story only if it clears this
 
 function hostOf(url: string): string {
@@ -98,12 +107,14 @@ function matchTheme(text: string): string | null {
   return null;
 }
 
-async function fetchHN(): Promise<FeedItem[]> {
+async function fetchHN(exclude: ReadonlySet<string>, now: number): Promise<FeedItem[]> {
   const seen = new Set<string>();
   const scored: Array<{ item: FeedItem; score: number }> = [];
+  const since = Math.floor((now - RECENT_DAYS * DAY_MS) / 1000);
+  const filters = encodeURIComponent(`points>${MIN_POINTS},created_at_i>${since}`);
   const results = await Promise.allSettled(
     TASTE_QUERIES.map((q) =>
-      fetch(`${HN_ENDPOINT}?tags=story&query=${encodeURIComponent(q)}&numericFilters=points>${MIN_POINTS}&hitsPerPage=6`)
+      fetch(`${HN_ENDPOINT}?tags=story&query=${encodeURIComponent(q)}&numericFilters=${filters}&hitsPerPage=10`)
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status))))),
     ),
   );
@@ -119,7 +130,7 @@ async function fetchHN(): Promise<FeedItem[]> {
       if (!title) continue;
       const url = (hit.url as string) || `https://news.ycombinator.com/item?id=${id}`;
       const dedupe = 'u:' + url.toLowerCase();
-      if (seen.has(id) || seen.has(dedupe)) continue;
+      if (seen.has(id) || seen.has(dedupe) || exclude.has(url)) continue;
 
       const host = hostOf(url);
       const allowed = isAllowed(host);
@@ -149,6 +160,8 @@ async function fetchHN(): Promise<FeedItem[]> {
 interface Cache {
   date: string;
   items: FeedItem[];
+  fetchedAt?: number;
+  shown?: Record<string, number>; // url -> epoch ms first shown, pruned to HISTORY_DAYS
 }
 
 function readCache(): Cache | null {
@@ -161,34 +174,44 @@ function readCache(): Cache | null {
   return null;
 }
 
-export async function loadDailyFeed(force = false): Promise<FeedResult> {
+export async function loadDailyFeed(force = false, now = Date.now()): Promise<FeedResult> {
   const cache = readCache();
   const today = todayISO();
   if (!force && cache && cache.date === today && cache.items.length) {
-    return { items: cache.items, stale: false, error: null };
+    return { items: cache.items, stale: false, error: null, fetchedAt: cache.fetchedAt ?? null };
   }
+
+  // Skip what earlier DAYS showed; today's own list stays eligible so a refresh can
+  // re-rank it and add anything newer instead of emptying out.
+  const todays = new Set(cache?.date === today ? cache.items.map((i) => i.url) : []);
+  const shown: Record<string, number> = {};
+  for (const [url, at] of Object.entries(cache?.shown ?? {})) if (now - at < HISTORY_DAYS * DAY_MS) shown[url] = at;
+  const exclude = new Set(Object.keys(shown).filter((u) => !todays.has(u)));
 
   let items: FeedItem[] = [];
   let reachable = true;
   try {
-    items = await fetchHN();
+    items = await fetchHN(exclude, now);
   } catch {
     reachable = false;
   }
 
   if (items.length) {
+    for (const it of items) shown[it.url] ??= now;
+    const unchanged = force && cache?.date === today && items.every((i) => todays.has(i.url)) && items.length === todays.size;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ date: today, items }));
+      localStorage.setItem(KEY, JSON.stringify({ date: today, items, fetchedAt: now, shown } satisfies Cache));
     } catch {
       /* ignore */
     }
-    return { items, stale: false, error: null };
+    return { items, stale: false, error: null, fetchedAt: now, unchanged };
   }
   // No usable items. Fall back to a saved day if we have one; otherwise pick the
   // message that matches WHY we're empty (HN down vs nothing on-taste today).
   if (cache && cache.items.length) {
     return {
       items: cache.items,
+      fetchedAt: cache.fetchedAt ?? null,
       stale: true,
       error: reachable
         ? 'No fresh on-taste stories today; showing saved items.'
@@ -197,6 +220,7 @@ export async function loadDailyFeed(force = false): Promise<FeedResult> {
   }
   return {
     items: [],
+    fetchedAt: null,
     stale: false,
     error: reachable
       ? 'No on-taste stories cleared the bar today — check back later.'

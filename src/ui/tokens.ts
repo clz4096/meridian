@@ -14,7 +14,7 @@ export const TOKENS = {
   ring: 'rgba(150,200,255,0.28)', // the meridian ring (signature)
   text: '#DCE6F2', // primary text
   muted: '#8FA3BE', // secondary text
-  faint: '#5C7291', // hints / disabled
+  faint: '#7A93B2', // hints / disabled
 } as const;
 
 /**

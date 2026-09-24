@@ -1,11 +1,11 @@
 /**
- * ReadingNote — the production field on the two reading surfaces (#1 community,
- * #2 Princeton theory). Learning-science requires an active output paired with
+ * ReadingNote — the production field on the reading surface (community feed +
+ * Princeton theory group, merged into one section). Learning-science requires an active output paired with
  * passive intake (Dunlosky 2013): one short, optional "what stuck / why it
  * matters" line that earns check-in credit once filled. Deferrable (fill any time
  * that day); day-scoped and idempotent via creditEvent's max-merge, so it can't
- * double-pay. Kept to ONE line per surface rather than one per item, so the
- * commute read stays low-friction.
+ * double-pay. Kept to ONE line for the whole surface rather than one per item, so
+ * the commute read stays low-friction.
  */
 import { useState } from 'preact/hooks';
 import { trackerState, creditEvent, EVENT_WEIGHTS } from '@/features/studytracker/trackerStore';

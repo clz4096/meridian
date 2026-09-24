@@ -1,19 +1,18 @@
 /*
  * WGU Roadmap — scoped styles. Ported from the source artifact, every selector
  * nested under `.wgu-root` so nothing leaks into other views. Self-contained
- * palette that follows Meridian's theme via prefers-color-scheme and
- * :root[data-theme].
+ * palette; dark only, like the rest of Meridian.
  */
 .wgu-root{
-  --bg:#f7f6f2; --surface:#fffefb; --surface-2:#f2f0ea;
-  --ink:#1c1b19; --ink-soft:#565450; --ink-faint:#8a8781;
-  --line:#e6e2d9; --line-strong:#d6d1c5;
-  --accent:#2f56c8; --accent-ink:#264aad; --accent-wash:#2f56c811;
-  --oa:#2f56c8; --oa-bg:#2f56c815;
-  --cert:#a86616; --cert-bg:#a8661618;
-  --pa:#2c7a52; --pa-bg:#2c7a5218;
-  --cap:#93357e; --cap-bg:#93357e18;
-  --shadow:0 1px 2px rgba(20,18,14,.05), 0 8px 26px rgba(20,18,14,.05);
+  --bg:#16171a; --surface:#1d1f23; --surface-2:#23262b;
+  --ink:#eae8e3; --ink-soft:#b2afa8; --ink-faint:#95928b;
+  --line:#2c2f35; --line-strong:#3a3e45;
+  --accent:#87a2ff; --accent-ink:#9db3ff; --accent-wash:#87a2ff14;
+  --oa:#87a2ff; --oa-bg:#87a2ff18;
+  --cert:#e0aa5c; --cert-bg:#e0aa5c18;
+  --pa:#6cc492; --pa-bg:#6cc49218;
+  --cap:#e07cc8; --cap-bg:#e07cc818;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 26px rgba(0,0,0,.28);
   --radius:14px;
   --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -21,37 +20,6 @@
   background:var(--bg); color:var(--ink); font-family:var(--sans);
   font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; margin:0;
   padding:clamp(20px,5vw,56px) 20px 96px; border-radius:16px;
-}
-@media (prefers-color-scheme:dark){
-  .wgu-root{
-    --bg:#16171a; --surface:#1d1f23; --surface-2:#23262b;
-    --ink:#eae8e3; --ink-soft:#b2afa8; --ink-faint:#807d77;
-    --line:#2c2f35; --line-strong:#3a3e45;
-    --accent:#87a2ff; --accent-ink:#9db3ff; --accent-wash:#87a2ff14;
-    --oa:#87a2ff; --oa-bg:#87a2ff18;
-    --cert:#e0aa5c; --cert-bg:#e0aa5c18;
-    --pa:#6cc492; --pa-bg:#6cc49218;
-    --cap:#e07cc8; --cap-bg:#e07cc818;
-    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 26px rgba(0,0,0,.28);
-  }
-}
-:root[data-theme="dark"] .wgu-root{
-  --bg:#16171a; --surface:#1d1f23; --surface-2:#23262b;
-  --ink:#eae8e3; --ink-soft:#b2afa8; --ink-faint:#807d77;
-  --line:#2c2f35; --line-strong:#3a3e45;
-  --accent:#87a2ff; --accent-ink:#9db3ff; --accent-wash:#87a2ff14;
-  --oa:#87a2ff; --oa-bg:#87a2ff18; --cert:#e0aa5c; --cert-bg:#e0aa5c18;
-  --pa:#6cc492; --pa-bg:#6cc49218; --cap:#e07cc8; --cap-bg:#e07cc818;
-  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 26px rgba(0,0,0,.28);
-}
-:root[data-theme="light"] .wgu-root{
-  --bg:#f7f6f2; --surface:#fffefb; --surface-2:#f2f0ea;
-  --ink:#1c1b19; --ink-soft:#565450; --ink-faint:#8a8781;
-  --line:#e6e2d9; --line-strong:#d6d1c5;
-  --accent:#2f56c8; --accent-ink:#264aad; --accent-wash:#2f56c811;
-  --oa:#2f56c8; --oa-bg:#2f56c815; --cert:#a86616; --cert-bg:#a8661618;
-  --pa:#2c7a52; --pa-bg:#2c7a5218; --cap:#93357e; --cap-bg:#93357e18;
-  --shadow:0 1px 2px rgba(20,18,14,.05), 0 8px 26px rgba(20,18,14,.05);
 }
 
 .wgu-root *{box-sizing:border-box}
@@ -94,9 +62,9 @@
 .wgu-root .week__dates{font-family:var(--mono);font-size:12.5px;color:var(--ink-faint);}
 .wgu-root .week__theme{font-size:14px;color:var(--ink-soft);margin-left:auto;font-style:italic;}
 
-.wgu-root .course{display:grid;grid-template-columns:22px 1fr;gap:0 12px;padding:12px 0;border-top:1px dashed var(--line);}
+.wgu-root .course{display:grid;grid-template-columns:24px 1fr;gap:0 12px;padding:12px 0;border-top:1px dashed var(--line);}
 .wgu-root .course:first-of-type{border-top:none;}
-.wgu-root .course input{margin-top:5px;width:15px;height:15px;accent-color:var(--accent);}
+.wgu-root .course input{margin-top:2px;width:24px;height:24px;accent-color:var(--accent);}
 .wgu-root .course__body{min-width:0;}
 .wgu-root .course__title{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:5px;}
 .wgu-root .course__code{font-family:var(--mono);font-weight:700;font-size:13px;color:var(--ink);}
@@ -110,8 +78,9 @@
 .wgu-root ol.logic li b{color:var(--ink);}
 
 .wgu-root .check{list-style:none;padding:0;margin:8px 0;columns:2;column-gap:28px;}
-.wgu-root .check li{break-inside:avoid;margin-bottom:9px;display:flex;align-items:flex-start;gap:9px;font-size:14px;}
-.wgu-root .check input{margin-top:3px;width:15px;height:15px;accent-color:var(--accent);flex:none;}
+.wgu-root .check li{break-inside:avoid;margin-bottom:9px;font-size:14px;}
+.wgu-root .check label{display:flex;align-items:flex-start;gap:9px;min-height:32px;cursor:pointer;}
+.wgu-root .check input{margin-top:0;width:24px;height:24px;accent-color:var(--accent);flex:none;}
 .wgu-root .check .c{font-family:var(--mono);font-weight:700;font-size:12px;color:var(--accent-ink);}
 
 .wgu-root .caveats{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);

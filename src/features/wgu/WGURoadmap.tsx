@@ -91,13 +91,15 @@ export function WGURoadmapView() {
         <ul class="check">
           {PROGRESS.map(([code, label]) => (
             <li key={code}>
-              <input
-                type="checkbox"
-                checked={!!checks[code]}
-                onChange={() => toggleCourse(code)}
-                aria-label={`${code} done`}
-              />
-              <span><span class="c">{code}</span> {label}</span>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={!!checks[code]}
+                  onChange={() => toggleCourse(code)}
+                  aria-label={`${code} done`}
+                />
+                <span><span class="c">{code}</span> {label}</span>
+              </label>
             </li>
           ))}
         </ul>
