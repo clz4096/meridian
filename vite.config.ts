@@ -41,6 +41,10 @@ export default defineConfig({
         // preserving the old sw.js bypass.
         globPatterns: ['**/*.{js,css,html,svg,png,json,webmanifest}'],
         navigateFallback: 'index.html',
+        // Previews under /preview/ are their own pages, never the app shell, and not
+        // part of the app's offline cache.
+        navigateFallbackDenylist: [/\/preview\//],
+        globIgnores: ['preview/**'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
     }),
