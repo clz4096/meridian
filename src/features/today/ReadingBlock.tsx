@@ -86,9 +86,9 @@ export function ReadingBlock() {
     ) : (
       <div class="m-state td-read-state" data-kind="empty">
         <p class="m-state-title">No paper this week.</p>
-        <p class="m-state-body">The reading list is in the Massey Standard.</p>
+        <p class="m-state-body">The reading list is in the Cambridge Method.</p>
         <button type="button" class="m-btn" onClick={() => openSection('tracker')}>
-          Open the Massey Standard
+          Open the Cambridge Method
         </button>
       </div>
     );

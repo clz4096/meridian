@@ -37,4 +37,44 @@ describe('StyleguideView', () => {
     unmount();
     expect(document.documentElement.dataset.palette).toBeUndefined();
   });
+
+  it('shows the Cambridge primitives with their states in text, not color alone', () => {
+    const { getByRole, getAllByRole, getByText, container } = render(<StyleguideView />);
+    const loops = getAllByRole('list', { name: 'Study loop' });
+    const current = loops[0]!.querySelector('[aria-current="step"]');
+    expect(current?.textContent).toContain('Attempt cold');
+    expect(loops[0]!.textContent).toContain('Read, done');
+    getByRole('timer', { name: 'Cold time, question 3' });
+    const phases = getByRole('list', { name: 'Phases' });
+    expect(phases.querySelector('[aria-current="step"]')?.textContent).toContain('Current');
+    getByText("Unlocks when Phase B's gate passes.");
+    for (const word of ['Not started', 'Attempting', 'Written up', 'Supervised', 'Redo done', 'Solved', 'Partial', 'Stuck'])
+      getByText(word);
+    expect(container.querySelector('.m-sr > table caption')?.textContent).toBe('Errors per week by cause');
+  });
+
+  it('opens the glossary popover on tap and closes it on Escape, returning focus', () => {
+    const { getByRole, queryByRole } = render(<StyleguideView />);
+    const term = getByRole('button', { name: 'supervision' });
+    fireEvent.click(term);
+    expect(term.getAttribute('aria-expanded')).toBe('true');
+    getByRole('dialog', { name: 'Supervision' });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(queryByRole('dialog', { name: 'Supervision' })).toBeNull();
+    expect(document.activeElement).toBe(term);
+    fireEvent.click(term);
+    fireEvent.pointerDown(document.body);
+    expect(queryByRole('dialog', { name: 'Supervision' })).toBeNull();
+  });
+
+  it('toggles the editor between write and preview, and removes a photo', () => {
+    const { getByRole, queryByRole, getAllByRole } = render(<StyleguideView />);
+    fireEvent.click(getByRole('button', { name: 'Preview' }));
+    getByRole('generic', { name: 'Write-up preview' });
+    fireEvent.click(getByRole('button', { name: 'Write' }));
+    expect(getAllByRole('textbox').length).toBeGreaterThan(0);
+    fireEvent.click(getByRole('button', { name: 'Remove page 1' }));
+    expect(queryByRole('img', { name: 'Page 1 of the write-up' })).toBeNull();
+    getByRole('list', { name: 'Photos, 1' });
+  });
 });

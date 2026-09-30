@@ -79,7 +79,7 @@ describe('ReadingBlock', () => {
     const spy = vi.spyOn(actions, 'openSection').mockImplementation(() => {});
     const { getByText } = render(<ReadingBlock />);
     expect(getByText('No paper this week.')).toBeTruthy();
-    fireEvent.click(getByText('Open the Massey Standard'));
+    fireEvent.click(getByText('Open the Cambridge Method'));
     expect(spy).toHaveBeenCalledWith('tracker');
   });
 

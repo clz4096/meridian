@@ -21,7 +21,7 @@ const WGU: PathSummary = {
   title: 'WGU',
   course: 'C955 · Applied Probability & Statistics',
   next: { label: 'Finish practice test 2', minutes: 45 },
-  progress: { done: 2, total: 13, caption: '25 days to Oct 24' },
+  progress: { done: 1, total: 4, caption: '25 days to Oct 25' },
 };
 const stub = (s: PathSummary) => ({ currentSummary: () => s });
 
@@ -101,12 +101,14 @@ describe('TodayView layout', () => {
     const spy = vi.spyOn(actions, 'openSection').mockImplementation(() => {});
     const { container } = render(<TodayView />);
     const tiles = [...container.querySelectorAll<HTMLButtonElement>('.td-tile')];
-    expect(tiles.map((t) => t.dataset.route)).toEqual(['meal', 'workout', 'tracker', 'teach', 'knowledge', 'data']);
+    expect(tiles.map((t) => t.dataset.route)).toEqual(['meal', 'workout', 'tracker', 'knowledge', 'data']);
     expect(tiles[0]!.textContent).toContain('Surplus');
     expect(tiles[0]!.textContent).toContain('kcal'); // its hubStats value
-    expect(tiles[3]!.querySelector('.td-tile-sub')!.textContent).toBe("Teach today's algorithm");
+    // The tracker is The Cambridge Method now; no Massey or Princeton label on its tile.
+    expect(tiles[2]!.textContent).toContain('The Cambridge Method');
+    expect(tiles[2]!.textContent).not.toMatch(/Massey|Princeton/);
     tiles.forEach((t) => fireEvent.click(t));
-    expect(spy.mock.calls.map((c) => c[0])).toEqual(['meal', 'workout', 'tracker', 'teach', 'knowledge', 'data']);
+    expect(spy.mock.calls.map((c) => c[0])).toEqual(['meal', 'workout', 'tracker', 'knowledge', 'data']);
   });
 });
 
@@ -125,14 +127,14 @@ describe('Today path cards', () => {
     const spy = vi.spyOn(actions, 'openSection').mockImplementation(() => {});
     const { container, getByText } = render(<TodayView />);
     const card = container.querySelector<HTMLElement>('.pc[data-route="wgu"]')!;
-    expect(card.textContent).toContain('2 of 13');
+    expect(card.textContent).toContain('1 of 4');
     expect(card.textContent).toContain('C955 · Applied Probability & Statistics');
     expect(card.textContent).toContain('Finish practice test 2');
     expect(card.textContent).toContain('~45 min');
-    expect(getByText('15% · 25 days to Oct 24')).toBeTruthy();
+    expect(getByText('25% · 25 days to Oct 25')).toBeTruthy();
     const bar = card.querySelector('[role="progressbar"]')!;
-    expect(bar.getAttribute('aria-valuetext')).toBe('2 of 13 courses');
-    expect((bar.firstElementChild as HTMLElement).style.getPropertyValue('--m-progress')).toBe('15%');
+    expect(bar.getAttribute('aria-valuetext')).toBe('1 of 4 courses');
+    expect((bar.firstElementChild as HTMLElement).style.getPropertyValue('--m-progress')).toBe('25%');
     fireEvent.click(card);
     expect(spy).toHaveBeenCalledWith('wgu');
   });
@@ -175,7 +177,7 @@ describe('Today path cards', () => {
     PATH_MODS[0]!.mod.failed.value = true;
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     const { container, getByText, queryByRole } = render(<TodayView />);
-    expect(container.querySelector('.pc[data-route="wgu"]')!.textContent).toContain('2 of 13');
+    expect(container.querySelector('.pc[data-route="wgu"]')!.textContent).toContain('1 of 4');
     expect(getByText(`Offline · Saved copy from ${clockTime(at)}`)).toBeTruthy();
     expect(clockTime(at)).toBe('8:14 AM');
     expect(queryByRole('alert')).toBeNull();
@@ -184,16 +186,48 @@ describe('Today path cards', () => {
   it('a summary that throws falls back to the saved copy, and the note says so', () => {
     holdLazy();
     const at = new Date(2026, 8, 28, 8, 14).getTime(); // Mon Sep 28, a previous day
-    writeSaved('path.math', { ...WGU, id: 'math', title: 'Math' }, at);
+    writeSaved('path.cam', { ...WGU, id: 'math', title: 'Math' }, at);
     PATH_MODS[1]!.mod.mod.value = {
       currentSummary: () => {
         throw new Error('bad content');
       },
     };
     const { container, getByText, queryByRole } = render(<TodayView />);
-    expect(container.querySelector('.pc[data-route="math"]')!.textContent).toContain('2 of 13');
+    expect(container.querySelector('.pc[data-route="math"]')!.textContent).toContain('1 of 4');
     expect(getByText('Saved copy from Mon Sep 28, 8:14 AM')).toBeTruthy();
     expect(queryByRole('alert')).toBeNull();
+  });
+
+  it("the Cambridge Math and CS cards save under their own keys and never touch the old build's", async () => {
+    // The build before the Cambridge Method reads path.math / path.cs for its offline
+    // fallback; a rollback must find its own copies there, exactly as it left them.
+    const OLD_MATH = JSON.stringify({ at: 1, value: { id: 'math', title: 'Math', course: 'Old plan' } });
+    const OLD_CS = JSON.stringify({ at: 1, value: { id: 'cs', title: 'Computer Science', course: 'COS 226' } });
+    localStorage.setItem('meridian.today.saved.path.math', OLD_MATH);
+    localStorage.setItem('meridian.today.saved.path.cs', OLD_CS);
+    holdLazy();
+    PATH_MODS[1]!.mod.mod.value = stub({ ...WGU, id: 'math', title: 'Math' });
+    PATH_MODS[2]!.mod.mod.value = stub({ ...WGU, id: 'cs', title: 'Computer Science' });
+    const { container } = render(<TodayView />);
+    await waitFor(() => {
+      expect(localStorage.getItem('meridian.today.saved.path.cam')).not.toBeNull();
+      expect(localStorage.getItem('meridian.today.saved.path.cst')).not.toBeNull();
+    });
+    expect(JSON.parse(localStorage.getItem('meridian.today.saved.path.cam')!).value.id).toBe('math');
+    expect(JSON.parse(localStorage.getItem('meridian.today.saved.path.cst')!).value.id).toBe('cs');
+    expect(localStorage.getItem('meridian.today.saved.path.math')).toBe(OLD_MATH);
+    expect(localStorage.getItem('meridian.today.saved.path.cs')).toBe(OLD_CS);
+    // An old-shaped copy under the old key is never shown by this build either.
+    expect(container.textContent).not.toContain('Old plan');
+  });
+
+  it('a failed Math card with only the old key saved shows the error, not the old copy', () => {
+    holdLazy();
+    localStorage.setItem('meridian.today.saved.path.math', JSON.stringify({ at: 1, value: { ...WGU, id: 'math', title: 'Math' } }));
+    PATH_MODS[1]!.mod.failed.value = true;
+    const { getByRole } = render(<TodayView />);
+    expect(getByRole('alert').textContent).toContain("The Math path didn't load.");
+    expect(localStorage.getItem('meridian.today.saved.path.math')).not.toBeNull();
   });
 
   it('loads the real path modules lazily and replaces the skeletons', async () => {

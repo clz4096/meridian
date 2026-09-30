@@ -8,7 +8,7 @@
  * both variants are always measured, not just the active one.
  */
 import type { ComponentChildren } from 'preact';
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import '@/styles/tokens.css';
 import '@/styles/primitives.css';
 import './styleguide.css';
@@ -212,13 +212,17 @@ export function StyleguideView() {
       <Section label="Primitives" title="Every state">
         <PrimitivesDemo />
       </Section>
+
+      <Section label="Cambridge" title="Study loop primitives" id="sg-cambridge">
+        <CambridgeDemo />
+      </Section>
     </div>
   );
 }
 
-function Section(props: { label: string; title: string; children: ComponentChildren }) {
+function Section(props: { label: string; title: string; id?: string; children: ComponentChildren }) {
   return (
-    <section class="sg-section">
+    <section class="sg-section" id={props.id}>
       <div class="m-section">
         <h2 class="sg-h2">{props.title}</h2>
         <span class="m-label">{props.label}</span>
@@ -429,6 +433,386 @@ function PrimitivesDemo() {
         <p class="m-state m-num" data-kind="offline">
           Offline · Saved 8:14 AM
         </p>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Cambridge Method primitives (docs/cambridge-screens.md) ---------- */
+
+const LOOP = ['Read', 'Attempt cold', 'Write up', 'Supervision', 'Redo'];
+
+function StepperDemo({ current }: { current: number }) {
+  return (
+    <ol class="m-stepper" aria-label="Study loop">
+      {LOOP.map((name, i) => {
+        const state = i < current ? 'done' : i === current ? 'current' : 'todo';
+        return (
+          <li class="m-step" data-state={state} aria-current={state === 'current' ? 'step' : undefined} key={name}>
+            <span class="m-step-mark" aria-hidden="true">
+              {i + 1}
+            </span>
+            <span class="m-step-name">{name}</span>
+            {state === 'done' && <span class="m-sr">, done</span>}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+const PHASES: { name: string; title: string; state: 'passed' | 'current' | 'locked'; note: string; parallel?: boolean }[] = [
+  { name: 'Phase 0', title: 'Diagnostic and gaps', state: 'passed', note: 'Passed 14 Sep' },
+  { name: 'Phase A', title: 'STEP I foundations', state: 'current', note: 'Current' },
+  { name: 'Phase A+', title: 'Underground stations, alongside B', state: 'locked', note: 'Locked', parallel: true },
+  { name: 'Phase B', title: 'STEP II', state: 'locked', note: 'Locked' },
+  { name: 'Part IA', title: 'First-year courses', state: 'locked', note: 'Locked' },
+];
+const GATES: Record<string, string> = {
+  'Phase A': 'Gate: 3 STEP I papers at 60 or more, timed.',
+  'Phase A+': 'Unlocks when Phase A\'s gate passes.',
+  'Phase B': 'Unlocks when Phase A\'s gate passes.',
+  'Part IA': 'Unlocks when Phase B\'s gate passes.',
+};
+
+const ITEM_STATUSES: [string, string][] = [
+  ['not-started', 'Not started'],
+  ['attempting', 'Attempting'],
+  ['written-up', 'Written up'],
+  ['supervised', 'Supervised'],
+  ['redo-done', 'Redo done'],
+];
+const Q_STATUSES: [string, string][] = [
+  ['solved', 'Solved'],
+  ['partial', 'Partial'],
+  ['stuck', 'Stuck'],
+];
+
+/** Toggletip demo: the real one is <Gloss> in src/features/cambridge. */
+function GlossDemo() {
+  const [open, setOpen] = useState(false);
+  const btn = useRef<HTMLButtonElement>(null);
+  const wrap = useRef<HTMLSpanElement>(null);
+  const pop = useRef<HTMLSpanElement>(null);
+  // Keep the bubble inside the page gutters at 375px, with its arrow still on the term,
+  // and flip it above the term when there is no room below.
+  useLayoutEffect(() => {
+    const el = pop.current;
+    if (!open || !el) return;
+    const gutter = parseFloat(getComputedStyle(el.closest('.sg-root') ?? document.body).paddingLeft) || 16;
+    const r = el.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    let dx = 0;
+    if (r.left < gutter) dx = gutter - r.left;
+    else if (r.right > vw - gutter) dx = vw - gutter - r.right;
+    el.style.setProperty('--m-pop-x', `calc(-50% + ${dx}px)`);
+    el.style.setProperty('--m-pop-arrow', `calc(50% - ${dx}px)`);
+    if (r.bottom > window.innerHeight && r.top - r.height > 0) el.dataset.side = 'top';
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        btn.current?.focus();
+      }
+    };
+    const onDown = (e: PointerEvent) => {
+      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onDown);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onDown);
+    };
+  }, [open]);
+  return (
+    <p class="sg-gloss-text">
+      Your first{' '}
+      <span class="m-popover-anchor" ref={wrap}>
+        <button
+          type="button"
+          class="m-gloss"
+          ref={btn}
+          aria-expanded={open}
+          aria-controls="sg-pop-supervision"
+          onClick={() => setOpen(!open)}
+        >
+          supervision
+        </button>
+        {open && (
+          <span class="m-popover" ref={pop} id="sg-pop-supervision" role="dialog" aria-label="Supervision" data-side="bottom">
+            <span class="m-popover-term">Supervision</span>
+            <span class="m-popover-body">
+              1-hour meeting: 1 to 3 students and an expert go through your written homework and question your
+              reasoning.
+            </span>
+            <span class="m-popover-us">
+              <span class="m-label">US</span>Office hours + oral quiz
+            </span>
+            <a class="m-popover-link" href="#/styleguide">
+              Open glossary
+            </a>
+          </span>
+        )}
+      </span>{' '}
+      is on Monday. Bring the write-up for Assignment 7.
+    </p>
+  );
+}
+
+function EditorDemo() {
+  const [mode, setMode] = useState<'write' | 'preview'>('write');
+  const [text, setText] = useState('Q1. Let $f(x) = x^3 - 3x$. At $x = 1$, `f\'(x) = 0`, so…');
+  return (
+    <div class="m-editor">
+      <div class="m-editor-bar">
+        <span class="m-label" id="sg-ed-l">
+          Write-up
+        </span>
+        <div class="m-seg" role="group" aria-labelledby="sg-ed-l">
+          <button type="button" aria-pressed={mode === 'write'} onClick={() => setMode('write')}>
+            Write
+          </button>
+          <button type="button" aria-pressed={mode === 'preview'} onClick={() => setMode('preview')}>
+            Preview
+          </button>
+        </div>
+      </div>
+      {mode === 'write' ? (
+        <textarea
+          class="m-editor-input"
+          aria-labelledby="sg-ed-l"
+          value={text}
+          placeholder="Full sentences, including failed attempts."
+          onInput={(e) => setText((e.currentTarget as HTMLTextAreaElement).value)}
+        />
+      ) : (
+        <div class="m-editor-preview" tabIndex={0} aria-label="Write-up preview">
+          <p>
+            Q1. Let <em>f</em>(<em>x</em>) = <em>x</em>
+            <sup>3</sup> − 3<em>x</em>. At <em>x</em> = 1, <code>f'(x) = 0</code>, so…
+          </p>
+        </div>
+      )}
+      <p class="m-editor-foot m-num">Markdown and $LaTeX$ · Saved 9:14 PM</p>
+    </div>
+  );
+}
+
+function ThumbsDemo() {
+  const [pages, setPages] = useState([1, 2]);
+  return (
+    <ul class="m-thumbs" aria-label={`Photos, ${pages.length}`}>
+      {pages.map((n) => (
+        <li class="m-thumb" key={n}>
+          <span class="sg-page" role="img" aria-label={`Page ${n} of the write-up`} />
+          <button
+            type="button"
+            class="m-thumb-remove"
+            aria-label={`Remove page ${n}`}
+            onClick={() => setPages(pages.filter((p) => p !== n))}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        </li>
+      ))}
+      <li>
+        <label class="m-thumb-add">
+          Add photo
+          <input type="file" accept="image/*" class="m-sr" />
+        </label>
+      </li>
+    </ul>
+  );
+}
+
+const CAUSES = ['Concept', 'Algebra slip', "Didn't see the idea", 'Ran out of time'];
+const WEEKS: [string, number[]][] = [
+  ['W33', [2, 1, 1, 0]],
+  ['W34', [3, 2, 1, 1]],
+  ['W35', [2, 3, 2, 0]],
+  ['W36', [1, 2, 3, 1]],
+  ['W37', [1, 1, 2, 2]],
+  ['W38', [0, 2, 1, 1]],
+  ['W39', [1, 0, 1, 0]],
+  ['W40', [0, 1, 1, 0]],
+];
+
+function TrendDemo() {
+  const totals = WEEKS.map(([, v]) => v.reduce((a, b) => a + b, 0));
+  const max = Math.max(...totals);
+  const label = `Errors per week, last 8 weeks: ${WEEKS.map(([w], i) => `${w} ${totals[i]}`).join(', ')}`;
+  return (
+    <figure class="m-trend">
+      <figcaption class="m-trend-cap">
+        <span class="m-label">Errors per week</span>
+        <span class="m-num">
+          {totals[totals.length - 1]} this week · {totals[totals.length - 2]} last
+        </span>
+      </figcaption>
+      <ol class="m-trend-bars" role="img" aria-label={label}>
+        {WEEKS.map(([w, v], i) => (
+          <li class="m-trend-col" key={w} aria-current={i === WEEKS.length - 1 ? 'true' : undefined}>
+            <span class="m-trend-stack">
+              {v.map((n, k) =>
+                n ? (
+                  <span
+                    class="m-trend-seg"
+                    key={k}
+                    style={{ '--v': n, '--m-trend-max': max, '--c': `var(--series-${k + 1})` }}
+                  />
+                ) : null,
+              )}
+            </span>
+            <span class="m-trend-x m-num">{w}</span>
+          </li>
+        ))}
+      </ol>
+      <ul class="m-trend-key" aria-hidden="true">
+        {CAUSES.map((c, k) => (
+          <li key={c}>
+            <span class="m-trend-swatch" style={{ '--c': `var(--series-${k + 1})` }} />
+            {c}
+          </li>
+        ))}
+      </ul>
+      <div class="m-sr">
+        <table>
+          <caption>Errors per week by cause</caption>
+          <thead>
+            <tr>
+              <th scope="col">Week</th>
+              {CAUSES.map((c) => (
+                <th scope="col" key={c}>
+                  {c}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {WEEKS.map(([w, v]) => (
+              <tr key={w}>
+                <th scope="row">{w}</th>
+                {v.map((n, k) => (
+                  <td key={k}>{n}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </figure>
+  );
+}
+
+function CambridgeDemo() {
+  const [running, setRunning] = useState(true);
+  return (
+    <div class="sg-prims sg-cam">
+      <h3 class="m-label">Stepper, the study loop</h3>
+      <div class="sg-cam-block">
+        <StepperDemo current={1} />
+      </div>
+      <div class="sg-cam-block">
+        <StepperDemo current={5} />
+      </div>
+
+      <h3 class="m-label sg-sub">Timer, cold attempt</h3>
+      <div class="m-card sg-cam-block">
+        <div class="m-timer" data-state={running ? 'running' : 'paused'}>
+          <span class="m-label">Cold attempt · Q3</span>
+          <span class="m-timer-value" role="timer" aria-label="Cold time, question 3">
+            42:17
+          </span>
+          <span class="m-timer-goal m-num">of 60:00</span>
+          <span class="m-timer-state">
+            <span class="m-timer-dot" aria-hidden="true" />
+            {running ? 'Running' : 'Paused'}
+          </span>
+          <span
+            class="m-progress"
+            role="progressbar"
+            aria-label="Cold time toward 60 minutes"
+            aria-valuemin={0}
+            aria-valuemax={60}
+            aria-valuenow={42}
+            aria-valuetext="42 of 60 minutes"
+          >
+            <span class="m-progress-fill" style={{ '--m-progress': '70.5%' }} />
+          </span>
+          <div class="m-timer-actions">
+            <button type="button" class="m-btn m-btn-primary" onClick={() => setRunning(!running)}>
+              {running ? 'Pause' : 'Resume'}
+            </button>
+            <button type="button" class="m-btn m-btn-quiet">
+              Hints: unlock early
+            </button>
+          </div>
+          <span class="m-sr" aria-live="polite">
+            {running ? 'Timer running' : 'Timer paused at 42 minutes'}
+          </span>
+        </div>
+      </div>
+      <div class="m-card sg-cam-block">
+        <div class="m-timer" data-state="reached">
+          <span class="m-label">Cold attempt · Q1</span>
+          <span class="m-timer-value" role="timer" aria-label="Cold time, question 1">
+            61:04
+          </span>
+          <span class="m-timer-goal m-num">of 60:00</span>
+          <span class="m-timer-state">60 minutes reached · hints open</span>
+        </div>
+      </div>
+
+      <h3 class="m-label sg-sub">Phase map</h3>
+      <ol class="m-phasemap sg-cam-block" aria-label="Phases">
+        {PHASES.map((p) => (
+          <li
+            class="m-phase"
+            data-state={p.state}
+            data-parallel={p.parallel ? 'true' : undefined}
+            aria-current={p.state === 'current' ? 'step' : undefined}
+            key={p.name}
+          >
+            <span class="m-phase-node" aria-hidden="true" />
+            <div class="m-phase-body">
+              <p class="m-phase-head">
+                <span class="m-phase-name">{p.name}</span>
+                <span class="m-phase-state m-num">{p.note}</span>
+              </p>
+              <p class="m-phase-title">{p.title}</p>
+              {GATES[p.name] && <p class="m-phase-gate">{GATES[p.name]}</p>}
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <h3 class="m-label sg-sub">Status, item and question</h3>
+      <ul class="sg-cam-status">
+        {[...ITEM_STATUSES, ...Q_STATUSES].map(([id, word]) => (
+          <li key={id}>
+            <span class="m-status" data-status={id}>
+              <span class="m-status-mark" aria-hidden="true" />
+              {word}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <h3 class="m-label sg-sub">Glossary term and popover</h3>
+      <GlossDemo />
+
+      <h3 class="m-label sg-sub">Editor</h3>
+      <EditorDemo />
+
+      <h3 class="m-label sg-sub">Photos</h3>
+      <ThumbsDemo />
+
+      <h3 class="m-label sg-sub">Trend</h3>
+      <div class="m-card sg-cam-block">
+        <TrendDemo />
       </div>
     </div>
   );

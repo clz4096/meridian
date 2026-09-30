@@ -7,8 +7,10 @@
 import { useEffect } from 'preact/hooks';
 import { signal, type Signal } from '@preact/signals';
 import type { ComponentType } from 'preact';
-import { currentTab, sgLogOpen, kgProgressOpen, kgGym, kgOverview, kgSession, kgInterview, type Tab } from '@/ui/store';
-import { navHome, onPopNav, loadForHome, rolloverIfNewDay, openSection } from '@/ui/actions';
+import { camItemId, currentTab, glossaryTarget, sgLogOpen, kgProgressOpen, kgGym, kgOverview, kgSession, kgInterview, type Tab } from '@/ui/store';
+import { navHome, loadForHome, rolloverIfNewDay, openSection } from '@/ui/actions';
+import { onCamPopNav } from '@/features/cambridge/nav';
+import { parseDeepLink, reloadInto, takeReopen } from '@/ui/reopen';
 import { navEnd } from '@/core/telemetry';
 import { SaveChip, RestBar, UndoToast } from '@/ui/components/Chrome';
 import { TodayView } from '@/features/today/TodayTab';
@@ -27,7 +29,11 @@ const PANE_ID: Record<Tab, string> = {
   wgu: 'pane-roadmap',
   math: 'pane-math',
   cs: 'pane-cs',
-  teach: 'pane-teach',
+  teach: 'pane-tracker',
+  cambridge: 'pane-math',
+  'cam-item': 'pane-cam-item',
+  'cam-errors': 'pane-cam-errors',
+  glossary: 'pane-glossary',
 };
 
 /**
@@ -40,12 +46,15 @@ interface LazyView {
   View: ComponentType | null;
   ready: Signal<boolean>;
   failed: Signal<boolean>;
+  /** Whether the idle prefetch after Today's first paint fetches it. */
+  prefetch: boolean;
   load(): Promise<void>;
 }
-function lazyView(importer: () => Promise<ComponentType>): LazyView {
+function lazyView(importer: () => Promise<ComponentType>, { prefetch = true } = {}): LazyView {
   let inflight: Promise<void> | null = null;
   const v: LazyView = {
     View: null,
+    prefetch,
     ready: signal(false),
     failed: signal(false),
     load() {
@@ -68,7 +77,24 @@ function lazyView(importer: () => Promise<ComponentType>): LazyView {
 // `roadmap` is an alias of the WGU path screen: one loader, so it is fetched once.
 const wguView = lazyView(() => import('@/features/wgu/WGURoadmap').then((m) => m.WGURoadmapView));
 
-// The Princeton tracker is the biggest (~150 KB minified: the algorithm catalogue,
+// `math` now opens the Cambridge path (old links and history entries keep working):
+// one loader for both ids, so it is fetched once.
+// The curriculum itself (catalog.ts's track chunks, 2 to 16 KB gzip each) is never
+// prefetched: the prefetch runs inside the load window, where every fetch counts
+// against it, and Today needs only the small catalog index. A path screen fetches
+// its own tracks when it opens, behind a skeleton of the same size. The two path
+// screens' own chunks are small and are prefetched like every other section; the
+// study item and error log are reached from the path, so they load on open (from
+// the service worker's precache once installed).
+const ON_OPEN = { prefetch: false };
+const cambridgeView = lazyView(() => import('@/features/cambridge/CambridgePath').then(({ CambridgePathView }) => () => <CambridgePathView />));
+
+// `teach` was the standalone Learn by Teaching screen. Teaching now lives only inside the
+// tracker, so the id stays as an alias of it: old history entries and reopen targets
+// still land on the screen that holds the teaching section. One loader, fetched once.
+const trackerView = lazyView(() => import('@/features/studytracker/StudyTracker').then(({ StudyTrackerView }) => () => <StudyTrackerView />));
+
+// The Cambridge Method tracker is the biggest (~150 KB minified: the algorithm catalogue,
 // proofs, papers, teaching simulator); the rest are 10 to 60 KB each.
 const LAZY: Record<Exclude<Tab, 'today'>, LazyView> = {
   todos: lazyView(() => import('@/features/todos/TodosTab').then((m) => m.TodosView)),
@@ -77,31 +103,27 @@ const LAZY: Record<Exclude<Tab, 'today'>, LazyView> = {
   workout: lazyView(() => import('@/features/workout/WorkoutTab').then((m) => m.WorkoutView)),
   meal: lazyView(() => import('@/features/meal/MealTab').then((m) => m.MealView)),
   data: lazyView(() => import('@/features/data/DataTab').then((m) => m.DataView)),
-  tracker: lazyView(() => import('@/features/studytracker/StudyTracker').then((m) => m.StudyTrackerView)),
+  tracker: trackerView,
   roadmap: wguView,
   wgu: wguView,
-  // MathPathView takes an optional `now` for its tests; the app renders it with none.
-  math: lazyView(() => import('@/features/paths/MathPath').then(({ MathPathView }) => () => <MathPathView />)),
-  cs: lazyView(() => import('@/features/paths/CSPath').then((m) => m.CSPathView)),
-  teach: lazyView(() => import('@/features/today/TeachScreen').then((m) => m.TeachScreen)),
+  math: cambridgeView,
+  cs: lazyView(() => import('@/features/paths/CSPath').then(({ CSPathView }) => () => <CSPathView />)),
+  teach: trackerView,
+  cambridge: cambridgeView,
+  'cam-item': lazyView(() => import('@/features/cambridge/StudyItem').then(({ StudyItemView }) => () => <StudyItemView />), ON_OPEN),
+  // Both take optional props for their tests; the app renders them with none.
+  'cam-errors': lazyView(() => import('@/features/cambridge/ErrorLog').then(({ ErrorLogView }) => () => <ErrorLogView />), ON_OPEN),
+  glossary: lazyView(() => import('@/features/cambridge/Glossary').then(({ GlossaryView }) => () => <GlossaryView />)),
 };
 
-// Chrome keeps a failed module fetch in the page's module map, so calling import()
-// again for the same chunk fails at once without touching the network. The only
-// reliable retry is a fresh page: reload, then reopen the section that failed.
-const REOPEN_KEY = 'meridian.reopen';
-function reloadInto(tab: Tab): void {
-  try { sessionStorage.setItem(REOPEN_KEY, tab); } catch { /* private mode: lands on Today */ }
-  window.location.reload();
-}
-function takeReopen(): Tab | null {
-  try {
-    const t = sessionStorage.getItem(REOPEN_KEY) as Tab | null;
-    sessionStorage.removeItem(REOPEN_KEY);
-    return t && t !== 'today' && t in LAZY ? t : null;
-  } catch {
-    return null;
-  }
+/** Open a Cambridge deep link (`#/glossary?t=`, `#/cam-item?id=`), then drop the hash so a later visit does not replay it. */
+function openDeepLink(): void {
+  const link = parseDeepLink(window.location.hash);
+  if (!link) return;
+  window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+  if (link.term) glossaryTarget.value = link.term;
+  if (link.itemId) camItemId.value = link.itemId;
+  openSection(link.tab);
 }
 
 function Section({ tab }: { tab: Tab }) {
@@ -139,25 +161,28 @@ export function App() {
     loadForHome(); // Today's at-a-glance needs every tracker store
     const reopen = takeReopen();
     if (reopen) openSection(reopen);
+    else openDeepLink();
     const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
     // Prefetch every section after the first Today paint. One per idle slot, so a
     // slow phone never parses all of them in one long task.
     // Without requestIdleCallback (Safari), wait out startup once, then go back to back.
-    const queue = [...new Set(Object.values(LAZY))];
+    const queue = [...new Set(Object.values(LAZY))].filter((v) => v.prefetch);
     const soon = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 50));
     const next = (): void => {
       const v = queue.shift();
       if (v) void v.load().finally(() => soon(next));
     };
     idle(next);
-    window.addEventListener('popstate', onPopNav);
+    window.addEventListener('popstate', onCamPopNav);
+    window.addEventListener('hashchange', openDeepLink);
     // Catch midnight while open, and a new day on return from the background.
     // (A pending delete is applied on hide by bootstrap, before its save.)
     const onVisible = (): void => { if (!document.hidden) rolloverIfNewDay(); };
     document.addEventListener('visibilitychange', onVisible);
     const tick = window.setInterval(rolloverIfNewDay, 60_000);
     return () => {
-      window.removeEventListener('popstate', onPopNav);
+      window.removeEventListener('popstate', onCamPopNav);
+      window.removeEventListener('hashchange', openDeepLink);
       document.removeEventListener('visibilitychange', onVisible);
       window.clearInterval(tick);
     };
@@ -182,7 +207,9 @@ export function App() {
       ? 'meal' + (sgLogOpen.value ? ':log' : '')
       : tab === 'knowledge'
         ? 'knowledge' + kgKey
-        : tab;
+        : tab === 'cam-item'
+          ? 'cam-item:' + (camItemId.value ?? '')
+          : tab;
 
   return (
     <>

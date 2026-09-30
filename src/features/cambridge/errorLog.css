@@ -1,0 +1,189 @@
+/* Error log screen. Tokens and primitives only (src/styles/tokens.css, primitives.css). */
+
+.el-root {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  /* .appwrap already supplies the gutter. */
+  padding: 0 0 var(--sp-8);
+  color: var(--ink);
+  font-size: var(--fs-body);
+}
+
+/* ---------- filters ---------- */
+.el-filters {
+  display: grid;
+  gap: var(--sp-3);
+}
+.el-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+/* The chips carry the full cause text at 390px; they wrap instead of truncating. */
+.el-chips > .m-chip {
+  min-height: var(--tap);
+  /* "All" is the shortest label; it still gets a full 44px target. */
+  min-width: var(--tap);
+  justify-content: center;
+  white-space: nowrap;
+}
+.el-filter-label {
+  min-width: 4em;
+}
+.el-topic {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.el-select,
+.el-input {
+  min-height: var(--tap);
+  box-sizing: border-box;
+  padding: 0 var(--sp-3);
+  border: var(--hairline) solid var(--rule-strong);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--fs-2);
+}
+.el-topic > .el-select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.el-input {
+  width: 100%;
+}
+.el-select:focus-visible,
+.el-input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.el-trend-card {
+  padding: var(--sp-3);
+}
+
+/* ---------- entries ---------- */
+.el-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cam-err {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-1);
+  padding-top: var(--sp-3);
+  padding-bottom: var(--sp-3);
+}
+.el-line1 {
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+}
+.el-line2 {
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink-2);
+}
+.el-line3 {
+  font-size: var(--fs-3);
+  line-height: var(--lh-3);
+}
+.el-needs {
+  font-size: var(--fs-2);
+  color: var(--accent-ink);
+  font-weight: var(--fw-semibold);
+}
+.el-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.el-actions > .m-btn {
+  min-height: var(--tap);
+}
+.el-form {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+/* ---------- archived journal ---------- */
+.el-journal > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  font-size: var(--fs-2);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.el-journal > summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-1);
+}
+.el-journal-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.el-journal-entry {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-3) 0;
+  border-bottom: var(--hairline) solid var(--rule);
+}
+.el-journal-entry:last-child {
+  border-bottom: 0;
+}
+.el-journal-title {
+  font-size: var(--fs-3);
+  font-weight: var(--fw-semibold);
+}
+.el-journal-body {
+  font-size: var(--fs-3);
+  line-height: var(--lh-3);
+  white-space: pre-line;
+  max-width: var(--measure);
+}
+
+/* ---------- skeleton: filter row, the trend card, four rows ---------- */
+.el-skel {
+  display: grid;
+  gap: var(--sp-3);
+}
+.el-skel-filters {
+  height: calc(var(--tap) * 2 + var(--sp-3));
+}
+.el-skel-trend {
+  margin-top: var(--sp-6);
+}
+/* The plot box borrows .m-trend-bars' own height token, plus the caption and key lines. */
+.el-skel-plot {
+  display: block;
+  height: calc(var(--m-trend-h) + 2 * var(--fs-1) * var(--lh-1) + 2 * var(--sp-2));
+  /* .m-trend-bars draws a baseline with its own background, after .m-skel in the
+     cascade; restate the skeleton fill so the box reads as loading. */
+  background: var(--surface-2);
+  border-radius: var(--r-1);
+}
+.el-skel-row {
+  display: block;
+  padding: var(--sp-3) 0;
+  border-bottom: var(--hairline) solid var(--rule);
+}
+.el-w-40 {
+  width: 40%;
+}
+.el-w-60 {
+  width: 60%;
+}
+.el-w-80 {
+  width: 80%;
+}
+
+/* The offline note when the log is empty: there is no section head to carry it. */
+.el-offline {
+  margin: 0 0 var(--sp-3);
+}

@@ -1,63 +1,46 @@
 /**
- * CS path screen: the plan renders every CS course in plan order, the checkboxes
- * drive curriculumChecks, the header numbers follow, and the algorithm card mounts
- * inside the tracker's .pt-root scope.
+ * CS path screen: the header follows the CST track, the algorithm card and the
+ * paper of the week mount inside the tracker's .pt-root scope, and the retired
+ * COS/MIT course plan is gone (its checkbox key stays untouched).
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render } from '@testing-library/preact';
+import { cleanup, render } from '@testing-library/preact';
 import { CSPathView } from '@/features/paths/CSPath';
-import { CS_COURSES } from '@/content/cs';
-import { curriculumChecks } from '@/features/studytracker/curriculum';
 import { algoOfDay } from '@/features/studytracker/algorithms';
+import retired from '@data/archive/princeton-curriculum.json';
 
-const saved = curriculumChecks.value;
+const never = new Promise<void>(() => {});
+
 afterEach(() => {
   cleanup();
-  curriculumChecks.value = saved;
   localStorage.clear();
 });
 
 describe('CSPathView', () => {
-  it('renders every CS course in plan order with its links', () => {
-    curriculumChecks.value = {};
-    const { container } = render(<CSPathView />);
-    const codes = [...container.querySelectorAll('.cs-plan .cs-code')].map((n) => n.textContent);
-    expect(codes).toEqual(CS_COURSES.map((c) => c.code));
-    const hrefs = [...container.querySelectorAll('.cs-plan a')].map((a) => a.getAttribute('href'));
-    for (const c of CS_COURSES) {
-      expect(hrefs).toContain(c.url);
-      for (const p of c.psets) expect(hrefs).toContain(p.url);
-    }
-    expect(container.querySelector('.cs-plan [aria-current="step"] .cs-code')?.textContent).toBe('COS 226');
+  it('heads the screen with the CST track, not the retired course plan', () => {
+    const { container, getByText } = render(<CSPathView camReady={never} />);
+    expect(getByText('0 of 14 items')).toBeTruthy();
+    expect(container.querySelector('.cs-course')?.textContent).toBe('CS-0 Proof · TMUA Notes on Logic and Proof');
+    expect(container.querySelector('.cs-plan')).toBeNull();
+    expect(container.querySelector('input[type="checkbox"]')).toBeNull();
+    // The algorithm card cites its lecture video by course ("MIT 6.006"): a source, not the retired plan.
+    const copy = container.cloneNode(true) as Element;
+    copy.querySelectorAll('.algo-card').forEach((n) => n.remove());
+    for (const c of retired.courses) expect(copy.textContent).not.toContain(c.code);
   });
 
-  it('toggling a course updates curriculumChecks and the header', () => {
-    curriculumChecks.value = { 'COS 226': true };
-    const { container, getByLabelText, getByText } = render(<CSPathView />);
-    expect(getByText('1 of 5 courses')).toBeTruthy();
-    const box = getByLabelText(/MIT 6\.006/) as HTMLInputElement;
-    expect(box.checked).toBe(false);
-    fireEvent.click(box);
-    expect(curriculumChecks.value['MIT 6.006']).toBe(true);
-    expect(JSON.parse(localStorage.getItem('meridian.curriculum.v1') ?? '{}')['MIT 6.006']).toBe(true);
-    expect(getByText('2 of 5 courses')).toBeTruthy();
-    expect(container.querySelector('.cs-course')?.textContent).toBe('MIT 6.046J · Design and Analysis of Algorithms');
-    fireEvent.click(box);
-    expect(curriculumChecks.value['MIT 6.006']).toBe(false);
+  it('leaves the old course checkboxes in storage untouched', () => {
+    const old = JSON.stringify({ 'COS 226': true });
+    localStorage.setItem('meridian.curriculum.v1', old);
+    render(<CSPathView camReady={never} />);
+    expect(localStorage.getItem('meridian.curriculum.v1')).toBe(old);
   });
 
-  it("mounts today's algorithm card inside the tracker scope", () => {
-    const { container } = render(<CSPathView />);
+  it("mounts today's algorithm and the paper of the week inside the tracker scope", () => {
+    const { container } = render(<CSPathView camReady={never} />);
     const card = container.querySelector('.pt-root .algo-card');
     expect(card).toBeTruthy();
     expect(card?.querySelector('.algo-name')?.textContent).toBe(algoOfDay().name);
-  });
-
-  it('all done shows the finished line, not a course', () => {
-    curriculumChecks.value = Object.fromEntries(CS_COURSES.map((c) => [c.code, true]));
-    const { getByText, container } = render(<CSPathView />);
-    expect(getByText('Every course in the plan is done.')).toBeTruthy();
-    expect(getByText('5 of 5 courses')).toBeTruthy();
-    expect(container.querySelector('.cs-plan [aria-current]')).toBeNull();
+    expect(container.querySelector('.pt-root')?.textContent).toContain('Paper of the week');
   });
 });

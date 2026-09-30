@@ -13,10 +13,11 @@ import { dataRev, clockMinute, notPending, type Tab } from '@/ui/store';
 import type { HubKey, HubStat } from '@/ui/hubTypes';
 import { core, hubStats, openSection, todosActions, tickClock } from '@/ui/actions';
 import { dueTodos } from '@/features/todos/todosSelectors';
+import { afterLargestPaint } from '@/core/telemetry';
 import type { PathId, PathSummary } from '@/features/paths/types';
 import { PathCard, PathCardError, PathCardSkeleton } from '@/features/paths/PathCard';
 import { WeatherBlock } from './WeatherBlock';
-import { ReadingBlock } from './ReadingBlock';
+import { ReadingBlock, papersMod } from './ReadingBlock';
 import { lazyMod, page, readSaved, savedWhen, useSaveOnChange, type LazyMod } from './lazyContent';
 import './today.css';
 
@@ -24,19 +25,26 @@ interface PathModule {
   currentSummary(now?: Date): PathSummary;
 }
 
-/** Each path's summary module, in card order. Never imported statically: see D13. */
-export const PATH_MODS: ReadonlyArray<{ id: PathId; title: string; mod: LazyMod<PathModule> }> = [
-  { id: 'wgu', title: 'WGU', mod: lazyMod<PathModule>(() => import('@/features/paths/wgu')) },
-  { id: 'math', title: 'Math', mod: lazyMod<PathModule>(() => import('@/features/paths/math')) },
-  { id: 'cs', title: 'Computer Science', mod: lazyMod<PathModule>(() => import('@/features/paths/cs')) },
+/**
+ * Each path's summary module, in card order. Never imported statically: see D13.
+ * `saved` is the key of the card's offline copy (lazyContent.ts). The Math and CS
+ * cards changed shape with the Cambridge Method, so they save under new keys: the
+ * build before it reads `path.math` and `path.cs` for its own offline fallback, and
+ * a rollback must never find a Cambridge-shaped card there. The old keys are left
+ * as they are, never written or deleted.
+ */
+export const PATH_MODS: ReadonlyArray<{ id: PathId; title: string; saved: string; mod: LazyMod<PathModule> }> = [
+  { id: 'wgu', title: 'WGU', saved: 'path.wgu', mod: lazyMod<PathModule>(() => import('@/features/paths/wgu')) },
+  // The Math card now follows the Cambridge Method (docs/cambridge-screens.md section a).
+  { id: 'math', title: 'Math', saved: 'path.cam', mod: lazyMod<PathModule>(() => import('@/features/cambridge/todayCard')) },
+  { id: 'cs', title: 'Computer Science', saved: 'path.cst', mod: lazyMod<PathModule>(() => import('@/features/paths/cs')) },
 ];
 
 /** Every screen other than the paths. `stat` is the hubStats() entry shown on the tile. */
 const NAV: ReadonlyArray<{ tab: Tab; name: string; kind: string; stat?: HubKey; sub?: string }> = [
   { tab: 'meal', name: 'Surplus', kind: 'Food & Body', stat: 'meal' },
   { tab: 'workout', name: 'Overload', kind: 'Workout', stat: 'workout' },
-  { tab: 'tracker', name: 'Massey Standard', kind: 'Princeton tracker', stat: 'tracker' },
-  { tab: 'teach', name: 'Learn by Teaching', kind: 'Teach it, then defend it', sub: "Teach today's algorithm" },
+  { tab: 'tracker', name: 'The Cambridge Method', kind: 'Daily study tracker', stat: 'tracker' },
   { tab: 'knowledge', name: 'Knowledge', kind: 'Spaced review', stat: 'knowledge' },
   { tab: 'data', name: 'Data', kind: 'Sync and storage', stat: 'data' },
 ];
@@ -81,20 +89,38 @@ function readSlot(mod: LazyMod<PathModule>, now: Date): SlotState {
   }
 }
 
-function PathSlot({ id, title, slot }: { id: PathId; title: string; slot: SlotState }) {
+function PathSlot({ id, title, saved: key, slot }: { id: PathId; title: string; saved: string; slot: SlotState }) {
   const { summary, failed } = slot;
-  useSaveOnChange(`path.${id}`, summary);
-  const open = (): void => openSection(id);
+  useSaveOnChange(key, summary);
+  // The Math card lands on the Cambridge path; the other paths open their own screens.
+  const open = (): void => openSection(id === 'math' ? 'cambridge' : id);
   if (summary) return <PathCard summary={summary} onOpen={open} />;
   if (!failed) return <PathCardSkeleton title={title} />;
-  const saved = readSaved<PathSummary>(`path.${id}`);
+  const saved = readSaved<PathSummary>(key);
   return saved ? <PathCard summary={saved.value} onOpen={open} /> : <PathCardError title={title} onRetry={() => page.reload()} />;
 }
 
 function Studies() {
   const nowMs = clockMinute.value; // the summaries depend on the date
   useEffect(() => {
-    for (const p of PATH_MODS) void p.mod.load();
+    // The reading card above is Today's largest paint (its LCP). The path modules
+    // start once its chunk has settled, the browser has presented the card, and the
+    // page is idle, so they never compete with it; their skeletons hold the cards'
+    // exact boxes meanwhile, so nothing shifts. The presentation step matters: an
+    // idle slot can come well before the card reaches the screen, and Lighthouse
+    // counts every request that finishes before the LCP paint towards LCP.
+    let live = true;
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1));
+    void papersMod.load().finally(() =>
+      afterLargestPaint('.td-read-title', () =>
+        idle(() => {
+          if (live) for (const p of PATH_MODS) void p.mod.load();
+        }),
+      ),
+    );
+    return () => {
+      live = false;
+    };
   }, []);
   const now = new Date(nowMs);
   const slots = PATH_MODS.map((p) => readSlot(p.mod, now));
@@ -102,7 +128,7 @@ function Studies() {
   // its chunk failed to load or its summary threw.
   let savedAt = 0;
   PATH_MODS.forEach((p, i) => {
-    if (slots[i]!.failed) savedAt = Math.max(savedAt, readSaved(`path.${p.id}`)?.at ?? 0);
+    if (slots[i]!.failed) savedAt = Math.max(savedAt, readSaved(p.saved)?.at ?? 0);
   });
   const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
   return (
@@ -121,7 +147,7 @@ function Studies() {
       </div>
       <div class="td-paths">
         {PATH_MODS.map((p, i) => (
-          <PathSlot key={p.id} id={p.id} title={p.title} slot={slots[i]!} />
+          <PathSlot key={p.id} id={p.id} title={p.title} saved={p.saved} slot={slots[i]!} />
         ))}
       </div>
     </section>
