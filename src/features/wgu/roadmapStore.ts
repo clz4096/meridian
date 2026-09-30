@@ -4,7 +4,7 @@
  * CRDT/sync kernel (out of scope per the build spec).
  */
 import { signal } from '@preact/signals';
-import { TOTAL_COURSES } from '@/features/wgu/roadmapData';
+import { PROGRESS, TOTAL_COURSES } from '@/features/wgu/roadmapData';
 
 const KEY = 'meridian.roadmap.v1';
 
@@ -37,6 +37,8 @@ export function isDone(code: string): boolean {
 /** Glanceable summary for Today's at-a-glance tile. */
 export function roadmapSummary(): { done: number; total: number } {
   const checks = roadmapChecks.value;
-  const done = Object.keys(checks).filter((k) => checks[k]).length;
+  // Count only the plan's courses: ticks from the earlier 13-course plan stay stored
+  // but must not push the tile past its total.
+  const done = PROGRESS.filter(([code]) => checks[code]).length;
   return { done, total: TOTAL_COURSES };
 }

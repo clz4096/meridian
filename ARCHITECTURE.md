@@ -529,13 +529,13 @@ don't meet the rules above.
     Full/Light toggle overrides it.
 - **Learn by Teaching** (`features/teaching/`): a five-stage loop (Designer, Present,
   Evaluate, Office Hours, Scorecard) on the algorithm of the day, mounted as a section inside
-  the tracker (so it ships in the lazy chunk). Office hours uses four AI student personas that
+  the tracker (so it ships in the lazy chunk). It has no screen of its own: the old `teach` tab id is an alias of `tracker`. Office hours uses four AI student personas that
   probe the user's actual transcript (`gradeLecture`, `officeHoursQuestions`, `gradeDefense`
   in `services/ai.ts`). Loop state is local-only (`meridian.teach.v1`); XP flows to the
   tracker through `creditEvent`. `teachingStore.ts` has no network dependency; the view maps
   AI results onto its data model. Spec:
   [`docs/learn-by-teaching-2026-09-20.md`](docs/learn-by-teaching-2026-09-20.md).
-- **WGU roadmap** (`features/wgu/`): a read-only, week-by-week finish plan
+- **WGU roadmap** (`features/wgu/`): a read-only, week-by-week plan for the enrolled courses
   (`roadmapData.ts`) with a per-course done checkbox persisted locally (`roadmapStore.ts`,
   `meridian.roadmap.v1`). `roadmapSummary()` feeds the Today tile.
 

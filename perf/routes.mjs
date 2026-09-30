@@ -56,7 +56,6 @@ const ROUTES = JSON.parse(opt('--routes', 'null')) ?? (LEGACY ? LEGACY_ROUTES : 
   ['cs', 'tile:cs'],
   ['knowledge', 'tile:knowledge'],
   ['tracker', 'tile:tracker'],
-  ['teach', 'tile:teach'],
   ['workout', 'tile:workout'],
   ['meal', 'tile:meal'],
   ['data', 'tile:data'],

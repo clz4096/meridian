@@ -12,19 +12,21 @@ afterEach(() => {
 describe('WGURoadmapView Today header', () => {
   it('shows the current course, next action, and progress', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(2026, 8, 29, 12));
+    vi.setSystemTime(new Date(2026, 8, 30, 12));
+    // D386 is a tick from the old 13-course plan: kept in storage, not counted.
     roadmapChecks.value = { C955: true, D386: true };
     const { getByRole, getByText } = render(<WGURoadmapView />);
-    expect(getByText('D324 · Business of IT: Project Management')).toBeTruthy();
-    expect(getByText('CompTIA Project+ (Infosec, free)')).toBeTruthy();
-    expect(getByText('2 of 13 courses · 25 days to Oct 24')).toBeTruthy();
+    expect(getByText('D326 · Advanced Data Management')).toBeTruthy();
+    expect(getByText('Intermediate PostgreSQL for stored procedures')).toBeTruthy();
+    expect(getByText('1 of 4 courses · 25 days to Oct 25')).toBeTruthy();
     const bar = getByRole('progressbar', { name: 'WGU progress' });
-    expect(bar.getAttribute('aria-valuenow')).toBe('2');
+    expect(bar.getAttribute('aria-valuenow')).toBe('1');
+    expect(bar.getAttribute('aria-valuemax')).toBe('4');
   });
 
   it('shows the empty state when every course is done', () => {
     roadmapChecks.value = Object.fromEntries(
-      ['C955', 'D386', 'D324', 'C963', 'D315', 'D282', 'D336', 'D326', 'D284', 'D480', 'D279', 'D479', 'D424'].map((c) => [c, true]),
+      ['C955', 'D326', 'D315', 'D279'].map((c) => [c, true]),
     );
     const { getByText } = render(<WGURoadmapView />);
     expect(getByText('Term complete')).toBeTruthy();
@@ -35,14 +37,14 @@ describe('WGURoadmapView checkboxes', () => {
   it('names every checkbox by course code and name', () => {
     const { getAllByRole } = render(<WGURoadmapView />);
     const boxes = getAllByRole('checkbox') as HTMLInputElement[];
-    // 13 in the week cards plus 13 in the Progress list.
-    expect(boxes).toHaveLength(26);
+    // 4 in the week cards plus 4 in the Progress list.
+    expect(boxes).toHaveLength(8);
     for (const b of boxes) {
       const label = b.labels?.[0]?.textContent?.trim() ?? '';
       expect(label).toMatch(/^[A-Z]\d{3} \S/);
       expect(b.id).not.toBe('');
     }
-    expect(new Set(boxes.map((b) => b.id)).size).toBe(26);
+    expect(new Set(boxes.map((b) => b.id)).size).toBe(8);
   });
 
   it('ticking a course in a week card ticks it in the Progress list', () => {
@@ -57,6 +59,14 @@ describe('WGURoadmapView checkboxes', () => {
 
   it('describes the plan in the title without a day count that can go stale', () => {
     const { getByRole } = render(<WGURoadmapView />);
-    expect(getByRole('heading', { level: 1 }).textContent).toBe('13 courses in a 37-day plan');
+    expect(getByRole('heading', { level: 1 }).textContent).toBe('4 courses in a 4-week plan');
+  });
+
+  it('shows lead-in and buffer weeks as an admin line with no checkbox', () => {
+    const { getByRole } = render(<WGURoadmapView />);
+    const wk1 = getByRole('region', { name: 'Week 1' });
+    expect(wk1.querySelector('.wgu-courses')).toBeNull();
+    expect(wk1.querySelector('.wgu-admin')!.textContent).toContain('C955');
+    expect(getByRole('region', { name: 'Week 5' }).querySelector('input')).toBeNull();
   });
 });
