@@ -4,7 +4,7 @@
  * reproduce step anchoring pass 3. Content + progress in papers.ts.
  */
 import { useState } from 'preact/hooks';
-import { PAPERS, paperOfWeek, KESHAV_PASSES, paperProgress, togglePass, paperKey } from '@/features/studytracker/papers';
+import { PAPERS, paperOfWeek, KESHAV_PASSES, paperProgress, togglePass, paperKey, paperByline } from '@/features/studytracker/papers';
 import { creditEvent, EVENT_WEIGHTS } from '@/features/studytracker/trackerStore';
 import { Collapsible } from '@/features/studytracker/Collapsible';
 
@@ -39,7 +39,7 @@ export function PapersSection() {
           <a class="pp-title" href={cur.url} target="_blank" rel="noopener noreferrer">{cur.title}</a>
           <span class="pp-area">{cur.area}</span>
         </div>
-        <div class="pp-by">{cur.authors} · {cur.year}{week && paperKey(cur) === paperKey(week) ? ' · this week' : ''}</div>
+        <div class="pp-by">{paperByline(cur)}{week && paperKey(cur) === paperKey(week) ? ' · this week' : ''}</div>
         <p class="pp-why">{cur.why}</p>
 
         <div class="pp-passes">

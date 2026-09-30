@@ -26,6 +26,7 @@ import { dataRev, kgTopic } from '@/ui/store';
 import { kg, knowledgeActions, sessionForTopic, REVIEW_PREFIX, INTERVIEW_PREFIX, type TodaySession } from '@/ui/actions';
 import { dstr } from '@/app/bootstrap';
 import { readFsrs, previewIntervals, humanizeDays, type Grade } from '@/features/knowledge/fsrs';
+import { Markdown } from '@/ui/components/Markdown';
 import { ascentLedger, bandOf, MWORD, MCOLOR, GRADE_MASTERY, type AscentHistory } from '@/features/knowledge/ascent';
 import { daysBetween } from '@/features/knowledge/knowledgeSelectors';
 import { srcHref, practiceLinks, seeLinks } from '@/features/knowledge/source';
@@ -192,7 +193,7 @@ function nextDueInDays(): number | null {
 }
 
 const RefreshIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8FA3BE" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2" stroke-linecap="round" aria-hidden="true">
     <path d="M21 12a9 9 0 1 1-3-6.7" />
     <polyline points="21 3 21 9 15 9" />
   </svg>
@@ -292,19 +293,9 @@ export function AscentSession() {
 
   return (
     <div class="asc-app">
-      {screen === 'start' && (
-        <button class="asc-back asc-back-float" onClick={() => window.history.back()} aria-label="Back to topics">
-          <span class="asc-chev" aria-hidden="true">‹</span> Back
-        </button>
-      )}
       {showTop && (
         <div class="asc-topbar">
           <div class="asc-track-row">
-            {screen === 'card' && (
-              <button class="asc-back" onClick={() => window.history.back()} aria-label="Back to topics">
-                <span class="asc-chev" aria-hidden="true">‹</span> Back
-              </button>
-            )}
             <div class="asc-counter">
               <b>{pad(cur)}</b> / <span>{pad(M)}</span>
             </div>
@@ -372,14 +363,14 @@ function Card({ S, item, reduced, cardRef }: { S: AscSt; item: DeckItem; reduced
     <article ref={cardRef as Any} class={'asc-card ' + S.cardPhase.value}>
       <div class="asc-pill-row">
         <span class="asc-pill">
-          <span class="asc-dot" style={`background:${mColor}; box-shadow:0 0 8px ${mColor}66`} />
+          <span class="asc-dot" style={`background:${mColor}`} />
           <span class="asc-topic">{topic}</span>
           <span class="asc-sep">·</span>
-          <span class="asc-mword" style={`color:${mColor}`}>
+          <span class="asc-mword">
             {mWord}
           </span>
         </span>
-        {(item as { ai?: boolean }).ai && <span class="asc-flowtag asc-ai" title="AI-generated — verify before trusting">✨ AI</span>}
+        {(item as { ai?: boolean }).ai && <span class="asc-flowtag asc-ai" title="AI-generated — verify before trusting">AI</span>}
         <span class="asc-flowtag">{isAttempt ? 'attempt' : 'flip'}</span>
       </div>
 
@@ -424,7 +415,9 @@ function Card({ S, item, reduced, cardRef }: { S: AscSt; item: DeckItem; reduced
             <div class="asc-bar" />
             <div>
               <div class="asc-label">Model answer</div>
-              <div class="asc-body">{item.reveal}</div>
+              <div class="asc-body">
+                <Markdown text={item.reveal} />
+              </div>
             </div>
           </div>
         </div>
@@ -475,8 +468,8 @@ function SummitPanel({ S }: { S: AscSt }) {
   return (
     <div class="asc-panel" key="summit">
       <svg class="asc-summit-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-        <path d="M4 40 L20 12 L28 26 L34 18 L44 40 Z" stroke="#F2B25C" stroke-width="1.6" stroke-linejoin="round" fill="rgba(242,178,92,.08)" />
-        <circle cx="20" cy="12" r="2.4" fill="#F2B25C" />
+        <path d="M4 40 L20 12 L28 26 L34 18 L44 40 Z" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round" fill="var(--accent-wash)" />
+        <circle cx="20" cy="12" r="2.4" fill="var(--accent)" />
       </svg>
       <div class="asc-eyebrow">Summit</div>
       <h1>Done for today.</h1>
@@ -486,7 +479,7 @@ function SummitPanel({ S }: { S: AscSt }) {
       </div>
       {nextDue != null && (
         <div class="asc-meta">
-          next due in <b style="color:var(--text)">{humanizeDays(nextDue)}</b>
+          next due in <b style="color:var(--ink)">{humanizeDays(nextDue)}</b>
         </div>
       )}
       {overflow > 0 && (

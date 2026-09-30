@@ -1,7 +1,6 @@
 /**
- * Lazy landing chunk entry — bundled to ESM (with Three) as meridian-landing.js and
- * dynamically imported at boot, so Three never blocks app install/boot. The service
- * worker precaches the emitted file for offline launches.
+ * Lazy landing chunk entry: bundled with Three and dynamically imported only when
+ * the user plays the intro from the Data tab, so Three never loads at startup.
  */
-export { mountLanding, mountBackground } from '@/landing/landing';
+export { mountLanding, mountBackground, playIntro } from '@/landing/landing';
 export type { GraphConfig, GraphHandle, GraphColors } from '@/landing/graph';

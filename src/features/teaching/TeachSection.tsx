@@ -56,7 +56,12 @@ function ListField({ label, hint, rows, value, onChange }: {
   );
 }
 
-export function TeachSection() {
+/**
+ * `standalone` is the teach tab, where this section is the whole screen: it opens
+ * expanded, under its own open-state key, so collapsing it inside the Massey tracker
+ * doesn't leave the dedicated screen showing only a header.
+ */
+export function TeachSection({ standalone = false }: { standalone?: boolean } = {}) {
   const l = teachLoop.value; // subscribe
   trackerState.value; // subscribe so banked XP + completion re-render
   const [busy, setBusy] = useState(false);
@@ -132,7 +137,12 @@ export function TeachSection() {
   const stepIx = STAGE_IX[l.stage];
 
   return (
-    <Collapsible id="teach" eyebrow="Teach" title="Teach today's topic" defaultOpen={false}>
+    <Collapsible
+      id={standalone ? 'teach-screen' : 'teach'}
+      eyebrow="Teach"
+      title="Teach today's topic"
+      defaultOpen={standalone}
+    >
       <p class="hint">
         You have not mastered a topic until you can teach it and defend it. Design a lesson, present it,
         get it graded, then defend it in office hours against four probing students. Scores the practice,

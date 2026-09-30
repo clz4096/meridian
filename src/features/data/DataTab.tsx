@@ -1,16 +1,19 @@
 /**
- * Data tab — status hero + storage stats + calm Cloud/AI/Backup cards + tucked
+ * Data tab — status head + storage stats + calm Cloud/AI/Backup cards + tucked
  * Advanced disclosure. Ports renderDataHTML to JSX; inputs stay uncontrolled (by
  * id) and are read via host.readValue in the handlers, matching the old flow.
  */
+import { useState } from 'preact/hooks';
 import { normaliseState, storageMetrics } from '@/features/data/dataSelectors';
 import type { DataViewModel } from '@/features/data/types';
 import type { StoreKey } from '@/core/storage/appState';
 import { sync, cloudEnabled } from '@/app/bootstrap';
 import { host } from '@/ui/host';
-import { dataRev, dataMsg } from '@/ui/store';
+import { dataRev, dataMsg, dataIo } from '@/ui/store';
 import { wk, sg, kg, core, tg, dataActions, discard } from '@/ui/actions';
 import { HealthPanel } from '@/features/data/HealthPanel';
+import { PageHead } from '@/ui/components/PageHead';
+import { IconCloud } from '@/ui/components/Icons';
 
 const KEYS: StoreKey[] = ['core', 'overload', 'surplus', 'csgraph', 'theorist'];
 
@@ -38,6 +41,37 @@ function dataVM(): DataViewModel {
 
 const rv = (id: string): string => host.readValue(id);
 
+/** The old launch animation, on demand. Three.js (~130 KB gzip) loads only on this tap. */
+function IntroCard() {
+  const [state, setState] = useState<'idle' | 'loading' | 'failed'>('idle');
+  const play = (e: Event): void => {
+    if (state === 'loading') return;
+    // Passed explicitly: focus returns here when the intro closes.
+    const opener = e.currentTarget as HTMLElement;
+    setState('loading');
+    import('@/landing/index').then(
+      (m) => { setState('idle'); m.playIntro(opener); },
+      () => setState('failed'),
+    );
+  };
+  return (
+    <div class="dcard">
+      <div class="dcard-h">
+        <span class="dcard-t">Intro</span>
+      </div>
+      <div class="dcard-desc">The animated Meridian constellation. Enter or Escape closes it.</div>
+      <div class="dactions">
+        <button class="mbtn" type="button" onClick={play} aria-busy={state === 'loading'}>
+          {state === 'loading' ? 'Loading…' : 'Play the intro'}
+        </button>
+      </div>
+      {state === 'failed' && (
+        <div class="note" role="alert">Couldn’t load the intro. Check your connection, then try again.</div>
+      )}
+    </div>
+  );
+}
+
 export function DataView() {
   dataRev.value; // re-derive on store/sync/message changes
   const vm = dataVM();
@@ -49,32 +83,19 @@ export function DataView() {
 
   return (
     <>
-      {/* status hero — the glow + hero value tint by sync state */}
-      <div class="sechero">
-        <div class="sechero-wash" data-tone={statusTone} />
-        <div class="sechero-in">
-          <div class="sechero-eyb">Data · Sync</div>
-          <div class="sechero-row">
-            <div class={'sechero-v tone-' + statusTone}>
-              <span class="ddot" />
-              {statusLabel}
-            </div>
-            <div class="sechero-sub">
-              rev {s.baseRev}
-              {s.dirtyStores.length ? (
-                <>
-                  <br />
-                  {s.dirtyStores.length} unsynced
-                </>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </div>
+      <PageHead
+        title="Data"
+        note={
+          <>
+            <span class={'tone-' + statusTone}>{statusLabel}</span> · rev {s.baseRev}
+            {s.dirtyStores.length ? ` · ${s.dirtyStores.length} unsynced` : ''}
+          </>
+        }
+      />
 
       {/* Result of the last Push / Pull / Export / Import, visible without opening Settings. */}
       {s.lastMessage && (
-        <div id="d-cloudmsg" class="note" role="status" style={'margin-top:12px;color:' + (s.lastMessageBad ? 'var(--deficit)' : 'var(--ok)')}>
+        <div id="d-cloudmsg" class="note" role="status" style={'margin-top:12px;color:' + (s.lastMessageBad ? 'var(--danger)' : 'var(--ok)')}>
           {s.lastMessage}
         </div>
       )}
@@ -120,10 +141,10 @@ export function DataView() {
         {s.cloudConfigured && (
           <div class="dactions">
             <button class="mbtn" onClick={dataActions.push}>
-              ☁↑ Push
+              <IconCloud />↑ Push
             </button>
             <button class="mbtn" onClick={dataActions.pull}>
-              ☁↓ Pull
+              <IconCloud />↓ Pull
             </button>
           </div>
         )}
@@ -134,8 +155,8 @@ export function DataView() {
               Create a Supabase project + public bucket, then paste your Project URL and anon key. The ID stays on this
               device only.
             </div>
-            <input id="d-pantry" class="minp" placeholder="Project URL" defaultValue={s.pantryId} />
-            <input id="d-pantry-appkey" class="minp" type="password" placeholder="Anon key" />
+            <input id="d-pantry" class="minp" placeholder="Project URL" aria-label="Supabase project URL" defaultValue={s.pantryId} />
+            <input id="d-pantry-appkey" class="minp" type="password" placeholder="Anon key" aria-label="Supabase anon key" />
             <div class="dactions">
               <button class="mbtn primary" onClick={() => dataActions.savePantryId(rv('d-pantry').trim(), rv('d-pantry-appkey').trim())}>
                 Save
@@ -147,7 +168,7 @@ export function DataView() {
                 Status
               </button>
             </div>
-            <div id="d-diagout" class="note" style="font-family:var(--mono);font-size:12px;white-space:pre-line" />
+            <div id="d-diagout" class="note" style="font-family:var(--font-mono);font-size:var(--fs-1);white-space:pre-line" />
           </div>
         </details>
       </div>
@@ -184,18 +205,27 @@ export function DataView() {
           <button class="mbtn primary" onClick={dataActions.exportAll}>
             Export
           </button>
-          <button class="mbtn" onClick={() => dataActions.importPasted(rv('d-io'))}>
+          <button class="mbtn" onClick={() => dataActions.importPasted(dataIo.value)}>
             Import
           </button>
           <button class="mbtn" onClick={dataActions.copyToClipboard}>
             Copy
           </button>
         </div>
-        <textarea id="d-io" class="dictxt" placeholder="Exported JSON appears here." />
+        <textarea
+          id="d-io"
+          class="dictxt"
+          placeholder="Exported JSON appears here."
+          aria-label="Backup JSON"
+          value={dataIo.value}
+          onInput={(e) => { dataIo.value = (e.currentTarget as HTMLTextAreaElement).value; }}
+        />
         <div id="d-msg" class="note" style="color:var(--ok)" />
       </div>
 
       <HealthPanel />
+
+      <IntroCard />
 
       <details class="ddisc dadv">
         <summary>Advanced &amp; recovery</summary>
@@ -208,7 +238,7 @@ export function DataView() {
           </button>
           <div class="dadv-sec">Restore a single-app backup</div>
           <div class="dactions">
-            <select id="d-single-key" class="minp">
+            <select id="d-single-key" class="minp" aria-label="Which app to restore">
               <option value="overload">Workout</option>
               <option value="surplus">Meals</option>
               <option value="csgraph">Knowledge</option>
@@ -218,7 +248,7 @@ export function DataView() {
               Import
             </button>
           </div>
-          <textarea id="d-single-io" class="dictxt" placeholder="Paste one app's raw backup JSON here." />
+          <textarea id="d-single-io" class="dictxt" placeholder="Paste one app's raw backup JSON here." aria-label="Single-app backup JSON" />
           <button class="dadv-btn danger" onClick={discard}>
             Discard unsaved changes<small>revert edits since the last save</small>
           </button>

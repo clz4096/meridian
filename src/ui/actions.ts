@@ -7,19 +7,20 @@
  * The mounted-view `clearEdits` calls are gone — input clearing is handled in the
  * components (Preact keeps DOM identity across renders).
  */
+import { signal } from '@preact/signals';
 import { RestTimer } from '@/ui/restTimer';
 import { chime, unlockChime } from '@/ui/chime';
 import { inferIncrement, restSeconds, plannedSetCount, isExerciseComplete, weekStrength, trainedDaysInWeek, WEEK_TRAINING_TARGET } from '@/features/workout/workoutSelectors';
 import type { WorkoutActions } from '@/features/workout/types';
-import { shiftDate } from '@/core/util';
+import { groupThousands, shiftDate } from '@/core/util';
 import { navStart } from '@/core/telemetry';
 import { DEFAULT_CONFIG, type SetType, type SessionOverrides } from '@/core/types';
 import { dueCards, isDue, interviewDeck, interviewRelevant, interviewPreset, normalizeGenerated, isMastered } from '@/features/knowledge/knowledgeSelectors';
 import { scheduleFsrs, queuedEntry, readFsrs, type Grade } from '@/features/knowledge/fsrs';
 import { GRADE_MASTERY } from '@/features/knowledge/ascent';
 import type { KnowledgeActions } from '@/features/knowledge/types';
-import { fetchQuestionBank } from '@/features/knowledge/questionBank';
-import { aiCall, estimateMacros, generateQuestions } from '@/services/ai';
+import { fetchQuestionBank, fetchQuestionIndex } from '@/features/knowledge/questionBank';
+import type { AiRequest, AiResult, MacroEstimate, GenResult } from '@/services/ai';
 import type { MealActions, MealPreset } from '@/features/meal/types';
 import { exportBundle, serialise, importBundle, normaliseState, storageMetrics } from '@/features/data/dataSelectors';
 import type { DataActions } from '@/features/data/types';
@@ -43,6 +44,18 @@ export const sg = (): Store => appState.get('surplus');
 export const kg = (): Store => appState.get('csgraph');
 export const core = (): Store => appState.get('core');
 export const tg = (): Store => appState.get('theorist');
+
+/* ── AI (action-time only) ── */
+// The AI client loads on the first AI tap, not at startup. The chunk is precached, so
+// the import only fails on a never-cached, offline launch; that reads as a failed call.
+const aiModule = (): Promise<typeof import('@/services/ai')> => import('@/services/ai');
+const aiUnavailable = 'the AI module could not load (offline?)';
+const aiCall = (req: AiRequest): Promise<AiResult> =>
+  aiModule().then((m) => m.aiCall(req), () => ({ ok: false, error: aiUnavailable }));
+const estimateMacros = (desc: string): Promise<MacroEstimate> =>
+  aiModule().then((m) => m.estimateMacros(desc), () => ({ error: aiUnavailable }));
+const generateQuestions = (topicName: string, count: number, avoid: string[]): Promise<GenResult> =>
+  aiModule().then((m) => m.generateQuestions(topicName, count, avoid), () => ({ ok: false, error: aiUnavailable }));
 // One history entry per pushed nav level above home. `navDepth` lets the Home
 // button collapse the whole stack so a later hardware Back doesn't hit dead
 // intermediate entries. Back (chrome or hardware) always flows through popstate.
@@ -340,11 +353,22 @@ export async function retryQuestionBank(): Promise<void> {
   await loadQuestionBank();
   st.bump();
 }
+/** The knowledge store alone: what Today's tile and the sync gate need. */
+const loadKnowledgeStore = once(async () => {
+  appState.set('csgraph', await appState.loadKnowledge(kg()));
+  markStoreLoaded('csgraph');
+});
+/** The curated question ids (a few KB): enough for Today's mastery %, without the
+ *  550 KB bank. A failed fetch rejects, so the next visit to Today retries it. */
+const loadQuestionIndex = once(async () => {
+  const ids = await fetchQuestionIndex();
+  if (!ids) throw new Error('question index unavailable');
+  st.kgIndexIds.value = ids;
+});
 export const loadKnowledge = once(async () => {
   // Read the store before the (network) bank fetch so the sync gate isn't held
   // shut by a slow download; the tab still waits for both via kgLoaded.
-  appState.set('csgraph', await appState.loadKnowledge(kg()));
-  markStoreLoaded('csgraph');
+  await loadKnowledgeStore();
   await loadQuestionBank();
   st.kgLoaded.value = true;
   st.bump();
@@ -867,7 +891,7 @@ export function undoDelete(): void {
   st.bump();
 }
 
-registerLoadAll(() => Promise.all([loadWorkout(), loadKnowledge(), loadMeal()]).then(() => undefined));
+registerLoadAll(() => Promise.all([loadWorkout(), loadKnowledgeStore(), loadMeal()]).then(() => undefined));
 
 /**
  * Midnight passed with the app open (or it came back to the foreground on a new
@@ -1044,8 +1068,8 @@ export const dataActions: DataActions = {
       dstr(),
     );
     const text = serialise(bundle);
+    st.dataIo.value = text;
     dmsg('Exported all 5 stores.');
-    host.setValue('d-io', text);
   },
   importPasted(text) {
     const r = importBundle(text);
@@ -1067,7 +1091,7 @@ export const dataActions: DataActions = {
     });
   },
   async copyToClipboard() {
-    const io = host.readValue('d-io');
+    const io = st.dataIo.value;
     if (io) {
       const ok = await host.copy(io);
       dmsg(ok ? 'Copied.' : 'Copy failed — select and copy manually.', !ok);
@@ -1258,18 +1282,35 @@ export const scratchActions = {
 };
 
 /* ── hub + navigation ── */
-// The Data tile's "X KB" subtitle needs a full JSON.stringify of all four stores,
-// but hubStats() reruns on every render. The payload only changes when a store is
-// mutated, and every mutation bumps dataRev — so cache the size keyed on dataRev
-// and recompute at most once per bump (identical value, no per-render stringify).
+// The Data tile's "X KB" subtitle needs a full normalise + JSON.stringify of all five
+// stores (about 100 ms at 4x CPU with 90 days of data). Doing it inside Today's render
+// put it on the startup path once per store load, because every load bumps dataRev.
+// So Today shows the last computed size and the recount runs at idle once dataRev has
+// been quiet for a second (boot's store loads bump it several times in a row); the tile
+// updates when it lands (null only before the first count).
+const kbSize = signal<number | null>(null);
 let kbMemoRev = -1;
-let kbMemo = 0;
-function storageKB(): number {
-  if (kbMemoRev === st.dataRev.value) return kbMemo;
-  const state = normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: tg() });
-  kbMemo = Math.round(JSON.stringify(state).length / 102.4) / 10;
-  kbMemoRev = st.dataRev.value;
-  return kbMemo;
+let kbQueued = false;
+function queueCountKB(): void {
+  const rev = st.dataRev.peek();
+  window.setTimeout(() => {
+    if (st.dataRev.peek() !== rev) return queueCountKB(); // still changing: wait again
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 0));
+    idle(() => {
+      kbQueued = false;
+      const now = st.dataRev.peek();
+      const state = normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: tg() });
+      kbMemoRev = now;
+      kbSize.value = Math.round(JSON.stringify(state).length / 102.4) / 10;
+    });
+  }, 1000);
+}
+function storageKB(): number | null {
+  if (kbMemoRev !== st.dataRev.value && !kbQueued) {
+    kbQueued = true;
+    queueCountKB();
+  }
+  return kbSize.value;
 }
 export function hubStats(): HubStat[] {
   const today = dstr();
@@ -1279,9 +1320,13 @@ export function hubStats(): HubStat[] {
   // Scope to the curated bank ONLY (exclude the ad-hoc AI-generated pool), so
   // generating cards can't silently move the headline number up or down; a stale
   // mastery row (a retired question) also can't push it over 100.
-  const bank = st.kgItems.value;
+  // The ids come from questions/index.json, so Today never downloads the bank; the
+  // loaded bank is the fallback (same ids: questionIndex.test.ts guards the drift).
   const validIds = new Set<string>();
-  Object.keys(bank).forEach((tp) => (bank[tp] || []).forEach((it: Store) => validIds.add(String(it.id))));
+  const index = st.kgIndexIds.value;
+  const bank = st.kgItems.value;
+  if (index) Object.values(index).forEach((ids) => ids.forEach((id) => validIds.add(id)));
+  else Object.keys(bank).forEach((tp) => (bank[tp] || []).forEach((it: Store) => validIds.add(String(it.id))));
   const totalQ = validIds.size;
   const mastered = Object.keys(K.mastery ?? {}).filter((id) => validIds.has(id) && isMastered(K, id, today)).length;
   const masteryPct = totalQ ? Math.round((100 * mastered) / totalQ) : 0;
@@ -1310,8 +1355,8 @@ export function hubStats(): HubStat[] {
     { key: 'tracker', label: 'Princeton Roadmap', desc: 'Theory study roadmap', value: String(tsum.todayXP), unit: ' XP', sub: `Lv ${tsum.level} · ${tsum.streak}/7`, tone: 'orange' },
     { key: 'roadmap', label: 'WGU Roadmap', desc: 'Course finish plan', value: `${rsum.done}/${rsum.total}`, unit: '', sub: 'courses', tone: 'blue' },
     { key: 'workout', label: 'Workout', desc: 'Training log & progression', value: wkWord, unit: '', sub: `${wkTrained} of ${WEEK_TRAINING_TARGET} days`, tone: wkGrade === 'strong' ? 'ok' : wkGrade === 'weak' ? 'kcal' : '' },
-    { key: 'meal', label: 'Food & Body', desc: 'Calories & bodyweight', value: todayCal.toLocaleString('en-US'), unit: ' kcal', sub: todayCal ? 'today' : 'not logged', tone: 'kcal' },
-    { key: 'data', label: 'Data', desc: 'Sync, storage & export', value: cloudEnabled() ? (dirty ? 'Unsaved' : 'Synced') : 'Local', unit: '', sub: `${kb} KB`, tone: !cloudEnabled() || dirty ? '' : 'ok', dot: cloudEnabled() && !dirty },
+    { key: 'meal', label: 'Food & Body', desc: 'Calories & bodyweight', value: groupThousands(todayCal), unit: ' kcal', sub: todayCal ? 'today' : 'not logged', tone: 'kcal' },
+    { key: 'data', label: 'Data', desc: 'Sync, storage & export', value: cloudEnabled() ? (dirty ? 'Unsaved' : 'Synced') : 'Local', unit: '', sub: kb === null ? 'storage' : `${kb} KB`, tone: !cloudEnabled() || dirty ? '' : 'ok', dot: cloudEnabled() && !dirty },
   ];
 }
 
@@ -1326,8 +1371,24 @@ export function ensureLoaded(tab: st.Tab): void {
   }
 }
 
+// Today's scroll offset when a section was opened from it. A pushState keeps the page
+// where it was, so without this a section opened from the bottom of Today would start
+// mid-screen; Back to Today puts the reader back where they left it.
+let todayScrollY = 0;
+// Run after the signal-driven render (a microtask) and before the next paint, so the
+// new screen's first frame is already at the right offset.
+const afterRender = (fn: () => void): void => {
+  if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(fn);
+  else window.setTimeout(fn, 0);
+};
+
 /** Return to the Today home (the pill-Back target for trackers). */
 export function goHome(): void {
+  const leaving = st.currentTab.value !== 'today';
+  if (leaving) {
+    const y = todayScrollY;
+    afterRender(() => window.scrollTo(0, y));
+  }
   st.currentTab.value = 'today';
   st.activeExercise.value = null; // clear the workout exercise-detail level (was leaking on re-entry)
   loadForHome();
@@ -1352,6 +1413,7 @@ export function onPopNav(): void {
 /** Drill into a tracker section (from Today's at-a-glance); pushes history for back. */
 export function openSection(tab: st.Tab): void {
   navStart(tab);
+  if (st.currentTab.value === 'today') todayScrollY = window.scrollY;
   st.currentTab.value = tab;
   st.activeExercise.value = null; // never re-enter a stale exercise detail
   // Entering Knowledge always asks which study mode (At Home / Gym / Interview) first.
@@ -1364,6 +1426,7 @@ export function openSection(tab: st.Tab): void {
   }
   ensureLoaded(tab);
   pushState();
+  afterRender(() => window.scrollTo(0, 0)); // a new screen starts at its top
 }
 
 
@@ -1412,7 +1475,7 @@ export function handleBack(): boolean {
 export function loadForHome(): void {
   const pending: Array<Promise<void>> = [];
   if (!st.wkLoaded.value) pending.push(loadWorkout());
-  if (!st.kgLoaded.value) pending.push(loadKnowledge());
+  if (!st.kgLoaded.value) pending.push(loadKnowledgeStore(), loadQuestionIndex());
   if (!st.sgLoaded.value) pending.push(loadMeal());
   if (pending.length) void Promise.all(pending.map((p) => p.catch(() => undefined))).then(() => st.bump());
 }
@@ -1426,7 +1489,7 @@ export async function refreshWeather(): Promise<void> {
   if (w) st.weather.value = w;
 }
 export function setWeatherCity(): void {
-  const c = host.prompt('City for weather (leave blank to use my location)', savedCity());
+  const c = host.prompt('City for weather (leave blank for Brooklyn, NY)', savedCity());
   if (c === null) return;
   setSavedCity(c.trim());
   void refreshWeather();

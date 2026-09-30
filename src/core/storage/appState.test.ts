@@ -350,9 +350,25 @@ describe('appState: permanent cloud errors and the saved flash', () => {
 
   it('does not flash "Saved" when the cloud push failed', () => {
     const t = build();
+    t.appState.markDirty();
     t.onStatus({ localOk: true, localFailed: [], cloud: 'failed', cloudError: { kind: 'server', message: 'x' } });
     expect(t.host.flashSaved).not.toHaveBeenCalled();
     t.onStatus({ localOk: true, localFailed: [], cloud: 'synced', cloudError: null });
+    expect(t.host.flashSaved).toHaveBeenCalledTimes(1);
+  });
+
+  it('flashes only for a save that carries a user edit', () => {
+    const synced: SaveResult = { localOk: true, localFailed: [], cloud: 'synced', cloudError: null };
+    const t = build();
+    t.onStatus(synced); // a boot-time save with no edit behind it
+    expect(t.host.flashSaved).not.toHaveBeenCalled();
+    t.appState.markTheoristDirty({ system: true }); // the day rollover on a fresh profile
+    t.onStatus(synced);
+    expect(t.host.flashSaved).not.toHaveBeenCalled();
+    t.appState.markTheoristDirty(); // the user scored an item
+    t.onStatus(synced);
+    expect(t.host.flashSaved).toHaveBeenCalledTimes(1);
+    t.onStatus(synced); // the next save has nothing new to confirm
     expect(t.host.flashSaved).toHaveBeenCalledTimes(1);
   });
 });

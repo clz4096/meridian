@@ -9,6 +9,23 @@
 import type { GraphColors, GraphConfig } from '@/landing/graph';
 import { EDGE_SOLID, RING_SOLID, TOKENS, readToken } from '@/ui/tokens';
 
+/**
+ * The intro's night field. The graph draws with additive blending, which washes
+ * coral out to near white on the cream page, so the full-screen intro sits on
+ * --ink instead and lights its nodes and lines with the warm tokens. landing.css
+ * sets the same field for the overlay text.
+ */
+function nightColors(): GraphColors {
+  return {
+    // The light tokens, because additive glow needs bright hues to read on dark.
+    core: readToken('--accent-2', TOKENS.accent2),
+    hub: readToken('--peach', TOKENS.peach),
+    void: readToken('--ink', TOKENS.text),
+    edge: readToken('--sand', TOKENS.sand),
+    ring: readToken('--accent-2', TOKENS.accent2),
+  };
+}
+
 /** Colours from the live CSS tokens, falling back to the typed constants. */
 function colors(): GraphColors {
   return {
@@ -35,7 +52,7 @@ export function landingPreset(): GraphConfig {
     interactive: true,
     dim: 1,
     bloom: false,
-    colors: colors(),
+    colors: nightColors(),
   };
 }
 
@@ -52,5 +69,7 @@ export function backgroundPreset(): GraphConfig {
     still: true,
     dim: 0.55,
     maxDpr: 1.5,
+    // A background sits behind the cream app, not on the intro's night field.
+    colors: colors(),
   };
 }

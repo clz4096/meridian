@@ -5,20 +5,13 @@
  * table-of-contents hub.
  */
 import { useEffect } from 'preact/hooks';
-import { signal } from '@preact/signals';
+import { signal, type Signal } from '@preact/signals';
 import type { ComponentType } from 'preact';
 import { currentTab, sgLogOpen, kgProgressOpen, kgGym, kgOverview, kgSession, kgInterview, type Tab } from '@/ui/store';
-import { navHome, onPopNav, loadForHome, rolloverIfNewDay } from '@/ui/actions';
+import { navHome, onPopNav, loadForHome, rolloverIfNewDay, openSection } from '@/ui/actions';
 import { navEnd } from '@/core/telemetry';
 import { SaveChip, RestBar, UndoToast } from '@/ui/components/Chrome';
 import { TodayView } from '@/features/today/TodayTab';
-import { DataView } from '@/features/data/DataTab';
-import { MealView } from '@/features/meal/MealTab';
-import { KnowledgeView } from '@/features/knowledge/KnowledgeTab';
-import { WorkoutView } from '@/features/workout/WorkoutTab';
-import { TodosView } from '@/features/todos/TodosTab';
-import { ScratchView } from '@/features/scratch/ScratchTab';
-import { WGURoadmapView } from '@/features/wgu/WGURoadmap';
 
 // Historical pane ids (the meal tab's pane is #pane-weight) the CSS still targets.
 const PANE_ID: Record<Tab, string> = {
@@ -31,53 +24,103 @@ const PANE_ID: Record<Tab, string> = {
   data: 'pane-data',
   tracker: 'pane-tracker',
   roadmap: 'pane-roadmap',
+  wgu: 'pane-roadmap',
+  math: 'pane-math',
+  cs: 'pane-cs',
+  teach: 'pane-teach',
 };
 
-// The Princeton tracker is ~150 KB minified (the algorithm catalogue, proofs, papers,
-// teaching simulator): a third of the app bundle. It loads in its own chunk, prefetched
-// at idle right after Enter so the first tap on its tile doesn't wait on it.
-let TrackerView: ComponentType | null = null;
-const trackerReady = signal(false);
-const trackerFailed = signal(false);
-let trackerLoad: Promise<void> | null = null;
-function loadTracker(): Promise<void> {
-  trackerLoad ??= import('@/features/studytracker/StudyTracker').then(
-    (m) => {
-      TrackerView = m.StudyTrackerView;
-      trackerReady.value = true;
+/**
+ * One section view in its own chunk. Only Today is in the entry bundle: every other
+ * section loads on demand, and all of them are prefetched at idle after the first
+ * Today paint, so a tap on a tile normally finds the chunk already there. A failed
+ * load shows an error whose "Try again" reloads the page into that section (see reloadInto).
+ */
+interface LazyView {
+  View: ComponentType | null;
+  ready: Signal<boolean>;
+  failed: Signal<boolean>;
+  load(): Promise<void>;
+}
+function lazyView(importer: () => Promise<ComponentType>): LazyView {
+  let inflight: Promise<void> | null = null;
+  const v: LazyView = {
+    View: null,
+    ready: signal(false),
+    failed: signal(false),
+    load() {
+      inflight ??= importer().then(
+        (View) => {
+          v.View = View;
+          v.ready.value = true;
+        },
+        () => {
+          inflight = null; // allow a retry
+          v.failed.value = true;
+        },
+      );
+      return inflight;
     },
-    () => {
-      trackerLoad = null; // allow a retry
-      trackerFailed.value = true;
-    },
-  );
-  return trackerLoad;
+  };
+  return v;
+}
+
+// `roadmap` is an alias of the WGU path screen: one loader, so it is fetched once.
+const wguView = lazyView(() => import('@/features/wgu/WGURoadmap').then((m) => m.WGURoadmapView));
+
+// The Princeton tracker is the biggest (~150 KB minified: the algorithm catalogue,
+// proofs, papers, teaching simulator); the rest are 10 to 60 KB each.
+const LAZY: Record<Exclude<Tab, 'today'>, LazyView> = {
+  todos: lazyView(() => import('@/features/todos/TodosTab').then((m) => m.TodosView)),
+  scratch: lazyView(() => import('@/features/scratch/ScratchTab').then((m) => m.ScratchView)),
+  knowledge: lazyView(() => import('@/features/knowledge/KnowledgeTab').then((m) => m.KnowledgeView)),
+  workout: lazyView(() => import('@/features/workout/WorkoutTab').then((m) => m.WorkoutView)),
+  meal: lazyView(() => import('@/features/meal/MealTab').then((m) => m.MealView)),
+  data: lazyView(() => import('@/features/data/DataTab').then((m) => m.DataView)),
+  tracker: lazyView(() => import('@/features/studytracker/StudyTracker').then((m) => m.StudyTrackerView)),
+  roadmap: wguView,
+  wgu: wguView,
+  // MathPathView takes an optional `now` for its tests; the app renders it with none.
+  math: lazyView(() => import('@/features/paths/MathPath').then(({ MathPathView }) => () => <MathPathView />)),
+  cs: lazyView(() => import('@/features/paths/CSPath').then((m) => m.CSPathView)),
+  teach: lazyView(() => import('@/features/today/TeachScreen').then((m) => m.TeachScreen)),
+};
+
+// Chrome keeps a failed module fetch in the page's module map, so calling import()
+// again for the same chunk fails at once without touching the network. The only
+// reliable retry is a fresh page: reload, then reopen the section that failed.
+const REOPEN_KEY = 'meridian.reopen';
+function reloadInto(tab: Tab): void {
+  try { sessionStorage.setItem(REOPEN_KEY, tab); } catch { /* private mode: lands on Today */ }
+  window.location.reload();
+}
+function takeReopen(): Tab | null {
+  try {
+    const t = sessionStorage.getItem(REOPEN_KEY) as Tab | null;
+    sessionStorage.removeItem(REOPEN_KEY);
+    return t && t !== 'today' && t in LAZY ? t : null;
+  } catch {
+    return null;
+  }
 }
 
 function Section({ tab }: { tab: Tab }) {
   if (tab === 'today') return <TodayView />;
-  if (tab === 'todos') return <TodosView />;
-  if (tab === 'scratch') return <ScratchView />;
-  if (tab === 'data') return <DataView />;
-  if (tab === 'meal') return <MealView />;
-  if (tab === 'knowledge') return <KnowledgeView />;
-  if (tab === 'tracker') {
-    if (trackerReady.value && TrackerView) return <TrackerView />;
-    if (trackerFailed.value) {
-      return (
-        <div class="pane-loading note" role="alert">
-          Couldn’t load this section. Check your connection, then{' '}
-          <button class="mbtn" type="button" onClick={() => { trackerFailed.value = false; void loadTracker(); }}>
-            Try again
-          </button>
-        </div>
-      );
-    }
-    void loadTracker();
-    return <div class="pane-loading note" role="status">Loading…</div>;
+  const lazy = LAZY[tab];
+  const View = lazy.View;
+  if (lazy.ready.value && View) return <View />;
+  if (lazy.failed.value) {
+    return (
+      <div class="pane-loading note" role="alert">
+        Couldn’t load this section. Check your connection, then{' '}
+        <button class="mbtn" type="button" onClick={() => reloadInto(tab)}>
+          Try again
+        </button>
+      </div>
+    );
   }
-  if (tab === 'roadmap') return <WGURoadmapView />;
-  return <WorkoutView />;
+  void lazy.load();
+  return <div class="pane-loading note" role="status">Loading…</div>;
 }
 
 export function App() {
@@ -89,13 +132,24 @@ export function App() {
   }, [home]);
 
   // A lazy pane counts as opened once its real content renders, not its placeholder.
-  const ready = tab !== 'tracker' || trackerReady.value;
+  const ready = tab === 'today' || LAZY[tab].ready.value;
   useEffect(() => { if (ready) navEnd(tab); }, [tab, ready]);
 
   useEffect(() => {
     loadForHome(); // Today's at-a-glance needs every tracker store
+    const reopen = takeReopen();
+    if (reopen) openSection(reopen);
     const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500));
-    idle(() => void loadTracker());
+    // Prefetch every section after the first Today paint. One per idle slot, so a
+    // slow phone never parses all of them in one long task.
+    // Without requestIdleCallback (Safari), wait out startup once, then go back to back.
+    const queue = [...new Set(Object.values(LAZY))];
+    const soon = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 50));
+    const next = (): void => {
+      const v = queue.shift();
+      if (v) void v.load().finally(() => soon(next));
+    };
+    idle(next);
     window.addEventListener('popstate', onPopNav);
     // Catch midnight while open, and a new day on return from the background.
     // (A pending delete is applied on hide by bootstrap, before its save.)

@@ -2,32 +2,74 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <!-- No maximum-scale: every input is 16px or more, so iOS never zooms on focus, and pinch zoom stays on (WCAG 1.4.4). -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Meridian</title>
-  <meta name="theme-color" content="#070B14">
-  <!-- Dark only: native controls, scrollbars, and autofill render dark too. -->
-  <meta name="color-scheme" content="dark">
+  <!-- Palette A --bg (src/styles/tokens.css). -->
+  <meta name="theme-color" content="#FAF6F0">
+  <!-- Light only: native controls, scrollbars, and autofill render light too. -->
+  <meta name="color-scheme" content="light">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Dark status-bar text: the page is cream now, and translucent white text would vanish on it. -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Meridian">
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <!-- Critical: paint the dark ground on the very first frame, before the bundled CSS loads,
-       so the landing never flashes white. Matches --void / theme-color. -->
-  <style>html{margin:0;background:#070B14}body{margin:0}</style>
+  <!-- The two variable fonts, fetched with the CSS instead of after it is parsed. -->
+  <link rel="preload" href="/src/assets/fonts/source-sans-3-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/src/assets/fonts/source-code-pro-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- Critical: the cream page, ink and skeleton color from palette A, so the static
+       Today frame below never paints on a white or dark ground. The bundled CSS styles
+       the frame itself, with the same classes the app renders (DECISIONS D15). -->
+  <style>html,body{margin:0;background:#FAF6F0;color:#2A211C;font-family:'Source Sans 3','Source Sans 3 Fallback',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}.m-skel{background:#F3ECE2}</style>
 </head>
-<body>
-<div id="bg-graph"></div>
-<div id="app"></div>
-<div id="landing">
-  <div id="stage"></div>
-  <div class="overlay">
-    <div class="mark">MERIDIA<span>N</span></div>
-    <div class="bottom">
-      <p class="tag">A quiet place for the things you're tracking.</p>
-      <a class="enter" href="#" id="enter">Enter Meridian <span class="arrow">&#8594;</span></a>
+<body class="at-home">
+<div id="app">
+  <!-- Static Today frame: the same markup and sizes as the app's loading state, so the
+       first paint is the real layout and nothing moves when Preact replaces it
+       (src/app/main.tsx clears this and renders in one task). Keep in step with
+       src/ui/App.tsx, src/features/today/*.tsx and src/features/paths/PathCard.tsx. -->
+  <div class="appwrap">
+    <div class="brandrow"><div class="brand"><b>Meridia<span class="mn">n</span></b></div></div>
+    <div class="tabpane on" id="pane-today">
+      <div class="td-root">
+        <section class="td-wx" aria-labelledby="td-date">
+          <h1 class="td-date m-label" id="td-date">Today</h1>
+          <script>
+            (function () {
+              var d = new Date();
+              var D = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+              var M = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+              document.getElementById('td-date').textContent = D[d.getDay()] + ' · ' + d.getDate() + ' ' + M[d.getMonth()];
+            })();
+          </script>
+          <div class="td-wx-body" aria-busy="true">
+            <div class="td-wx-skel" aria-label="Loading weather">
+              <div class="td-wx-main">
+                <div class="td-wx-where"><span class="m-skel m-skel-line td-w-40"></span><span class="m-skel m-skel-line td-w-30"></span></div>
+                <span class="m-skel td-wx-skel-temp"></span>
+              </div>
+              <span class="m-skel td-wx-skel-grid"></span>
+              <div class="td-wx-foot"><span class="m-skel m-skel-line td-w-30"></span></div>
+            </div>
+          </div>
+        </section>
+        <section class="td-block" aria-labelledby="td-reading-h">
+          <div class="m-section"><h2 class="td-h2" id="td-reading-h">Today's reading</h2><span class="m-label">Paper of the week</span></div>
+          <div class="m-card td-read" aria-busy="true" aria-label="Loading today's reading">
+            <span class="m-skel m-skel-line td-w-40"></span><span class="m-skel m-skel-line td-w-80"></span><span class="m-skel m-skel-line td-w-60"></span><span class="m-skel td-read-skel-btn"></span>
+          </div>
+        </section>
+        <section class="td-block" aria-labelledby="td-studies-h">
+          <div class="m-section"><h2 class="td-h2" id="td-studies-h">Today's studies</h2><span class="m-label">Next step on each path</span></div>
+          <div class="td-paths">
+            <div class="m-card pc pc-skel" aria-busy="true" aria-label="Loading WGU path"><span class="pc-top"><span class="m-label">WGU</span></span><span class="m-skel m-skel-line pc-w-80"></span><span class="m-skel m-skel-line pc-w-60"></span><span class="m-skel m-skel-line pc-w-40"></span><span class="m-skel pc-skel-bar"></span><span></span></div>
+            <div class="m-card pc pc-skel" aria-busy="true" aria-label="Loading Math path"><span class="pc-top"><span class="m-label">Math</span></span><span class="m-skel m-skel-line pc-w-80"></span><span class="m-skel m-skel-line pc-w-60"></span><span class="m-skel m-skel-line pc-w-40"></span><span class="m-skel pc-skel-bar"></span><span></span></div>
+            <div class="m-card pc pc-skel" aria-busy="true" aria-label="Loading Computer Science path"><span class="pc-top"><span class="m-label">Computer Science</span></span><span class="m-skel m-skel-line pc-w-80"></span><span class="m-skel m-skel-line pc-w-60"></span><span class="m-skel m-skel-line pc-w-40"></span><span class="m-skel pc-skel-bar"></span><span></span></div>
+          </div>
+        </section>
+      </div>
     </div>
-    <div class="hint" id="hint">drag to rotate</div>
   </div>
 </div>
 <script type="module" src="/src/app/main.tsx"></script>

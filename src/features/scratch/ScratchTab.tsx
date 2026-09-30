@@ -8,6 +8,8 @@ import type { ScratchCard, ScratchStatus } from '@/core/types';
 import { dataRev, scratchFilter, scratchOpen, scratchAdding, notPending } from '@/ui/store';
 import { core, scratchActions } from '@/ui/actions';
 import { host } from '@/ui/host';
+import { PageHead } from '@/ui/components/PageHead';
+import { IconPlus } from '@/ui/components/Icons';
 
 const rv = (id: string): string => host.readValue(id);
 const FILTERS: Array<ScratchStatus | 'all'> = ['all', ...SCRATCH_STATUSES];
@@ -23,17 +25,18 @@ function Card({ c }: { c: ScratchCard }) {
           value={c.status}
           onChange={(e) => scratchActions.setStatus(id, (e.currentTarget as HTMLSelectElement).value)}
           title="Set status"
+          aria-label={`Status of ${c.title}`}
         >
           {SCRATCH_STATUSES.map((s) => (
             <option value={s}>{STATUS_LABEL[s]}</option>
           ))}
         </select>
-        <span class="scard-t" onClick={() => (scratchOpen.value = open ? null : id)}>
+        <button type="button" class="scard-t" aria-expanded={open} onClick={() => (scratchOpen.value = open ? null : id)}>
           {c.title}
-        </span>
-        <span class="scard-rm" onClick={() => scratchActions.remove(id)} title="Remove">
+        </button>
+        <button type="button" class="scard-rm" onClick={() => scratchActions.remove(id)} title="Remove" aria-label={`Remove ${c.title}`}>
           ×
-        </span>
+        </button>
       </div>
       {open ? (
         <div class="scard-edit">
@@ -42,6 +45,7 @@ function Card({ c }: { c: ScratchCard }) {
             class="minp"
             defaultValue={c.title}
             key={'t' + id}
+            aria-label="Idea title"
             onInput={() => scratchActions.edit(id, { title: rv('sc-title-' + id) })}
           />
           <textarea
@@ -49,6 +53,7 @@ function Card({ c }: { c: ScratchCard }) {
             class="minp scard-body-edit"
             defaultValue={c.body}
             key={'b' + id}
+            aria-label="Idea notes"
             onInput={() => scratchActions.edit(id, { body: rv('sc-body-' + id) })}
             placeholder="Notes, links, next step…"
           />
@@ -71,30 +76,18 @@ export function ScratchView() {
   const all = core().scratch ?? [];
   const total = all.length;
   const trying = all.filter((c: ScratchCard) => c.status === 'trying').length;
-  const sub = total === 0 ? 'nothing yet' : trying ? `${trying} in progress` : `${total} captured`;
+  const note = total === 0 ? 'Nothing yet' : `${total} ${total === 1 ? 'idea' : 'ideas'}` + (trying ? ` · ${trying} in progress` : '');
   const adding = scratchAdding.value;
 
   return (
     <>
 
-      <div class="sechero">
-        <div class="sechero-wash" data-tone="fuel" />
-        <div class="sechero-in">
-          <div class="sechero-eyb">Scratchpad</div>
-          <div class="sechero-row">
-            <div class="sechero-v tone-fuel">
-              {total}
-              <span class="sechero-u">ideas</span>
-            </div>
-            <div class="sechero-sub">{sub}</div>
-          </div>
-        </div>
-      </div>
+      <PageHead title="Scratchpad" note={note} />
 
       {adding && (
         <div class="addcard">
-          <input id="scratch-title" class="minp" placeholder="Idea title" />
-          <textarea id="scratch-body" class="minp scratch-body-new" placeholder="What's the idea? (optional notes)" />
+          <input id="scratch-title" class="minp" placeholder="Idea title" aria-label="Idea title" />
+          <textarea id="scratch-body" class="minp scratch-body-new" placeholder="What's the idea? (optional notes)" aria-label="Idea notes" />
           <div class="mrow" style="margin-top:8px">
             <button class="madd" onClick={() => scratchActions.add(rv('scratch-title'), rv('scratch-body'))}>
               Capture
@@ -105,14 +98,14 @@ export function ScratchView() {
 
       <div class="mchips scratch-filters">
         {FILTERS.map((f) => (
-          <button class={'mchip' + (filter === f ? ' on' : '')} onClick={() => (scratchFilter.value = f)}>
+          <button class={'mchip' + (filter === f ? ' on' : '')} aria-pressed={filter === f} onClick={() => (scratchFilter.value = f)}>
             {f === 'all' ? 'All' : STATUS_LABEL[f]}
           </button>
         ))}
       </div>
 
       {cards.length === 0 ? (
-        <div class="empty">{filter === 'all' ? 'No ideas yet. Tap ＋ to capture one.' : 'Nothing here.'}</div>
+        <div class="empty">{filter === 'all' ? 'No ideas yet. Tap + to capture one.' : 'Nothing here.'}</div>
       ) : (
         cards.map((c) => <Card c={c} />)
       )}
@@ -122,7 +115,7 @@ export function ScratchView() {
         onClick={() => (scratchAdding.value = !adding)}
         aria-label={adding ? 'Close' : 'Capture an idea'}
       >
-        {adding ? '×' : '＋'}
+        {adding ? '×' : <IconPlus size="24px" />}
       </button>
     </>
   );

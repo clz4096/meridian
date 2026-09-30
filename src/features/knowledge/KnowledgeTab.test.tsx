@@ -78,8 +78,8 @@ describe('KnowledgeView', () => {
   it('renders the secondary Progress (charts) view when kgProgressOpen (back is now the chrome Back → handleBack)', () => {
     kgProgressOpen.value = true;
     const { getByText, container } = render(<KnowledgeView />);
-    expect(getByText('Knowledge')).toBeTruthy(); // SecHero eyebrow
-    expect(getByText('% mastery')).toBeTruthy(); // SecHero unit next to the value
+    expect(getByText('Knowledge progress')).toBeTruthy(); // the page head's title
+    expect(getByText(/% mastery/)).toBeTruthy(); // the head's note carries the figure
     // The in-page "‹ Topics" back was retired; Progress→gallery is the chrome Back
     // (handleBack, covered in actions.test). Assert no stray in-page back remains.
     expect(container.querySelector('.backbtn')).toBeNull();
@@ -106,19 +106,19 @@ describe('KnowledgeView', () => {
     expect(revealSpy).toHaveBeenCalledWith('q1');
   });
 
-  it('renders the topic screen’s calm column — header, tucked effort + 🎧 Gym, cards with an honest effort chip, and NO "Studying for"', () => {
+  it('renders the topic screen’s calm column — header, tucked effort + Gym, cards with an honest effort chip, and NO "Studying for"', () => {
     seedQuestions();
     kgOverview.value = false;
     const { container, getByText, queryByText } = render(<KnowledgeView />);
     expect(container.querySelector('.tpc-head')).toBeTruthy(); // ‹ back · topic · mastery% · N due
     expect(container.querySelector('.tpc-effort')).toBeTruthy(); // the Effort filter
-    expect(container.querySelector('.tpc-gym')).toBeTruthy(); // the 🎧 Gym entry
+    expect(container.querySelector('.tpc-gym')).toBeTruthy(); // the Gym entry
     expect(getByText(/5 min/)).toBeTruthy(); // effort chip = honest length, never a difficulty badge
     expect(queryByText('Studying for')).toBeNull(); // the target filter is cut
     expect(queryByText(/Your trail up/)).toBeNull(); // the trail band is cut
   });
 
-  it('the 🎧 Gym entry fires knowledgeActions.toggleGym', () => {
+  it('the Gym entry fires knowledgeActions.toggleGym', () => {
     seedQuestions();
     kgOverview.value = false;
     const gymSpy = vi.spyOn(knowledgeActions, 'toggleGym').mockImplementation(() => {});
@@ -240,6 +240,19 @@ describe('KnowledgeView', () => {
     expect(rows.length).toBeGreaterThan(0);
     fireEvent.click(rows[0].querySelector('.chk') as HTMLElement);
     expect(gymSpy).toHaveBeenCalledWith('algorithms|c|0');
+  });
+
+  // BUGS P1-b: a done gym row was dimmed with opacity .5 (3.2:1). It must stay
+  // readable: a class that sets a token color and a strike, never an inline opacity.
+  it('marks a done gym row with a class, not opacity', () => {
+    seedQuestions();
+    appState.set('csgraph', { mastery: {}, gymDone: { 'algorithms|c|0': true }, srs: {}, log: [] });
+    kgOverview.value = false;
+    kgGym.value = true;
+    const { container } = render(<KnowledgeView />);
+    const label = container.querySelector('.goalrow .goalrow-t') as HTMLElement;
+    expect(label.classList.contains('done')).toBe(true);
+    expect(label.getAttribute('style') ?? '').not.toContain('opacity');
   });
 });
 

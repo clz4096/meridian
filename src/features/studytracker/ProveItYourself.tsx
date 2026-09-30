@@ -99,6 +99,7 @@ export function ProveItYourself(
           </p>
           <textarea
             class="algo-pi-input"
+            aria-label={`Your reconstruction of why ${algoName} is correct`}
             rows={4}
             placeholder="State the invariant, then the correctness argument…"
             value={attempt}

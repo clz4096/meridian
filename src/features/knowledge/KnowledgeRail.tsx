@@ -20,6 +20,7 @@
 import { Fragment } from 'preact';
 import { dataRev } from '@/ui/store';
 import { knowledgeActions } from '@/ui/actions';
+import { PageHead } from '@/ui/components/PageHead';
 import { overviewTopics, type OverviewTopic } from '@/features/knowledge/KnowledgeTab';
 
 /** The fixed curriculum: three sections, exact top→bottom topic order. */
@@ -57,7 +58,7 @@ function buildSections(topics: OverviewTopic[]): Array<{ name: string; topics: O
 
 function Tile({ t, state, onSelect }: { t: OverviewTopic; state: TileState; onSelect: () => void }) {
   const m = masteryOf(t.percent);
-  const dotColor = state === 'current' ? 'var(--hub)' : m.color;
+  const dotColor = state === 'current' ? 'var(--accent)' : m.color;
   const aria =
     `${t.name}, ${m.word}` +
     (t.due ? `, ${t.due} due` : '') +
@@ -70,14 +71,14 @@ function Tile({ t, state, onSelect }: { t: OverviewTopic; state: TileState; onSe
       aria-current={state === 'current' ? 'step' : undefined}
       onClick={onSelect}
     >
-      <span class="rail-dot" style={`background:${dotColor}`} />
+      <span class="rail-dot" style={`background:${dotColor}`} aria-hidden="true" />
       {state === 'done' && (
         <span class="rail-t-check" aria-hidden="true">
           ✓
         </span>
       )}
       <span class="rail-t-name">{t.name}</span>
-      <span class="rail-t-mastery" style={`color:${m.color}`}>
+      <span class="rail-t-mastery">
         {m.word}
       </span>
       {state === 'current' ? (
@@ -112,7 +113,7 @@ export function KnowledgeRail() {
   return (
     <div class="rail-root">
       <header class="rail-header">
-        <div class="rail-h-title">Knowledge</div>
+        <PageHead title="Knowledge" note={totalDue ? `${totalDue} due` : 'Nothing due'} />
         <button class="rail-meter" type="button" aria-label={`${solidN} of ${total} topics solid — open progress`} onClick={() => knowledgeActions.openProgress()}>
           <span class="rail-meter-track">
             <span class="rail-meter-fill" style={`width:${fillPct}%`} />

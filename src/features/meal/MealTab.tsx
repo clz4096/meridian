@@ -16,6 +16,8 @@ import { dateLabel, dstr } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import { toNum } from '@/core/util';
 import { currentWeight, bodyweightSlope, adherence, calorieAdjustment } from '@/features/meal/bodySelectors';
+import { PageHead } from '@/ui/components/PageHead';
+import { IconGear, IconPlus, IconSparkle } from '@/ui/components/Icons';
 
 type VM = ReturnType<typeof selectMealView>;
 const rv = (id: string): string => host.readValue(id);
@@ -57,7 +59,7 @@ function BudgetRing({ eaten, target, maintenance, color }: { eaten: number; targ
             y1={80 - 57 * cos}
             x2={80 + 75 * sin}
             y2={80 - 75 * cos}
-            stroke="var(--text)"
+            stroke="var(--ink)"
             stroke-width="2.5"
             stroke-linecap="round"
             opacity="0.7"
@@ -65,7 +67,7 @@ function BudgetRing({ eaten, target, maintenance, color }: { eaten: number; targ
         )}
       </svg>
       <div class="bud-center">
-        <div class="bud-num" style={`color:${color}`}>{Math.abs(left)}</div>
+        <div class={'bud-num' + (over ? ' over' : '')}>{Math.abs(left)}</div>
         <div class="bud-lbl">{over ? 'kcal over' : 'kcal left'}</div>
       </div>
     </div>
@@ -98,9 +100,9 @@ function MealExtras({ vm }: { vm: VM }) {
         <p class="panel-t">Targets</p>
         <div class="statgrid">
           <div class="stat"><div class="v">{t.current ?? '—'}</div><div class="k">current lb</div></div>
-          <div class="stat"><div class="v" style="color:var(--teal)">{t.goal ?? '—'}</div><div class="k">goal lb</div></div>
+          <div class="stat"><div class="v">{t.goal ?? '—'}</div><div class="k">goal lb</div></div>
           <div class="stat"><div class="v">{t.dailyCalories}</div><div class="k">daily kcal</div></div>
-          <div class="stat"><div class="v" style="color:var(--protein)">{t.proteinTarget}g</div><div class="k">protein</div></div>
+          <div class="stat"><div class="v">{t.proteinTarget}g</div><div class="k">protein</div></div>
         </div>
         <div class="mrow" style="margin-top:10px">
           <button class="mbtn" onClick={mealActions.editTargets}>Edit targets</button>
@@ -111,7 +113,7 @@ function MealExtras({ vm }: { vm: VM }) {
           <p class="panel-t" style="margin:0">Tadalafil</p>
           <div class="mrow">
             <button class="mbtn" onClick={() => mealActions.adjustSupplement(-1)} aria-label="One fewer dose">−</button>
-            <span style="font-family:var(--mono);font-size:20px;min-width:44px;text-align:center">{s.todayCount}×9mg</span>
+            <span style="font-family:var(--font-mono);font-size:20px;min-width:44px;text-align:center">{s.todayCount}×9mg</span>
             <button class="mbtn" onClick={() => mealActions.adjustSupplement(1)} aria-label="One more dose">+</button>
           </div>
         </div>
@@ -152,7 +154,7 @@ function Composer() {
         <div class="airow">
           <input id="meal-desc" class="minp" placeholder="or describe it — “2 eggs, oatmeal, banana”" aria-label="Describe a meal for AI estimation" />
           <button class="maibtn" onClick={() => mealActions.estimateWithAI(rv('meal-desc'))}>
-            ✦ AI
+            <IconSparkle class="ico" />AI
           </button>
         </div>
         <div id="meal-status" class="note" style="margin-top:6px" />
@@ -182,10 +184,11 @@ export function MealView() {
 
   // Calorie zone. You're GAINING, so the meaning is inverted from a diet app:
   // under maintenance is the bad state, surplus is the goal.
-  // red (under maintenance) → amber (at maintenance) → green (in surplus).
+  // Still eating toward the target is the normal state of any day, so the ring is the
+  // accent until the surplus is reached (then ok). Alarm colors are kept for alarms.
   const maintenance = toNum(G.settings.maintenance) || Math.round(t.dailyCalories * 0.81);
   const calZone = eaten < maintenance ? 'under' : eaten < t.dailyCalories ? 'at' : 'surplus';
-  const calColor = calZone === 'under' ? 'var(--deficit)' : calZone === 'at' ? 'var(--fuel)' : 'var(--ok)';
+  const calColor = calZone === 'surplus' ? 'var(--ok)' : 'var(--accent)';
   const calPill = calZone === 'under' ? 'under maintenance' : calZone === 'at' ? 'at maintenance' : 'in surplus';
 
   // Body: latest weigh-in, goal, smoothed pace, and the plain-language calorie call.
@@ -213,13 +216,14 @@ export function MealView() {
   const paceClass = slope == null ? '' : slope > 0 ? 'up' : 'down';
 
   // Protein maintenance is based on your CURRENT bodyweight (~1 g/lb), so it rises
-  // as you gain. Same red→amber→green language: under it / near it / at-or-above it.
+  // as you gain. The bar is the accent until it is met, then ok.
   const pMaint = cur != null && cur > 0 ? Math.round(cur) : t.proteinTarget;
   const pFrac = pMaint > 0 ? vm.totals.protein / pMaint : 0;
-  const proColor = pFrac < 0.7 ? 'var(--deficit)' : pFrac < 1 ? 'var(--fuel)' : 'var(--ok)';
+  const proColor = pFrac < 1 ? 'var(--accent)' : 'var(--ok)';
 
   return (
     <>
+      <PageHead title="Food & Body" />
       {/* Date scope + settings — kept compact so the budget stays the hero. */}
       <div class="log-h">
         <div class="datenav">
@@ -233,7 +237,7 @@ export function MealView() {
           )}
         </div>
         <button class={'ex-opts' + (extrasOpen ? ' on' : '')} onClick={toggleMealExtras} aria-label="Targets and supplement" aria-pressed={extrasOpen}>
-          ⚙
+          <IconGear />
         </button>
       </div>
 
@@ -275,7 +279,7 @@ export function MealView() {
                 }}
                 aria-label="Log weight"
               >
-                ＋
+                <IconPlus />
               </button>
             </div>
           </div>
@@ -283,7 +287,7 @@ export function MealView() {
       </div>
 
       {vm.issues.length > 0 && (
-        <div class="note" style="margin-top:12px;color:var(--deficit)">
+        <div class="note" style="margin-top:12px;color:var(--danger)">
           ⚠ {vm.issues.length} entr{vm.issues.length === 1 ? 'y needs' : 'ies need'} checking
         </div>
       )}
@@ -336,8 +340,8 @@ export function MealView() {
         <div class="prog">
           <ProgControls />
           <Carousel keepKey="meal">
-            <Chart opts={{ kind: 'line', title: 'Calories · avg/day', points: calorieSeries(G, period), reference: calT != null ? { value: calT, label: `target ${calT}` } : null, color: 'var(--fuel)' }} />
-            <Chart opts={{ kind: 'line', title: 'Protein · avg/day', points: proteinSeries(G, period), unit: 'g', reference: proT != null ? { value: proT, label: `target ${proT}` } : null, color: 'var(--protein)' }} />
+            <Chart opts={{ kind: 'line', title: 'Calories · avg/day', points: calorieSeries(G, period), reference: calT != null ? { value: calT, label: `target ${calT}` } : null, color: 'var(--series-1)' }} />
+            <Chart opts={{ kind: 'line', title: 'Protein · avg/day', points: proteinSeries(G, period), unit: 'g', reference: proT != null ? { value: proT, label: `target ${proT}` } : null, color: 'var(--series-4)' }} />
           </Carousel>
         </div>
       )}
