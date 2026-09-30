@@ -1,0 +1,491 @@
+/**
+ * Math path content: the ordered Math courses (plan order = array order). Plain data,
+ * edit freely. The Massey Standard curriculum (studytracker/curriculum.ts) reads these
+ * same records, so there is one list of courses. Daily problems and proofs for the
+ * Math path are added below by the Math path work.
+ */
+import type { Course } from '@/content/courseTypes';
+
+export const MATH_COURSES: readonly Course[] = [
+{
+  // A2: currently taken to pass the WGU statistics course — a high-priority
+  // CURRENT course, featured near the top; regression/ANOVA modules are NOT
+  // deferred. Sorted first in the Math track (targetWeek 1, leads the array).
+  code: 'Stanford Stats',
+  school: 'Stanford',
+  name: 'Introduction to Statistics',
+  track: 'Math',
+  topics: 'Exploratory data analysis, probability, sampling, estimation, hypothesis testing, regression, ANOVA',
+  text: 'Stanford Online — Guenther Walther (Coursera)',
+  url: 'https://www.coursera.org/learn/stanford-statistics',
+  psets: [
+    { name: 'Graded quizzes & assignments (in Coursera)', url: 'https://www.coursera.org/learn/stanford-statistics' },
+  ],
+  targetWeek: 1,
+  featured: true,
+},
+{
+  code: 'Yale CS202',
+  school: 'Yale',
+  name: 'Notes on Discrete Mathematics',
+  track: 'Math',
+  topics: 'Logic, proofs, sets, relations, induction, combinatorics, graphs, number theory',
+  text: 'Aspnes, Notes on Discrete Mathematics (free)',
+  url: 'https://www.cs.yale.edu/homes/aspnes/classes/202/notes.pdf',
+  psets: [
+    { name: 'Course page & assignments', url: 'https://www.cs.yale.edu/homes/aspnes/classes/202/' },
+  ],
+  targetWeek: 1,
+},
+{
+  code: 'Harvard STAT 110',
+  school: 'Harvard',
+  name: 'Probability (lecture videos)',
+  track: 'Math',
+  topics: 'Counting, conditional probability, random variables, distributions, expectation, Markov chains — watchable lectures',
+  text: 'Blitzstein & Hwang, Introduction to Probability',
+  url: 'https://projects.iq.harvard.edu/stat110',
+  psets: [
+    { name: 'Strategic practice & problems', url: 'https://projects.iq.harvard.edu/stat110' },
+  ],
+  targetWeek: 4,
+},
+{
+  code: 'MIT 6.042J',
+  school: 'MIT',
+  name: 'Mathematics for Computer Science',
+  track: 'Math',
+  topics: 'Logic, proofs, induction, number theory, combinatorics, graph theory, discrete probability',
+  text: 'Lehman, Leighton & Meyer, Mathematics for Computer Science (free)',
+  url: 'https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-fall-2010/',
+  psets: [
+    { name: 'Problem Sets', url: 'https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-fall-2010/pages/assignments/' },
+  ],
+  targetWeek: 1,
+},
+{
+  code: 'MIT 18.01',
+  school: 'MIT',
+  name: 'Single Variable Calculus',
+  track: 'Math',
+  topics: 'Limits, differentiation, integration, series, Taylor approximation',
+  text: 'Apostol, Calculus, Vol. 1 / OCW lecture notes',
+  url: 'https://ocw.mit.edu/courses/18-01-single-variable-calculus-fall-2006/',
+  psets: [
+    { name: 'Assignments', url: 'https://ocw.mit.edu/courses/18-01-single-variable-calculus-fall-2006/pages/assignments/' },
+  ],
+  targetWeek: 1,
+},
+{
+  code: 'MIT 18.02',
+  school: 'MIT',
+  name: 'Multivariable Calculus',
+  track: 'Math',
+  topics: 'Vectors, partial derivatives, gradients, multiple integrals, vector calculus, Stokes',
+  text: 'Apostol, Calculus, Vol. 2 / OCW lecture notes',
+  url: 'https://ocw.mit.edu/courses/18-02-multivariable-calculus-fall-2007/',
+  psets: [
+    { name: 'Assignments', url: 'https://ocw.mit.edu/courses/18-02-multivariable-calculus-fall-2007/pages/assignments/' },
+  ],
+  targetWeek: 2,
+},
+{
+  code: 'MIT 18.06',
+  school: 'MIT',
+  name: 'Linear Algebra',
+  track: 'Math',
+  topics: 'Vector spaces, elimination, four subspaces, orthogonality, eigenvalues, SVD, positive-definite matrices',
+  text: 'Strang, Introduction to Linear Algebra',
+  url: 'https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/',
+  psets: [
+    { name: 'Problem Sets', url: 'https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/pages/assignments/' },
+  ],
+  targetWeek: 3,
+},
+{
+  code: 'MIT 6.041SC',
+  school: 'MIT',
+  name: 'Probabilistic Systems Analysis and Applied Probability',
+  track: 'Math',
+  topics: 'Probability spaces, random variables, expectation, conditioning, limit theorems, Markov chains',
+  text: 'Bertsekas & Tsitsiklis, Introduction to Probability',
+  url: 'https://ocw.mit.edu/courses/6-041sc-probabilistic-systems-analysis-and-applied-probability-fall-2013/',
+  psets: [
+    { name: 'Problem Sets', url: 'https://ocw.mit.edu/courses/6-041sc-probabilistic-systems-analysis-and-applied-probability-fall-2013/pages/assignments/' },
+  ],
+  targetWeek: 4,
+},
+{
+  code: 'MIT 18.100A',
+  school: 'MIT',
+  name: 'Real Analysis',
+  track: 'Math',
+  topics: 'Sequences, series, continuity, differentiation, Riemann integration, uniform convergence, rigorous proofs',
+  text: 'Rudin, Principles of Mathematical Analysis',
+  url: 'https://ocw.mit.edu/courses/18-100a-real-analysis-fall-2020/',
+  psets: [
+    { name: 'Assignments and Exams', url: 'https://ocw.mit.edu/courses/18-100a-real-analysis-fall-2020/pages/assignments-and-exams/' },
+  ],
+  targetWeek: 6,
+},
+];
+
+/**
+ * One daily problem or proof for the Math path. The owner writes an attempt, then
+ * checks it against `answer`, so every answer carries the key steps, not just the result.
+ * `title` is a short name for cards and labels ('√2 is irrational'); the path prefixes
+ * it with the kind ('Proof: √2 is irrational').
+ */
+export interface MathDailyItem {
+  id: string;
+  /** Must match a `code` in MATH_COURSES. */
+  courseCode: string;
+  kind: 'proof' | 'problem';
+  title: string;
+  prompt: string;
+  hint?: string;
+  answer: string;
+  /** Course and module or text the item comes from. */
+  source: string;
+}
+
+/**
+ * Daily items. Order within a course is the rotation order. Stanford Stats items
+ * come first because the owner is taking that course now for WGU C955.
+ */
+export const MATH_DAILY: readonly MathDailyItem[] = [
+  {
+    id: 'stats-z-ci',
+    courseCode: 'Stanford Stats',
+    kind: 'problem',
+    title: '95% confidence interval',
+    prompt:
+      'A sample of n = 64 has mean x̄ = 52.3. The population standard deviation is known: σ = 8. ' +
+      'Build a 95% confidence interval for the population mean μ, and say in one sentence what it means.',
+    hint: 'Standard error first: σ/√n. The 95% z multiplier is 1.96.',
+    answer:
+      'SE = σ/√n = 8/√64 = 8/8 = 1.\n' +
+      'Margin = 1.96 × 1 = 1.96.\n' +
+      'CI = 52.3 ± 1.96 = (50.34, 54.26).\n' +
+      'Meaning: the procedure captures μ in 95% of repeated samples. It is not a 95% probability ' +
+      'that μ lies in this particular interval; μ is fixed and this interval either contains it or not.',
+    source: 'Stanford Intro to Statistics, Module: Confidence intervals',
+  },
+  {
+    id: 'stats-t-test',
+    courseCode: 'Stanford Stats',
+    kind: 'problem',
+    title: 'One-sample t test decision',
+    prompt:
+      'Test H₀: μ = 100 against Hₐ: μ ≠ 100 at α = 0.05. A sample of n = 16 gives x̄ = 104 and s = 10. ' +
+      'Compute t and its degrees of freedom, then decide. (Critical value: t* = 2.131 for df = 15, two-sided 5%.)',
+    hint: 't = (x̄ − μ₀)/(s/√n), df = n − 1.',
+    answer:
+      'SE = s/√n = 10/√16 = 10/4 = 2.5.\n' +
+      't = (104 − 100)/2.5 = 4/2.5 = 1.6, df = 16 − 1 = 15.\n' +
+      '|t| = 1.6 < 2.131, so fail to reject H₀ at the 5% level (two-sided p ≈ 0.13).\n' +
+      'Conclusion: the data do not give convincing evidence that μ differs from 100. ' +
+      'That is not proof that μ = 100.',
+    source: 'Stanford Intro to Statistics, Module: Tests of significance (t test)',
+  },
+  {
+    id: 'stats-p-value',
+    courseCode: 'Stanford Stats',
+    kind: 'problem',
+    title: 'What a p-value means',
+    prompt:
+      'A study reports p = 0.03 for H₀: "the new drug has no effect." Which statements are true?\n' +
+      '(a) There is a 3% chance H₀ is true.\n' +
+      '(b) If H₀ were true, results at least as extreme as these would occur about 3% of the time.\n' +
+      '(c) At α = 0.05 we reject H₀; at α = 0.01 we do not.\n' +
+      '(d) The drug has a large effect.',
+    hint: 'A p-value is computed assuming H₀ is true. It says nothing about effect size.',
+    answer:
+      'True: (b) and (c).\n' +
+      '(a) is false: the p-value is P(data this extreme | H₀), not P(H₀ | data).\n' +
+      '(b) is the definition.\n' +
+      '(c) is true because 0.03 ≤ 0.05 but 0.03 > 0.01.\n' +
+      '(d) is false: a small p-value can come from a tiny effect measured with a large sample. ' +
+      'Report a confidence interval to show size.',
+    source: 'Stanford Intro to Statistics, Module: Tests of significance (p-values)',
+  },
+  {
+    id: 'stats-standard-error',
+    courseCode: 'Stanford Stats',
+    kind: 'problem',
+    title: 'Standard error of the mean',
+    prompt:
+      'A population has mean μ = 100 and standard deviation σ = 15. You draw a random sample of n = 25.\n' +
+      '(1) What are the mean and standard error of the sampling distribution of x̄?\n' +
+      '(2) About how likely is x̄ > 106?\n' +
+      '(3) What n would halve the standard error?',
+    hint: 'SE = σ/√n. By the central limit theorem x̄ is roughly normal; standardize with z = (x̄ − μ)/SE.',
+    answer:
+      '(1) Mean of x̄ = μ = 100. SE = σ/√n = 15/√25 = 15/5 = 3.\n' +
+      '(2) z = (106 − 100)/3 = 2. P(Z > 2) ≈ 0.0228, about 2.3%.\n' +
+      '(3) SE shrinks like 1/√n, so halving it needs 4× the sample: n = 100 (15/√100 = 1.5).',
+    source: 'Stanford Intro to Statistics, Module: Sampling distributions and the central limit theorem',
+  },
+  {
+    id: 'stats-regression-slope',
+    courseCode: 'Stanford Stats',
+    kind: 'problem',
+    title: 'Regression line from summary stats',
+    prompt:
+      'Hours studied (x) and exam score (y): x̄ = 5, sx = 2, ȳ = 70, sy = 10, correlation r = 0.6.\n' +
+      'Find the least-squares line ŷ = a + b·x, predict the score for 7 hours, interpret the slope, ' +
+      'and give the fraction of score variation the line explains.',
+    hint: 'b = r·sy/sx. The line passes through (x̄, ȳ), so a = ȳ − b·x̄.',
+    answer:
+      'b = r·sy/sx = 0.6 × 10/2 = 3.\n' +
+      'a = ȳ − b·x̄ = 70 − 3 × 5 = 55.\n' +
+      'ŷ = 55 + 3x. At x = 7: ŷ = 55 + 21 = 76.\n' +
+      'Slope: each extra hour studied is associated with a 3-point higher predicted score, on average. ' +
+      'Association, not causation, since this is observational.\n' +
+      'R² = r² = 0.36, so the line explains 36% of the variation in scores.',
+    source: 'Stanford Intro to Statistics, Module: Regression',
+  },
+  {
+    id: 'stats-bayes-test',
+    courseCode: 'Stanford Stats',
+    kind: 'problem',
+    title: 'Bayes: positive test, rare disease',
+    prompt:
+      'A disease affects 1% of people. A test is positive for 90% of people who have it and for 5% of ' +
+      'people who do not. A random person tests positive. What is P(disease | positive)?',
+    hint: 'P(D | +) = P(+ | D)P(D) / P(+). Get P(+) from both ways a positive can happen.',
+    answer:
+      'P(+ and D) = 0.90 × 0.01 = 0.009.\n' +
+      'P(+ and not D) = 0.05 × 0.99 = 0.0495.\n' +
+      'P(+) = 0.009 + 0.0495 = 0.0585.\n' +
+      'P(D | +) = 0.009/0.0585 = 90/585 = 2/13 ≈ 0.154, about 15%.\n' +
+      'Most positives are false positives because healthy people vastly outnumber sick ones.',
+    source: 'Stanford Intro to Statistics, Module: Probability (Bayes\' rule)',
+  },
+  {
+    id: 'stats-sample-size',
+    courseCode: 'Stanford Stats',
+    kind: 'problem',
+    title: 'Sample size for a poll',
+    prompt:
+      'How many people must a poll survey so that a 95% confidence interval for a proportion has a margin ' +
+      'of error of at most 3 percentage points, with no prior guess for p?',
+    hint: 'Margin = z*·√(p(1 − p)/n). With no guess, use p = 0.5, which maximizes p(1 − p).',
+    answer:
+      'Need 1.96·√(0.25/n) ≤ 0.03.\n' +
+      '√(0.25/n) ≤ 0.03/1.96, so n ≥ 0.25 × (1.96/0.03)².\n' +
+      '1.96/0.03 = 65.33…, squared = 4268.44…, times 0.25 = 1067.1…\n' +
+      'Round up: n = 1068.',
+    source: 'Stanford Intro to Statistics, Module: Confidence intervals (proportions)',
+  },
+  {
+    id: 'stats-var-mean-proof',
+    courseCode: 'Stanford Stats',
+    kind: 'proof',
+    title: 'Var(x̄) = σ²/n',
+    prompt:
+      'Let X₁, …, Xₙ be independent, each with mean μ and variance σ². Prove E(x̄) = μ and Var(x̄) = σ²/n, ' +
+      'where x̄ = (X₁ + … + Xₙ)/n. Which step needs independence?',
+    hint: 'Var(cY) = c²Var(Y). The variance of a sum equals the sum of the variances only when the covariances sum to zero (for example, independent variables).',
+    answer:
+      'E(x̄) = (1/n)·Σ E(Xᵢ) = (1/n)·nμ = μ, by linearity (no independence needed).\n' +
+      'Var(x̄) = (1/n²)·Var(Σ Xᵢ).\n' +
+      'Independence makes every Cov(Xᵢ, Xⱼ) = 0 for i ≠ j, so Var(Σ Xᵢ) = Σ Var(Xᵢ) = nσ².\n' +
+      'So Var(x̄) = nσ²/n² = σ²/n, and SE = σ/√n. Independence is used only in the variance-of-a-sum step.',
+    source: 'Stanford Intro to Statistics, Module: Sampling distributions',
+  },
+  {
+    id: 'stat110-fixed-points',
+    courseCode: 'Harvard STAT 110',
+    kind: 'problem',
+    title: 'Expected matches (hat check)',
+    prompt:
+      'n people check their hats, and the hats are handed back in a uniformly random order. ' +
+      'What is the expected number of people who get their own hat back?',
+    hint: 'Write the count as a sum of indicators and use linearity of expectation, which holds even for dependent terms.',
+    answer:
+      'Let Iᵢ = 1 if person i gets their own hat. The count is X = I₁ + … + Iₙ.\n' +
+      'P(Iᵢ = 1) = 1/n (their hat is equally likely to be in any of the n positions), so E(Iᵢ) = 1/n.\n' +
+      'By linearity, E(X) = n × 1/n = 1, for every n. The Iᵢ are dependent, but linearity does not care.',
+    source: 'Harvard STAT 110 (Blitzstein & Hwang), Ch. 4: Expectation, indicator r.v.s',
+  },
+  {
+    id: 'stat110-birthday',
+    courseCode: 'Harvard STAT 110',
+    kind: 'problem',
+    title: 'Birthday problem',
+    prompt:
+      'In a room of 23 people with birthdays independent and uniform over 365 days (ignore leap years), ' +
+      'what is the probability that at least two share a birthday?',
+    hint: 'Compute the complement: everyone has a different birthday.',
+    answer:
+      'P(all different) = (365/365)(364/365)(363/365)…(343/365) = Π from k = 0 to 22 of (365 − k)/365 ≈ 0.4927.\n' +
+      'P(at least one shared) = 1 − 0.4927 ≈ 0.5073, just over 50%.\n' +
+      'Intuition: there are C(23, 2) = 253 pairs, each matching with probability 1/365.',
+    source: 'Harvard STAT 110 (Blitzstein & Hwang), Ch. 1: Probability and counting',
+  },
+  {
+    id: '6041-geometric',
+    courseCode: 'MIT 6.041SC',
+    kind: 'problem',
+    title: 'Expected rolls until a six',
+    prompt:
+      'You roll a fair die until the first 6 appears. What is the expected number of rolls? ' +
+      'Derive it by conditioning on the first roll.',
+    hint: 'Let E be the answer. After a non-6 first roll, the process starts over.',
+    answer:
+      'With probability 1/6 the first roll is a 6 and we stop after 1 roll. With probability 5/6 we used ' +
+      '1 roll and start over.\n' +
+      'E = 1 + (5/6)·E, so (1/6)·E = 1, and E = 6.\n' +
+      'This matches the geometric mean 1/p with p = 1/6.',
+    source: 'MIT 6.041SC (Bertsekas & Tsitsiklis), Ch. 2: Total expectation theorem',
+  },
+  {
+    id: 'cs202-sqrt2',
+    courseCode: 'Yale CS202',
+    kind: 'proof',
+    title: '√2 is irrational',
+    prompt: 'Prove that √2 is irrational.',
+    hint: 'Assume √2 = p/q in lowest terms and show both p and q are even.',
+    answer:
+      'Suppose √2 = p/q with integers p, q, q ≠ 0, and gcd(p, q) = 1.\n' +
+      'Squaring: p² = 2q², so p² is even. If p were odd, p² would be odd, so p is even: p = 2k.\n' +
+      'Then 4k² = 2q², so q² = 2k² is even, and q is even too.\n' +
+      'Both even contradicts gcd(p, q) = 1. So no such fraction exists and √2 is irrational.',
+    source: 'Yale CS202 (Aspnes, Notes on Discrete Mathematics): Proof by contradiction',
+  },
+  {
+    id: 'cs202-pigeonhole-square',
+    courseCode: 'Yale CS202',
+    kind: 'proof',
+    title: 'Pigeonhole: 5 points in a square',
+    prompt:
+      'Prove that among any 5 points in a 1 × 1 square (boundary included), some two are at distance at most √2/2.',
+    hint: 'Cut the square into 4 pieces. How far apart can two points in one piece be?',
+    answer:
+      'Split the square into 4 closed squares of side 1/2. Every point lies in at least one of them.\n' +
+      '5 points, 4 small squares: by pigeonhole, some small square holds two of the points.\n' +
+      'The farthest two points of a side-1/2 square can be is its diagonal: √((1/2)² + (1/2)²) = √(1/2) = √2/2.\n' +
+      'So those two points are within √2/2 of each other.',
+    source: 'Yale CS202 (Aspnes, Notes on Discrete Mathematics): Pigeonhole principle',
+  },
+  {
+    id: '6042-infinite-primes',
+    courseCode: 'MIT 6.042J',
+    kind: 'proof',
+    title: 'Infinitely many primes',
+    prompt: 'Prove that there are infinitely many primes.',
+    hint: 'Given any finite list of primes, build a number none of them divides.',
+    answer:
+      'Suppose p₁, …, pₖ were all the primes. Let N = p₁·p₂·…·pₖ + 1.\n' +
+      'N > 1, so N has some prime factor q.\n' +
+      'Each pᵢ divides p₁·…·pₖ, so pᵢ leaves remainder 1 when dividing N; no pᵢ divides N.\n' +
+      'So q is a prime not on the list, a contradiction. Hence there are infinitely many primes.\n' +
+      '(N itself need not be prime; it only needs a prime factor outside the list.)',
+    source: 'MIT 6.042J (Lehman, Leighton & Meyer, 2017 edition), Ch. 9: Number theory',
+  },
+  {
+    id: '6042-gauss-induction',
+    courseCode: 'MIT 6.042J',
+    kind: 'proof',
+    title: 'Σ i = n(n+1)/2 by induction',
+    prompt: 'Prove by induction that 1 + 2 + … + n = n(n + 1)/2 for every integer n ≥ 1.',
+    hint: 'Base case n = 1. For the step, add n + 1 to both sides of P(n).',
+    answer:
+      'P(n): Σ from i = 1 to n of i = n(n + 1)/2.\n' +
+      'Base: n = 1. Left side 1, right side 1·2/2 = 1. True.\n' +
+      'Step: assume P(n). Then Σ from i = 1 to n + 1 of i = n(n + 1)/2 + (n + 1) = (n + 1)(n/2 + 1) = (n + 1)(n + 2)/2, ' +
+      'which is P(n + 1).\n' +
+      'By induction P(n) holds for all n ≥ 1.',
+    source: 'MIT 6.042J (Lehman, Leighton & Meyer, 2017 edition), Ch. 5: Induction',
+  },
+  {
+    id: '6042-n3-minus-n',
+    courseCode: 'MIT 6.042J',
+    kind: 'proof',
+    title: '6 divides n³ − n',
+    prompt: 'Prove that n³ − n is divisible by 6 for every integer n.',
+    hint: 'Factor it.',
+    answer:
+      'n³ − n = n(n² − 1) = (n − 1)·n·(n + 1), a product of three consecutive integers.\n' +
+      'Among any two consecutive integers one is even, so 2 divides the product.\n' +
+      'Among any three consecutive integers one is a multiple of 3, so 3 divides the product.\n' +
+      'Since gcd(2, 3) = 1, 2·3 = 6 divides it.',
+    source: 'MIT 6.042J (Lehman, Leighton & Meyer, 2017 edition), Ch. 9: Divisibility',
+  },
+  {
+    id: '1801-derivative-x2',
+    courseCode: 'MIT 18.01',
+    kind: 'proof',
+    title: 'd/dx x² = 2x from the limit',
+    prompt: 'Using only the limit definition of the derivative, prove that the derivative of f(x) = x² is 2x.',
+    hint: "f'(x) = lim as h → 0 of (f(x + h) − f(x))/h. Expand (x + h)².",
+    answer:
+      "f'(x) = lim as h → 0 of ((x + h)² − x²)/h\n" +
+      '= lim as h → 0 of (x² + 2xh + h² − x²)/h\n' +
+      '= lim as h → 0 of (2xh + h²)/h\n' +
+      '= lim as h → 0 of (2x + h)   (cancelling h is fine because h ≠ 0 inside the limit)\n' +
+      '= 2x.',
+    source: 'MIT 18.01 Single Variable Calculus, Unit 1: Derivatives',
+  },
+  {
+    id: '1802-directional-derivative',
+    courseCode: 'MIT 18.02',
+    kind: 'problem',
+    title: 'Gradient and directional derivative',
+    prompt:
+      'Let f(x, y) = x²y + y³. Find ∇f at (1, 2), and the rate of change of f at (1, 2) in the direction of the vector (3, 4).',
+    hint: 'D_u f = ∇f · u, where u is a UNIT vector.',
+    answer:
+      '∇f = (∂f/∂x, ∂f/∂y) = (2xy, x² + 3y²).\n' +
+      'At (1, 2): (2·1·2, 1 + 3·4) = (4, 13).\n' +
+      'Unit vector: |(3, 4)| = 5, so u = (3/5, 4/5).\n' +
+      'D_u f = 4·(3/5) + 13·(4/5) = 12/5 + 52/5 = 64/5 = 12.8.',
+    source: 'MIT 18.02 Multivariable Calculus, Part II: Partial derivatives and the gradient',
+  },
+  {
+    id: '1806-ab-invertible',
+    courseCode: 'MIT 18.06',
+    kind: 'proof',
+    title: 'AB invertible ⇒ A and B invertible',
+    prompt: 'A and B are n × n matrices and AB is invertible. Prove that A and B are both invertible.',
+    hint: 'Show B has only the zero vector in its nullspace. Then write A in terms of AB and B⁻¹.',
+    answer:
+      'B: if Bx = 0 then (AB)x = A(Bx) = 0. AB is invertible, so x = 0. So N(B) = {0}, and a square matrix ' +
+      'with trivial nullspace is invertible.\n' +
+      'A: A = (AB)B⁻¹, a product of two invertible matrices, so A is invertible with A⁻¹ = B(AB)⁻¹.\n' +
+      '(Squareness matters: for non-square A, B, AB can be invertible while neither A nor B is.)',
+    source: 'MIT 18.06 Linear Algebra (Strang), Ch. 2: Inverse matrices',
+  },
+  {
+    id: '1806-rank-nullity',
+    courseCode: 'MIT 18.06',
+    kind: 'proof',
+    title: 'Rank-nullity',
+    prompt:
+      'State the rank-nullity theorem for an m × n matrix A and sketch why it holds using elimination. ' +
+      'Then: a 3 × 5 matrix has rank 2. What is the dimension of its nullspace?',
+    hint: 'Reduce A to its row echelon form R. Count pivot columns and free columns.',
+    answer:
+      'Statement: rank(A) + dim N(A) = n, the number of columns.\n' +
+      'Why: elimination to R does not change the nullspace. R has r = rank(A) pivot columns and n − r free columns. ' +
+      'Each free variable gives one special solution (set it to 1, the other free variables to 0, solve for the pivots). ' +
+      'These n − r vectors are independent (each has a 1 in a free slot where the others have 0) and every nullspace ' +
+      'vector is a combination of them, so dim N(A) = n − r.\n' +
+      'Example: n = 5, rank 2, so dim N(A) = 5 − 2 = 3.',
+    source: 'MIT 18.06 Linear Algebra (Strang), Ch. 3: The nullspace and rank',
+  },
+  {
+    id: '18100a-one-over-n',
+    courseCode: 'MIT 18.100A',
+    kind: 'proof',
+    title: '1/n → 0 (ε-N)',
+    prompt: 'Using the ε-N definition of a limit, prove that the sequence 1/n converges to 0.',
+    hint: 'Given ε > 0, the Archimedean property gives an integer N > 1/ε.',
+    answer:
+      'Let ε > 0. By the Archimedean property choose an integer N > 1/ε, so 1/N < ε.\n' +
+      'For every n ≥ N: |1/n − 0| = 1/n ≤ 1/N < ε.\n' +
+      'So for every ε > 0 there is an N with |1/n − 0| < ε for all n ≥ N, which is the definition of 1/n → 0.',
+    source: 'MIT 18.100A Real Analysis, Lecture: Sequences and limits',
+  },
+];

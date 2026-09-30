@@ -1,0 +1,111 @@
+/*
+ * Computer Science path screen. Tokens only (src/styles/tokens.css). The algorithm
+ * card inside .cs-algo is styled by studytracker.css, which reads the same tokens.
+ */
+.cs-path {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  /* .appwrap already supplies the gutter; a second one here doubled it. */
+  padding: 0 0 var(--sp-7);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-3);
+  color: var(--ink);
+}
+
+.cs-head {
+  display: grid;
+  gap: var(--sp-2);
+}
+.cs-head p {
+  margin: 0;
+}
+.cs-course {
+  font-size: var(--fs-4);
+  line-height: var(--lh-4);
+  font-weight: var(--fw-semibold);
+}
+.cs-prog-cap {
+  color: var(--ink-2);
+  font-size: var(--fs-2);
+}
+
+.cs-algo {
+  margin-top: var(--sp-5);
+}
+
+.cs-plan {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cs-item {
+  padding: var(--sp-3) var(--sp-2);
+  border-bottom: var(--hairline) solid var(--rule);
+}
+.cs-item:last-child {
+  border-bottom: 0;
+}
+.cs-item[aria-current='step'] {
+  background: var(--accent-wash);
+  border-radius: var(--r-2);
+}
+.cs-item-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+}
+/* The checkbox's 44px target and drawn box come from the .m-check around it. */
+.cs-item-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--sp-2);
+  flex: 1;
+  min-height: var(--tap);
+  align-content: center;
+  cursor: pointer;
+}
+.cs-code {
+  font-size: var(--fs-2);
+  color: var(--ink-2);
+}
+.cs-name {
+  font-weight: var(--fw-semibold);
+}
+.cs-item.done .cs-name {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+.cs-now {
+  flex: none;
+}
+.cs-topics,
+.cs-meta {
+  margin: var(--sp-1) 0 0;
+  padding-left: calc(22px + var(--sp-3));
+}
+.cs-meta {
+  color: var(--ink-3);
+  font-size: var(--fs-2);
+}
+.cs-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--sp-4);
+  padding-left: calc(22px + var(--sp-3));
+}
+.cs-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--accent-ink);
+  font-weight: var(--fw-medium);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cs-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

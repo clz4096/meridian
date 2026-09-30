@@ -1,118 +1,191 @@
 /**
- * WGU Roadmap view — a read-only week-by-week finish plan with a persistent
+ * WGU Roadmap view: a read-only week-by-week finish plan with a persistent
  * per-course "done" checkbox. Ported from ~/Brainstorm/meridian-tabs/wgu-roadmap.html.
  * Content lives in roadmapData; checkbox state in roadmapStore (namespaced
- * localStorage). CSS scoped under `.wgu-root` so it cannot leak.
+ * localStorage). Styles live in wgu.css, on the global tokens only.
  */
 import { roadmapChecks, toggleCourse } from '@/features/wgu/roadmapStore';
 import {
-  HEADER, DAY1, WEEKS, WHY_ORDER, PROGRESS, CAVEATS, FOOTER,
+  HEADER, DAY1, WEEKS, WHY_ORDER, PROGRESS, CAVEATS, FOOTER, CHIP_LABEL,
+  type Chip,
 } from '@/features/wgu/roadmapData';
+import { summarize } from '@/features/paths/wgu';
+import { pct } from '@/features/paths/types';
+import { PageHead } from '@/ui/components/PageHead';
 import '@/features/wgu/wgu.css';
+
+const CHIPS: readonly Chip[] = ['oa', 'cert', 'pa', 'cap'];
+
+/**
+ * The path's one next action, on top of the full plan. Built from the same
+ * summarize() Today's card uses, so the two can never disagree.
+ */
+function TodayHeader({ checks }: { checks: Record<string, boolean> }) {
+  const s = summarize(new Date(), checks);
+  const { done, total, caption } = s.progress;
+  const count = `${done} of ${total} courses`;
+  return (
+    <section class="m-card wgu-today" aria-labelledby="wgu-today">
+      <p class="m-label" id="wgu-today">Today</p>
+      {s.course && <p class="wgu-today-course">{s.course}</p>}
+      <p class="wgu-today-next">{s.next.label}</p>
+      {s.next.detail && <p class="wgu-today-detail">{s.next.detail}</p>}
+      <div
+        class="m-progress wgu-today-bar"
+        role="progressbar"
+        aria-label="WGU progress"
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={done}
+        aria-valuetext={count}
+      >
+        <div class="m-progress-fill" style={{ '--m-progress': `${pct(done, total)}%` }} />
+      </div>
+      <p class="m-num wgu-today-cap">
+        {count} · {caption}
+      </p>
+    </section>
+  );
+}
+
+/**
+ * A native checkbox stretched to the full 44px target and made transparent, over a
+ * drawn 22px box. The input stays the real control, so keyboard, form semantics and
+ * the accessible name all come from the platform.
+ */
+function Check({ id, code, checked }: { id: string; code: string; checked: boolean }) {
+  return (
+    <span class="wgu-box">
+      <input
+        id={id}
+        class="wgu-check"
+        type="checkbox"
+        checked={checked}
+        onChange={() => toggleCourse(code)}
+      />
+      <span class="wgu-mark" aria-hidden="true" />
+    </span>
+  );
+}
 
 export function WGURoadmapView() {
   const checks = roadmapChecks.value; // subscribe
 
   return (
     <div class="wgu-root">
-      <div class="wrap">
-        <header class="top">
-          <p class="eyebrow">{HEADER.eyebrow}</p>
-          <h1>{HEADER.title}</h1>
-          <div class="stats">
-            {HEADER.stats.map(([k, v]) => (
-              <span key={k}><b>{k}</b> {v}</span>
-            ))}
-          </div>
-        </header>
+      <PageHead title={HEADER.title} note="WGU" />
+      <TodayHeader checks={checks} />
 
-        <div class="callout">
-          <h3>Do these three things on Day 1 (they have lead time)</h3>
-          <ol class="actions">
-            {DAY1.map((t) => <li key={t}>{t}</li>)}
-          </ol>
-        </div>
-
-        <div class="legend">
-          <span class="chip oa">OA exam</span>
-          <span class="chip cert">External cert exam</span>
-          <span class="chip pa">Project (PA)</span>
-          <span class="chip cap">Capstone</span>
-        </div>
-
-        <h2>The plan, week by week</h2>
-
-        {WEEKS.map((wk) => (
-          <section class="week" key={wk.n}>
-            <div class="week__head">
-              <span class="week__n">{wk.n}</span>
-              <span class="week__dates">{wk.dates}</span>
-              <span class="week__theme">{wk.theme}</span>
+      <div class="wgu-top">
+        <p class="wgu-degree">{HEADER.eyebrow}</p>
+        <dl class="wgu-stats">
+          {HEADER.stats.map(([k, v]) => (
+            <div key={k}>
+              <dt class="m-label">{k}</dt>
+              <dd class="m-num">{v}</dd>
             </div>
-            {wk.courses.map((c) => (
-              <div class="course" key={c.code}>
-                <input
-                  type="checkbox"
-                  checked={!!checks[c.code]}
-                  onChange={() => toggleCourse(c.code)}
-                  aria-label={`${c.code} done`}
-                />
-                <div class="course__body">
-                  <div class="course__title">
-                    <span class="course__code">{c.code}</span>
-                    <span class="course__name">{c.name}</span>
-                    <span class={'chip ' + c.chip}>{c.chipLabel}</span>
-                  </div>
-                  <p class="kv"><b>Do</b> {c.doText}</p>
-                  <p class="kv"><b>Done</b> {c.doneText}</p>
-                  <p class="links">
-                    {c.links.map((l, i) => (
-                      <span key={l.href}>
-                        {i > 0 ? ' · ' : ''}
-                        <a href={l.href} target="_blank" rel="noopener noreferrer">{l.label}</a>
-                      </span>
-                    ))}
-                  </p>
-                </div>
-              </div>
-            ))}
-            {wk.admin && <p class="sub">{wk.admin}</p>}
-          </section>
-        ))}
-
-        <h2>Why this order</h2>
-        <ol class="logic">
-          {WHY_ORDER.map(([b, t]) => (
-            <li key={b}><b>{b}</b>{t}</li>
           ))}
-        </ol>
+        </dl>
+      </div>
 
-        <h2>Progress</h2>
-        <ul class="check">
-          {PROGRESS.map(([code, label]) => (
-            <li key={code}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={!!checks[code]}
-                  onChange={() => toggleCourse(code)}
-                  aria-label={`${code} done`}
-                />
-                <span><span class="c">{code}</span> {label}</span>
+      <section class="m-card wgu-callout" aria-labelledby="wgu-day1">
+        <h2 class="m-label wgu-callout-title" id="wgu-day1">
+          Do these three things on Day 1 (they have lead time)
+        </h2>
+        <ol class="wgu-list">
+          {DAY1.map((t) => <li key={t}>{t}</li>)}
+        </ol>
+      </section>
+
+      <div class="m-section">
+        <h2 class="wgu-h2">The plan, week by week</h2>
+      </div>
+      <ul class="wgu-legend" aria-label="Assessment types">
+        {CHIPS.map((k) => (
+          <li key={k} class="wgu-chip" data-kind={k}>{CHIP_LABEL[k]}</li>
+        ))}
+      </ul>
+
+      {WEEKS.map((wk) => {
+        const headId = `wgu-${wk.start}`;
+        return (
+          <section class="m-card wgu-week" key={wk.n} aria-labelledby={headId}>
+            <div class="wgu-week-head">
+              <h3 class="wgu-week-n" id={headId}>{wk.n}</h3>
+              <span class="wgu-week-dates m-num">{wk.dates}</span>
+              <span class="wgu-week-theme">{wk.theme}</span>
+            </div>
+            <ul class="wgu-courses">
+              {wk.courses.map((c) => {
+                const id = `wgu-wk-${c.code}`;
+                return (
+                  <li class="wgu-course" key={c.code}>
+                    <div class="wgu-course-head">
+                      <Check id={id} code={c.code} checked={!!checks[c.code]} />
+                      <label class="wgu-course-label" for={id}>
+                        <span>
+                          <span class="wgu-code m-mono">{c.code}</span>{' '}
+                          <span class="wgu-name">{c.name}</span>
+                        </span>
+                      </label>
+                      <span class="wgu-chip" data-kind={c.chip}>{c.chipLabel}</span>
+                    </div>
+                    <div class="wgu-course-body">
+                      <p class="wgu-kv"><span class="m-label">Do</span> {c.doText}</p>
+                      <p class="wgu-kv"><span class="m-label">Done</span> {c.doneText}</p>
+                      <ul class="wgu-links">
+                        {c.links.map((l) => (
+                          <li key={l.href}>
+                            <a class="wgu-link" href={l.href} target="_blank" rel="noopener noreferrer">{l.label}</a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            {wk.admin && <p class="wgu-admin">{wk.admin}</p>}
+          </section>
+        );
+      })}
+
+      <div class="m-section">
+        <h2 class="wgu-h2">Why this order</h2>
+      </div>
+      <ol class="wgu-list">
+        {WHY_ORDER.map(([b, t]) => (
+          <li key={b}><b>{b}</b>{t}</li>
+        ))}
+      </ol>
+
+      <div class="m-section">
+        <h2 class="wgu-h2">Progress</h2>
+      </div>
+      <ul class="wgu-progress">
+        {PROGRESS.map(([code, label]) => {
+          const id = `wgu-pr-${code}`;
+          return (
+            <li key={code} class="wgu-prog-row">
+              <Check id={id} code={code} checked={!!checks[code]} />
+              <label class="wgu-course-label" for={id}>
+                <span><span class="wgu-code m-mono">{code}</span> {label}</span>
               </label>
             </li>
-          ))}
-        </ul>
+          );
+        })}
+      </ul>
 
-        <h2>Honest caveats</h2>
-        <ul class="caveats">
-          {CAVEATS.map(([b, t]) => (
-            <li key={b}><b>{b}</b>{t}</li>
-          ))}
-        </ul>
-
-        <footer>{FOOTER}</footer>
+      <div class="m-section">
+        <h2 class="wgu-h2">Honest caveats</h2>
       </div>
+      <ul class="wgu-caveats">
+        {CAVEATS.map(([b, t]) => (
+          <li key={b}><b>{b}</b>{t}</li>
+        ))}
+      </ul>
+
+      <footer class="wgu-foot">{FOOTER}</footer>
     </div>
   );
 }
