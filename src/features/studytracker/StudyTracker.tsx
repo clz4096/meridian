@@ -1,39 +1,46 @@
 /**
- * Study Tracker view — "The Princeton Theorist". A faithful port of
- * ~/Brainstorm/meridian-tabs/princeton-theorist.html into Meridian's signals
- * idiom. All synced state lives in `trackerStore` (backed by the durable
- * `theorist` store); local view state (open sections, active sub-tab) lives in
- * uiState.ts. CSS is scoped under `.pt-root` (see studytracker.css). The
- * artifact's own light/dark handling is preserved; its global theme-toggle
- * button is dropped (Meridian owns the app theme).
+ * Study Tracker view: "The Cambridge Method". The scoring system is adapted
+ * from the Massey Standard (the tracker's earlier name): XP, levels, the daily
+ * scorecard, the five meters and the weekly-session ring are unchanged. What
+ * changed is the study content it points at: the retired Princeton curriculum,
+ * problem set of the week, theory group and proof journal are gone from the UI,
+ * and Deep Blocks 1 and 3 now name the current Cambridge item and loop step.
+ * All synced state lives in `trackerStore` (backed by the durable `theorist`
+ * store) and the `cambridge` store; local view state (open sections, active
+ * sub-tab) lives in uiState.ts. CSS is scoped under `.pt-root`
+ * (see studytracker.css).
  *
- * Layout: a persistent glance strip (today's XP hero + level + streak) sits
- * above a two-way segmented control — the Standard surface (Today) and Playbook.
- * The Standard surface is one continuous scroll of the brief's six surfaces in
- * literal 1–6 order (community readings, Princeton theory reading, algorithm of
- * the day, courses + psets, the daily schedule, the check-in); Playbook is the
- * sole secondary tab. Only the active tab's sections render.
+ * Layout: a persistent glance strip (today's XP hero + level + weekly ring) sits
+ * above a two-way segmented control, Today and Playbook. Only the active tab's
+ * sections render.
  */
 import { useEffect } from 'preact/hooks';
 import { host } from '@/ui/host';
+import { dataRev } from '@/ui/store';
 import {
   trackerState, ensureToday,
-  LEVELS, SCHEDULE, SCORE, METERS, WEEKLY_TARGET, EVENT_WEIGHTS,
+  LEVELS, SCHEDULE, SCORE, METERS, CAM_METERS, WEEKLY_TARGET, EVENT_WEIGHTS,
   dayXP, levelIndex, scoreTotal, meterPct,
-  weeklySessions, stalestTopic, setDayType, markTopicReviewed, creditEvent,
+  weeklySessions, setDayType, creditEvent,
   toggleBlock, setScore, toggleBank, resetDay, resetAll,
 } from '@/features/studytracker/trackerStore';
-import { CURRICULUM } from '@/features/studytracker/curriculum';
 import { journalEntries, toggleReconstructed } from '@/features/studytracker/proofJournalStore';
 import { activeTab, setTab, type TrackerTab } from '@/features/studytracker/uiState';
 import { nowTick, startNowClock, currentBlockId } from '@/features/studytracker/now';
 import { FeedSection } from '@/features/studytracker/FeedSection';
 import { AlgoOfDay } from '@/features/studytracker/AlgoOfDay';
 import { TeachSection } from '@/features/teaching/TeachSection';
-import { CurriculumSection } from '@/features/studytracker/CurriculumSection';
 import { PapersSection } from '@/features/studytracker/PapersSection';
-import { ProofJournal } from '@/features/studytracker/ProofJournal';
 import { Collapsible } from '@/features/studytracker/Collapsible';
+import { CambridgeWeek } from '@/features/studytracker/CambridgeWeek';
+import { cambridgeMeterInput, overrideWeekScore, weekScorecard, type WeekScorecard } from '@/features/cambridge/scorecard';
+import { cambridgeReady, putWeek, readCambridge } from '@/features/cambridge/store';
+import { hm, isOffline, lastSaved, retryScreen, useReady, write } from '@/features/cambridge/camUi';
+import { gloss } from '@/features/cambridge/Gloss';
+import { openCam } from '@/features/cambridge/nav';
+import type { CamWeekItem } from '@/features/cambridge/types';
+import type { TrackerCambridge } from '@/features/cambridge/trackerLink';
+import { lazyMod } from '@/features/today/lazyContent';
 import crestUrl from '@/features/studytracker/princeton-shield.png';
 import '@/features/studytracker/studytracker.css';
 
@@ -71,6 +78,13 @@ function onTabKey(e: KeyboardEvent): void {
   document.getElementById('pt-tab-' + id)?.focus();
 }
 
+/**
+ * The Playbook's path summary and the Deep Block text read the Cambridge
+ * catalog, which is too big for this chunk's first paint: it loads with
+ * import(), and the static SCHEDULE text shows until it arrives.
+ */
+const camLink = lazyMod(() => import('@/features/cambridge/trackerLink'));
+
 /** External link that opens outside the PWA. */
 function Ext({ href, children }: { href: string; children: preact.ComponentChildren }) {
   return (
@@ -80,15 +94,56 @@ function Ext({ href, children }: { href: string; children: preact.ComponentChild
   );
 }
 
-export function StudyTrackerView() {
+/** The weekly card for a store state, or null when it can't be read (the card shows its error state). */
+function readWeek(now: number): WeekScorecard | null {
+  try {
+    return weekScorecard(readCambridge(), now);
+  } catch {
+    return null;
+  }
+}
+
+export function StudyTrackerView({ camReady = cambridgeReady }: { camReady?: Promise<void> } = {}) {
   const s = trackerState.value; // subscribe
   const tab = activeTab.value; // subscribe
   nowTick.value; // subscribe to the ~45s clock (drives the schedule "now" highlight)
+  dataRev.value; // subscribe: Cambridge writes and sync pulls re-derive the week and the blocks
+  const camStatus = useReady(camReady);
 
   useEffect(() => {
     ensureToday();
   }, []);
   useEffect(() => startNowClock(), []);
+  useEffect(() => void camLink.load(), []);
+
+  // Nothing Cambridge is read before the store has loaded (and, on a first run,
+  // the Massey backup is taken), so an early render never shows an empty week.
+  const nowMs = Date.now();
+  const camReadyNow = camStatus === 'ready';
+  const week = camReadyNow ? readWeek(nowMs) : null;
+  // Null (no Cambridge work this week) leaves Focus and Progress exactly as before.
+  const camMeter = week ? cambridgeMeterInput(week) : null;
+  let link: TrackerCambridge | null = null;
+  let linkFailed = camLink.failed.value || camStatus === 'failed';
+  const linkMod = camLink.mod.value;
+  if (camReadyNow && linkMod) {
+    try {
+      link = linkMod.trackerCambridge(readCambridge(), nowMs);
+    } catch {
+      linkFailed = true;
+    }
+  }
+  const blockText = (id: string): { title: string; sub: string } | undefined =>
+    id === 'b4' || id === 'b7' ? link?.blocks?.[id] : undefined;
+  const setWeek = (item: CamWeekItem, value: 0 | 1 | 2): void => {
+    write(() => overrideWeekScore(item, value));
+  };
+  // A partial override would be zero-filled by import, so Reset writes the
+  // line's auto value back into the stored week rather than removing it.
+  const resetWeek = (item: CamWeekItem): void => {
+    if (!week) return;
+    write(() => putWeek({ week: week.week, scores: { ...week.scores, [item]: week.auto[item] } }));
+  };
 
   const idx = levelIndex(s.cumXP);
   const lv = LEVELS[idx]!;
@@ -106,31 +161,21 @@ export function StudyTrackerView() {
   const weekFrac = Math.min(1, WEEKLY_TARGET > 0 ? sessions / WEEKLY_TARGET : 0);
   const isLight = s.day.dayType === 'light';
 
-  // Spaced-return prompt: the single stalest signal to reconstruct from memory.
-  const stale = stalestTopic();
+  // Spaced-return prompt: the oldest journal entry not yet reconstructed. The
+  // decayed-course branch is retired with the Princeton curriculum: every key in
+  // `mastery` is a retired course code, so it would only ever surface a course
+  // the plan no longer has. The mastery data itself stays in the store.
   let retrieval: { label: string; run: () => void } | null = null;
-  if (stale) {
-    const course = CURRICULUM.find((c) => c.code === stale.id);
-    const label = course ? `${course.code} — ${course.name}` : stale.id;
-    // Mastery-only update + the single top retrieval payout (50). Deliberately
-    // NOT reviewTopic, which would also credit topic-review (25) → 75 and break
-    // "retrieval is the strictly highest single payout".
+  const cutoff = Date.now() - 14 * 86_400_000;
+  const old = entries.filter((e) => e.at < cutoff && !e.reconstructed);
+  if (old.length) {
+    const oldest = old.reduce((a, b) => (a.at <= b.at ? a : b));
     retrieval = {
-      label,
-      run: () => { markTopicReviewed(stale.id); creditEvent('retrieval', EVENT_WEIGHTS.retrieval); },
+      label: oldest.title,
+      // Key the retrieval credit per entry so a second distinct cold
+      // reconstruction still pays (a fixed id would cap the day at one).
+      run: () => { toggleReconstructed(oldest.id); creditEvent('journal:retrieval:' + oldest.id, EVENT_WEIGHTS.retrieval); },
     };
-  } else {
-    const cutoff = Date.now() - 14 * 86_400_000;
-    const old = entries.filter((e) => e.at < cutoff && !e.reconstructed);
-    if (old.length) {
-      const oldest = old.reduce((a, b) => (a.at <= b.at ? a : b));
-      retrieval = {
-        label: oldest.title,
-        // Key the retrieval credit per entry so a second distinct cold
-        // reconstruction still pays (a fixed id would cap the day at one).
-        run: () => { toggleReconstructed(oldest.id); creditEvent('journal:retrieval:' + oldest.id, EVENT_WEIGHTS.retrieval); },
-      };
-    }
   }
 
   const total = scoreTotal(s.day);
@@ -149,19 +194,20 @@ export function StudyTrackerView() {
   return (
     <div class="pt-root">
       <div class="masthead">
-        <div class="wrap mast-in">
-          <img class="crest" src={crestUrl} alt="Princeton University shield" />
-          <div>
-            <h1>The Massey Standard</h1>
-            <p class="tag">Rigor, performance, follow-through; scored like a game</p>
-            <p class="fine">A personal homage; not affiliated with Princeton or Prof. Massey.</p>
-            <details class="mast-about">
-              <summary>About</summary>
-              <div class="det-body">
-                <p class="fine">A personal study rubric in homage to William A. Massey: Princeton mathematician (Class of 1977), queueing-theory pioneer at Bell Labs, co-founder of CAARMS, and in 2001 the first tenured African American mathematician in the Ivy League. Not affiliated with or endorsed by Princeton University or Professor Massey. Your progress saves in this browser.</p>
+        <div class="wrap">
+          <h1>The Cambridge Method</h1>
+          <p class="fine pt-credit">Scoring system adapted from the Massey Standard</p>
+          <p class="tag">Rigor, performance, follow-through; scored like a game</p>
+          {/* The crest and homage are the history of the rubric, kept under About. */}
+          <details class="mast-about">
+            <summary>About the scoring</summary>
+            <div class="det-body mast-in">
+              <img class="crest" src={crestUrl} alt="Princeton University shield" />
+              <div>
+                <p class="fine">The scoring is a personal study rubric in homage to William A. Massey: Princeton mathematician (Class of 1977), queueing-theory pioneer at Bell Labs, co-founder of CAARMS, and in 2001 the first tenured African American mathematician in the Ivy League. Not affiliated with or endorsed by Princeton University, the University of Cambridge, or Professor Massey. Your progress saves in this browser.</p>
               </div>
-            </details>
-          </div>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -220,10 +266,9 @@ export function StudyTrackerView() {
 
         {tab === 'today' && (
           <div role="tabpanel" id={TAB_PANEL} aria-labelledby="pt-tab-today">
-            {/* THE STANDARD SURFACE — one continuous scroll of the six surfaces
-                in the brief's literal 1–6 order. The glance strip above is #0. */}
+            {/* One continuous scroll; the glance strip above is #0. */}
 
-            {/* #1-2 READING — community feed + Princeton theory group, one section, collapsed */}
+            {/* #1 READING: the community feed, collapsed */}
             <FeedSection />
 
             {/* #3 ALGORITHM OF THE DAY (now default-open) */}
@@ -233,22 +278,21 @@ export function StudyTrackerView() {
                 teach the day's algorithm and defend it in AI office hours. */}
             <TeachSection />
 
-            {/* #4 COURSES OF THE DAY + PSETS */}
-            <CurriculumSection />
-
-            {/* #5 PRINCETON BSE DAILY SCHEDULE (default open) */}
+            {/* #4 THE DAILY SCHEDULE (default open). Blocks 1 and 3 follow the
+                current Cambridge item; their ids never change, so stored ticks hold. */}
             <Collapsible id="schedule" eyebrow="The day" title="Tick each block as you finish it" defaultOpen={true}>
-              <p class="hint">Eastern Time. Wake 9:00 AM, gym 3–5 PM, lights out 11:45 PM. The focus blocks point at the theory track: proofs and problem sets, algorithms in C++, and reproducing the week's paper. This is the day's shape; tick what you did.</p>
+              <p class="hint">{gloss("Eastern Time. Wake 9:00 AM, gym 3 to 5 PM, lights out 11:45 PM. Deep Blocks 1 and 3 follow your current Cambridge item and its loop step: cold attempt, write-up, supervision or redo. Block 2 is the algorithm of the day in C++. This is the day's shape; tick what you did.")}</p>
               <div class="rows">
                 {SCHEDULE.map((r) => {
                   const done = !!s.day.blocks[r.id];
+                  const { title, sub } = blockText(r.id) ?? r;
                   return (
-                    <div key={r.id} class={'row' + (r.gym ? ' gym' : '') + (done ? ' done' : '') + (r.id === nowId ? ' now' : '')}>
-                      <button class="tick" aria-pressed={done} aria-label={'Toggle: ' + r.title} onClick={() => toggleBlock(r.id)}>
+                    <div key={r.id} class={'row' + (r.gym ? ' gym' : '') + (done ? ' done' : '') + (r.id === nowId ? ' now' : '')} data-block={r.id}>
+                      <button class="tick" aria-pressed={done} aria-label={'Toggle: ' + title} onClick={() => toggleBlock(r.id)}>
                         {CHECK}
                       </button>
                       <div class="time">{r.time}</div>
-                      <div class="what"><b>{r.title}</b><div class="sub">{r.sub}</div></div>
+                      <div class="what"><b>{gloss(title)}</b><div class="sub">{gloss(sub)}</div></div>
                     </div>
                   );
                 })}
@@ -274,16 +318,17 @@ export function StudyTrackerView() {
               </div>
             )}
 
-            {/* SCORECARD (default open) */}
+            {/* SCORECARDS: today's, and beside it (below it on a phone) this week's Cambridge card */}
+            <div class="pt-scpair">
             <Collapsible id="scorecard" eyebrow="Score" title="Rate today: missed, partial, met" defaultOpen={true}>
-              <p class="hint">Missed, partial, or met. Your scores fill the five meters below. Score the practice, never a grade or exam result. An unrated line stays empty and does not count against you.</p>
+              <p class="hint">{gloss("Missed, partial, or met. Your scores fill the five meters below. Score the practice, never a grade or exam result. An unrated line stays empty and does not count against you.")}</p>
               <div class="sc">
                 {SCORE.map((r) => {
                   const raw = s.day.scores[r.id];
                   const rated = raw !== undefined;
                   return (
                     <div key={r.id} class="scrow">
-                      <div class="txt"><b>{r.b}</b>{r.t}</div>
+                      <div class="txt"><b>{r.b}</b>{gloss(r.t)}</div>
                       <div class="seg" role="group" aria-label={r.b.replace(/:\s*$/, '')}>
                         {SCORE_LABELS.map((lbl, n) => {
                           const on = rated && raw === n;
@@ -303,11 +348,21 @@ export function StudyTrackerView() {
                 <span class={'band ' + scBand}>{scWord}</span>
               </div>
             </Collapsible>
+            <CambridgeWeek
+              status={camStatus === 'failed' ? 'failed' : camReadyNow ? 'ready' : 'loading'}
+              card={week}
+              savedAt={camReadyNow ? lastSaved(readCambridge()) : 0}
+              onSet={setWeek}
+              onReset={resetWeek}
+            />
+            </div>
 
-            {/* METERS — demoted here, under the scorecard where they're computed */}
+            {/* METERS, under the scorecards they're computed from. Focus and
+                Progress add this week's Cambridge card as one more line once
+                there is Cambridge work (trackerStore.meterPct). */}
             <div class="meters" role="group" aria-label="Score meters">
               {METERS.map(([name, ids]) => {
-                const pct = meterPct(s.day, ids);
+                const pct = meterPct(s.day, ids, CAM_METERS.has(name) ? camMeter : null);
                 return (
                   <div key={name} class="meter">
                     <div class="lbl">
@@ -327,50 +382,26 @@ export function StudyTrackerView() {
               </button>
             </div>
 
-            {/* BONUS — beyond the six surfaces; placed AFTER the check-in so the
-                literal 1–6 scroll stays contiguous. Collapsed by default. */}
+            {/* BONUS, after the check-in. Collapsed by default. The proof journal's
+                entries stay readable in the error log's Archived journal. */}
             <PapersSection />
-            <ProofJournal />
           </div>
         )}
 
         {tab === 'playbook' && (
           <div class="pt-playbook" role="tabpanel" id={TAB_PANEL} aria-labelledby="pt-tab-playbook">
-            <details>
-              <summary>The path, in three climbs</summary>
-              <div class="det-body">
-                <p><span class="phase-n">CLIMB 1 · FOUNDATIONS</span> <b>Proof and the mathematics.</b> Discrete math and induction, calculus, linear algebra, probability, real analysis. Build the habit of reconstructing a proof before you read it. See the Curriculum section on Today for the exact courses and problem sets.</p>
-                <div class="boss"><b>Boss battle:</b> work a full problem set unaided; write one proof from memory.</div>
-                <p><span class="phase-n">CLIMB 2 · ALGORITHMS</span> <b>Algorithms and data structures.</b> COS 226, MIT 6.006, then advanced algorithms (6.046 / COS 423). Implement each in C++, then port to Python; hunt lower bounds, not only upper bounds.</p>
-                <div class="boss"><b>Boss battles:</b> finish the DSA courses; prove one non-trivial lower bound; reconstruct the Algorithm-of-the-Day catalogue from memory.</div>
-                <p><span class="phase-n">CLIMB 3 · THEORY</span> <b>Computation and complexity.</b> Sipser's Theory of Computation, then Arora–Barak complexity. Read a foundational paper each week and reproduce one result. This is where the Princeton standard is built.</p>
-                <div class="boss"><b>Boss battle:</b> reproduce a paper's central result, then extend it by one step.</div>
-              </div>
-            </details>
+            <CamPathSummary link={link} failed={linkFailed} loading={!link && !linkFailed} />
 
             <details>
               <summary>Gym playlist (3–5 PM, hands-free study)</summary>
               <div class="det-body">
                 <ul>
-                  <li><b><Ext href="https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/">MIT 18.06 Linear Algebra</Ext></b> — Strang's full video lectures.</li>
-                  <li><b><Ext href="https://ocw.mit.edu/courses/18-404j-theory-of-computation-fall-2020/">MIT 18.404 Theory of Computation</Ext></b> — 26 videos by Sipser.</li>
+                  {/* Named by lecturer, not course code: the retired Princeton plan's codes no longer appear in the tracker. */}
+                  <li><b><Ext href="https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/">Strang, Linear Algebra</Ext></b>: the full video lectures (MIT OpenCourseWare).</li>
+                  <li><b><Ext href="https://ocw.mit.edu/courses/18-404j-theory-of-computation-fall-2020/">Sipser, Theory of Computation</Ext></b>: 26 videos (MIT OpenCourseWare).</li>
                   <li><b>AWS video course</b> (freeCodeCamp or Maarek) during Phase 1.</li>
                   <li><b><Ext href="https://introtcs.org/">Barak, Intro to TCS</Ext></b> — free, made to read between sets. Plus Anki review.</li>
                 </ul>
-              </div>
-            </details>
-
-            <details>
-              <summary>The study shelf — extras beyond the ladder</summary>
-              <div class="det-body">
-                <p class="hint">The full course ladder lives in the <b>Curriculum</b> section on Today. These are the shelf-only extras it doesn't cover.</p>
-                <table>
-                  <tr><th>Course</th><th>Builds</th></tr>
-                  <tr><td><Ext href="https://www.coursera.org/specializations/algorithms">Stanford Algorithms</Ext></td><td>Algorithms — a second pass alongside 6.006 / 6.046J</td></tr>
-                  <tr><td><Ext href="https://introtcs.org/">Barak, Intro to TCS</Ext></td><td>A gentle on-ramp to the group's complexity texts</td></tr>
-                  <tr><td><Ext href="https://www.cs.princeton.edu/~hy2/teaching/fall25-cos521/index.html">Princeton COS 521</Ext></td><td>Advanced algorithm design — train on their gym</td></tr>
-                  <tr><td><Ext href="https://www.cs.princeton.edu/courses/archive/spring25/cos445/">COS 445</Ext></td><td>Economics & computation / algorithmic game theory</td></tr>
-                </table>
               </div>
             </details>
 
@@ -413,9 +444,58 @@ export function StudyTrackerView() {
         )}
 
         <div class="app-foot">
-          <p>The Massey Standard · a personal daily instrument · saved locally in this browser</p>
+          <p>The Cambridge Method · a personal daily instrument · saved locally in this browser</p>
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * The Playbook's compact Cambridge path: phase, current item and loop step, and
+ * supervisions this week, with a way into the full path screen. It reads the
+ * same summary as Today's Math card, so the two never disagree.
+ */
+function CamPathSummary({ link, failed, loading }: { link: TrackerCambridge | null; failed: boolean; loading: boolean }) {
+  const saved = isOffline() ? lastSaved(readCambridge()) : 0;
+  return (
+    <section class="pt-campath" aria-labelledby="pt-campath-h">
+      <div class="pt-campath-top">
+        <span class="eyebrow">The path</span>
+        {isOffline() && (
+          <span class="m-state m-num" data-kind="offline">
+            Offline{saved ? ` · Saved ${hm(saved)}` : ''}
+          </span>
+        )}
+      </div>
+      <h2 class="pt-campath-h" id="pt-campath-h">The Cambridge Method</h2>
+      {failed ? (
+        <div class="m-state" data-kind="error" role="alert">
+          <p class="m-state-title">The Cambridge path didn't load.</p>
+          <p class="m-state-body">Check your connection, then try again.</p>
+          <button class="m-btn" type="button" onClick={retryScreen}>
+            Try again
+          </button>
+        </div>
+      ) : loading || !link ? (
+        <div aria-busy="true" aria-label="Loading the Cambridge path">
+          <span class="m-skel m-skel-line" />
+          <span class="m-skel m-skel-line" />
+        </div>
+      ) : (
+        <>
+          <p class="pt-campath-phase">{gloss(link.summary.course)}</p>
+          <p class="pt-campath-next">
+            <span class="pt-campath-lbl">Next</span>
+            <span>{gloss(link.summary.next.label)}</span>
+          </p>
+          {link.summary.next.detail && <p class="hint">{gloss(link.summary.next.detail)}</p>}
+          <p class="pt-campath-sup m-num">{gloss(link.summary.progress.caption)}</p>
+        </>
+      )}
+      <button class="primary" type="button" onClick={() => openCam('cambridge')}>
+        Open the Cambridge path
+      </button>
+    </section>
   );
 }

@@ -368,3 +368,25 @@
 .sg-prims .m-state {
   margin-top: var(--sp-2);
 }
+
+/* ---------- Cambridge primitives ---------- */
+.sg-cam-block {
+  margin-top: var(--sp-3);
+}
+.sg-cam-status {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: var(--sp-2) var(--sp-4);
+  margin-top: var(--sp-3);
+}
+.sg-gloss-text {
+  margin-top: var(--sp-3);
+  max-width: var(--measure);
+}
+/* A stand-in page photo: ruled paper drawn from tokens, so the page stays token-only. */
+.sg-page {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(var(--surface) 0 11px, var(--rule) 11px 12px);
+}

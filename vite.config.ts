@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import preact from '@preact/preset-vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { cambridgeIndex } from './scripts/cambridge/index-plugin.mjs';
 
 // Meridian is a GitHub Pages *project* site served under /meridian/, so every
 // asset URL is base-relative. Vite + vite-plugin-pwa replace the old hand-rolled
@@ -12,7 +13,13 @@ import { VitePWA } from 'vite-plugin-pwa';
 // no service worker, served under /meridian/preview/redesign/.
 export default defineConfig(({ mode }) => ({
   base: mode === 'demo' ? '/meridian/preview/redesign/' : '/meridian/',
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // Hand-edited and scraped study data (data/cambridge/*.json), imported as JSON.
+      '@data': fileURLToPath(new URL('./data', import.meta.url)),
+    },
+  },
   build: {
     target: 'es2022',
     // Three's landing chunk is ~500 KB; keep the warning threshold out of the way.
@@ -27,6 +34,8 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     preact(),
+    // Today's small catalog index, generated from the curriculum JSON (catalogIndex.ts).
+    cambridgeIndex(),
     mode !== 'demo' && VitePWA({
       registerType: 'autoUpdate',
       // A deferred <script> instead of the default parser-blocking one in <head>.
@@ -63,6 +72,13 @@ export default defineConfig(({ mode }) => ({
             urlPattern: /\/assets\/intro-[\w-]+\.(?:js|css)$/,
             handler: 'CacheFirst', // content-hashed names: a cached copy is never stale
             options: { cacheName: 'meridian-intro', expiration: { maxEntries: 4 } },
+          },
+          {
+            // KaTeX's fonts load with the write-up preview; cache them the first time so
+            // math renders offline afterwards without precaching ~60 font files for everyone.
+            urlPattern: /\/assets\/KaTeX_[\w-]+\.(?:woff2|woff|ttf)$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'meridian-katex-fonts', expiration: { maxEntries: 80 } },
           },
         ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,

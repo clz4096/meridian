@@ -1,0 +1,372 @@
+{
+  "$schema": "./schema/underground.schema.json",
+  "note": "Layer 2, done before each STEP block. Underground Mathematics is enrichment, not a course: no fixed order, and it assumes the topic is taught elsewhere. Use each station's Introducing and Developing resources first; save Review questions (mostly past-exam questions) for the redo day. Station URLs fetched and verified 2026-09-30.",
+  "site": "https://undergroundmathematics.org",
+  "mapping": {
+    "label": "suggested",
+    "note": "This station-to-block mapping is the owner's own topic match, not Cambridge's."
+  },
+  "stations": [
+    {
+      "id": "thinking-about-algebra",
+      "name": "Thinking about Algebra",
+      "url": "https://undergroundmathematics.org/thinking-about-algebra",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "quadratics",
+      "name": "Quadratics",
+      "url": "https://undergroundmathematics.org/quadratics",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "geometry-of-equations",
+      "name": "Geometry of Equations",
+      "url": "https://undergroundmathematics.org/geometry-of-equations",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "sequences",
+      "name": "Sequences",
+      "url": "https://undergroundmathematics.org/sequences",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "trigonometry-triangles-to-functions",
+      "name": "Trigonometry: Triangles to Functions",
+      "url": "https://undergroundmathematics.org/trigonometry-triangles-to-functions",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "counting-and-binomials",
+      "name": "Counting & Binomials",
+      "url": "https://undergroundmathematics.org/counting-and-binomials",
+      "has": {
+        "introducing": false,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30",
+      "note": "No Introducing resources on the site; start with Developing."
+    },
+    {
+      "id": "polynomials",
+      "name": "Polynomials & Rational Functions",
+      "url": "https://undergroundmathematics.org/polynomials",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "circles",
+      "name": "Circles",
+      "url": "https://undergroundmathematics.org/circles",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "thinking-about-geometry",
+      "name": "Thinking about Geometry",
+      "url": "https://undergroundmathematics.org/thinking-about-geometry",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "trigonometry-compound-angles",
+      "name": "Trigonometry: Compound Angles",
+      "url": "https://undergroundmathematics.org/trigonometry-compound-angles",
+      "has": {
+        "introducing": false,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30",
+      "note": "No Introducing resources on the site; start with Developing."
+    },
+    {
+      "id": "thinking-about-functions",
+      "name": "Thinking about Functions",
+      "url": "https://undergroundmathematics.org/thinking-about-functions",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "divisibility-and-induction",
+      "name": "Divisibility & Induction",
+      "url": "https://undergroundmathematics.org/divisibility-and-induction",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "combining-functions",
+      "name": "Combining Functions",
+      "url": "https://undergroundmathematics.org/combining-functions",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "thinking-about-numbers",
+      "name": "Thinking about Numbers",
+      "url": "https://undergroundmathematics.org/thinking-about-numbers",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "introducing-calculus",
+      "name": "Introducing Calculus",
+      "url": "https://undergroundmathematics.org/introducing-calculus",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "exp-and-log",
+      "name": "Exponentials & Logarithms",
+      "url": "https://undergroundmathematics.org/exp-and-log",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "calculus-of-powers",
+      "name": "Calculus of Powers",
+      "url": "https://undergroundmathematics.org/calculus-of-powers",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "calculus-meets-functions",
+      "name": "Calculus meets Functions",
+      "url": "https://undergroundmathematics.org/calculus-meets-functions",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "chain-rule",
+      "name": "Chain Rule & Integration by Substitution",
+      "url": "https://undergroundmathematics.org/chain-rule",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "calculus-trig-log",
+      "name": "Calculus of Trigonometry & Logarithms",
+      "url": "https://undergroundmathematics.org/calculus-trig-log",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "product-rule",
+      "name": "Product Rule & Integration by Parts",
+      "url": "https://undergroundmathematics.org/product-rule",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "combining-vectors",
+      "name": "Combining Vectors",
+      "url": "https://undergroundmathematics.org/combining-vectors",
+      "has": {
+        "introducing": false,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30",
+      "note": "Marked 'under construction' on the site: one Developing resource plus review questions."
+    },
+    {
+      "id": "vector-geometry",
+      "name": "Vector Geometry",
+      "url": "https://undergroundmathematics.org/vector-geometry",
+      "has": {
+        "introducing": true,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30"
+    },
+    {
+      "id": "power-series",
+      "name": "Power Series",
+      "url": "https://undergroundmathematics.org/power-series",
+      "has": {
+        "introducing": false,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30",
+      "note": "No Introducing resources on the site; one Developing resource."
+    },
+    {
+      "id": "hyperbolic-functions",
+      "name": "Hyperbolic Functions",
+      "url": "https://undergroundmathematics.org/hyperbolic-functions",
+      "has": {
+        "introducing": false,
+        "developing": true,
+        "review": true
+      },
+      "verified": "2026-09-30",
+      "note": "No Introducing resources on the site; start with Developing."
+    }
+  ],
+  "blocks": [
+    {
+      "block": "1",
+      "stations": [
+        "thinking-about-algebra",
+        "quadratics",
+        "geometry-of-equations",
+        "sequences"
+      ]
+    },
+    {
+      "block": "2",
+      "stations": [
+        "trigonometry-triangles-to-functions",
+        "counting-and-binomials",
+        "polynomials",
+        "circles"
+      ]
+    },
+    {
+      "block": "3",
+      "stations": [
+        "thinking-about-geometry",
+        "trigonometry-compound-angles",
+        "thinking-about-functions",
+        "divisibility-and-induction"
+      ]
+    },
+    {
+      "block": "4",
+      "stations": [
+        "combining-functions",
+        "thinking-about-numbers",
+        "sequences"
+      ]
+    },
+    {
+      "block": "5",
+      "stations": [
+        "introducing-calculus",
+        "exp-and-log"
+      ]
+    },
+    {
+      "block": "6",
+      "stations": [
+        "calculus-of-powers",
+        "calculus-meets-functions",
+        "chain-rule"
+      ]
+    },
+    {
+      "block": "step2-3",
+      "stations": [
+        "calculus-trig-log",
+        "product-rule",
+        "combining-vectors",
+        "vector-geometry",
+        "power-series",
+        "hyperbolic-functions"
+      ]
+    }
+  ],
+  "layer1": {
+    "note": "Only for gaps: fix the gap here first, then the matching station.",
+    "courses": [
+      {
+        "name": "Khan Academy: Algebra 2",
+        "url": "https://www.khanacademy.org/math/algebra2"
+      },
+      {
+        "name": "Khan Academy: Precalculus",
+        "url": "https://www.khanacademy.org/math/precalculus"
+      },
+      {
+        "name": "Khan Academy: Calculus 1",
+        "url": "https://www.khanacademy.org/math/calculus-1",
+        "note": "Khan's help centre recommends Differential Calculus + Integral Calculus or AP Calculus AB as more complete."
+      }
+    ]
+  }
+}

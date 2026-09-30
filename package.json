@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "@preact/signals": "^2.10.1",
+    "katex": "^0.18.9",
     "preact": "^10.29.8",
     "ts-fsrs": "^5.4.1"
   }

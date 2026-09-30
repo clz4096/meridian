@@ -1,0 +1,104 @@
+/* Glossary screen. Tokens and primitives only (src/styles/tokens.css, primitives.css). */
+
+.gl-root {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  /* .appwrap already supplies the gutter. */
+  padding: 0 0 var(--sp-8);
+  color: var(--ink);
+  font-size: var(--fs-body);
+}
+
+.gl-search {
+  display: grid;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+.gl-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--tap);
+  padding: 0 var(--sp-3);
+  border: var(--hairline) solid var(--rule-strong);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--fs-2);
+}
+.gl-input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.cam-gloss {
+  margin: 0;
+}
+.gl-term {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-3) 0;
+  border-bottom: var(--hairline) solid var(--rule);
+}
+.gl-term:last-child {
+  border-bottom: 0;
+}
+.gl-term > dt {
+  font-size: var(--fs-4);
+  line-height: var(--lh-4);
+  font-weight: var(--fw-semibold);
+  border-radius: var(--r-1);
+}
+.gl-term > dt:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.gl-term > dd {
+  margin: 0;
+}
+.gl-meaning {
+  font-size: var(--fs-3);
+  line-height: var(--lh-3);
+  max-width: var(--measure);
+}
+.gl-us {
+  font-size: var(--fs-2);
+  color: var(--ink-2);
+}
+.gl-us > .m-label {
+  margin-right: var(--sp-2);
+}
+/* A linked term washes once so the eye finds it, then settles. */
+.gl-term[data-flash='true'] > dt {
+  animation: gl-flash var(--dur-3) var(--ease-calm);
+}
+@keyframes gl-flash {
+  from {
+    background: var(--accent-wash);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+/* Skeleton: the search box plus four terms, the loaded list's outline. */
+.gl-skel {
+  display: grid;
+}
+.gl-skel-search {
+  height: var(--tap);
+  margin: calc(var(--fs-1) * var(--lh-1) + var(--sp-2)) 0 var(--sp-4);
+}
+.gl-skel-term {
+  display: block;
+  padding: var(--sp-3) 0;
+  border-bottom: var(--hairline) solid var(--rule);
+}
+.gl-w-40 {
+  width: 40%;
+}
+.gl-w-60 {
+  width: 60%;
+}
+.gl-w-90 {
+  width: 90%;
+}

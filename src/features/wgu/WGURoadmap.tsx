@@ -115,7 +115,8 @@ export function WGURoadmapView() {
               <span class="wgu-week-dates m-num">{wk.dates}</span>
               <span class="wgu-week-theme">{wk.theme}</span>
             </div>
-            <ul class="wgu-courses">
+            {/* A lead-in or buffer week has no due course, only its admin line. */}
+            {wk.courses.length > 0 && <ul class="wgu-courses">
               {wk.courses.map((c) => {
                 const id = `wgu-wk-${c.code}`;
                 return (
@@ -144,7 +145,7 @@ export function WGURoadmapView() {
                   </li>
                 );
               })}
-            </ul>
+            </ul>}
             {wk.admin && <p class="wgu-admin">{wk.admin}</p>}
           </section>
         );

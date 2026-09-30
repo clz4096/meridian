@@ -72,6 +72,51 @@ export function afterPaint(end: () => unknown): void {
   requestAnimationFrame(() => setTimeout(end, 0));
 }
 
+/**
+ * Run `fn` once the browser reports a largest-contentful-paint entry for an
+ * element matching `selector`, or after `maxWaitMs`, whichever comes first.
+ *
+ * Why not afterPaint: at startup a frame can reach the screen hundreds of ms
+ * after its rAF (a cold GPU process), and an LCP entry presented after a given
+ * moment can still belong to a frame drawn before it. So work started after
+ * afterPaint, or after the next LCP entry of any element, can still land before
+ * the LCP paint, where Lighthouse counts it towards LCP. Waiting for the element
+ * itself avoids both. Where the browser has no LCP entries (Safari) this falls
+ * back to afterPaint; when the element never becomes the largest paint (a wide
+ * screen, an error state), the timer runs `fn`.
+ */
+export function afterLargestPaint(selector: string, fn: () => void, maxWaitMs = 1_500): void {
+  let done = false;
+  let obs: PerformanceObserver | null = null;
+  let timer = 0;
+  const run = (): void => {
+    if (done) return;
+    done = true;
+    obs?.disconnect();
+    window.clearTimeout(timer);
+    fn();
+  };
+  const types = typeof PerformanceObserver === 'undefined' ? [] : PerformanceObserver.supportedEntryTypes ?? [];
+  // After the first input the browser stops reporting LCP (for example, Today
+  // opened with Back after the page loaded into another screen), so waiting
+  // would only cost the timer.
+  const hadInput = types.includes('first-input') && performance.getEntriesByType('first-input').length > 0;
+  if (!types.includes('largest-contentful-paint') || hadInput) {
+    afterPaint(run);
+    return;
+  }
+  timer = window.setTimeout(run, maxWaitMs);
+  try {
+    obs = new PerformanceObserver((list) => {
+      const hit = list.getEntries().some((e) => (e as PerformanceEntry & { element?: Element | null }).element?.matches(selector));
+      if (hit) run();
+    });
+    obs.observe({ type: 'largest-contentful-paint', buffered: true });
+  } catch {
+    afterPaint(run);
+  }
+}
+
 /* ── pending navigation: started by the action that switches tabs, ended by App after paint ── */
 let pendingNav: { name: string; end: () => number } | null = null;
 export function navStart(tab: string): void {

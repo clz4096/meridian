@@ -1,0 +1,53 @@
+{
+  "$schema": "./schema/method.schema.json",
+  "note": "The study loop, shown as a stepper on every study item. Edit freely.",
+  "steps": [
+    {
+      "id": "read",
+      "name": "Read",
+      "do": "Notes and warm-up; write definitions and key formulas only."
+    },
+    {
+      "id": "attempt",
+      "name": "Attempt cold",
+      "do": "No looking things up; at least 60 minutes per problem before any hint. Mark each: solved / partial / stuck, plus where you stalled.",
+      "minMinutes": 60
+    },
+    {
+      "id": "writeup",
+      "name": "Write up",
+      "do": "Full sentences, including failed attempts."
+    },
+    {
+      "id": "supervision",
+      "name": "Supervision",
+      "do": "1 hour, with Claude as the expert (the supervisor prompt).",
+      "minutes": 60
+    },
+    {
+      "id": "redo",
+      "name": "Redo",
+      "do": "Within 48 hours, redo every miss from a blank page.",
+      "withinHours": 48
+    }
+  ],
+  "cadence": {
+    "supervisionsPerWeek": 2,
+    "suggestedDays": [
+      "Mon",
+      "Wed"
+    ],
+    "sabbath": "Friday sundown to Saturday sundown (Brooklyn, computed locally)"
+  },
+  "questionStatus": [
+    "solved",
+    "partial",
+    "stuck"
+  ],
+  "errorCauses": [
+    "concept",
+    "algebra slip",
+    "didn't see the idea",
+    "ran out of time"
+  ]
+}

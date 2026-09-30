@@ -1,0 +1,93 @@
+{
+  "$schema": "./schema/resources.schema.json",
+  "note": "Links shown on the Cambridge path screen. Every url was checked on 2026-09-30; rerun node scripts/cambridge/verify-links.mjs to recheck. Edit freely.",
+  "checkedAt": "2026-09-30",
+  "resources": [
+    {
+      "id": "step-support",
+      "name": "STEP Support Programme",
+      "use": "The main track: free, no account needed.",
+      "url": "https://step.maths.org/",
+      "verified": true
+    },
+    {
+      "id": "step-how-to",
+      "name": "How to use the STEP Support Programme",
+      "use": "Read this first.",
+      "url": "https://step.maths.org/how-use-step-support-programme",
+      "verified": true
+    },
+    {
+      "id": "siklos",
+      "name": "Siklos, Advanced Problems in Mathematics",
+      "use": "75 STEP problems (P1 to P75), each with commentary and a full solution. Phase A+ extras.",
+      "url": "https://books.openbookpublishers.com/10.11647/obp.0181.pdf",
+      "verified": true,
+      "license": "CC BY 4.0",
+      "note": "The PDF answers 200 to a browser-like request and 405 to a bare bot request. The license is as stated by the owner; the PDF text is font-encoded and the publisher page blocks scripts, so it was not machine-checked. The PDF also cites DOI 10.11647/OBP.0071."
+    },
+    {
+      "id": "step-questions",
+      "name": "STEP question database",
+      "use": "Past STEP questions, 1986 to 2018. Phase D papers and harder follow-ups.",
+      "url": "https://step.maths.org/questions",
+      "verified": true
+    },
+    {
+      "id": "worked-step-papers",
+      "name": "Worked STEP papers",
+      "use": "Worked solutions to papers from 2019 onward. Phase D.",
+      "url": "https://step.maths.org/worked-step-papers",
+      "verified": true
+    },
+    {
+      "id": "cambridge-step",
+      "name": "Cambridge STEP information",
+      "use": "The Faculty's page on STEP.",
+      "url": "https://www.maths.cam.ac.uk/undergrad/admissions/step",
+      "verified": true,
+      "note": "step.maths.org links the http:// address; the https:// one works."
+    },
+    {
+      "id": "archim-freshers-guide",
+      "name": "Archimedeans Freshers' Guide",
+      "use": "What first-year Cambridge math students are told before Part IA.",
+      "url": "https://archim.soc.srcf.net/wp-content/uploads/2026/01/Archimedeans-Freshers-guide.pdf",
+      "verified": true
+    },
+    {
+      "id": "archim-resources",
+      "name": "Archimedeans resources",
+      "use": "Links to student lecture notes (Dexter Chua, the Notes Hub) used for Part IA.",
+      "url": "https://archim.org.uk/resources/",
+      "verified": true
+    },
+    {
+      "id": "part-iii-prep",
+      "name": "Part III preparation resources",
+      "use": "Faculty reading list for students preparing for Part III.",
+      "url": "https://www.maths.cam.ac.uk/postgrad/part-iii/prospective/preparation/resources",
+      "verified": true
+    }
+  ],
+  "books": [
+    {
+      "id": "alcock",
+      "author": "Lara Alcock",
+      "title": "How to Study for a Mathematics Degree",
+      "use": "Freshers' pre-reading."
+    },
+    {
+      "id": "houston",
+      "author": "Kevin Houston",
+      "title": "How to Think Like a Mathematician",
+      "use": "Freshers' pre-reading."
+    },
+    {
+      "id": "eccles",
+      "author": "Peter J. Eccles",
+      "title": "An Introduction to Mathematical Reasoning",
+      "use": "Freshers' pre-reading."
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 /**
  * Today's reading — the tracker's single reading surface: a live, taste-ranked
- * list for a systems / distributed-systems / applied-CS-theory student, then the
- * Princeton theory group's papers, closed by one takeaway note. Hacker News
+ * list for a systems / distributed-systems / applied-CS-theory student, closed by
+ * one takeaway note. (The Princeton theory group list is retired with the
+ * Princeton curriculum; its content is in data/archive/princeton-theory.json.) Hacker News
  * (Algolia API) is the sole discovery engine (Amendment A1); a curated eng-blog
  * allowlist ranks up. Collapsed by default; the feed fetches only once the
  * section is opened (served from a per-day cache after that); a refresh button
@@ -11,13 +12,11 @@ import { useEffect, useState } from 'preact/hooks';
 import { loadDailyFeed, type FeedItem } from '@/features/studytracker/feedSources';
 import { Collapsible } from '@/features/studytracker/Collapsible';
 import { ReadingNote } from '@/features/studytracker/ReadingNote';
-import { PrincetonGroup } from '@/features/studytracker/PrincetonGroup';
 
 export function FeedSection() {
   return (
     <Collapsible id="feed" eyebrow="Read" title="Today's reading" defaultOpen={false}>
       <FeedList />
-      <PrincetonGroup />
       <ReadingNote id="feed" prompt="One takeaway from today's reading (optional — earns credit)" />
     </Collapsible>
   );

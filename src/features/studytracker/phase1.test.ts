@@ -16,6 +16,8 @@ import {
 } from '@/features/studytracker/trackerStore';
 import { activeTab, setTab } from '@/features/studytracker/uiState';
 import { currentBlockId, nowMinutesET, parseLabelMinutes } from '@/features/studytracker/now';
+import { emptyCambridge } from '@/features/cambridge/types';
+import { awardGate, awardWriteup } from '@/features/cambridge/xp';
 
 /** Minimal schedule fixture mirroring the real ET blocks used by the view. */
 const SCHED = [
@@ -155,5 +157,27 @@ describe('theorist schema guard', () => {
     for (const k of Object.keys(t.day)) expect(DAY.has(k)).toBe(true);
     // scores hold only 0..2 integers keyed by score id — no new sub-shape.
     for (const v of Object.values(t.day.scores)) expect([0, 1, 2]).toContain(v);
+  });
+
+  // Reviewed for the Cambridge Method (contract 1.1, DECISIONS C4): its records
+  // live in their own synced store, so an old build (which rebuilds theorist
+  // from known keys) never strips them. Its XP rides in `day.events` under
+  // `cam:*` ids, which old builds already merge per key. The guard stays as is.
+  it('a Cambridge session adds no theorist keys; its XP lands in day.events', () => {
+    const seed: TheoristState = { banked: {}, day: { date: todayISO(), blocks: {}, scores: {}, banked: false } };
+    appState.set('theorist', seed as unknown as Record<string, unknown>);
+    appState.set('cambridge', {
+      ...emptyCambridge(),
+      items: { x: { id: 'x', stage: 'written-up', questions: {}, writeup: 'w', updatedAt: 1 } },
+      gates: { A: { phase: 'A', passedAt: 1, evidence: {}, updatedAt: 1 } },
+    } as never);
+    awardWriteup('x');
+    awardGate('A');
+    toggleBank();
+
+    const t = appState.get('theorist') as unknown as TheoristState;
+    for (const k of Object.keys(t)) expect(TOP.has(k)).toBe(true);
+    for (const k of Object.keys(t.day)) expect(DAY.has(k)).toBe(true);
+    expect(Object.keys(t.day.events ?? {}).sort()).toEqual(['cam:gatePassed:A', 'cam:writeup:x']);
   });
 });

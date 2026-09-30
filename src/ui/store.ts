@@ -11,13 +11,26 @@ import type { Split, ScratchStatus } from '@/core/types';
 import type { Weather } from '@/services/weather';
 
 /** `wgu`, `math` and `cs` are the study-path screens; `roadmap` is kept as an alias of
- *  `wgu` (the same view) so older links and saved reopen targets still work. */
+ *  `wgu` (the same view) so older links and saved reopen targets still work. `math`
+ *  now renders the Cambridge path, the same view as `cambridge`, for the same reason.
+ *  `teach` (the retired standalone teaching screen) is an alias of `tracker`. */
 export type Tab =
   | 'today' | 'todos' | 'scratch' | 'workout' | 'meal' | 'knowledge' | 'data' | 'tracker' | 'roadmap'
-  | 'wgu' | 'math' | 'cs' | 'teach';
+  | 'wgu' | 'math' | 'cs' | 'teach'
+  | 'cambridge' | 'cam-item' | 'cam-errors' | 'glossary';
 
 // ── navigation ──
 export const currentTab = signal<Tab>('today'); // boot lands on Today (the home)
+
+// ── Cambridge Method ──
+/** The study item the `cam-item` screen shows (a catalog id). */
+export const camItemId = signal<string | null>(null);
+/**
+ * The term the glossary screen should land on when it opens: set by a popover's
+ * "Open glossary" link or a `#/glossary?t=<id>` deep link. Here rather than in the
+ * glossary chunk, so the router in the main chunk can set it.
+ */
+export const glossaryTarget = signal<string | null>(null);
 
 // ── Today home ──
 export const clockNow = signal(Date.now()); // ticked by the Today screen while it is open

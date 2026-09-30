@@ -13,6 +13,7 @@
 import type { CoreState, KnowledgeItemLike, KnowledgeState, MealState, Millis, ScratchCard, ScratchStatus, TheoristState, TodoItem, WorkoutState } from '@/core/types';
 import { toNum } from '@/core/util';
 import { readFsrs } from '@/features/knowledge/fsrs';
+import { CAM_WEEK_ITEMS, emptyCambridge, type CamError, type CamGate, type CamItem, type CamQuestion, type CamWeek, type CambridgeState } from '@/features/cambridge/types';
 
 export const BUNDLE_VERSION = 3 as const;
 
@@ -22,6 +23,7 @@ export interface AppState {
   surplus: MealState;
   csgraph: KnowledgeState;
   theorist: TheoristState;
+  cambridge: CambridgeState;
 }
 
 export interface Bundle {
@@ -31,7 +33,10 @@ export interface Bundle {
 }
 
 export type ImportResult =
-  | { ok: true; state: AppState; warnings: string[] }
+  // `missing` names the stores the file did not carry. Import must leave those
+  // alone rather than write the empty defaults over them: a backup taken before
+  // the Cambridge store existed would otherwise wipe it.
+  | { ok: true; state: AppState; warnings: string[]; missing: Array<keyof AppState> }
   | { ok: false; errors: string[] };
 
 /* ================================================================== */
@@ -314,6 +319,100 @@ export function normaliseTheorist(raw: unknown): TheoristState {
   };
 }
 
+const QSTATUS = new Set(['solved', 'partial', 'stuck']);
+const STAGES = new Set(['not-started', 'attempting', 'written-up', 'supervised', 'redo-done']);
+const CAUSES = new Set(['concept', 'algebra slip', "didn't see the idea", 'ran out of time']);
+const num = (v: unknown): number | undefined => {
+  const n = toNum(v as never, NaN);
+  return Number.isFinite(n) ? n : undefined;
+};
+const strs = (v: unknown): string[] => arr(v).map(String);
+/** Spread helper: include a field only when it has a value, so a round-trip adds no keys. */
+const opt = <K extends string, V>(k: K, v: V | undefined): Partial<Record<K, V>> =>
+  (v === undefined ? {} : { [k]: v }) as Partial<Record<K, V>>;
+
+function normaliseCamQuestion(key: string, raw: unknown): CamQuestion {
+  const x = obj(raw);
+  const mark = num(x.mark);
+  return {
+    q: String(x.q ?? key),
+    coldSec: Math.max(0, num(x.coldSec) ?? 0),
+    ...opt('status', QSTATUS.has(String(x.status)) ? (x.status as CamQuestion['status']) : undefined),
+    ...opt('stalledAt', typeof x.stalledAt === 'string' ? x.stalledAt : undefined),
+    ...opt('runningSince', num(x.runningSince)),
+    ...opt('mark', mark === undefined ? undefined : Math.max(0, Math.min(20, mark))),
+  };
+}
+
+function normaliseCamItem(key: string, raw: unknown): CamItem {
+  const x = obj(raw);
+  const questions: CamItem['questions'] = {};
+  for (const [q, v] of Object.entries(obj(x.questions))) questions[q] = normaliseCamQuestion(q, v);
+  return {
+    id: String(x.id ?? key),
+    stage: STAGES.has(String(x.stage)) ? (x.stage as CamItem['stage']) : 'not-started',
+    questions,
+    updatedAt: num(x.updatedAt) ?? 0,
+    ...opt('writeup', typeof x.writeup === 'string' ? x.writeup : undefined),
+    ...opt('photos', Array.isArray(x.photos) ? strs(x.photos) : undefined),
+    ...opt('hintsUnlockedEarly', typeof x.hintsUnlockedEarly === 'boolean' ? x.hintsUnlockedEarly : undefined),
+    ...opt('supervisedAt', num(x.supervisedAt)),
+    ...opt('weakPoints', Array.isArray(x.weakPoints) ? strs(x.weakPoints) : undefined),
+    ...opt('redoQs', Array.isArray(x.redoQs) ? strs(x.redoQs) : undefined),
+    ...opt('redoDue', num(x.redoDue)),
+    ...opt('redoneAt', num(x.redoneAt)),
+    ...opt('deleted', x.deleted === true ? true : undefined),
+  };
+}
+
+function normaliseCamError(key: string, raw: unknown): CamError {
+  const x = obj(raw);
+  return {
+    id: String(x.id ?? key),
+    itemId: String(x.itemId ?? ''),
+    q: String(x.q ?? ''),
+    // An unknown cause keeps the entry under the broadest bucket rather than dropping what the owner wrote.
+    // '' means "needs a cause" (auto-created from a low mark); keep it rather than inventing one.
+    cause: x.cause === '' ? '' : CAUSES.has(String(x.cause)) ? (x.cause as CamError['cause']) : 'concept',
+    topic: String(x.topic ?? ''),
+    fix: String(x.fix ?? ''),
+    at: num(x.at) ?? 0,
+    updatedAt: num(x.updatedAt) ?? 0,
+    ...opt('deleted', x.deleted === true ? true : undefined),
+  };
+}
+
+function normaliseCamGate(key: string, raw: unknown): CamGate {
+  const x = obj(raw);
+  const evidence: Record<string, string> = {};
+  for (const [k, v] of Object.entries(obj(x.evidence))) evidence[k] = String(v);
+  return { phase: String(x.phase ?? key), passedAt: num(x.passedAt) ?? 0, evidence, updatedAt: num(x.updatedAt) ?? 0 };
+}
+
+function normaliseCamWeek(key: string, raw: unknown): CamWeek {
+  const x = obj(raw);
+  const sc = obj(x.scores);
+  const scores = {} as CamWeek['scores'];
+  for (const k of CAM_WEEK_ITEMS) scores[k] = Math.max(0, Math.min(2, Math.round(num(sc[k]) ?? 0))) as 0 | 1 | 2;
+  return { week: String(x.week ?? key), scores, updatedAt: num(x.updatedAt) ?? 0 };
+}
+
+/** Validate the Cambridge store; the empty store for anything unreadable. */
+export function normaliseCambridge(raw: unknown): CambridgeState {
+  const c = obj(raw);
+  const out = emptyCambridge();
+  for (const [k, v] of Object.entries(obj(c.items))) out.items[k] = normaliseCamItem(k, v);
+  for (const [k, v] of Object.entries(obj(c.errors))) out.errors[k] = normaliseCamError(k, v);
+  for (const [k, v] of Object.entries(obj(c.gates))) out.gates[k] = normaliseCamGate(k, v);
+  for (const [k, v] of Object.entries(obj(c.weeks))) out.weeks[k] = normaliseCamWeek(k, v);
+  for (const [k, v] of Object.entries(obj(c.awarded))) {
+    const n = num(v);
+    if (n !== undefined) out.awarded[k] = n;
+  }
+  const migratedAt = num(c.migratedAt);
+  return migratedAt ? { ...out, migratedAt } : out;
+}
+
 export function normaliseState(raw: unknown): AppState {
   const s = obj(raw);
   return canonicalise({
@@ -322,6 +421,7 @@ export function normaliseState(raw: unknown): AppState {
     surplus: normaliseMeals(s.surplus),
     csgraph: normaliseKnowledge(s.csgraph),
     theorist: normaliseTheorist(s.theorist),
+    cambridge: normaliseCambridge(s.cambridge),
   });
 }
 
@@ -361,7 +461,7 @@ export function importBundle(text: string): ImportResult {
     if (version !== BUNDLE_VERSION) {
       warnings.push(`bundle version ${version}; expected ${BUNDLE_VERSION} — migrated on import`);
     }
-  } else if (b.core || b.overload || b.surplus || b.csgraph || b.theorist) {
+  } else if (b.core || b.overload || b.surplus || b.csgraph || b.theorist || b.cambridge) {
     payload = b;                       // bare state, no envelope
     warnings.push('no bundle envelope found; treated as a bare state object');
   } else {
@@ -369,14 +469,17 @@ export function importBundle(text: string): ImportResult {
   }
 
   const state = normaliseState(payload);
-  const stores = ['core', 'overload', 'surplus', 'csgraph', 'theorist'] as const;
+  const stores = ['core', 'overload', 'surplus', 'csgraph', 'theorist', 'cambridge'] as const;
+  const missing: Array<keyof AppState> = [];
   for (const key of stores) {
     if ((payload as Record<string, unknown>)[key] === undefined) {
-      warnings.push(`store "${key}" missing from file; imported as empty`);
+      missing.push(key);
+      // Files from before the Cambridge store never carry it; that is not worth a warning.
+      if (key !== 'cambridge') warnings.push(`store "${key}" missing from file; imported as empty`);
     }
   }
   if (errors.length > 0) return { ok: false, errors };
-  return { ok: true, state, warnings };
+  return { ok: true, state, warnings, missing };
 }
 
 /** Round-trip in one call, for tests and for a pre-write self-check. */
@@ -414,6 +517,7 @@ export function storageMetrics(state: AppState): StorageMetrics {
     surplus: size(state.surplus),
     csgraph: size(state.csgraph),
     theorist: size(state.theorist),
+    cambridge: size(state.cambridge),
   };
   const bytes = Object.values(perStore).reduce((a, b) => a + b, 0);
   const workoutSets = Object.values(state.overload.days ?? {}).reduce((a, s) => a + s.length, 0);

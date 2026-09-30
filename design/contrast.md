@@ -6,7 +6,7 @@ Thresholds: 4.5:1 for text (WCAG 1.4.3), 3:1 for focus rings, control borders, p
 
 ## Variant A, Cream and Coral (default)
 
-54 of 54 pairs pass.
+62 of 62 pairs pass.
 
 | Foreground | Background | Colors | Ratio | Min | Result | Use |
 |---|---|---|---:|---:|---|---|
@@ -64,6 +64,14 @@ Thresholds: 4.5:1 for text (WCAG 1.4.3), 3:1 for focus rings, control borders, p
 | `--series-4` | `--surface` | #3D4FA0 on #FFFDFA | 7.32 | 3 | pass | chart series |
 | `--series-5` | `--bg` | #4A3B32 on #FAF6F0 | 9.94 | 3 | pass | chart series |
 | `--series-5` | `--surface` | #4A3B32 on #FFFDFA | 10.54 | 3 | pass | chart series |
+| `--ink-2` | `--accent-wash` | #584A40 on #FBE9E2 | 7.23 | 4.5 | pass | current phase title and gate |
+| `--accent` | `--accent-wash` | #C8432E on #FBE9E2 | 4.15 | 3 | pass | current phase node |
+| `--rule-strong` | `--accent-wash` | #948272 on #FBE9E2 | 3.14 | 3 | pass | parallel phase rule on current row |
+| `--focus` | `--accent-wash` | #2C5A8C on #FBE9E2 | 6.06 | 3 | pass | focus ring on current phase, open term |
+| `--ok` | `--bg` | #2F6B3E on #FAF6F0 | 5.92 | 3 | pass | done step mark, passed phase node, solved mark |
+| `--ok` | `--surface` | #2F6B3E on #FFFDFA | 6.28 | 3 | pass | done step mark, passed phase node, solved mark |
+| `--on-accent` | `--accent` | #FFFFFF on #C8432E | 4.89 | 3 | pass | current step number |
+| `--accent` | `--surface-2` | #C8432E on #F3ECE2 | 4.17 | 3 | pass | status dial in a well |
 
 ### Separation
 
@@ -83,7 +91,7 @@ Thresholds: 4.5:1 for text (WCAG 1.4.3), 3:1 for focus rings, control borders, p
 
 ## Variant B, Ember
 
-54 of 54 pairs pass.
+62 of 62 pairs pass.
 
 | Foreground | Background | Colors | Ratio | Min | Result | Use |
 |---|---|---|---:|---:|---|---|
@@ -141,6 +149,14 @@ Thresholds: 4.5:1 for text (WCAG 1.4.3), 3:1 for focus rings, control borders, p
 | `--series-4` | `--surface` | #3D4FA0 on #FFF8F2 | 7.07 | 3 | pass | chart series |
 | `--series-5` | `--bg` | #8A4F8A on #FBEEE4 | 5.17 | 3 | pass | chart series |
 | `--series-5` | `--surface` | #8A4F8A on #FFF8F2 | 5.60 | 3 | pass | chart series |
+| `--ink-2` | `--accent-wash` | #5C4336 on #FADCCF | 7.01 | 4.5 | pass | current phase title and gate |
+| `--accent` | `--accent-wash` | #D2452B on #FADCCF | 3.50 | 3 | pass | current phase node |
+| `--rule-strong` | `--accent-wash` | #98786A on #FADCCF | 3.10 | 3 | pass | parallel phase rule on current row |
+| `--focus` | `--accent-wash` | #27588F on #FADCCF | 5.63 | 3 | pass | focus ring on current phase, open term |
+| `--ok` | `--bg` | #2E6A3A on #FBEEE4 | 5.70 | 3 | pass | done step mark, passed phase node, solved mark |
+| `--ok` | `--surface` | #2E6A3A on #FFF8F2 | 6.16 | 3 | pass | done step mark, passed phase node, solved mark |
+| `--on-accent` | `--accent` | #FFFFFF on #D2452B | 4.54 | 3 | pass | current step number |
+| `--accent` | `--surface-2` | #D2452B on #F5E3D5 | 3.64 | 3 | pass | status dial in a well |
 
 ### Separation
 

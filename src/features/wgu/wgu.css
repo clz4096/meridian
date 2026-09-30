@@ -263,6 +263,10 @@
   font-size: var(--fs-2);
   color: var(--ink-2);
 }
+/* A week with no due course: the head's rule already separates the admin line. */
+.wgu-week-head + .wgu-admin {
+  border-top: 0;
+}
 
 /* ---------- checkbox ----------
    The input covers the whole 44px cell at opacity 0; the drawn box follows its state. */

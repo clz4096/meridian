@@ -18,8 +18,8 @@
  *     claim the data is synced.
  */
 
-export type StoreKey = 'core' | 'overload' | 'surplus' | 'csgraph' | 'theorist';
-export const STORE_KEYS: readonly StoreKey[] = ['core', 'overload', 'surplus', 'csgraph', 'theorist'];
+export type StoreKey = 'core' | 'overload' | 'surplus' | 'csgraph' | 'theorist' | 'cambridge';
+export const STORE_KEYS: readonly StoreKey[] = ['core', 'overload', 'surplus', 'csgraph', 'theorist', 'cambridge'];
 
 /** A store is any JSON-serialisable record; merge semantics are injected. */
 export type StoreData = Record<string, unknown>;
@@ -33,6 +33,13 @@ export interface CloudPayload {
   surplus: StoreData;
   csgraph: StoreData;
   theorist: StoreData;
+  /**
+   * Optional because builds before the Cambridge Method know only five stores:
+   * they write the blob from those five fields, so any payload an old build
+   * pushed has no `cambridge` key. A missing key means "no remote change",
+   * never "empty" (see applyRemote).
+   */
+  cambridge?: StoreData;
 }
 
 export type CloudErrorKind = 'offline' | 'rate-limited' | 'server' | 'not-found' | 'unknown';
@@ -149,10 +156,11 @@ export class SyncEngine {
       surplus: initial?.surplus ?? {},
       csgraph: initial?.csgraph ?? {},
       theorist: initial?.theorist ?? {},
+      cambridge: initial?.cambridge ?? {},
     };
-    this.rev = { core: 0, overload: 0, surplus: 0, csgraph: 0, theorist: 0 };
-    this.pendingLocal = { core: false, overload: false, surplus: false, csgraph: false, theorist: false };
-    this.pendingCloud = { core: false, overload: false, surplus: false, csgraph: false, theorist: false };
+    this.rev = { core: 0, overload: 0, surplus: 0, csgraph: 0, theorist: 0, cambridge: 0 };
+    this.pendingLocal = { core: false, overload: false, surplus: false, csgraph: false, theorist: false, cambridge: false };
+    this.pendingCloud = { core: false, overload: false, surplus: false, csgraph: false, theorist: false, cambridge: false };
   }
 
   /* ---------------- state access ---------------- */
@@ -330,6 +338,7 @@ export class SyncEngine {
       surplus: this.stores.surplus,
       csgraph: this.stores.csgraph,
       theorist: this.stores.theorist,
+      cambridge: this.stores.cambridge,
     };
 
     const write = await this.cloud.write(payload);
@@ -435,6 +444,7 @@ export class SyncEngine {
       surplus: pick('surplus'),
       csgraph: pick('csgraph'),
       theorist: pick('theorist'),
+      cambridge: pick('cambridge'),
     };
 
     const write = await this.cloud.write(payload);
@@ -515,7 +525,13 @@ export class SyncEngine {
   private applyRemote(payload: CloudPayload): void {
     for (const key of STORE_KEYS) {
       const remote = payload[key];
-      if (remote === undefined || remote === null) continue;
+      if (remote === undefined || remote === null) {
+        // A device on an older build pushed this blob and did not know the store,
+        // so the cloud lost its copy. Keep ours untouched and queue it for the
+        // next push, so the cloud (and a fresh device) gets it back.
+        if (hasContent(this.stores[key])) this.pendingCloud[key] = true;
+        continue;
+      }
       const localNewer = this.pendingCloud[key];
       const merged = this.merge(this.stores[key], remote as StoreData, key, localNewer);
       if (JSON.stringify(merged) !== JSON.stringify(this.stores[key])) {
@@ -529,6 +545,11 @@ export class SyncEngine {
     this.lastFingerprint = null; // state changed; force the next push to write
     this.backoffUntil = 0;       // a successful read proves the limit lifted
   }
+}
+
+/** True when any top-level field of a store holds at least one entry. */
+function hasContent(store: StoreData): boolean {
+  return Object.values(store).some((v) => v !== null && typeof v === 'object' && Object.keys(v).length > 0);
 }
 
 /* ------------------------------------------------------------------ */

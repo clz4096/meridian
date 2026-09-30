@@ -188,6 +188,15 @@ export const PAIRS = [
   ...['--series-1', '--series-2', '--series-3', '--series-4', '--series-5'].flatMap((s) =>
     on(s, ['--bg', '--surface'], NON_TEXT, 'chart series'),
   ),
+  // Cambridge primitives (docs/cambridge-screens.md). The current phase row and an
+  // open glossary term sit on --accent-wash, so their text, marks and focus ring do too.
+  { fg: '--ink-2', bg: '--accent-wash', min: TEXT, use: 'current phase title and gate' },
+  { fg: '--accent', bg: '--accent-wash', min: NON_TEXT, use: 'current phase node' },
+  { fg: '--rule-strong', bg: '--accent-wash', min: NON_TEXT, use: 'parallel phase rule on current row' },
+  { fg: '--focus', bg: '--accent-wash', min: NON_TEXT, use: 'focus ring on current phase, open term' },
+  ...on('--ok', ['--bg', '--surface'], NON_TEXT, 'done step mark, passed phase node, solved mark'),
+  { fg: '--on-accent', bg: '--accent', min: NON_TEXT, use: 'current step number' },
+  { fg: '--accent', bg: '--surface-2', min: NON_TEXT, use: 'status dial in a well' },
 ];
 
 export const SERIES = ['--series-1', '--series-2', '--series-3', '--series-4', '--series-5'];

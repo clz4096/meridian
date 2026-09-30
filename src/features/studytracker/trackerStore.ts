@@ -1,5 +1,5 @@
 /**
- * Study Tracker ("The Princeton Theorist").
+ * Study Tracker ("The Cambridge Method", scored with the Massey Standard's system).
  *
  * Ported from ~/Brainstorm/meridian-tabs/princeton-theorist.html. This is a
  * gamified daily-study instrument. Post-Phase-2 the graded 0/1/2 scorecard is
@@ -58,10 +58,12 @@ export const SCHEDULE: readonly Block[] = [
   { id: 'b1', time: '9:00 AM', title: 'Wake, water, 10-min move', sub: 'Rested, up without a third alarm', xp: 20 },
   { id: 'b2', time: '9:15 AM', title: 'Morning ritual', sub: '2–3 lines on why it matters; 3 if-then quests', xp: 5 },
   { id: 'b3', time: '9:30 AM', title: 'Breakfast + light review', sub: 'Cleared flashcards / skimmed notes', xp: 5 },
-  { id: 'b4', time: '10:00 AM', title: 'Deep Block 1 — proofs & problem set', sub: "The week's pset; reconstruct before you look", xp: 20 },
+  // b4 and b7 name the current Cambridge item once it loads (cambridge/trackerLink.ts);
+  // this text is the fallback. Keep the ids: stored ticks are keyed by them.
+  { id: 'b4', time: '10:00 AM', title: 'Deep Block 1: the Cambridge item', sub: 'The current loop step: cold attempt, write-up, supervision or redo', xp: 20 },
   { id: 'b5', time: '11:40 AM', title: 'Deep Block 2 — algorithms', sub: 'The algorithm of the day, implemented in C++', xp: 20 },
   { id: 'b6', time: '12:45 PM', title: 'Lunch + a human', sub: 'Ate, and talked with or beside someone', xp: 10 },
-  { id: 'b7', time: '1:30 PM', title: 'Deep Block 3 — math, paper & pen', sub: 'Fought a hard problem; reconstructed first', xp: 20 },
+  { id: 'b7', time: '1:30 PM', title: 'Deep Block 3: paper and pen', sub: 'The same item by hand; note where you stalled', xp: 20 },
   { id: 'b8', time: '3:00 PM', title: 'Gym + light study (2h)', sub: 'Trained + one playlist item', xp: 20, gym: true },
   { id: 'b9', time: '5:00 PM', title: 'Shower, snack, reset', sub: 'Genuinely off for 30 min', xp: 5 },
   { id: 'b10', time: '5:30 PM', title: 'Deep Block 4 — math / reconstruct', sub: 'Re-derived a result, or advanced the course', xp: 20 },
@@ -236,6 +238,22 @@ export const EVENT_WEIGHTS = {
   algoStudied: 20,
   /** A journal entry saved (written, not reconstructed). */
   journalSave: 10,
+  // Cambridge Method (docs/cambridge-contract.md section 3). Credited with ids
+  // `cam:<kind>:<itemId>[:<q>]` and guarded by `cambridge.awarded`, so each pays
+  // once ever, not once a day. The gate is a once-per-phase milestone, which is
+  // why it outranks retrieval, the top DAILY event.
+  /** A question's cold attempt reached 60 minutes. */
+  coldAttempt: 20,
+  /** A full write-up submitted. */
+  writeup: 15,
+  /** A supervision held. */
+  supervision: 25,
+  /** The misses redone within 48 hours of the supervision. */
+  redo: 15,
+  /** A STEP question self-marked at least 14/20. */
+  stepSelfMark: 10,
+  /** A phase gate passed. */
+  gatePassed: 200,
 } as const;
 
 /** Mastery half-life in days (TUNABLE). A reviewed topic decays to level/2 after this long. */
@@ -271,17 +289,28 @@ export function levelIndex(cumXP: number): number {
 export function scoreTotal(day: TrackerDay): number {
   return SCORE.reduce((t, s) => t + (day.scores[s.id] || 0), 0);
 }
+/** The meters the weekly Cambridge scorecard feeds (contract section 3). */
+export const CAM_METERS: ReadonlySet<string> = new Set(['Focus', 'Progress']);
+
 /**
  * Meter fill %, 0..100, over the score `ids` feeding it. A score is UNRATED
  * when its key is absent from `day.scores`; unrated items are excluded from the
  * denominator so an unstarted day reads 0% (empty) instead of all-missed. An
  * explicit 0 ("Missed") counts. `pct = round(sum(rated)/(rated*2)*100)`.
+ *
+ * `cam` is the week's Cambridge scorecard as a fraction (total / 10), passed
+ * only for the meters in `CAM_METERS`. It counts as one more rated item scored
+ * `2 * cam`: `pct = round((sum(rated) + 2*cam) / ((rated + 1) * 2) * 100)`.
+ * With `cam` null or absent (no Cambridge data this week) the formula is the
+ * one above, so the meters of someone not using the Cambridge Method never move.
  */
-export function meterPct(day: TrackerDay, ids: readonly string[]): number {
+export function meterPct(day: TrackerDay, ids: readonly string[], cam?: number | null): number {
   const rated = ids.filter((id) => day.scores[id] !== undefined);
-  if (!rated.length) return 0;
-  const sum = rated.reduce((t, id) => t + (day.scores[id] || 0), 0);
-  return Math.round((sum / (rated.length * 2)) * 100);
+  const hasCam = typeof cam === 'number' && Number.isFinite(cam);
+  if (!rated.length && !hasCam) return 0;
+  const sum = rated.reduce((t, id) => t + (day.scores[id] || 0), 0) + (hasCam ? 2 * Math.max(0, Math.min(1, cam)) : 0);
+  const n = rated.length + (hasCam ? 1 : 0);
+  return Math.round((sum / (n * 2)) * 100);
 }
 /** Last 7 calendar days (oldest→today) with an on/today flag from `logged`. */
 export function streakDays(logged: string[]): Array<{ iso: string; on: boolean; today: boolean }> {

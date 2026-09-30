@@ -225,7 +225,7 @@ export interface KnowledgeState {
 /* ------------------------------------------------------------------ */
 
 /**
- * The synced backing store for the Study Tracker ("The Princeton Theorist").
+ * The synced backing store for the Study Tracker ("The Cambridge Method").
  *
  * The feature layer (trackerStore) still speaks the legacy
  * `{ cumXP, logged, day }` shape; this is the CRDT-friendly projection it

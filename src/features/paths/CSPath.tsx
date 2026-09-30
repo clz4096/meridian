@@ -1,39 +1,86 @@
 /**
- * Computer Science path screen: where the plan stands, today's algorithm, then the
- * course plan with done checkboxes. Lazy-loaded by Today's router (it pulls in
- * algorithms.ts through AlgoOfDay, which must stay out of the main chunk).
+ * Computer Science path screen: where the CST track stands, today's algorithm,
+ * the paper of the week, then the CST track itself. The retired COS/MIT course
+ * plan is archived in data/archive/princeton-curriculum.json; its checkboxes stay
+ * in `meridian.curriculum.v1`, untouched. Lazy-loaded by Today's router (it pulls
+ * in algorithms.ts through AlgoOfDay, which must stay out of the main chunk).
  */
-import { useEffect } from 'preact/hooks';
-import { CS_COURSES } from '@/content/cs';
-import { curriculumChecks, toggleCourse } from '@/features/studytracker/curriculum';
+import { useEffect, useMemo } from 'preact/hooks';
 import { ensureToday } from '@/features/studytracker/trackerStore';
 import { AlgoOfDay } from '@/features/studytracker/AlgoOfDay';
-import { currentSummary, currentCourse } from '@/features/paths/cs';
+import { PapersSection } from '@/features/studytracker/PapersSection';
+import { currentSummary } from '@/features/paths/cs';
 import { pct } from '@/features/paths/types';
 import { PageHead } from '@/ui/components/PageHead';
+import { dataRev } from '@/ui/store';
+import { CamTrack, CambridgePathSkeleton } from '@/features/cambridge/CambridgePath';
+import { loadPath } from '@/features/cambridge/catalog';
+import { cambridgeReady, readCambridge } from '@/features/cambridge/store';
+import { Guard, retryScreen, useReady } from '@/features/cambridge/camUi';
 // AlgoOfDay's classes are all scoped under .pt-root, so the tracker sheet is needed here
 // too; it is already in the tracker chunk, so this adds no new CSS weight.
 import '@/features/studytracker/studytracker.css';
 import '@/features/paths/csPath.css';
 
-export function CSPathView() {
-  const checks = curriculumChecks.value; // subscribe: toggles re-render the header and list
+/**
+ * Resolves once the page has painted and the main thread is idle (or after
+ * IDLE_CAP_MS at the latest), so the screen above the track reaches the owner
+ * first.
+ */
+const IDLE_CAP_MS = 500;
+const afterPaintIdle = (): Promise<void> =>
+  new Promise((resolve) => {
+    if (typeof requestAnimationFrame !== 'function') return void setTimeout(resolve, 0);
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        if (typeof requestIdleCallback === 'function') requestIdleCallback(() => resolve(), { timeout: IDLE_CAP_MS });
+        else resolve();
+      }, 0),
+    );
+  });
+
+/**
+ * The Computer Science Tripos track (DECISIONS C11), drawn with the Cambridge
+ * path's own phase map and item list, so the two tracks work the same way.
+ * Only this part waits for the CST catalog track; the header, the algorithm of
+ * the day and the paper above it render at once, and a skeleton of the same
+ * outline holds the track's place until it arrives. The track draws once the
+ * page has painted and gone idle, even when its chunk is already in: it starts
+ * several screens down (below the paper of the week) and doubles the pane's
+ * DOM, so drawing it with the rest would hold back the part the owner sees first.
+ */
+function CstTrack({ ready }: { ready: Promise<void> }) {
+  void dataRev.value; // re-render on every Cambridge write and sync pull
+  const both = useMemo(() => Promise.all([ready, loadPath('cst')]).then(afterPaintIdle), [ready]);
+  const status = useReady(both);
+  if (status === 'loading') return <CambridgePathSkeleton rows={5} head={false} />;
+  if (status === 'failed')
+    return (
+      <div class="m-state" data-kind="error" role="alert">
+        <p class="m-state-title">The CST track didn't load.</p>
+        <p class="m-state-body">The study store could not be read on this device.</p>
+        <button class="m-btn" type="button" onClick={retryScreen}>Try again</button>
+      </div>
+    );
+  return <CamTrack which="cst" state={readCambridge()} now={Date.now()} title="CST track" />;
+}
+
+export function CSPathView({ camReady = cambridgeReady }: { camReady?: Promise<void> } = {}) {
   // AlgoOfDay reads today's events without a date check; roll the tracker day over
   // first so a screen left open past midnight neither shows nor credits yesterday.
   useEffect(() => {
     ensureToday();
   }, []);
 
-  const s = currentSummary(); // reads trackerState too, so the caption follows "Studied"
-  const cur = currentCourse(CS_COURSES, checks);
+  const s = currentSummary(); // reads trackerState and dataRev, so the header follows both
   const { done, total, caption } = s.progress;
   const p = pct(done, total);
 
   return (
     <div class="cs-path">
-      <PageHead title="Computer Science" note={`${done} of ${total} courses`} />
+      <PageHead title="Computer Science" note={`${done} of ${total} items`} />
       <div class="cs-head">
-        <p class="cs-course">{s.course || 'Every course in the plan is done.'}</p>
+        <p class="cs-course">{s.course || 'Every CST phase is done.'}</p>
         <p class="cs-prog-cap">{caption}</p>
         <div
           class="m-progress"
@@ -42,7 +89,7 @@ export function CSPathView() {
           aria-valuemin={0}
           aria-valuemax={total}
           aria-valuenow={done}
-          aria-valuetext={`${done} of ${total} courses`}
+          aria-valuetext={`${done} of ${total} items`}
         >
           <div class="m-progress-fill" style={{ '--m-progress': `${p}%` }} />
         </div>
@@ -52,56 +99,13 @@ export function CSPathView() {
       <div class="pt-root cs-algo">
         <div class="wrap">
           <AlgoOfDay />
+          <PapersSection />
         </div>
       </div>
 
-      <div class="m-section">
-        <h2 class="m-title">Course plan</h2>
-        <span class="m-label m-num">
-          {done} of {total}
-        </span>
-      </div>
-      <ol class="cs-plan">
-        {CS_COURSES.map((c) => {
-          const isDone = !!checks[c.code];
-          const id = `cs-done-${c.code.replace(/[^A-Za-z0-9]+/g, '-')}`;
-          return (
-            <li class={'cs-item' + (isDone ? ' done' : '')} key={c.code} aria-current={c === cur ? 'step' : undefined}>
-              <div class="cs-item-head">
-                <span class="m-check">
-                  <input
-                    id={id}
-                    class="cs-check"
-                    type="checkbox"
-                    checked={isDone}
-                    onChange={() => toggleCourse(c.code)}
-                  />
-                  <span class="m-check-mark" aria-hidden="true" />
-                </span>
-                <label class="cs-item-label" for={id}>
-                  <span class="cs-code m-mono">{c.code}</span>
-                  <span class="cs-name">{c.name}</span>
-                </label>
-                {c === cur && <span class="m-chip cs-now">Current</span>}
-              </div>
-              <p class="cs-topics">{c.topics}</p>
-              <p class="cs-meta">
-                {c.school} · {c.track} · {c.text}
-              </p>
-              <div class="cs-links">
-                <a class="cs-link" href={c.url} target="_blank" rel="noopener noreferrer">
-                  Course page
-                </a>
-                {c.psets.map((ps) => (
-                  <a class="cs-link" key={ps.url} href={ps.url} target="_blank" rel="noopener noreferrer">
-                    {ps.name}
-                  </a>
-                ))}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+      <Guard what="The CST track">
+        <CstTrack ready={camReady} />
+      </Guard>
     </div>
   );
 }

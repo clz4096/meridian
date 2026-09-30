@@ -44,6 +44,7 @@ export const sg = (): Store => appState.get('surplus');
 export const kg = (): Store => appState.get('csgraph');
 export const core = (): Store => appState.get('core');
 export const tg = (): Store => appState.get('theorist');
+export const cam = (): Store => appState.get('cambridge');
 
 /* ── AI (action-time only) ── */
 // The AI client loads on the first AI tap, not at startup. The chunk is precached, so
@@ -1064,12 +1065,12 @@ export const dataActions: DataActions = {
   },
   exportAll() {
     const bundle = exportBundle(
-      { core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: appState.get('theorist') as never },
+      { core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: appState.get('theorist') as never, cambridge: cam() },
       dstr(),
     );
     const text = serialise(bundle);
     st.dataIo.value = text;
-    dmsg('Exported all 5 stores.');
+    dmsg('Exported all 6 stores.');
   },
   importPasted(text) {
     const r = importBundle(text);
@@ -1081,6 +1082,8 @@ export const dataActions: DataActions = {
     appState.set('surplus', r.state.surplus);
     appState.set('csgraph', r.state.csgraph);
     appState.set('theorist', r.state.theorist as never);
+    // A backup from before the Cambridge store has none; keep this device's.
+    if (!r.missing.includes('cambridge')) appState.set('cambridge', r.state.cambridge as never);
     appState.markDirty();
     appState.markWorkoutDirty();
     appState.markMealDirty();
@@ -1109,6 +1112,7 @@ export const dataActions: DataActions = {
     if (key === 'core') appState.set('core', normaliseState({ core: parsed }).core);
     if (key === 'csgraph') appState.set('csgraph', normaliseState({ csgraph: parsed }).csgraph);
     if (key === 'theorist') appState.set('theorist', normaliseState({ theorist: parsed }).theorist);
+    if (key === 'cambridge') appState.set('cambridge', normaliseState({ cambridge: parsed }).cambridge as never);
     appState.markDirty();
     appState.markWorkoutDirty();
     appState.markMealDirty();
@@ -1148,8 +1152,8 @@ export const dataActions: DataActions = {
   showDiagnostics() {
     const out = host.status('d-diagout');
     out.set('Checking…');
-    const metrics = storageMetrics(normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: tg() }));
-    const dirtyList = (['core', 'overload', 'surplus', 'csgraph', 'theorist'] as StoreKey[]).filter((k) => sync.isDirtyCloud(k));
+    const metrics = storageMetrics(normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: tg(), cambridge: cam() }));
+    const dirtyList = (Object.keys(STORAGE_KEYS) as StoreKey[]).filter((k) => sync.isDirtyCloud(k));
     out.set('cloud: ' + (cloudEnabled() ? 'configured' : 'not configured') + '\n' + 'payload: ' + metrics.kilobytes + 'KB\n' + 'revision: ' + sync.baseRev() + '\n' + 'unsynced stores: ' + (dirtyList.length ? dirtyList.join(', ') : 'none') + '\n' + 'tombstones: ' + metrics.counts.tombstones + ' (cap 500)');
   },
   async resetKnowledge() {
@@ -1299,7 +1303,7 @@ function queueCountKB(): void {
     idle(() => {
       kbQueued = false;
       const now = st.dataRev.peek();
-      const state = normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: tg() });
+      const state = normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: tg(), cambridge: cam() });
       kbMemoRev = now;
       kbSize.value = Math.round(JSON.stringify(state).length / 102.4) / 10;
     });
@@ -1340,7 +1344,7 @@ export function hubStats(): HubStat[] {
   const wkWord = wkGrade === 'rest' ? 'Rest' : wkGrade.charAt(0).toUpperCase() + wkGrade.slice(1);
   const G = sg();
   const todayCal = ((G.days?.[today] ?? []) as Store[]).reduce((a: number, m: Store) => a + (+m.cal || 0), 0);
-  const dirty = (['core', 'overload', 'surplus', 'csgraph', 'theorist'] as StoreKey[]).some((k) => sync.isDirtyCloud(k));
+  const dirty = (Object.keys(STORAGE_KEYS) as StoreKey[]).some((k) => sync.isDirtyCloud(k));
   const kb = storageKB();
   const C = core();
   const openTodos = todoOpenCount(C);
@@ -1352,7 +1356,7 @@ export function hubStats(): HubStat[] {
     { key: 'todos', label: 'Todos', desc: 'Reminders & tasks', value: String(openTodos), unit: openTodos === 1 ? ' open' : ' open', sub: dueToday ? `${dueToday} due today` : openTodos ? 'to do' : 'all clear', tone: dueToday ? 'kcal' : '' },
     { key: 'scratch', label: 'Scratchpad', desc: 'Ideas & experiments', value: String(notes), unit: notes === 1 ? ' note' : ' notes', sub: 'captured', tone: '' },
     { key: 'knowledge', label: 'Knowledge', desc: 'Study & spaced review', value: String(masteryPct), unit: '%', sub: 'mastery', tone: 'cyan' },
-    { key: 'tracker', label: 'Princeton Roadmap', desc: 'Theory study roadmap', value: String(tsum.todayXP), unit: ' XP', sub: `Lv ${tsum.level} · ${tsum.streak}/7`, tone: 'orange' },
+    { key: 'tracker', label: 'The Cambridge Method', desc: 'Daily study tracker', value: String(tsum.todayXP), unit: ' XP', sub: `Lv ${tsum.level} · ${tsum.streak}/7`, tone: 'orange' },
     { key: 'roadmap', label: 'WGU Roadmap', desc: 'Course finish plan', value: `${rsum.done}/${rsum.total}`, unit: '', sub: 'courses', tone: 'blue' },
     { key: 'workout', label: 'Workout', desc: 'Training log & progression', value: wkWord, unit: '', sub: `${wkTrained} of ${WEEK_TRAINING_TARGET} days`, tone: wkGrade === 'strong' ? 'ok' : wkGrade === 'weak' ? 'kcal' : '' },
     { key: 'meal', label: 'Food & Body', desc: 'Calories & bodyweight', value: groupThousands(todayCal), unit: ' kcal', sub: todayCal ? 'today' : 'not logged', tone: 'kcal' },

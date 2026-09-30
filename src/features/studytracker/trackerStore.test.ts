@@ -394,12 +394,13 @@ function buildAppState(durableTheorist: string | null) {
   const keys: Record<StoreKey, string> = {
     core: 'meridian-core', overload: 'overload-tracker-state',
     surplus: 'surplus-tracker-state', csgraph: 'csgraph_profile_v2', theorist: 'meridian-theorist',
+    cambridge: 'meridian-cambridge',
   };
   // `stored` models the durable backend storeGet reads from; `write` heals it so
   // a fold's synchronous durable write is visible to a later storeGet.
   const stored: Partial<Record<StoreKey, string | null>> = { theorist: durableTheorist };
   const keyToStore = Object.fromEntries((Object.keys(keys) as StoreKey[]).map((k) => [keys[k], k]));
-  const storesObj: Record<StoreKey, Record<string, unknown>> = { core: {}, overload: {}, surplus: {}, csgraph: {}, theorist: {} };
+  const storesObj: Record<StoreKey, Record<string, unknown>> = { core: {}, overload: {}, surplus: {}, csgraph: {}, theorist: {}, cambridge: {} };
   const markDirtyCalls: StoreKey[] = [];
   const sync = {
     create: vi.fn(() => ({})), save: vi.fn(async () => ({} as SaveResult)),

@@ -1,85 +1,72 @@
-# Proposed commits (owner runs these)
+# Proposed commits: the Cambridge Method (owner runs these)
 
-Everything is staged on branch `redesign`. Run the commits below in order: each one commits only its pathspec out of the staged changes.
-
-The stages touched the same files (`app.css` changed in Stages 2 and 5; `main.tsx` in 2, 3 and 4), so the commits are grouped by concern, not by stage. An intermediate commit may not build on its own; after the last one, `npm run verify` passes (866 tests).
+Branch `cambridge`, from `main` @ `593e3e4`. Everything is staged. Each commit below takes only its pathspec from the staged changes, so run them in order. The groups are by concern. An intermediate commit may not build on its own; after the last one, `npm run verify` passes (1,112 tests).
 
 Before you commit:
-- `src/ui/components/SecHero.tsx` is unused. Delete it with `git rm src/ui/components/SecHero.tsx` (my `git rm` was blocked) and include it in commit 4.
-- `design/before` and `design/after` add about 42 MB of PNGs. `node perf/routes.mjs --shots <dir>` regenerates them, so you can drop them from commit 6 with `git restore --staged design/before design/after`.
-- `meridian-checkpoint.md` and `review.md` stay untracked. They are not staged.
+- `design/cambridge/` holds about 20 MB of JPEG screenshots. `node perf/routes.mjs --shots <dir>` regenerates them. To leave them out, run `git restore --staged design/cambridge` before commit 6.
+- `meridian-checkpoint.md` and `review.md` stay untracked; they are not staged.
 
-## 1. Measurement: map, baseline, harness
+(The redesign's commit list that used to live in this file shipped on 09-29; see `git log`.)
 
+## 1. The map, baseline and contracts
 ```
-git commit -m "perf: per-route harness and the pre-redesign baseline" -- ARCHITECTURE.md perf/baseline.md perf/routes.mjs perf/run.mjs perf/README.md
+git commit -m "cambridge: map the Massey Standard and freeze the Cambridge contracts" -- ARCHITECTURE-cambridge.md perf/cambridge-baseline.md docs/cambridge-contract.md docs/cambridge-screens.md docs/cst-track.md
 ```
 
+## 2. Curriculum data and its tooling
+```
+git commit -m "cambridge: curriculum data for STEP, Part IA and the CST track, with link checks" -- data scripts/cambridge src/features/cambridge/data.test.ts tsconfig.json vitest.config.ts
+```
 Body:
-> ARCHITECTURE.md matches the code again (five stores, lazy views, telemetry, teaching, routes and bundles). perf/routes.mjs measures per-route open time, an INP proxy, CLS and bytes, and saves screenshots; `--legacy` measures the old shell. perf/run.mjs follows the new Today. perf/baseline.md records e7ff8d2.
+> Everything under `data/cambridge/` is owner-editable JSON: the glossary, the method, the STEP track (124 items), Underground stations, Part IA courses, the CST track (83 items) and resources. Schemas validate each file in `npm test`. `scripts/cambridge/scrape.mjs` refreshes links but keeps the owner's edits; `verify-links.mjs` checks all 980 URLs. Retired Massey content is archived in `data/archive/`.
 
-## 2. Design system
-
+## 3. Store, migration, XP and scheduling
 ```
-git commit -m "design: tokens, primitives, fonts, and an AA contrast gate" -- src/styles/tokens.css src/styles/primitives.css src/styles/contrast.test.ts src/assets scripts/contrast.mjs scripts/contrastCore.mjs scripts/contrastCore.d.mts src/features/styleguide design/contrast.md design/palette-decision.md design/token-map.md
+git commit -m "cambridge: synced store with per-record merge, Massey backup, new XP events, sunset-based scheduling" -- src/features/cambridge/types.ts src/features/cambridge/store.ts src/features/cambridge/migration.ts src/features/cambridge/masseyKeys.ts src/features/cambridge/schedule.ts src/features/cambridge/xp.ts src/features/cambridge/scorecard.ts src/features/cambridge/photos.ts src/app src/core src/features/data src/features/studytracker/trackerStore.ts src/features/studytracker/trackerStore.test.ts src/features/studytracker/phase1.test.ts src/ui/actions.ts src/ui/actions.test.ts
 ```
-
 Body:
-> One file of CSS variables for color, type, spacing, radius, shadow, motion and layout. Two palettes: A, "Cream and Coral", is the default; B, "Ember", stays on #/styleguide. Source Sans 3 and Source Code Pro are self-hosted, subset and OFL (50.8 KB), preloaded, with a metric-matched fallback. scripts/contrast.mjs checks every text/background pair in both palettes, and runs as a test.
-
-## 3. Today and the three study paths
-
-```
-git commit -m "today: weather, reading, and WGU / Math / CS paths as the home screen" -- src/features/today src/features/paths src/content src/services/weather.ts src/services/weather.test.ts src/features/studytracker/algorithms.ts src/features/studytracker/algorithms.test.ts src/features/studytracker/papers.ts src/features/studytracker/papers.test.ts src/features/studytracker/curriculum.ts src/features/studytracker/curriculum.test.ts src/features/studytracker/curriculum.fixture.json src/features/studytracker/psetOfWeek.test.ts src/features/wgu/roadmapData.ts src/features/wgu/WGURoadmap.tsx src/features/wgu/WGURoadmap.test.tsx src/features/wgu/wgu.css src/core/util.ts src/core/util.test.ts docs/redesign-contract.md
-```
-
-Body:
-> Today reads top to bottom:
-> - date and Brooklyn weather (Open-Meteo, 30-minute cache, honest offline and stale states),
-> - the paper of the week with its next Keshav pass,
-> - WGU, Math and CS path cards, each with one next action and a progress bar,
-> - the day's todos,
-> - the other sections.
+> A sixth synced store, `cambridge`. Each record carries a timestamp and the newer copy wins, so edits reach other devices; a missing store from an old build never wipes local data.
 >
-> Each path has one editable content file (roadmapData.ts, content/math.ts, content/cs.ts), and the Massey curriculum reads the same course records. Math has 21 daily problems and proofs with Stanford Stats featured. The algorithm, paper and problem rotations all turn over at local midnight.
+> The first launch snapshots every Massey key at boot, before the first render, and saves a dated backup (IndexedDB + localStorage, downloadable from Data). Nothing old is deleted or rewritten.
+>
+> New XP: cold attempt +20, write-up +15, supervision +25, redo +15, STEP self-mark +10, gate +200, each paid once per item. The weekly Cambridge scorecard feeds Focus and Progress. Friday-to-Saturday sundown uses computed Brooklyn sunsets.
 
-## 4. App shell, performance, and the restyle of every tab
-
+## 4. Screens
 ```
-git commit -m "app: open straight into Today, lazy views, light restyle of every tab" -- index.html vite.config.ts src/app/main.tsx src/ui src/styles/app.css src/landing src/core/storage src/features/data src/features/knowledge src/features/meal src/features/scratch src/features/todos src/features/workout src/features/studytracker src/features/teaching src/test/setup.ts public/questions/index.json scripts/question-index.mjs perf/stage2.md perf/stage5-perf.md perf/after.md BUGS.md
+git commit -m "cambridge: path, study item, error log, glossary and the Today card" -- src/features/cambridge src/ui src/features/today src/features/paths src/styles src/features/styleguide scripts/contrastCore.mjs design/contrast.md package.json package-lock.json vite.config.ts
 ```
-
 Body:
-> Home usable is 486 ms (empty) and 537 ms (seeded), from 803 and 1,162 ms (A/B, n=5). Main JS is 100 → 73 KB gzip, CSS 22 → 15 KB. Lighthouse mobile is 96 performance and 100 accessibility, from 99 and 84.
+> - **Path:** the Cambridge path, with a phase map and "Pass gate".
+> - **Study item:** the loop stepper, a persistent cold timer with hints locked for 60 minutes, a Markdown + KaTeX write-up and photos, the one-tap supervisor prompt, and an automatic 48 h redo.
+> - **Error log and glossary:** an error log with a weekly trend, and a glossary with tap-to-define.
+> - **Today:** Today's Math card shows the current item and loop step. The CS path gains the CST track.
 >
-> Performance:
-> - three.js leaves startup; the intro is under Data, "Play the intro".
-> - Every view is a lazy chunk, prefetched at idle; a failed chunk recovers by reloading into its screen.
-> - Today reads question counts from index.json.
-> - 303 dead CSS rules are removed.
->
-> Restyle, visual only:
-> - Every tab is on the new tokens, with one header language and one gutter.
-> - Text is 16 px or more; the zoom lock is removed.
-> - Targets are 44 px or more.
->
-> Bugs found on the way are in BUGS.md (64 fixed), including the Export box that stayed empty.
+> Everything is code-split per track; KaTeX and photos are lazy. Lighthouse is within noise of main (A/B).
 
-## 5. Demo preview infrastructure
-
+## 5. Retire the old climbs and curriculum; rename to The Cambridge Method
 ```
-git commit -m "preview: demo build with isolated storage and a progress page" -- src/app/demo.ts src/app/demoSeed.ts .env.demo .gitignore scripts/preview.mjs
+git commit -m "tracker: retire the three climbs and curriculum UI, rename to The Cambridge Method" -- src/features/studytracker src/content
 ```
-
 Body:
-> `vite build --mode demo` prefixes every localStorage key and IndexedDB name and seeds synthetic data, so the public preview never touches real data or credentials. scripts/preview.mjs builds it plus a static progress page, and `--publish` copies it to main's public/preview/redesign/.
+> Removes the three climbs, the curriculum track, the problem set of the week, the proof-journal panel, the Princeton Theory group and the COS/MAT list from the UI. Their content is archived in `data/archive/`, checked by `archive.test.ts`.
+>
+> Deep Blocks 1 and 3 now follow the current Cambridge item; their ids are unchanged. Adds the weekly Cambridge scorecard and a credit line for the Massey Standard's scoring.
 
-## 6. Redesign record
-
+## 6. Report, decisions and screenshots
 ```
-git commit -m "docs: redesign report, decisions, and screenshots" -- REDESIGN.md DECISIONS.md COMMITS.md design/before design/after design/scoreboard.json
+git commit -m "docs: Cambridge Method report, decisions, bugs, and screenshots" -- CAMBRIDGE.md DECISIONS.md BUGS.md COMMITS.md perf/cambridge-after.md perf/cambridge-stage4-perf.md design/cambridge
 ```
 
-## Already on `main` (preview only, pushed with your OK)
+## 7. WGU: the four enrolled courses; no standalone teaching tab
+```
+git commit -m "wgu: plan the four enrolled courses; drop the standalone teaching tab" -- src/features/wgu perf/routes.mjs perf/run.mjs ARCHITECTURE.md
+```
+Body:
+> The WGU plan now covers only C955, D326, D315 and D279, week by week to Oct 25, with a buffer week. The 13-course plan is archived. Stored ticks are kept; counts use only the plan's courses. The Learn by Teaching tile and screen are removed; teaching stays in the tracker, and the `teach` id opens the tracker (DECISIONS C20, C21).
 
-`cb0e018 sw: keep /preview/ pages out of the app shell and offline cache`, plus the preview files under `public/preview/redesign/`. `main`'s app code is unchanged. When `redesign` merges, commit 4's `vite.config.ts` carries the same service-worker exclusions, so the merge conflict is trivial.
+The rest of this change rides in earlier commits, because their pathspecs already cover it:
+- commit 2 (`data`): `data/archive/wgu-plan-2026-09.json`, `data/archive/README.md`;
+- commit 4 (`src/ui`, `src/features/today`, `src/features/paths`): `src/ui/App.tsx`, `src/ui/store.ts`, `src/features/today/TodayTab.tsx`, `src/features/today/TodayTab.test.tsx`, the deletion of `src/features/today/TeachScreen.tsx` and `TeachScreen.test.tsx`, `src/features/paths/wgu.test.ts`;
+- commit 6: `CAMBRIDGE.md`, `DECISIONS.md`, `COMMITS.md`, `design/cambridge/final/today-390.jpg`, `wgu-390.jpg`, `wgu-390-full.jpg`.
+
+So commit 4's WGU tests expect the 4-course plan before commit 7 lands it; the tree builds and passes after commit 7.

@@ -187,3 +187,127 @@ All targets were already met: Lighthouse mobile Performance 96 and Accessibility
 
 **D34. The preview is published.**
 Approved by the owner in chat on 2026-09-29. `main` now has `cb0e018` (the service-worker `/preview/` exclusions, D3) and `e17faa2` (the preview files under `public/preview/redesign/`). Its app code is unchanged. Checked in headless Chrome after the deploy: it renders Today with live Brooklyn weather, logs no page errors, and contacts only github.io and Open-Meteo.
+
+
+---
+
+# Cambridge Method (run started 2026-09-30)
+
+**C1. Branch from `main`.** The brief says to branch from `redesign` if it exists. It was merged into `main` and deleted on 09-29, so `main` @ `593e3e4` already contains it.
+
+**C2. The preview is the LAN dev server, not Pages.**
+The repo's preview method publishes a demo build under `/preview/` on GitHub Pages. That requires a push to `main`, which runs the production deploy workflow, and the brief excludes touching production. So the preview is the dev server on the branch, bound to 0.0.0.0: http://192.168.1.163:5173/meridian/. It is reachable only from the same network. `ipconfig getifaddr en0` returns nothing on this Mac; the LAN address is on `en9`.
+
+**C3. The data backup runs on the device that holds the data.**
+The owner's Massey data lives in the browsers where the app runs (and their Supabase copy), not on this Mac. The dev origin here has its own, separate storage. So the backup the brief asks for is built into the migration itself: the first launch of the new version writes a dated JSON backup of every Massey key before it changes anything, keeps it on the device, and offers it as a download in Data. The migration is also additive (old keys are read, never deleted or rewritten), so a rollback to the previous build still finds the old data intact. I did not read the owner's production browser storage or their Supabase data directly: that would mean handling their credentials.
+
+**C4. Cambridge progress lives in a new, sixth synced store with per-record last-writer-wins merge.**
+The Massey map found two traps:
+- The tracker's synced store (`meridian-theorist`) rebuilds itself from known fields, so a device still on the old build would strip any new top-level field and push the stripped copy.
+- The `core` lists merge with `unionById`, which keeps the local copy on an id collision, so an edit never reaches the other device.
+
+So Cambridge records go in a new `cambridge` store. Every record carries `updatedAt`, and the newer copy wins per record, so edits do propagate. Deletions are tombstones, and timers take the max. The game layer stays in `meridian-theorist`, unchanged. Contract: `docs/cambridge-contract.md`.
+
+**C5. Photos of paper work stay on the device and are not synced.**
+The brief asks for photos "synced like other data", but sync is a single `state.json` in a public Supabase Storage bucket, read without auth. Embedding photos there would make every sync push megabytes, and would make the owner's handwritten work publicly readable by URL. So photos are stored compressed in IndexedDB, local-first, and the write-up text syncs. Syncing photos properly needs a private bucket with per-object uploads: a Supabase configuration change the owner should decide on. It is listed as a known issue.
+
+**C6. The proof journal is kept read-only, not converted.**
+The brief folds the journal into the supervision write-up and error log. The old entries are free text with no question or cause attached, so converting them would invent structure. They stay readable as an "Archived journal" on the error log screen. Nothing is deleted.
+
+**C7. The Sabbath window for Cambridge scheduling is computed from real sunsets.**
+The brief asks for Friday sundown to Saturday sundown in Brooklyn, computed locally, with no network. The existing tracker window is a fixed Friday 18:00 to Saturday 20:00. That window stays as it is, because the brief says the streak rules stay; the new Cambridge scheduler uses NOAA sunset times, computed offline.
+
+**C8. Stage 3: old builds drop the new store on push, so the new build re-uploads it.**
+The Stage 3 agent confirmed that a device on the old build writes the cloud file from its five stores only, which drops `cambridge`. The new build treats a missing cloud `cambridge` as "no remote change": it keeps local data and re-uploads it on the next save (4 tests).
+- The first run of the new build takes the Massey backup before the tracker's day rollover writes anything.
+- Main JS grew +1.8 KB of the 4 KB budget.
+- The sunset tests were pinned to reference values fetched from api.sunrise-sunset.org for Brooklyn: 20:31:58, 16:33:15 and 19:09:06. The agent's first values were recalled from memory, and its comment wrongly said they came from almanac tables; I fixed both.
+
+**C9. JSON is the source of truth for the curriculum.**
+The Stage 2 review found that the scraper rebuilt `step.json`, `courses.json` and `cs.json` from scratch, so the owner's hand edits would vanish on the next scrape, and curriculum text lived in a JavaScript file. That contradicts "edit the curriculum without code changes". Now:
+- The scraper merges: owner text is kept from the existing JSON, and only scraped links and flags refresh.
+- Items that disappear upstream are flagged, never deleted.
+- `verify-links --update` marks links that break.
+
+**C10. A copied piracy link was removed, and the scraper now screens hosts.**
+A Cambridge CL materials page links, through a google.com redirect, to a pirated copy of a copyrighted textbook. The scraper had copied it and marked it verified. It is removed, and the scraper now skips redirect wrappers and known piracy hosts, logging what it skips.
+
+**C11. The owner asked for a CST track and its foundations mid-run (2026-09-30).**
+`cs.json` grows from a course list into a track with the same shape as `step.json`:
+- a foundations phase, built from what Cambridge itself says CS applicants and freshers should prepare (researched and verified),
+- CST Part IA courses (supervision exercises from the course materials, past papers by topic),
+- then Part IB.
+It uses the same study loop, supervision prompt (worded for the Computer Science Tripos), XP and error log. The algorithm of the day and the paper of the week stay on the CS path.
+
+**C12. Foundation assignments use the site's own four parts.**
+All 25 assignment PDFs are structured as warm-up, preparation, the STEP question, and warm-down. The question ids follow the site (`warm-up`, `preparation`, `main`, `warm-down`) rather than the brief's "final question", so per-question marking matches what's on the page. Assignment 20 also carries a second STEP question. Module question counts use the site's stated count, or the PDF's where the site states none.
+
+**C13. Stage 2 is closed.**
+- The owner's curriculum text now lives in the JSON (`owner.mjs` is deleted). The scraper merges, `--offline` normalizes without network, and `verify-links --update` marks broken links in place.
+- 868 URLs checked: 847 OK, 21 flagged unverified in `BUGS.md`.
+- Every `data/cambridge/*.json` is safe to hand-edit except `link-report.json`, which the link check writes.
+
+**C14. Stage 4 screens.**
+- **Catalog:** one catalog adapter turns `step.json`, `courses.json` and the `cs.json` track into the same phases and items, so a single path screen and study-item screen serve all three tracks.
+- **Size:** main JS is 75.95 KB gzip, under the 77.3 KB gate. KaTeX (79 KB) loads only when Preview is first pressed, and its fonts are cached the first time for offline use.
+- **Back:** Back from a study item returns to the screen it was opened from.
+- **CS-0 gates:** its four blocks each carry their own gate, and CS-IA unlocks when all four pass.
+- **Supervisor prompt numbering:** the CST prompt names the supervision work by its own number (`sw2` gives 2), and drops that clause when a course has no public supervision work.
+- **Uncategorized errors:** an error created automatically from a low mark or "stuck" now keeps an empty cause ("Needs a cause") through reloads. Before, the loader turned it into "concept", inventing a cause the owner never chose. Entries without a cause are left out of the trend chart until the owner picks one.
+
+**C15. Stage 5: retire, archive, rename.**
+- **Retired UI:** the three climbs, the curriculum track and problem set of the week, the proof journal panel, the Princeton Theory group, the COS/MAT course list, and the old Math path with its daily items.
+- **Archived:** their content is in `data/archive/` (`princeton-curriculum.json`, `math-daily.json`, `princeton-theory.json`). `archive.test.ts` checks each against the pre-removal fixture, so no verified content is lost. No storage key was touched.
+- **Blocks:** b4 and b7 name the current Cambridge item and loop step. Their ids are unchanged, so stored ticks stay valid.
+- **Weekly scorecard:** it sits beside the daily one and feeds Focus and Progress. With no Cambridge data, the meters are unchanged (pinned by a test).
+- **Rename:** the surface is "The Cambridge Method" everywhere, with the credit line "Scoring system adapted from the Massey Standard".
+- **Kept on purpose:** the Algorithm of the day still cites its MIT 6.006 video source, and teaching's default audience still says "Princeton". Both describe real sources and audiences, not the retired product name.
+
+**C16. Stage 4 review fixes.**
+- **Editors never write stale text:** every Cambridge text field follows a pulled change until the owner types in it, and closing without typing never writes. This fixed a data-loss bug where an open item overwrote another device's newer write-up.
+- **Editing a supervision log keeps its dates:** only the first save sets the supervision date and redo deadline.
+- **STEP XP:** only questions carrying a STEP reference pay the self-mark XP.
+- **Retry:** every Cambridge load error recovers by reloading into the same screen.
+- **Today's card is lighter:** it reads a 9.9 KB catalog index instead of the 40 KB catalog, and loads after first paint. As a result the Cambridge screens now load on first open, not at startup.
+- **Error-log counts:** the header counts only entries with a cause, so it matches the chart, and adds "N needs a cause".
+- **Prompts:** Part IA and CST supervisor prompts say "Tripos-style" and name their own past papers, through two new placeholders in `supervisor-prompt.md`.
+- **Lighthouse:** absolute scores on this busy machine read 93 to 94. In the same session, the pre-Cambridge build scored within a point when run alternately. The Stage 6 A/B against `main` decides whether there is a regression.
+
+**C17. Stage 6 review: all eight checks pass. Two slower screens and three small issues go to a fix round.**
+Results:
+- **Migration** on a realistic one-year profile: all 12 Massey keys backed up byte-identical, the XP, level, streak, meters and ring UI identical, and a rollback to the old build works.
+- **Offline, iPhone widths, two-device sync** (local mock, including the stale-editor case) **and empty data:** all pass.
+- **Lighthouse A/B at matching load:** 93 vs `main` 93. Accessibility 100.
+- **Bundle:** main JS +2.8 KB, CSS +2.2 KB.
+
+Going to the fix round:
+- The CS path opens about 70 ms slower than on `main` (rank-clear), and the Math path about 45 ms slower, because each loads the full catalog.
+- 14 px helper text on the study item.
+- A confusing error-log header.
+- The Today cache keys shared with the old build.
+The two main-branch issues the reviewer noted (service worker waits for all tabs; the foreground pull gated on dirty state) predate this work and are recorded as known issues, not fixed here.
+
+**C18. Stage 6 fix round: the path screens load only their own track.**
+The catalog is emitted as a lazy chunk per track (step, courses, cst), plus a small index for Today and the error log. The Cambridge path opens level with `main` (77 vs 77 ms). The CS path opens about 10 ms slower (137 vs 127 ms), because it draws the new CST track that `main` doesn't have; that is accepted as the cost of the content the owner asked for. Also fixed:
+- Helper text is 16 px.
+- The error-log header counts every entry: "1 entry · 1 needs a cause · 0 charted this week".
+- Today's Cambridge cards save under new cache keys (`path.cam`, `path.cst`), so the old build's keys are never written.
+
+**C19. Nothing extra before the first paint, and the backup snapshot is taken at boot.**
+An interleaved A/B after C18 showed LCP about 180 ms worse than `main`, rank-clear. Lighthouse counts every request that finishes before the LCP paint, and on a fresh profile two Cambridge things landed there:
+- the path-card downloads,
+- a boot re-render held back until the first-run backup finished.
+
+Now Today starts those downloads only after the reading title paints, and boot publishes the loaded stores before the backup finishes. In two A/B runs afterwards the ranges overlap with `main`, and the LCP median is lower. No regression.
+
+Moving the backup off the render path opened a small window where a tap (a paper pass) could change a Massey key before the lazy backup ran. So boot now reads every Massey key synchronously as its first step, before the first render, and the migration backs up that snapshot. A test proves a change made after boot doesn't reach the backup, and the live key is left alone. Main JS: 76.6 KB gzip.
+
+**C20. The WGU plan covers only the 4 enrolled courses.**
+The owner is enrolled in C955, D326, D315 and D279, and is working on C955 and D326 now. They first wrote D955, then confirmed C955 (Applied Probability & Statistics). `roadmapData.ts` now plans those 4 over five weeks: Week 1 (Sep 28 to Oct 4) C955 and D326 underway; Week 2 (Oct 5 to 11) both due; Week 3 (Oct 12 to 18) D315 and D279 start; Week 4 (Oct 19 to 25) both due; Week 5 (Oct 26 to Nov 1) buffer. Target Oct 25.
+- Each course is listed once, in the week it is due, so it has one checkbox. Weeks 1, 3 and 5 carry an admin line instead. On a week with no due course, the card falls back to the first open course in plan order, so on Sep 30 it shows C955, not D315.
+- The full 13-course plan is archived in `data/archive/wgu-plan-2026-09.json`.
+- `meridian.roadmap.v1` keeps every old tick. The Today card, the WGU screen and the hub stat count only the 4 plan courses (`roadmapSummary()` used to count every stored key, so old ticks could read 6/4).
+
+**C21. The standalone Learn by Teaching tab is gone.**
+Teaching lives only in the Cambridge Method tracker, where `TeachSection` already renders. Today loses its tile, and `TeachScreen.tsx` and its test are deleted. The `teach` tab id stays as an alias of `tracker` (same lazy loader, same pane), so old history entries and reopen targets land on the screen that holds the teaching section. It does not auto-expand the section: that would mean writing the owner's saved section layout (`meridian.tracker.ui.v1`). `meridian.teach.v1` is untouched. `perf/routes.mjs` and `perf/run.mjs` no longer time a teach route.
+

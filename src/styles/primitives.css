@@ -361,3 +361,902 @@ button.m-chip[aria-pressed='true'] {
   color: var(--ink-3);
   font-size: var(--fs-1);
 }
+
+/* ======================================================================
+ * Cambridge Method primitives (docs/cambridge-screens.md).
+ * Every state is carried by text or shape as well as color.
+ * ====================================================================== */
+
+/* ---------- visually hidden ----------
+   Text a screen reader needs and the eye already gets from shape or position
+   ("done", "current step"). Same rule as app.css .sr-only, which the style guide
+   does not load. Put it on a wrapper <div>, never on a <table>: overflow does not
+   clip a table box, so a hidden table would widen the page. */
+.m-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- stepper: the 5-step study loop ----------
+   Markup: <ol class="m-stepper" aria-label="Study loop">
+     <li class="m-step" data-state="done|current|todo" aria-current="step" (current only)>
+       <span class="m-step-mark" aria-hidden="true">2</span>
+       <span class="m-step-name">Attempt cold</span>
+       <span class="m-sr">, done</span> (done only)
+     </li> …</ol>
+   Not a control: it reports where the item is. The state reads three ways: shape
+   (check / filled number / hollow number), weight (current name is semibold), and
+   the hidden "done" text plus aria-current for screen readers.
+   Columns size to their longest word ("Supervision"), not to 1/5 of the row, so all
+   five names fit at 375px without truncation; multi-word names wrap at the space.
+   The first and last step hug the edges so the connector runs mark to mark. */
+.m-stepper {
+  --m-step-mark: 28px;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.m-stepper::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--m-step-mark) / 2);
+  left: calc(var(--m-step-mark) / 2);
+  right: calc(var(--m-step-mark) / 2);
+  border-top: var(--hairline) solid var(--rule-strong);
+}
+.m-step {
+  position: relative; /* above the connector */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  width: min-content;
+  text-align: center;
+}
+.m-step:first-child {
+  align-items: flex-start;
+  text-align: left;
+}
+.m-step:last-child {
+  align-items: flex-end;
+  text-align: right;
+}
+.m-step-mark {
+  display: grid;
+  place-items: center;
+  width: var(--m-step-mark);
+  height: var(--m-step-mark);
+  box-sizing: border-box;
+  border-radius: var(--r-pill);
+  border: calc(var(--hairline) * 2) solid var(--rule-strong);
+  background: var(--surface);
+  color: var(--ink-3);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.m-step-name {
+  font-size: var(--fs-1);
+  line-height: var(--lh-1);
+  color: var(--ink-2);
+}
+.m-step[data-state='current'] .m-step-mark {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.m-step[data-state='current'] .m-step-name {
+  color: var(--ink);
+  font-weight: var(--fw-semibold);
+}
+/* Done: the number becomes a drawn check, so the state survives grayscale. */
+.m-step[data-state='done'] .m-step-mark {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: transparent;
+  font-size: 0;
+}
+.m-step[data-state='done'] .m-step-mark::after {
+  content: '';
+  width: 6px;
+  height: 11px;
+  margin-top: -2px;
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* ---------- timer: the per-question cold-attempt clock ----------
+   Markup: <div class="m-timer" data-state="idle|running|paused|reached">
+     <span class="m-label">Cold attempt · Q3</span>
+     <span class="m-timer-value" role="timer" aria-label="Cold time, question 3">42:17</span>
+     <span class="m-timer-goal m-num">of 60:00</span>
+     <span class="m-timer-state"><span class="m-timer-dot" aria-hidden="true"></span>Running</span>
+     <div class="m-progress">…</div>  (time toward the 60-minute goal)
+     <div class="m-timer-actions">buttons</div>
+     <span class="m-sr" aria-live="polite">announcements</span>
+   </div>
+   role="timer" is aria-live off by default, so the ticking digits are never read.
+   The separate polite region speaks only on start, pause, and at 60:00.
+   The value is a fixed ch width (tabular figures), so 9:59 to 10:00 never shifts. */
+.m-timer {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: var(--sp-3);
+  row-gap: var(--sp-2);
+}
+.m-timer > .m-label,
+.m-timer > .m-progress,
+.m-timer > .m-timer-actions {
+  grid-column: 1 / -1;
+}
+.m-timer-value {
+  min-width: 5ch;
+  font-size: var(--fs-7);
+  line-height: var(--lh-7);
+  font-weight: var(--fw-regular);
+  letter-spacing: var(--ls-tight);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+.m-timer-goal {
+  color: var(--ink-3);
+  font-size: var(--fs-2);
+}
+.m-timer-state {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-2);
+  color: var(--ink-2);
+}
+.m-timer-dot {
+  display: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+}
+.m-timer[data-state='running'] .m-timer-dot {
+  display: inline-block;
+}
+.m-timer[data-state='running'] .m-timer-state {
+  color: var(--ink);
+  font-weight: var(--fw-semibold);
+}
+.m-timer[data-state='reached'] .m-timer-state {
+  color: var(--ok);
+  font-weight: var(--fw-semibold);
+}
+.m-timer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* ---------- phase map: 0, A, A+, B, C, D, Part IA ----------
+   Markup: <ol class="m-phasemap" aria-label="Phases">
+     <li class="m-phase" data-state="passed|current|locked" aria-current="step" (current)>
+       <span class="m-phase-node" aria-hidden="true"></span>
+       <div class="m-phase-body">
+         <p class="m-phase-head"><span class="m-phase-name">Phase A</span>
+           <span class="m-phase-state">Current</span></p>
+         <p class="m-phase-title">STEP I foundations</p>
+         <p class="m-phase-gate">Gate: …</p>
+       </div></li></ol>
+   A vertical list, never a horizontal scroller, so it reads the same at 375px.
+   A rail joins the nodes. State is a word ("Passed 12 Oct", "Current", "Locked")
+   plus the node shape: filled check, thick coral ring, thin hollow ring. Locked rows use
+   --ink-3, not opacity, so their gate text still passes AA.
+   data-parallel="true" indents a phase that runs alongside the next one (A+ with B). */
+.m-phasemap {
+  --m-phase-node: 16px;
+  --m-phase-rail: calc(var(--sp-3) + var(--m-phase-node) / 2);
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.m-phase {
+  position: relative;
+  display: grid;
+  grid-template-columns: calc(var(--m-phase-node) + var(--sp-3) * 2) 1fr;
+  min-height: var(--tap);
+  padding: var(--sp-3) var(--sp-3) var(--sp-3) 0;
+  border-bottom: var(--hairline) solid var(--rule);
+  color: var(--ink);
+}
+.m-phase:last-child {
+  border-bottom: 0;
+}
+/* Rail: runs the full row height, so consecutive rows join into one line. */
+.m-phase::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--m-phase-rail) - var(--hairline));
+  border-left: calc(var(--hairline) * 2) solid var(--rule);
+}
+.m-phase:first-child::before {
+  top: calc(var(--sp-3) + var(--m-phase-node) / 2);
+}
+.m-phase:last-child::before {
+  bottom: auto;
+  height: calc(var(--sp-3) + var(--m-phase-node) / 2);
+}
+.m-phase[data-state='passed']::before {
+  border-left-color: var(--ok);
+}
+.m-phase-node {
+  position: relative;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  width: var(--m-phase-node);
+  height: var(--m-phase-node);
+  margin-top: 4px; /* centers on the first text line */
+  box-sizing: border-box;
+  border-radius: var(--r-pill);
+  border: calc(var(--hairline) * 2) solid var(--rule-strong);
+  background: var(--bg);
+}
+.m-phase[data-state='passed'] .m-phase-node {
+  border: 0;
+  background: var(--ok);
+}
+.m-phase[data-state='passed'] .m-phase-node::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  margin-top: -2px;
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.m-phase[data-state='current'] .m-phase-node {
+  border: 3px solid var(--accent);
+  background: var(--surface);
+}
+.m-phase[data-state='current'] {
+  background: var(--accent-wash);
+}
+.m-phase[data-parallel='true'] .m-phase-body {
+  padding-left: var(--sp-4);
+  border-left: var(--hairline) solid var(--rule-strong);
+}
+.m-phase-body {
+  min-width: 0;
+}
+.m-phase-body > p {
+  margin: 0;
+}
+.m-phase-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.m-phase-name {
+  font-size: var(--fs-4);
+  line-height: var(--lh-4);
+  font-weight: var(--fw-semibold);
+}
+.m-phase-state {
+  flex: none;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-semibold);
+  font-variant-caps: all-small-caps;
+  letter-spacing: var(--ls-caps);
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.m-phase[data-state='current'] .m-phase-state {
+  color: var(--accent-ink);
+}
+.m-phase-title {
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink-2);
+}
+.m-phase-gate {
+  margin-top: var(--sp-1);
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink-2);
+}
+.m-phase[data-state='locked'] .m-phase-name,
+.m-phase[data-state='locked'] .m-phase-title,
+.m-phase[data-state='locked'] .m-phase-state,
+.m-phase[data-state='locked'] .m-phase-gate {
+  color: var(--ink-3);
+}
+/* A phase row that opens its detail: the body becomes a 44px+ button. */
+.m-phase-body > button.m-phase-open {
+  display: block;
+  width: 100%;
+  min-height: var(--tap);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.m-phase-open:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-1);
+}
+
+/* ---------- status: item stage and question status ----------
+   Markup: <span class="m-status" data-status="attempting"><span class="m-status-mark"
+   aria-hidden="true"></span>Attempting</span>
+   The word is always shown; the mark adds shape. Item stages fill a small dial in
+   quarters (not started 0, attempting 1/4, written up 1/2, supervised 3/4) and end
+   in a check (redo done). Question status: solved = check, partial = half, stuck =
+   hollow ring with a bar across. Normal states use ink and accent (D29): stuck is
+   a fact about the work, not an alarm. */
+.m-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.m-status-mark {
+  --m-status-fill: 0turn;
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border-radius: var(--r-pill);
+  border: calc(var(--hairline) * 2) solid var(--rule-strong);
+  background: conic-gradient(var(--accent) var(--m-status-fill), var(--surface) 0);
+}
+.m-status[data-status='attempting'] .m-status-mark {
+  --m-status-fill: 0.25turn;
+  border-color: var(--accent);
+}
+.m-status[data-status='written-up'] .m-status-mark,
+.m-status[data-status='partial'] .m-status-mark {
+  --m-status-fill: 0.5turn;
+  border-color: var(--accent);
+}
+.m-status[data-status='supervised'] .m-status-mark {
+  --m-status-fill: 0.75turn;
+  border-color: var(--accent);
+}
+.m-status[data-status='redo-done'] .m-status-mark,
+.m-status[data-status='solved'] .m-status-mark {
+  border-color: var(--ok);
+  background: var(--ok);
+}
+.m-status[data-status='redo-done'] .m-status-mark::after,
+.m-status[data-status='solved'] .m-status-mark::after {
+  content: '';
+  width: 3px;
+  height: 7px;
+  margin-top: -2px;
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.m-status[data-status='stuck'] .m-status-mark {
+  border-color: var(--ink-2);
+}
+.m-status[data-status='stuck'] .m-status-mark::after {
+  content: '';
+  width: 10px;
+  border-top: 2px solid var(--ink-2);
+  transform: rotate(-45deg);
+}
+.m-status:not([data-status='not-started']) {
+  color: var(--ink);
+}
+
+/* ---------- gloss: a glossary term inside running text ----------
+   Markup: <button type="button" class="m-gloss" aria-expanded="false"
+   aria-controls="pop-tripos">Tripos</button>
+   A dotted underline marks it. The hit area is a centered 44x44 minimum drawn by
+   ::after, so the term keeps the line's own height and nothing reflows (padding on
+   an inline-block button would grow the line box). min-height: 0 undoes app.css's
+   global button min-height for the same reason. */
+.m-gloss {
+  position: relative;
+  display: inline;
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-1);
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  vertical-align: baseline;
+  text-decoration: underline dotted var(--ink-3);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+  cursor: help;
+}
+.m-gloss::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(100% + 4px);
+  min-width: var(--tap);
+  height: var(--tap);
+  transform: translate(-50%, -50%);
+}
+.m-gloss:hover {
+  color: var(--accent-ink);
+  text-decoration-style: solid;
+  text-decoration-color: currentColor;
+}
+.m-gloss[aria-expanded='true'] {
+  background: var(--accent-wash);
+  text-decoration-style: solid;
+}
+.m-gloss:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- popover: a glossary definition bubble ----------
+   Markup, rendered right after its .m-gloss in the DOM so Tab reaches it:
+   <span class="m-popover-anchor">  (position: relative wrapper around both)
+     <button class="m-gloss" …>Tripos</button>
+     <span class="m-popover" id="pop-tripos" role="dialog" aria-label="Tripos" data-side="bottom">
+       <span class="m-popover-term">Tripos</span>
+       <span class="m-popover-body">Name of a Cambridge degree program…</span>
+       <span class="m-popover-us"><span class="m-label">US</span> Degree program + finals</span>
+       <a class="m-popover-link" href="#/glossary?t=tripos">Open glossary</a>
+     </span></span>
+   The component positions it: --m-pop-x shifts the bubble left or right so it stays
+   inside the gutter at 375px, and --m-pop-arrow keeps the arrow on the term.
+   data-side="top" flips it above when there is no room below. Spans, not divs,
+   because it lives inside a paragraph. Dismiss: Escape, a tap outside, or focus
+   leaving both the term and the bubble; Escape returns focus to the term. */
+.m-popover-anchor {
+  position: relative;
+  display: inline;
+}
+.m-popover {
+  --m-pop-x: -50%;
+  --m-pop-arrow: 50%;
+  position: absolute;
+  z-index: var(--z-overlay);
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(var(--m-pop-x));
+  display: grid;
+  gap: var(--sp-2);
+  width: max-content;
+  max-width: min(20rem, calc(100vw - var(--pad-left) - var(--pad-right)));
+  padding: var(--sp-3) var(--sp-4);
+  border: var(--hairline) solid var(--rule);
+  border-radius: var(--r-3);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  color: var(--ink);
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  font-weight: var(--fw-regular);
+  text-align: left;
+  white-space: normal;
+  animation: m-pop-in var(--dur-2) var(--ease-enter);
+}
+.m-popover[data-side='top'] {
+  top: auto;
+  bottom: calc(100% + 10px);
+}
+.m-popover[hidden] {
+  display: none;
+}
+/* Arrow: a rotated square sharing the bubble's border. */
+.m-popover::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: var(--m-pop-arrow);
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  background: var(--surface);
+  border-left: var(--hairline) solid var(--rule);
+  border-top: var(--hairline) solid var(--rule);
+  transform: rotate(45deg);
+}
+.m-popover[data-side='top']::before {
+  top: auto;
+  bottom: -6px;
+  transform: rotate(225deg);
+}
+.m-popover-term {
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-3);
+}
+.m-popover-body {
+  color: var(--ink);
+}
+.m-popover-us {
+  color: var(--ink-2);
+}
+.m-popover-us > .m-label {
+  margin-right: var(--sp-2);
+}
+.m-popover-term,
+.m-popover-body,
+.m-popover-us,
+.m-popover-link {
+  display: block;
+}
+.m-popover-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  margin-bottom: calc(var(--sp-2) * -1);
+  color: var(--accent-ink);
+  font-weight: var(--fw-semibold);
+  text-underline-offset: 3px;
+}
+.m-popover-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-1);
+}
+@keyframes m-pop-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--m-pop-x)) translateY(-4px);
+  }
+}
+
+/* ---------- editor: write-up source with a preview toggle ----------
+   Markup: <div class="m-editor">
+     <div class="m-editor-bar">
+       <span class="m-label" id="ed-l">Write-up</span>
+       <div class="m-seg" role="group" aria-labelledby="ed-l">
+         <button aria-pressed="true">Write</button><button aria-pressed="false">Preview</button>
+       </div></div>
+     <textarea class="m-editor-input" aria-labelledby="ed-l"></textarea>
+     (or) <div class="m-editor-preview" tabindex="0" aria-label="Write-up preview">…</div>
+     <p class="m-editor-foot m-num">Markdown and $LaTeX$ · Saved 9:14 PM</p></div>
+   Write and Preview share one min-height, so toggling never moves the page. The
+   source is mono (LaTeX reads better aligned); the preview is the body face. */
+.m-editor {
+  --m-editor-h: calc(var(--tap) * 5);
+  display: grid;
+  gap: var(--sp-2);
+}
+.m-editor-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.m-seg {
+  display: inline-flex;
+  padding: 0;
+  border: var(--hairline) solid var(--rule-strong);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  overflow: hidden;
+}
+.m-seg > button {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+/* Each half is a full 44px target; the pressed half fills edge to edge. */
+.m-seg > button + button {
+  border-left: var(--hairline) solid var(--rule-strong);
+}
+.m-seg > button[aria-pressed='true'] {
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+  font-weight: var(--fw-semibold);
+}
+.m-seg > button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -4px; /* inside, since the group clips its children */
+}
+.m-editor-input,
+.m-editor-preview {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--m-editor-h);
+  margin: 0;
+  padding: var(--sp-3);
+  border: var(--hairline) solid var(--rule-strong);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  color: var(--ink);
+}
+.m-editor-input {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2); /* 16px: iOS does not zoom on focus */
+  line-height: var(--lh-3);
+  resize: vertical;
+}
+.m-editor-input::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+.m-editor-preview {
+  overflow-wrap: anywhere;
+  font-size: var(--fs-body);
+  line-height: var(--lh-3);
+  border-color: var(--rule);
+}
+.m-editor-preview > :first-child {
+  margin-top: 0;
+}
+.m-editor-preview > :last-child {
+  margin-bottom: 0;
+}
+.m-editor-preview p,
+.m-editor-preview ul,
+.m-editor-preview ol {
+  margin: 0 0 var(--sp-3);
+}
+.m-editor-preview h1,
+.m-editor-preview h2,
+.m-editor-preview h3 {
+  margin: var(--sp-4) 0 var(--sp-2);
+  font-size: var(--fs-4);
+  line-height: var(--lh-4);
+  font-weight: var(--fw-semibold);
+}
+.m-editor-preview code {
+  padding: 0 var(--sp-1);
+  border-radius: var(--r-1);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 0.94em;
+}
+/* Display math scrolls on its own line instead of widening the page at 375px. */
+.m-editor-preview .katex-display {
+  margin: var(--sp-3) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: var(--sp-1) 0;
+}
+.m-editor-preview[data-empty='true'] {
+  color: var(--ink-3);
+}
+.m-editor-input:focus-visible,
+.m-editor-preview:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.m-editor-foot {
+  margin: 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-1);
+  color: var(--ink-3);
+}
+
+/* ---------- thumbs: photos of paper work ----------
+   Markup: <ul class="m-thumbs" aria-label="Photos, 2">
+     <li class="m-thumb"><img alt="Page 1 of the write-up" …/>
+       <button type="button" class="m-thumb-remove" aria-label="Remove page 1">
+         <span aria-hidden="true">×</span></button></li>
+     <li><label class="m-thumb-add">Add photo<input type="file" accept="image/*" class="m-sr"/></label></li></ul>
+   Portrait tiles (paper is portrait). The remove target is a full 44px square in
+   the corner; the visible disc is 28px so it doesn't hide the page. */
+.m-thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.m-thumb {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border: var(--hairline) solid var(--rule);
+  border-radius: var(--r-2);
+  background: var(--surface-2);
+}
+.m-thumb > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.m-thumb-remove {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  min-height: var(--tap);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.m-thumb-remove > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  border: var(--hairline) solid var(--rule-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  font-size: var(--fs-4);
+  line-height: 1;
+}
+.m-thumb-remove:hover > span {
+  background: var(--surface-2);
+}
+.m-thumb-remove:focus-visible {
+  outline: none;
+}
+.m-thumb-remove:focus-visible > span {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.m-thumb-add {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 3 / 4;
+  box-sizing: border-box;
+  padding: var(--sp-2);
+  border: var(--hairline) dashed var(--rule-strong);
+  border-radius: var(--r-2);
+  background: var(--surface-2);
+  color: var(--accent-ink);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-semibold);
+  text-align: center;
+  cursor: pointer;
+}
+.m-thumb-add:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.m-thumb[data-state='loading'] {
+  background: var(--track);
+}
+
+/* ---------- trend: a small weekly chart ----------
+   Markup: <figure class="m-trend">
+     <figcaption class="m-trend-cap"><span class="m-label">Errors per week</span>
+       <span class="m-num">7 this week · 12 last</span></figcaption>
+     <ol class="m-trend-bars" role="img" aria-label="Errors per week, last 8 weeks: W33 3, …">
+       <li class="m-trend-col" style="--m-trend-max: 12">
+         <span class="m-trend-stack">
+           <span class="m-trend-seg" style="--v: 3; --c: var(--series-1)"></span> …
+         </span>
+         <span class="m-trend-x m-num">W33</span></li> …</ol>
+     <ul class="m-trend-key"><li><span class="m-trend-swatch" style="--c: var(--series-1)"></span>Concept</li> …</ul>
+     <div class="m-sr"><table>the same numbers</table></div></figure>
+   Plain HTML bars: heights are --v / --m-trend-max of the plot. Stacked segments
+   are split by a 1px surface gap so neighbours never merge into one block.
+   Colors come only from --series-1..5, in order. The key and the hidden table carry
+   the numbers, so the chart never depends on color alone. */
+.m-trend {
+  position: relative; /* contains the hidden table */
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+}
+.m-trend-cap {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--fs-1);
+  color: var(--ink-2);
+}
+.m-trend-bars {
+  --m-trend-h: 96px;
+  display: flex;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* The baseline: one continuous hairline at the foot of the plot, under every column. */
+  background: linear-gradient(var(--rule-strong), var(--rule-strong)) no-repeat 0 var(--m-trend-h) / 100%
+    var(--hairline);
+}
+.m-trend-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--sp-1) + var(--hairline));
+}
+.m-trend-stack {
+  display: flex;
+  flex-direction: column-reverse; /* first segment sits on the baseline */
+  gap: 1px;
+  height: var(--m-trend-h);
+}
+.m-trend-seg {
+  display: block;
+  flex: none;
+  height: calc((var(--m-trend-h) - 8px) * var(--v, 0) / var(--m-trend-max, 1));
+  background: var(--c, var(--series-1));
+}
+.m-trend-seg:last-child {
+  border-radius: var(--r-1) var(--r-1) 0 0;
+}
+.m-trend-x {
+  font-size: var(--fs-1);
+  line-height: var(--lh-1);
+  color: var(--ink-3);
+  text-align: center;
+  white-space: nowrap;
+}
+.m-trend-col[aria-current='true'] .m-trend-x {
+  color: var(--ink);
+  font-weight: var(--fw-semibold);
+}
+.m-trend-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-1);
+  line-height: var(--lh-1);
+  color: var(--ink-2);
+}
+.m-trend-key > li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.m-trend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--c, var(--series-1));
+}

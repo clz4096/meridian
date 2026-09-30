@@ -62,7 +62,7 @@ describe('DataView', () => {
     expect(io.isConnected).toBe(true);
     expect(io.value.length).toBeGreaterThan(0);
     expect(JSON.parse(io.value)).toBeTypeOf('object');
-    expect(getByText('Exported all 5 stores.')).toBeTruthy();
+    expect(getByText('Exported all 6 stores.')).toBeTruthy();
     fireEvent.click(getByText('Copy'));
     await Promise.resolve();
     expect(copy).toHaveBeenCalledWith(io.value);

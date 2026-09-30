@@ -112,7 +112,7 @@ const SECTIONS = [
   ['Todos', '.td-add, .today-qbtn:not(.scratch)'],
   ['Scratchpad', '.td-idea, .today-qbtn.scratch'],
   ['WGU Roadmap', 'tile:wgu'], ['Math', 'tile:math'], ['Computer Science', 'tile:cs'],
-  ['Knowledge', 'tile:knowledge'], ['Princeton Roadmap', 'tile:tracker'], ['Learn by Teaching', 'tile:teach'],
+  ['Knowledge', 'tile:knowledge'], ['Princeton Roadmap', 'tile:tracker'],
   ['Workout', 'tile:workout'], ['Food & Body', 'tile:meal'], ['Data', 'tile:data'],
 ];
 // Today is usable: a navigation tile is on screen (new Today, then the old hub).

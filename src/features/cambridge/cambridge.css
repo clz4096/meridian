@@ -1,0 +1,385 @@
+/*
+ * Cambridge path (cam-*) and study item (ci-*) screens. Tokens and primitives
+ * only (src/styles/tokens.css, primitives.css); docs/cambridge-screens.md (b), (c).
+ */
+.cam-root {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  /* .appwrap already supplies the gutter and safe areas. */
+  padding: 0 0 var(--sp-8);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-3);
+}
+.cam-root p {
+  margin: 0;
+}
+
+.cam-week {
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink-2);
+}
+.cam-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+/* ---------- phase rows ---------- */
+/* The phase body is spans inside a button (a button holds phrasing content only),
+   so the block lines that the primitive sets on <p> are set here. */
+.cam-block {
+  display: block;
+}
+/* A phase row takes focus after a gate passes (tabindex -1): ring it only for keyboard focus. */
+.m-phase:focus {
+  outline: none;
+}
+.m-phase:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.cam-phase-detail {
+  display: grid;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink-2);
+}
+.cam-detail-line {
+  color: var(--ink-2);
+}
+.cam-evidence {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+}
+.cam-evidence > div {
+  display: grid;
+  gap: var(--sp-1);
+}
+.cam-evidence dt {
+  font-size: var(--fs-1);
+  color: var(--ink-2);
+}
+.cam-evidence dd {
+  margin: 0;
+  color: var(--ink);
+}
+
+/* ---------- forms: gate evidence, marks, supervision log ---------- */
+.cam-gate-form,
+.ci-sv-form {
+  display: grid;
+  gap: var(--sp-3);
+}
+.cam-gate-form fieldset,
+.ci-sv-form fieldset {
+  display: grid;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.cam-gate-form legend,
+.ci-sv-form legend {
+  padding: 0;
+  margin-bottom: var(--sp-2);
+}
+.cam-field {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.cam-field > label {
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink);
+}
+.cam-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--tap);
+  padding: 0 var(--sp-3);
+  border: var(--hairline) solid var(--rule-strong);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-2); /* 16px: iOS does not zoom on focus */
+}
+.cam-input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.cam-input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.cam-rule {
+  /* Form help is read before typing, so it gets label size, not the 14px meta size. */
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink-2);
+}
+.cam-rule[data-invalid='true'] {
+  color: var(--danger);
+}
+/* The write-up's "Markdown and $LaTeX$" line is help for the field too, so it
+   reads at the same size as .cam-rule rather than the primitive's meta size. */
+.ci-root .m-editor-foot {
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+}
+.cam-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* ---------- item rows ---------- */
+.cam-items,
+.ci-qs,
+.ci-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cam-items > li,
+.ci-qs > li,
+.ci-links > li {
+  border-bottom: var(--hairline) solid var(--rule);
+}
+.cam-items > li:last-child,
+.ci-qs > li:last-child,
+.ci-links > li:last-child {
+  border-bottom: 0;
+}
+button.m-row,
+a.m-row {
+  width: 100%;
+  box-sizing: border-box;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+button.m-row[aria-current='true'] {
+  background: var(--accent-wash);
+}
+.cam-item-main,
+.ci-q-main,
+.ci-link-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.cam-item-title {
+  font-size: var(--fs-3);
+  line-height: var(--lh-3);
+}
+.cam-item-sub,
+.ci-q-sub {
+  font-size: var(--fs-1);
+  line-height: var(--lh-1);
+  color: var(--ink-3);
+}
+.cam-item-sub[data-warn='true'],
+.ci-redo-line[data-warn='true'] {
+  color: var(--warn);
+}
+.cam-item .m-status,
+.ci-q .m-status {
+  margin-left: auto;
+  flex: none;
+}
+.cam-more {
+  margin-top: var(--sp-2);
+}
+
+/* ---------- loading skeletons: the loaded screen's outline ---------- */
+.cam-skel-title {
+  width: 60%;
+  height: var(--fs-5);
+}
+.cam-skel-week {
+  width: 70%;
+  height: var(--fs-2);
+}
+.cam-skel-tools {
+  /* The Glossary and Error log buttons: one row of 44px buttons, as .cam-tools. */
+  width: 14rem;
+  height: var(--tap);
+  margin-top: var(--sp-2);
+}
+.cam-skel-h {
+  width: 30%;
+  height: var(--fs-5);
+}
+.cam-skel-phase {
+  height: 64px;
+  margin: 0 0 var(--hairline);
+}
+.cam-skel-row {
+  height: var(--tap);
+  margin: 0 0 var(--hairline);
+}
+
+/* ======================================================================
+ * Study item
+ * ====================================================================== */
+.ci-stepper {
+  display: grid;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+.ci-step-line {
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink-2);
+}
+
+.ci-q-label {
+  font-size: var(--fs-3);
+}
+.ci-q-stall {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ci-q-time {
+  flex: none;
+  min-width: 5ch;
+  text-align: right;
+  font-size: var(--fs-2);
+  color: var(--ink-2);
+}
+
+.ci-panel {
+  display: grid;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+.ci-panel .m-timer-value {
+  min-height: var(--tap);
+}
+.ci-confirm {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--sp-2);
+}
+.ci-confirm-text {
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+}
+.ci-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.ci-status > .m-label {
+  margin-right: var(--sp-1);
+}
+.ci-status > .m-chip {
+  min-height: var(--tap);
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-2);
+}
+.ci-mark {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.ci-mark-input {
+  width: 6ch;
+  text-align: right;
+}
+
+.ci-link {
+  color: var(--ink);
+}
+.ci-link:hover .ci-arrow {
+  color: var(--accent-ink);
+}
+.ci-arrow {
+  flex: none;
+  margin-left: auto;
+  color: var(--ink-3);
+}
+.ci-suggested {
+  color: var(--ink-3);
+}
+.ci-locked {
+  color: var(--ink-3);
+}
+.ci-locked-left {
+  margin-left: auto;
+  font-size: var(--fs-2);
+}
+
+.ci-photos {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+.ci-submit,
+.ci-sv {
+  display: grid;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+.ci-sv {
+  margin-top: 0;
+}
+.ci-submit > .m-btn,
+.ci-redo > .m-btn {
+  justify-self: start;
+}
+.ci-line,
+.ci-redo-line {
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink-2);
+}
+.ci-redo {
+  display: grid;
+  gap: var(--sp-2);
+}
+.ci-prompt {
+  min-height: calc(var(--tap) * 4);
+}
+
+/* Preview headings sit under the section's h2, so they are h3 to h5. */
+.m-editor-preview h4,
+.m-editor-preview h5 {
+  margin: var(--sp-3) 0 var(--sp-2);
+  font-size: var(--fs-3);
+  line-height: var(--lh-3);
+  font-weight: var(--fw-semibold);
+}
+.m-editor-preview ul {
+  padding-left: var(--sp-5);
+}
+.cam-math-display {
+  display: block;
+}
+.ci-skel-short {
+  width: 40%;
+}
+.ci-skel-stepper {
+  height: calc(var(--tap) + var(--sp-6));
+  margin-top: var(--sp-4);
+}
+.ci-skel-panel {
+  height: calc(var(--tap) * 7);
+  margin-top: var(--sp-3);
+  border-radius: var(--r-3);
+}
