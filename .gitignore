@@ -8,3 +8,5 @@ dev-dist/
 .ctx/
 
 perf/results/
+dist-demo/
+design/progress.html
