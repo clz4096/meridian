@@ -1,0 +1,284 @@
+[
+ {
+  "id": "cm-phases-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Name the phases of a compiler and state what each consumes and produces.",
+  "reveal": "Gist: a compiler is an assembly line — source text goes in one end, each station transforms it a little, and machine code comes out the other.\n\nThe stations, in order, with what each takes in and hands on:\n\n- **Lexing** (also called scanning) — reads the raw **characters** and groups them into **tokens**, the smallest meaningful chunks (a number, a name, a `+` sign).\n- **Parsing** — arranges the **tokens** into a **syntax tree** (a tree mirroring the grammar's nested structure), rejecting anything that breaks the grammar.\n- **Semantic analysis** — resolves what names refer to and what types things have, **annotating** the tree with that info — or **rejecting** the program if it doesn't check out.\n- **Intermediate representation (IR)** — the annotated tree is lowered into an **IR**, a simpler, lower-level form that isn't tied to any particular source language or target machine.\n- **Optimization** — rewrites the IR to do the same work more cheaply: **constant folding** (doing constant math at compile time), **dead-code elimination**, **inlining**.\n- **Code generation** — emits the actual **target instructions** and assigns values to CPU **registers** (register allocation).\n\n**Why the IR sits in the middle (the payoff):** the **front end** (lex, parse, analyze) only cares about the source language; the **back end** (optimize, emit) only cares about the target machine. Put an IR between them and N languages can target M machines with **N+M** components instead of **N×M** — write each front end once, each back end once. **Tell:** front end = language-specific, back end = target-specific, IR is the pivot.",
+  "src": {
+   "book": "crafting",
+   "ref": "A Map of the Territory · The Parts of a Language",
+   "url": "https://craftinginterpreters.com/a-map-of-the-territory.html",
+   "anchor": "the-parts-of-a-language"
+  },
+  "tags": [
+   "compilers",
+   "systems"
+  ]
+ },
+ {
+  "id": "cm-lexparse-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "What is the difference between lexing and parsing, and why are they separate?",
+  "reveal": "**Lexing** (scanning) groups raw characters into **tokens** — the meaningful chunks like an identifier, a number, or a plus sign — throwing away whitespace and comments. It's a **regular-language** job: the patterns are simple enough to need no nesting, so a finite state machine (a tight, table-driven loop) handles it. **Parsing** then arranges those tokens into a **tree** following the grammar; because grammars nest (parentheses inside parentheses), that needs a **context-free grammar** and a stack. They're split because it makes each simpler and faster — the parser reasons about ~10 token kinds instead of ~100 character cases, and the lexer stays a tight loop. **Tell:** lexer = regular / flat / state-machine; parser = context-free / nested / stack.",
+  "src": {
+   "book": "crafting",
+   "ref": "Scanning · Regular Languages and Expressions",
+   "url": "https://craftinginterpreters.com/scanning.html",
+   "anchor": "regular-languages-and-expressions"
+  },
+  "see": [
+   {
+    "label": "Crafting Interpreters — Context-free grammars (the parsing side)",
+    "url": "https://craftinginterpreters.com/representing-code.html#context-free-grammars"
+   }
+  ],
+  "tags": [
+   "compilers"
+  ]
+ },
+ {
+  "id": "cm-ast-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is an abstract syntax tree, and how do you evaluate an arithmetic expression from one?",
+  "reveal": "Gist: an **abstract syntax tree (AST)** is the program drawn as a tree — each node is an operation, its children are the things it operates on — and you evaluate it bottom-up.\n\nWhat \"abstract\" means: the punctuation that only existed to guide parsing (parentheses, semicolons) is gone, absorbed into the tree's **shape** rather than stored as nodes. To evaluate an arithmetic expression, do a **post-order traversal** — for each node, recursively evaluate its **left** child, then its **right** child, then apply the node's own operator to those two results. For `(1 + 2) * 3`, the `*` node evaluates its left subtree (`1 + 2` → 3) and its right (`3`), then multiplies → 9.\n\n**Why the evaluator is trivially simple:** precedence and associativity are already baked into the tree's shape — the parser resolved them when it built the tree — so the evaluator never reasons about them. `*` binding tighter than `+` just shows up as the `*` node sitting lower in the tree.\n\n**Tell:** this is exactly the shape of the classic Jane Street arithmetic-evaluator interview question.",
+  "src": {
+   "book": "crafting",
+   "ref": "Representing Code · Implementing Syntax Trees",
+   "url": "https://craftinginterpreters.com/representing-code.html",
+   "anchor": "implementing-syntax-trees"
+  },
+  "see": [
+   {
+    "label": "Crafting Interpreters — Evaluating expressions (post-order traversal)",
+    "url": "https://craftinginterpreters.com/evaluating-expressions.html#evaluating-expressions"
+   }
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 736. Parse Lisp Expression",
+    "url": "https://leetcode.com/problems/parse-lisp-expression/"
+   }
+  ],
+  "tags": [
+   "compilers",
+   "dsa"
+  ]
+ },
+ {
+  "id": "cm-precedence-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "How does a recursive descent parser encode operator precedence? Sketch it for + and *.",
+  "reveal": "Gist: in a **recursive descent parser** (one function per grammar rule, the functions calling each other as they walk the tokens), each precedence **level** gets its own function, and lower-precedence functions call higher-precedence ones — so the tighter-binding operators end up deeper in the tree.\n\nSketch for `+` and `*`: `expression()` handles `+` and `−` — it first parses a `term()`, then **loops** while it sees a `+` or `−`, each time parsing another `term()` and wrapping the two into a binary node. `term()` handles `*` and `/` the same way: parse a `factor()`, then loop while it sees `*` or `/`. `factor()` handles the atoms — a number, or a parenthesized expression, which **recurses back** into `expression()`. Because `term()` (the `*` level) is called *inside* `expression()`'s loop, multiplication groups its operands before addition ever combines them — so `*` binds tighter automatically.\n\n**Associativity (the tell):** left-associativity comes from the **loop** — `a − b − c` groups as `(a − b) − c` because each iteration folds the running result on the left. Right-associativity — like exponentiation, where `a ^ b ^ c` means `a ^ (b ^ c)` — comes instead from **recursing into the same level** rather than looping.",
+  "src": {
+   "book": "crafting",
+   "ref": "Parsing Expressions · Recursive Descent Parsing",
+   "url": "https://craftinginterpreters.com/parsing-expressions.html",
+   "anchor": "recursive-descent-parsing"
+  },
+  "practice": [
+   {
+    "label": "LeetCode 227. Basic Calculator II",
+    "url": "https://leetcode.com/problems/basic-calculator-ii/"
+   }
+  ],
+  "tags": [
+   "compilers",
+   "dsa"
+  ]
+ },
+ {
+  "id": "cm-shunting-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is the shunting-yard algorithm and when would you use it over recursive descent?",
+  "reveal": "Gist: **shunting-yard** is Dijkstra's algorithm for turning an **infix** expression (operators between operands, `a + b * c`) into **postfix** (operators after, `a b c * +`) — or evaluating it directly — in one left-to-right pass using two stacks.\n\nHow it runs: keep an **operator stack** and an **output queue**. Scan tokens left to right — send each operand straight to the output; for an operator, first **pop** every operator of **higher-or-equal precedence** (for a *right*-associative operator like `^`, only *strictly* higher) off the stack into the output, then push the new operator; parentheses bracket a sub-expression (an open paren pushes, a close paren pops back to it). What comes out is the same expression with precedence already resolved into order.\n\n**When to use it over recursive descent:** reach for shunting-yard when precedence is **data rather than code** — e.g. a calculator whose users can define their own operators and precedences at runtime — or when you'd rather have one flat loop than a stack of mutually recursive functions (`expression` / `term` / `factor`).\n\n**Tradeoff (the tell):** recursive descent is usually more readable and handles non-expression grammar (statements, declarations) more naturally, so shunting-yard shines specifically for expression parsing with configurable precedence.",
+  "src": {
+   "book": "shunting",
+   "ref": "The algorithm in detail",
+   "anchor": "The_algorithm_in_detail"
+  },
+  "see": [
+   {
+    "label": "Crafting Interpreters — Recursive descent parsing (the alternative)",
+    "url": "https://craftinginterpreters.com/parsing-expressions.html#recursive-descent-parsing"
+   }
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 224. Basic Calculator",
+    "url": "https://leetcode.com/problems/basic-calculator/"
+   }
+  ],
+  "tags": [
+   "compilers",
+   "dsa"
+  ]
+ },
+ {
+  "id": "cm-ir-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is an intermediate representation, and why is SSA form so useful for optimization?",
+  "reveal": "Gist: an **intermediate representation (IR)** is the program rewritten in a simple, uniform middle-language — below your source, above machine code — that the compiler actually optimizes. **SSA form** is a way of writing that IR that makes optimizations easy.\n\nWhat an IR looks like: typically a list of **three-address instructions** (each does one operation on a couple of operands, like `t = a + b`) laid out over a **control-flow graph** — the diagram of which blocks of code can jump to which.\n\n**Static single assignment (SSA)** means every variable is written **exactly once**. If the source reassigns `x`, SSA renames each write to a fresh version — `x1`, `x2`, `x3` — so a name and its one definition are the same thing. Where two control-flow paths merge and either version could arrive (say the two arms of an `if`), a **phi-node** picks the right one: `x3 = φ(x1, x2)`.\n\n**Why it's powerful (the payoff):** because each name has exactly one definition, the chain from a variable's use back to where it was defined (its **use-def chain**) is immediate — no dataflow puzzle to solve. So **constant propagation** (replacing a variable known to hold a constant), **dead-code elimination** (dropping computations whose results are never used), and **common-subexpression elimination** (computing a repeated expression once) become almost trivial graph walks.\n\n**Tell:** LLVM and MLIR are both SSA-based — which is exactly why SSA matters for the ML compilers built on them.",
+  "src": {
+   "book": "crafting",
+   "ref": "A Map of the Territory · Intermediate Representations",
+   "url": "https://craftinginterpreters.com/a-map-of-the-territory.html",
+   "anchor": "intermediate-representations"
+  },
+  "see": [
+   {
+    "label": "Wikipedia — Static single-assignment form",
+    "url": "https://en.wikipedia.org/wiki/Static_single-assignment_form"
+   }
+  ],
+  "tags": [
+   "compilers",
+   "ml-systems"
+  ]
+ },
+ {
+  "id": "cm-opts-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "Name five classic compiler optimizations and what each removes.",
+  "reveal": "Gist: compiler optimizations rewrite code to do the same work with less — here are the classic five, each defined by what it removes.\n\n- **Constant folding** — evaluates constant math at compile time, removing runtime arithmetic (`3 * 60` becomes `180` in the binary).\n- **Constant propagation** — when a variable is known to hold a constant, substitutes the constant for the variable, removing the variable read.\n- **Dead-code elimination (DCE)** — removes computations whose results are never used.\n- **Common-subexpression elimination (CSE)** — spots the same expression computed twice and computes it once, removing the redundant work.\n- **Inlining** — replaces a function call with a copy of the callee's body, removing the call overhead and — more importantly — exposing further optimizations across the old call boundary.\n\nAlso worth naming: **loop-invariant code motion** (hoisting work that doesn't change out of a loop), **strength reduction** (replacing an expensive op with a cheap one — a multiply by a power of two becomes a bit shift), and **vectorization** (doing several elements at once with SIMD instructions).",
+  "src": {
+   "book": "crafting",
+   "ref": "A Map of the Territory · Optimization",
+   "url": "https://craftinginterpreters.com/a-map-of-the-territory.html",
+   "anchor": "optimization"
+  },
+  "tags": [
+   "compilers",
+   "systems"
+  ]
+ },
+ {
+  "id": "cm-jit-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How does a JIT differ from an ahead-of-time compiler, and what information does it have that AOT does not?",
+  "reveal": "Gist: an **ahead-of-time (AOT)** compiler translates the whole program to machine code once, before it ever runs; a **just-in-time (JIT)** compiler translates at **runtime**, usually starting by interpreting and compiling only the **hot** paths once they prove worth it.\n\nThe edge a JIT has: **profile information** the AOT compiler can never see, because it's watching the program actually run — which branches actually get taken, which concrete types actually show up at a call site that could in principle hold many (a **polymorphic** call site), and real loop trip counts. That lets it make **speculative optimizations**: e.g. inline a call that has only ever seen one type (a **monomorphic** call), guarded by a cheap check that **deoptimizes** — falls back — if the assumption ever breaks.\n\n**The costs (why not always JIT):** warm-up time before hot code is compiled, memory for the compiler that now ships inside the running program, and unpredictable latency spikes when compilation kicks in mid-run. **Tell:** latency-critical systems prefer AOT precisely to avoid those runtime pauses.",
+  "src": {
+   "book": "crafting",
+   "ref": "A Map of the Territory · Just-in-Time Compilation",
+   "url": "https://craftinginterpreters.com/a-map-of-the-territory.html",
+   "anchor": "just-in-time-compilation"
+  },
+  "see": [
+   {
+    "label": "Crafting Interpreters — Compilers and interpreters (AOT vs interpret)",
+    "url": "https://craftinginterpreters.com/a-map-of-the-territory.html#compilers-and-interpreters"
+   }
+  ],
+  "tags": [
+   "compilers",
+   "systems"
+  ]
+ },
+ {
+  "id": "cm-interp-30",
+  "mins": 30,
+  "flow": "full",
+  "prompt": "Design a stack-based bytecode interpreter: what is the instruction set and the main loop?",
+  "reveal": "Gist: a stack-based bytecode interpreter is a tiny virtual CPU — it walks an array of one-byte **opcodes**, and every instruction pushes and pops values on an **operand stack** instead of using registers.\n\nThe instruction set (all operating on that operand stack): `PUSH_CONST` (push a literal), `LOAD_LOCAL` / `STORE_LOCAL` (read/write a local-variable slot), `ADD` / `SUB` / `MUL` (pop two, push the result), `JUMP` and `JUMP_IF_FALSE` (move the instruction pointer for control flow), and `CALL` / `RETURN` (enter and leave a function).\n\nThe main loop (the fetch-decode-execute cycle): read the byte at the **instruction pointer**, advance the pointer, `switch` on the opcode, pop the operands it needs, compute, push the result — then loop.\n\nThe state you keep: the **code array** (the bytecode), the **instruction pointer** (which byte is next), the **operand stack** (working values), and a **call-frame stack** (one frame per active function call).\n\n**Why stack-based (the tradeoff):** instructions are compact — an `ADD` needs no register fields because its operands are implicitly the top of the stack — and code generation is trivial. The alternative, a **register-based** VM (like Lua's), executes fewer instructions per program but is harder to emit code for. **Tell:** this is the classic Jane Street stack-interpreter interview question.",
+  "src": {
+   "book": "crafting",
+   "ref": "A Virtual Machine · An Instruction Execution Machine",
+   "url": "https://craftinginterpreters.com/a-virtual-machine.html",
+   "anchor": "an-instruction-execution-machine"
+  },
+  "see": [
+   {
+    "label": "Crafting Interpreters — Register- vs stack-based bytecode (design note)",
+    "url": "https://craftinginterpreters.com/a-virtual-machine.html#design-note"
+   }
+  ],
+  "practice": [
+   {
+    "label": "LeetCode 150. Evaluate Reverse Polish Notation",
+    "url": "https://leetcode.com/problems/evaluate-reverse-polish-notation/"
+   }
+  ],
+  "tags": [
+   "compilers",
+   "dsa"
+  ]
+ },
+ {
+  "id": "cm-scope-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How does a compiler resolve variable scope, and what is a closure at the implementation level?",
+  "reveal": "Gist: to resolve scope, the compiler figures out which declaration each variable name refers to by searching enclosing blocks from the inside out; a **closure** is a function bundled with the outside variables it uses.\n\n**Scope resolution:** starting at the innermost block and working outward, the compiler matches each variable use to its **binding** (its declaration). Where it can, it does this at **compile time** and records a fixed **slot index** for the variable — a direct array offset — instead of a runtime hash-map lookup by name. Faster, and settled before the program runs.\n\n**A closure, concretely:** a function value paired with the **captured environment** — the outside local variables its body still references. The implementation wrinkle: those captured locals normally live on the **stack**, but the stack frame is destroyed when the enclosing function returns — so a captured variable can't stay there. It's **promoted to the heap** (Lua calls these **upvalues**), and the closure object holds pointers to them, keeping them alive as long as the closure is.\n\n**Tell:** that heap promotion is exactly why capturing **by reference** in a C++ lambda is dangerous — C++ does *not* do it, so the reference dangles once the frame is gone.",
+  "src": {
+   "book": "crafting",
+   "ref": "Resolving and Binding · Static Scope",
+   "url": "https://craftinginterpreters.com/resolving-and-binding.html",
+   "anchor": "static-scope"
+  },
+  "see": [
+   {
+    "label": "Crafting Interpreters — Closed upvalues (stack-to-heap capture)",
+    "url": "https://craftinginterpreters.com/closures.html#closed-upvalues"
+   }
+  ],
+  "tags": [
+   "compilers",
+   "cpp"
+  ]
+ },
+ {
+  "id": "cm-mlir-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is an ML compiler (XLA, TVM, MLIR) doing, and why does it matter for accelerators?",
+  "reveal": "Gist: an **ML compiler** (XLA, TVM, MLIR) takes the graph of tensor operations from something like PyTorch and **lowers** it — step by step, through progressively lower-level intermediate representations — into fast **kernels** (the actual GPU/accelerator routines) for one specific target.\n\nThe optimizations it applies along the way are **domain-specific**:\n\n- **Operator fusion** — merging several ops so intermediate results stay in fast memory instead of doing a round trip out to slow global memory and back. Many tensor ops are **memory-bandwidth-bound** (waiting on memory, not math), so this is the big win.\n- **Layout selection** — how tensors are arranged in memory.\n- **Tiling** — splitting the work into blocks sized to fit the memory hierarchy.\n- **Algorithm choice per shape** — picking the best implementation for each tensor shape.\n\n**Why it matters for accelerators:** a new chip is only usable if a compiler can map existing PyTorch graphs onto it — that's the \"adding a backend for an accelerator\" work that makes the hardware real to users.\n\n**Tell:** MLIR specifically provides reusable infrastructure for building these **multi-level** IRs, so each new project doesn't reinvent its own.",
+  "src": {
+   "book": "brrr",
+   "ref": "Making DL Go Brrrr · Bandwidth (operator fusion)",
+   "anchor": "bandwidth"
+  },
+  "see": [
+   {
+    "label": "MLIR — multi-level IR compiler infrastructure",
+    "url": "https://mlir.llvm.org/"
+   },
+   {
+    "label": "OpenXLA — the XLA ML compiler",
+    "url": "https://openxla.org/xla"
+   }
+  ],
+  "tags": [
+   "compilers",
+   "ml-systems"
+  ]
+ },
+ {
+  "id": "cm-abi-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "What is an ABI, and what specifically does a calling convention decide?",
+  "reveal": "Gist: an **Application Binary Interface (ABI)** is the machine-level contract that lets separately compiled pieces of code call each other correctly. The **calling convention** is the part of it that governs how one function passes arguments to another.\n\nWhat the ABI covers: **data type sizes and alignment** (how big an `int` is, what address it must sit on), **struct layout** (the offset of each field, including padding), **name mangling** (how the compiler encodes a function's name and signature into the symbol the linker sees), and the calling convention.\n\nWhat the **calling convention** specifically decides: which arguments go in which **registers** versus spilled onto the **stack** (on x86-64 System V, the first six integer args go in `%rdi`, `%rsi`, `%rdx`, `%rcx`, `%r8`, `%r9`; the rest on the stack); where the **return value** goes (`%rax`); which registers the **caller** must save versus which the **callee** must preserve (caller-saved vs callee-saved); the required **stack alignment**; and who **cleans up** the stack after the call.\n\n**Tell:** get any of this wrong and you get garbage arguments or a corrupted stack — and it's exactly why C++ name mangling differs across compilers, and why `extern \"C\"` exists (it turns mangling off so C and C++ can link).",
+  "src": {
+   "book": "csapp",
+   "ref": "§3.7.3 Data transfer (x86-64 calling conventions)",
+   "page": 273
+  },
+  "see": [
+   {
+    "label": "cppreference — Language linkage (extern \"C\")",
+    "url": "https://en.cppreference.com/w/cpp/language/language_linkage"
+   }
+  ],
+  "tags": [
+   "compilers",
+   "cpp"
+  ]
+ }
+]

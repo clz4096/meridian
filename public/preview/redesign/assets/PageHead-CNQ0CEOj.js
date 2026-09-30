@@ -1,0 +1,1 @@
+import{u as a}from"./index-CIVtPabV.js";function c({title:l,note:e,id:r}){return a("header",{class:"m-section m-pagehead",children:[a("h1",{class:"m-title",id:r,children:l}),e!=null&&e!==""&&a("span",{class:"m-label m-num",children:e})]})}export{c as P};

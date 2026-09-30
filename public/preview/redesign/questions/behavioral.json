@@ -1,0 +1,242 @@
+[
+ {
+  "id": "b-star-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "State the STAR structure and the single most common way engineers get it wrong.",
+  "src": {
+   "book": "star",
+   "ref": "STAR method — structure"
+  },
+  "reveal": "**STAR** is a four-part shape for telling an interview story: **Situation** (brief context), **Task** (what *you* specifically had to do), **Action** (the steps you took, in the first person — \"I,\" not \"we\"), and **Result** (the outcome, as a number wherever one exists). Rough time budget: 15% Situation, 15% Task, 50% Action, 20% Result. **The trap:** burning 80% of the time on Situation and Action with almost nothing on Result — or narrating in \"we\" the whole way, so the interviewer never learns what *you* actually did.",
+  "see": [
+   {
+    "label": "Awesome Behavioral Interviews — the STAR framework",
+    "url": "https://github.com/ashishps1/awesome-behavioral-interviews#-star-framework"
+   }
+  ],
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-tellme-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Tell me about yourself.\" Draft the 90-second version aimed at an ML-systems / low-latency role.",
+  "src": {
+   "book": "star",
+   "ref": "Opening pitch"
+  },
+  "reveal": "This isn't your life story — it's a 90-second pitch that steers straight to where the job is. Build a short arc, not a chronological walk through your résumé.\n\nFour beats: (1) **One line on who you are now** — a systems C++ engineer, ~6 years at Microsoft on Windows platform work. (2) **Two or three concrete anchors** that prove depth — startup latency cut from seconds to tens of milliseconds, memory footprint roughly halved, SDK APIs adopted by OEM partners. Numbers, not adjectives. (3) **The pivot, and *why*** — performance work is really about memory movement and hardware behavior, which is the same problem ML systems face, and you've been deliberately building toward it. (4) **Why *this* role**, specifically.\n\n**The trap:** reciting your résumé in date order. Select only what feeds the story for *this* job, and drop the rest — every anchor should point at the pivot.",
+  "see": [
+   {
+    "label": "Awesome Behavioral Interviews — tips + question bank",
+    "url": "https://github.com/ashishps1/awesome-behavioral-interviews"
+   }
+  ],
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-perf-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Tell me about your most technically challenging project.\" Structure it around the Game Bar startup optimization.",
+  "src": {
+   "book": "star",
+   "ref": "Impact story — performance"
+  },
+  "reveal": "Frame the whole thing as a STAR story — Situation, Task, Action, Result — and spend your prep on the Action beat, because that's the part interviewers actually dig into.\n\n**Situation:** the Game Bar Settings widget took 1–4 seconds to open, on a surface used by millions of Windows gamers. **Task:** you owned making it feel instant. **Action** — this is where you must be specific: how you *measured* (ETW traces — Event Tracing for Windows — and profiling), what you *found* (synchronous work running on the UI thread), what you *changed* (refactoring that work to run concurrently), and what you tried and *rejected*, and why. **Result:** 25–50 ms cold, ~10 ms warm — a 40–160× improvement.\n\n**Rehearse the Action beat hardest.** Interviewers probe *how you found the cause*, not that you fixed it — \"we optimized it and it got faster\" fails the question.",
+  "see": [
+   {
+    "label": "Awesome Behavioral Interviews — tips + question bank",
+    "url": "https://github.com/ashishps1/awesome-behavioral-interviews"
+   }
+  ],
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-debug-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Walk me through the hardest bug you have debugged.\" Use the UI thread starvation investigation.",
+  "src": {
+   "book": "star",
+   "ref": "Debugging story"
+  },
+  "reveal": "The point of this story is **method, not heroism** — show how you narrow a search space, not how clever you are.\n\n**Situation:** inconsistent frame delivery in Compact Mode — *intermittent*, which is exactly what made it hard. **Task:** find the root cause. **Action:** name the tools and the reasoning chain — WinDbg, ProcMon, SysInternals (the Windows debugging and process-monitoring tools) — and, for each observation, what hypothesis it *ruled in or out*, up to the discovery that blocking operations were starving the UI thread. **Result:** you converted those to async patterns, and frame delivery became consistent.\n\n**What interviewers want is how you *narrow*.** Say out loud what you first thought it was and why you were wrong — being wrong and then correcting reads as real; a clean straight-line story reads as rehearsed.",
+  "see": [
+   {
+    "label": "Awesome Behavioral Interviews — tips + question bank",
+    "url": "https://github.com/ashishps1/awesome-behavioral-interviews"
+   }
+  ],
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-conflict-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Tell me about a disagreement with a colleague or manager.\" What makes a good answer versus a disqualifying one?",
+  "src": {
+   "book": "star",
+   "ref": "Conflict story"
+  },
+  "reveal": "A strong answer shows you can hold a technical position, argue it with evidence, and then commit to the outcome either way. The interviewer is checking that you disagree about *ideas* without it turning personal.\n\nStructure it so: the disagreement was about a **decision, not a person**; you brought **data or a prototype** rather than opinion; you genuinely **engaged with their reasoning**; and it ended one of two clean ways — you **changed your mind** (fine — that shows you update on evidence), or the decision **went your way and you owned the result**.\n\n**Disqualifying versions:** making the other person look stupid, a conflict that never resolved, or claiming you've *never* disagreed with anyone — which reads as either passive or dishonest.",
+  "see": [
+   {
+    "label": "Awesome Behavioral Interviews — tips + question bank",
+    "url": "https://github.com/ashishps1/awesome-behavioral-interviews"
+   }
+  ],
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-failure-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Tell me about a time you failed.\" How do you answer without either faking humility or damaging yourself?",
+  "src": {
+   "book": "star",
+   "ref": "Failure story"
+  },
+  "reveal": "Pick a **real** failure with a **bounded blast radius**, own it in the first person without hedging, and spend most of the answer on the **systemic change** you made afterward.\n\nThe lesson has to be *transferable* — a process you changed — not \"I learned to work harder.\" Avoid two failure modes: the **humble-brag** (\"I'm too much of a perfectionist\"), which interviewers hear constantly and score as evasive; and failures that hint at a **character problem** (missing deadlines through negligence, ignoring a colleague's warning).\n\n**The strongest shape:** a technical judgment that turned out wrong, how you *detected* it, and the process you changed so that whole *class* of error can't recur.",
+  "see": [
+   {
+    "label": "Awesome Behavioral Interviews — tips + question bank",
+    "url": "https://github.com/ashishps1/awesome-behavioral-interviews"
+   }
+  ],
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-ownership-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Tell me about something you owned end to end.\" Structure it around the vPack pipeline and security compliance work.",
+  "src": {
+   "book": "star",
+   "ref": "Ownership story"
+  },
+  "reveal": "This question checks whether you operate at a scope *beyond assigned tickets* — whether you take responsibility for a whole system, not just your tasks.\n\nAnchors from your history: you owned the Windows **vPack** packaging pipeline, which ships to millions of Windows 10/11 users. You migrated its CI/CD — the continuous integration and delivery automation — to OneBranch YAML. You added artifact **signing** through Azure Key Vaults. You reached **SDL compliance** (Microsoft's Security Development Lifecycle) and automated **SBOM generation** — a software bill of materials, the manifest of every component you ship. And you served as team **security champion**, including running the training.\n\n**The through-line to state out loud:** you took responsibility for infrastructure nobody else wanted, turned it into a *reliable system* instead of a pile of manual steps, and then **taught it** — and that systematizing-and-teaching is what separates ownership from task completion.",
+  "see": [
+   {
+    "label": "Awesome Behavioral Interviews — tips + question bank",
+    "url": "https://github.com/ashishps1/awesome-behavioral-interviews"
+   }
+  ],
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-influence-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Tell me about a time you influenced people without authority.\" Use the OEM SDK adoption.",
+  "src": {
+   "book": "star",
+   "ref": "Influence story"
+  },
+  "reveal": "\"Without authority\" is the whole point — you couldn't *direct* anyone, so the story has to win on persuasion and design quality, not escalation.\n\n**Situation:** external OEM partners (ASUS ROG Ally, Lenovo Legion Go) needed to integrate Game Bar Compact Mode as their handheld overlay — and you couldn't order them to, only persuade. **Task:** design an API they'd actually adopt. **Action:** how you learned their constraints, how you shaped the interface around *their* needs rather than your internal model, and how you handled pushback. **Result:** three OEM partners shipped on it.\n\n**What the interviewer is listening for:** you got the outcome through **alignment and design quality**, not by escalating to someone with power over them.",
+  "see": [
+   {
+    "label": "Awesome Behavioral Interviews — tips + question bank",
+    "url": "https://github.com/ashishps1/awesome-behavioral-interviews"
+   }
+  ],
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-ambiguity-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Describe a time you worked with unclear requirements.\" What does a strong answer demonstrate?",
+  "src": {
+   "book": "star",
+   "ref": "Ambiguity story"
+  },
+  "reveal": "A strong answer shows you **reduce ambiguity yourself** instead of waiting to be told what to do.\n\nThe shape: you found the **actual question** behind the vague ask, **wrote down your interpretation** and circulated it so people could correct it, built the **smallest thing** that would test the key assumption, and let the result **narrow the scope**. A natural anchor is the device form-factor detection API — unified runtime queries across docked and undocked states, which eliminated duplicate code paths in Windows OOBE (the out-of-box first-setup experience).\n\n**Emphasize two things:** the **decision you made under uncertainty**, and the **checkpoint** you set to catch it early if that decision turned out wrong.",
+  "see": [
+   {
+    "label": "Awesome Behavioral Interviews — tips + question bank",
+    "url": "https://github.com/ashishps1/awesome-behavioral-interviews"
+   }
+  ],
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-why-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "\"Why are you leaving Microsoft?\" and \"Why this role?\" — how do you answer both honestly without sounding negative?",
+  "src": {
+   "book": "star",
+   "ref": "Motivation questions"
+  },
+  "reveal": "Frame it as a **pull toward** the new thing, never a **push away** from the old one.\n\nNever criticize Microsoft or a manager — interviewers hear it as how you'll describe *them* a year from now. The honest, safe version: you've gone deep on platform performance and hit the point where the interesting version of that problem lives **closer to the hardware and to ML systems**, and you've been deliberately building toward it. For \"why this role,\" get **specific about this company and team** — name the actual work (accelerator runtimes, inference performance) and connect it to something you've built.\n\n**The tell:** generic enthusiasm — \"I'm passionate about your mission\" — reads as mass-applying. Specificity is the whole signal.",
+  "see": [
+   {
+    "label": "Awesome Behavioral Interviews — tips + question bank",
+    "url": "https://github.com/ashishps1/awesome-behavioral-interviews"
+   }
+  ],
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-gap-15",
+  "mins": 15,
+  "flow": "full",
+  "prompt": "How do you handle a question about experience you genuinely do not have?",
+  "src": {
+   "book": "star",
+   "ref": "Handling gaps honestly"
+  },
+  "reveal": "**State the gap plainly**, then immediately pivot to the **adjacent depth you *do* have** and the concrete thing you've done to close it.\n\nConcretely: \"I haven't run production training jobs. What I *have* done is implement **autograd** (automatic differentiation — the engine that computes gradients) and **attention** from the source equations, and I reason about these workloads the way I reason about any **memory-bound** system — here's the arithmetic-intensity analysis I did.\" (Arithmetic intensity = compute done per byte of memory moved — the number that tells you whether the math or the memory traffic is your bottleneck.)\n\n**The reassurance:** practitioners at frontier labs report that an honest \"I don't have practical exposure yet, but here's my theoretical understanding\" is credible and well-received. **Bluffing isn't** — the follow-up question always exposes it.",
+  "see": [
+   {
+    "label": "Awesome Behavioral Interviews — tips + question bank",
+    "url": "https://github.com/ashishps1/awesome-behavioral-interviews"
+   }
+  ],
+  "tags": [
+   "behavioral"
+  ]
+ },
+ {
+  "id": "b-questions-5",
+  "mins": 5,
+  "flow": "flip",
+  "prompt": "What should YOU ask at the end of an interview? Name three that actually help you.",
+  "src": {
+   "book": "star",
+   "ref": "Candidate questions"
+  },
+  "reveal": "Ask things that **inform your decision** and reveal how the team really works: (1) \"What do the first 90 days look like, and what would success mean at that point?\" — tests whether the role is actually defined. (2) \"What's the hardest technical problem the team is working on right now?\" — tells you if the work is real, and lets you engage substantively. (3) \"How do decisions get made when engineers disagree?\" — reveals the culture more honestly than any values page. **Avoid** questions answerable from the careers page, and avoid asking *only* about perks.",
+  "see": [
+   {
+    "label": "Tech Interview Handbook — questions to ask your interviewer",
+    "url": "https://www.techinterviewhandbook.org/final-questions/"
+   }
+  ],
+  "tags": [
+   "behavioral"
+  ]
+ }
+]
