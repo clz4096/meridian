@@ -43,6 +43,7 @@ import type { TrackerCambridge } from '@/features/cambridge/trackerLink';
 import { lazyMod } from '@/features/today/lazyContent';
 import crestUrl from '@/features/studytracker/princeton-shield.png';
 import '@/features/studytracker/studytracker.css';
+import { Emblem } from '@/ui/components/Emblem';
 
 const fmt = (n: number): string => n.toLocaleString('en-US');
 const SCORE_LABELS = ['Missed', 'Partial', 'Met'] as const;
@@ -195,7 +196,10 @@ export function StudyTrackerView({ camReady = cambridgeReady }: { camReady?: Pro
     <div class="pt-root">
       <div class="masthead">
         <div class="wrap">
-          <h1>The Cambridge Method</h1>
+          <h1 class="mast-title">
+            <Emblem kind="cambridge" height={40} />
+            <span>The Cambridge Method</span>
+          </h1>
           <p class="fine pt-credit">Scoring system adapted from the Massey Standard</p>
           <p class="tag">Rigor, performance, follow-through; scored like a game</p>
           {/* The crest and homage are the history of the rubric, kept under About. */}
@@ -204,7 +208,7 @@ export function StudyTrackerView({ camReady = cambridgeReady }: { camReady?: Pro
             <div class="det-body mast-in">
               <img class="crest" src={crestUrl} alt="Princeton University shield" />
               <div>
-                <p class="fine">The scoring is a personal study rubric in homage to William A. Massey: Princeton mathematician (Class of 1977), queueing-theory pioneer at Bell Labs, co-founder of CAARMS, and in 2001 the first tenured African American mathematician in the Ivy League. Not affiliated with or endorsed by Princeton University, the University of Cambridge, or Professor Massey. Your progress saves in this browser.</p>
+                <p class="fine">The scoring is a personal study rubric in homage to William A. Massey: Princeton mathematician (Class of 1977), queueing-theory pioneer at Bell Labs, co-founder of CAARMS, and in 2001 the first tenured African American mathematician in the Ivy League. Not affiliated with or endorsed by Princeton University, the University of Cambridge, Pembroke College, or Professor Massey. Your progress saves in this browser.</p>
               </div>
             </div>
           </details>

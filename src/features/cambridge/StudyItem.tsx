@@ -29,6 +29,7 @@ import type { CamItem, CamQuestion, CambridgeState, ItemStage, QStatus } from '@
 import { Guard, Note, clock, dayMonth, hm, retryScreen, useAdopting, useAutosave, useReady, useTick, write } from '@/features/cambridge/camUi';
 import { STAGE_WORD } from '@/features/cambridge/CambridgePath';
 import './cambridge.css';
+import { Emblem } from '@/ui/components/Emblem';
 
 interface MethodStep { id: string; name: string; do: string }
 const STEPS = (method as { steps: MethodStep[] }).steps;
@@ -761,7 +762,10 @@ function Supervision({ cat, item, state, now, sel, announce }: { cat: CatItem; i
   return (
     <section aria-labelledby="ci-s-h">
       <div class="m-section">
-        <h2 class="m-title" id="ci-s-h">Supervision</h2>
+        <h2 class="m-title cam-title" id="ci-s-h">
+          <Emblem kind="pembroke" height={24} />
+          <span>Supervision</span>
+        </h2>
         <Note state={state}>{week.held} of {week.target} this week</Note>
       </div>
       <div class="ci-sv">

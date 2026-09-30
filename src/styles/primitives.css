@@ -1260,3 +1260,8 @@ button.m-chip[aria-pressed='true'] {
   border-radius: 2px;
   background: var(--c, var(--series-1));
 }
+
+/* Emblems (src/ui/components/Emblem.tsx). The Pembroke badge is a circle drawn on a
+   white square; clipping it to the circle keeps the white corners off the cream page. */
+.emblem { display: inline-block; flex: none; }
+.emblem-pembroke { border-radius: 50%; }

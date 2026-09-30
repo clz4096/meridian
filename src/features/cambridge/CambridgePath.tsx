@@ -25,6 +25,7 @@ import type { CamItem, CambridgeState, ItemStage } from '@/features/cambridge/ty
 import { openCam, openCamItem } from '@/features/cambridge/nav';
 import { Guard, Note, dayMonth, retryScreen, shortDay, useReady, write } from '@/features/cambridge/camUi';
 import './cambridge.css';
+import { Emblem } from '@/ui/components/Emblem';
 
 export const STAGE_WORD: Readonly<Record<ItemStage, string>> = {
   'not-started': 'Not started',
@@ -413,7 +414,17 @@ export function CambridgePathView({ ready = cambridgeReady }: { ready?: Promise<
   const week = supervisionsThisWeek(state, now);
   return (
     <main class="cam-root" aria-labelledby="cam-h">
-      <PageHead id="cam-h" title="The Cambridge Method" note={headNote(state, 'math')} />
+      <PageHead
+        id="cam-h"
+        title={
+          <span class="cam-title">
+            <Emblem kind="cambridge" height={32} />
+            <Emblem kind="pembroke" height={32} />
+            <span>The Cambridge Method</span>
+          </span>
+        }
+        note={headNote(state, 'math')}
+      />
       <p class="cam-week m-num">
         <Gloss text={`Supervisions this week: ${week.held} of ${week.target} · suggested ${week.suggested.join(', ')}`} />
       </p>

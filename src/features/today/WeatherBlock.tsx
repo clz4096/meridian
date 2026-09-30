@@ -19,6 +19,7 @@ import {
   type WeatherSource,
 } from '@/services/weather';
 import { longDate, savedWhen, shortDate } from './lazyContent';
+import { Emblem } from '@/ui/components/Emblem';
 
 type Status = 'loading' | 'ok' | 'offline' | 'empty' | 'error';
 
@@ -61,6 +62,7 @@ export function WeatherBlock() {
   return (
     <section class="td-wx" aria-labelledby="td-date">
       <h1 class="td-date m-label" id="td-date">
+        <Emblem kind="cambridge" height={28} />
         {longDate(now)}
       </h1>
       <div class="td-wx-body" aria-busy={status === 'loading'}>

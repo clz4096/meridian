@@ -71,6 +71,9 @@ body.at-home .brand .mn {
 }
 .td-date {
   margin: 0 0 var(--sp-2);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
 }
 .td-wx-body {
   --wx-main: 3.25rem;

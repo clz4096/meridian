@@ -36,6 +36,8 @@
 .pt-root .mast-in{display:flex; gap:var(--sp-3); align-items:flex-start;}
 .pt-root .crest{width:28px; height:auto; flex:none; margin-top:2px;}
 .pt-root .masthead h1{font-size:var(--fs-5); line-height:var(--lh-5); font-weight:var(--fw-semibold);}
+.pt-root .mast-title{display:flex; align-items:center; gap:var(--sp-3);}
+.pt-root .mast-title .emblem{flex:none;}
 .pt-root .masthead .tag{color:var(--ink-2); font-size:var(--fs-2); font-weight:var(--fw-medium); margin:var(--sp-1) 0 0;}
 .pt-root .masthead .fine{color:var(--ink-3); font-size:var(--fs-2); line-height:var(--lh-2); margin:var(--sp-2) 0 0; max-width:var(--measure);}
 .pt-root .masthead .pt-credit{font-size:var(--fs-1); line-height:var(--lh-1); margin:var(--sp-1) 0 0;}

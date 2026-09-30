@@ -311,3 +311,14 @@ The owner is enrolled in C955, D326, D315 and D279, and is working on C955 and D
 **C21. The standalone Learn by Teaching tab is gone.**
 Teaching lives only in the Cambridge Method tracker, where `TeachSection` already renders. Today loses its tile, and `TeachScreen.tsx` and its test are deleted. The `teach` tab id stays as an alias of `tracker` (same lazy loader, same pane), so old history entries and reopen targets land on the screen that holds the teaching section. It does not auto-expand the section: that would mean writing the owner's saved section layout (`meridian.tracker.ui.v1`). `meridian.teach.v1` is untouched. `perf/routes.mjs` and `perf/run.mjs` no longer time a teach route.
 
+
+**C22. University of Cambridge arms and the Pembroke College badge (2026-09-30, owner request).**
+The images are the owner's own files from Downloads. They are not redrawn: each is resized to its display size and saved as WebP. The Cambridge SVG goes from 172 KB to 10.9 KB, and the Pembroke PNG from 19 KB to 4.8 KB.
+- **Placement:**
+  - The Cambridge arms sit beside the date at the top of Today and beside the title on the tracker, where they replace the Princeton shield.
+  - The arms and the Pembroke badge sit together on the Cambridge path header, like a student card.
+  - Pembroke alone sits on the study item's Supervision heading, because colleges run supervisions.
+- **The Princeton shield** stays in "About the scoring" as the Massey credit, and the disclaimer now also names Pembroke College.
+- **Accessibility:** emblems inside headings are decorative (empty alt), so the heading names stay "The Cambridge Method" and "Supervision".
+- **Layout:** every image has fixed width and height, so the layout never shifts. The Pembroke badge is clipped to its circle so its white corners don't show on the cream page.
+- **The wordmark is unchanged:** the owner reviewed the M-tilde, R-hat and I-bar mocks and chose to keep the current logo.

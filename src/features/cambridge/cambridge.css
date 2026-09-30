@@ -383,3 +383,12 @@ button.m-row[aria-current='true'] {
   margin-top: var(--sp-3);
   border-radius: var(--r-3);
 }
+
+/* A heading with an emblem before it: the University arms and Pembroke badge sit
+   on the text's centre line and never change the heading's height. */
+.cam-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.cam-title .emblem { flex: none; }
