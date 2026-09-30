@@ -1,0 +1,286 @@
+{
+  "$schema": "./schema/glossary.schema.json",
+  "note": "Shown on the Glossary screen; any 'match' word in app text is underlined and defined on tap. underline 'first' means only the first match of a term in each text block is underlined. Match strings listed in caseSensitive match only with that exact case, as whole words; all other matches ignore case. Edit freely.",
+  "underline": "first",
+  "caseSensitive": [
+    "STEP",
+    "OCR",
+    "CST",
+    "DPMMS",
+    "DAMTP",
+    "TMUA",
+    "CSAT",
+    "NST"
+  ],
+  "terms": [
+    {
+      "id": "tripos",
+      "term": "Tripos",
+      "meaning": "Name of a Cambridge degree program and its end-of-year exams; the Mathematical Tripos is the math degree",
+      "match": [
+        "Tripos"
+      ],
+      "us": "Degree program + finals"
+    },
+    {
+      "id": "part-ia-ib-ii-iii",
+      "term": "Part IA / IB / II / III",
+      "meaning": "Years of the Tripos: 1st, 2nd, 3rd, optional 4th (master's level)",
+      "match": [
+        "Part IA",
+        "Part IB",
+        "Part II",
+        "Part III"
+      ],
+      "us": "Freshman / sophomore / senior / master's"
+    },
+    {
+      "id": "michaelmas-lent-easter",
+      "term": "Michaelmas, Lent, Easter",
+      "meaning": "The three 8-week terms: fall, winter, spring (spring is mostly exams)",
+      "match": [
+        "Michaelmas",
+        "Lent term",
+        "Easter term"
+      ],
+      "us": "Fall / spring / finals"
+    },
+    {
+      "id": "supervision",
+      "term": "Supervision",
+      "meaning": "1-hour meeting: 1–3 students + an expert go through your written homework and question your reasoning; Cambridge's main teaching method",
+      "match": [
+        "supervision",
+        "supervisions"
+      ],
+      "us": "Office hours + oral quiz"
+    },
+    {
+      "id": "supervisor",
+      "term": "Supervisor",
+      "meaning": "The expert running a supervision",
+      "match": [
+        "supervisor"
+      ],
+      "us": "TA / tutor"
+    },
+    {
+      "id": "example-sheet",
+      "term": "Example sheet",
+      "meaning": "A course's homework set, about 4 per course; deliberately hard, not meant to be finished",
+      "match": [
+        "example sheet",
+        "example sheets"
+      ],
+      "us": "Problem set"
+    },
+    {
+      "id": "starred-question",
+      "term": "Starred question",
+      "meaning": "Extra-hard optional question; skip on first pass",
+      "match": [
+        "starred question",
+        "starred questions"
+      ],
+      "us": "Bonus problem"
+    },
+    {
+      "id": "schedules",
+      "term": "Schedules",
+      "meaning": "Official topic list for a course",
+      "match": [
+        "Schedules"
+      ],
+      "us": "Syllabus"
+    },
+    {
+      "id": "pure-applied",
+      "term": "Pure / Applied",
+      "meaning": "Proof-based math vs. methods/physics-style math",
+      "match": [
+        "pure maths",
+        "applied maths",
+        "Pure / Applied"
+      ]
+    },
+    {
+      "id": "dpmms",
+      "term": "DPMMS",
+      "meaning": "Dept. of Pure Mathematics and Mathematical Statistics",
+      "match": [
+        "DPMMS"
+      ],
+      "us": "Math dept (pure)"
+    },
+    {
+      "id": "damtp",
+      "term": "DAMTP",
+      "meaning": "Dept. of Applied Mathematics and Theoretical Physics",
+      "match": [
+        "DAMTP"
+      ],
+      "us": "Applied math dept"
+    },
+    {
+      "id": "archimedeans",
+      "term": "Archimedeans",
+      "meaning": "Cambridge's student math society",
+      "match": [
+        "Archimedeans"
+      ],
+      "us": "Math club"
+    },
+    {
+      "id": "fresher",
+      "term": "Fresher",
+      "meaning": "New first-year student",
+      "match": [
+        "fresher",
+        "freshers"
+      ],
+      "us": "Freshman"
+    },
+    {
+      "id": "a-level",
+      "term": "A-level",
+      "meaning": "UK final 2 years of high-school exams (ages 16–18); A-level Maths covers algebra, trig, calculus, statistics, mechanics",
+      "match": [
+        "A-level",
+        "A-levels"
+      ],
+      "us": "~AP Precalc + AP Calc + AP Stats"
+    },
+    {
+      "id": "further-mathematics",
+      "term": "Further Mathematics",
+      "meaning": "An extra, harder A-level (complex numbers, matrices, more calculus, differential equations)",
+      "match": [
+        "Further Mathematics",
+        "Further Maths"
+      ],
+      "us": "Early college math"
+    },
+    {
+      "id": "year-12-year-13",
+      "term": "Year 12 / Year 13",
+      "meaning": "The two A-level years",
+      "match": [
+        "Year 12",
+        "Year 13"
+      ],
+      "us": "11th / 12th grade"
+    },
+    {
+      "id": "step",
+      "term": "STEP",
+      "meaning": "Sixth Term Examination Paper: Cambridge's hard math entrance exam",
+      "match": [
+        "STEP"
+      ],
+      "us": "None; much harder than AP"
+    },
+    {
+      "id": "step-2-step-3",
+      "term": "STEP 2 / STEP 3",
+      "meaning": "STEP 2 = A-level Maths + part of Further Maths; STEP 3 = full Further Maths (STEP 1 retired in 2020)",
+      "match": [
+        "STEP 2",
+        "STEP 3"
+      ]
+    },
+    {
+      "id": "ocr",
+      "term": "OCR",
+      "meaning": "UK exam board that runs STEP and publishes its papers",
+      "match": [
+        "OCR"
+      ],
+      "us": "College Board"
+    },
+    {
+      "id": "nrich-maths.org",
+      "term": "NRICH / maths.org",
+      "meaning": "Cambridge's free math outreach site; hosts the STEP Support Programme",
+      "match": [
+        "NRICH",
+        "maths.org"
+      ]
+    },
+    {
+      "id": "underground-mathematics",
+      "term": "Underground Mathematics",
+      "meaning": "Free Cambridge A-level problem site organized as a \"tube map\" of topics (\"stations\")",
+      "match": [
+        "Underground Mathematics"
+      ]
+    },
+    {
+      "id": "computer-science-tripos-cst",
+      "term": "Computer Science Tripos (CST)",
+      "meaning": "Cambridge's CS degree; same IA/IB/II naming",
+      "match": [
+        "Computer Science Tripos",
+        "CST"
+      ],
+      "us": "CS major"
+    },
+    {
+      "id": "tmua",
+      "term": "TMUA",
+      "meaning": "Test of Mathematics for University Admission: the entrance test every Cambridge Computer Science applicant sits. 2 papers of 75 minutes, 20 multiple-choice questions each, no calculator",
+      "match": [
+        "TMUA"
+      ],
+      "us": "A math-only SAT, much harder"
+    },
+    {
+      "id": "csat",
+      "term": "CSAT",
+      "meaning": "Computer Science Admissions Test: an extra written test some Cambridge colleges set their Computer Science applicants",
+      "match": [
+        "CSAT"
+      ],
+      "us": "A college's own entrance exam"
+    },
+    {
+      "id": "nst",
+      "term": "NST (Natural Sciences Tripos)",
+      "meaning": "Cambridge's science degree. First-year Computer Science students also take its Part IA Mathematics course and exam",
+      "match": [
+        "Natural Sciences Tripos",
+        "NST"
+      ],
+      "us": "The science major; here, its first-year math course"
+    },
+    {
+      "id": "paper",
+      "term": "Paper (exam paper)",
+      "meaning": "One sitting of a written exam. Computer Science Part IA has Papers 1, 2 and 3, each covering a fixed set of courses; you answer 5 questions, each marked out of 20",
+      "match": [
+        "Paper 1",
+        "Paper 2",
+        "Paper 3"
+      ],
+      "us": "One final exam"
+    },
+    {
+      "id": "tick",
+      "term": "Tick",
+      "meaning": "A pass/fail programming exercise in a practical class; you need all your ticks to pass the year, but they are not exam questions",
+      "match": [
+        "tick",
+        "ticks"
+      ],
+      "us": "A required lab assignment, pass/fail"
+    },
+    {
+      "id": "supervision-work",
+      "term": "Supervision work",
+      "meaning": "The exercises you hand in before a supervision, usually from the course's exercise sheet",
+      "match": [
+        "supervision work"
+      ],
+      "us": "Homework for a small-group session"
+    }
+  ]
+}

@@ -1,0 +1,4309 @@
+{
+  "$schema": "./schema/step.schema.json",
+  "lastVerified": "2026-09-30",
+  "note": "Main math track. Edit this file freely: scripts/cambridge/scrape.mjs refreshes only links, site text (siteTitle, siteTopics, stepQuestions) and verified flags, and never deletes an edit. Hints and solutions stay hidden behind the 60-minute cold timer in the UI.",
+  "source": "https://step.maths.org/",
+  "scrapedAt": "2026-09-30",
+  "exam": {
+    "durationMin": 180,
+    "questions": 12,
+    "sections": [
+      {
+        "name": "Pure",
+        "count": 8
+      },
+      {
+        "name": "Mechanics",
+        "count": 2
+      },
+      {
+        "name": "Probability and Statistics",
+        "count": 2
+      }
+    ],
+    "answerAtMost": 6,
+    "bestCount": 6,
+    "marksPerQuestion": 20,
+    "maxMarks": 120
+  },
+  "phases": [
+    {
+      "id": "0",
+      "name": "Gap check",
+      "do": "Try Assignment 1 cold. If the warm-up blocks, fix only that gap: the Khan Academy topic, then the matching Underground Mathematics station.",
+      "pace": {
+        "text": "1-2 weeks max",
+        "maxWeeks": 2
+      },
+      "gate": {
+        "text": "Assignment 1 warm-up done unaided.",
+        "xp": 200,
+        "evidence": [
+          {
+            "key": "unaided",
+            "label": "Warm-up done with no help (yes/no)",
+            "type": "yesno"
+          },
+          {
+            "key": "gaps",
+            "label": "Gaps fixed on the way (topics)",
+            "type": "text"
+          }
+        ]
+      },
+      "order": 0,
+      "items": [],
+      "uses": [
+        "found-01"
+      ]
+    },
+    {
+      "id": "A",
+      "name": "Foundation",
+      "do": "6 blocks. For each block, do its Underground Mathematics stations first (about 1 week), then the block's assignments.",
+      "pace": {
+        "text": "2 assignments/week",
+        "perWeek": 2,
+        "unit": "assignment"
+      },
+      "gate": {
+        "text": "Assignment 25's STEP question solved unaided in under 1 hour.",
+        "xp": 200,
+        "evidence": [
+          {
+            "key": "minutes",
+            "label": "Time on the STEP question (minutes, under 60)",
+            "type": "number"
+          },
+          {
+            "key": "unaided",
+            "label": "Solved with no hints (yes/no)",
+            "type": "yesno"
+          },
+          {
+            "key": "mark",
+            "label": "Self-mark out of 20",
+            "type": "number"
+          }
+        ]
+      },
+      "order": 1,
+      "items": [
+        "found-01",
+        "found-02",
+        "found-03",
+        "found-04",
+        "found-05",
+        "found-06",
+        "found-07",
+        "found-08",
+        "found-09",
+        "found-10",
+        "found-11",
+        "found-12",
+        "found-13",
+        "found-14",
+        "found-15",
+        "found-16",
+        "found-17",
+        "found-18",
+        "found-19",
+        "found-20",
+        "found-21",
+        "found-22",
+        "found-23",
+        "found-24",
+        "found-25"
+      ]
+    },
+    {
+      "id": "A+",
+      "name": "Extras",
+      "do": "Mixed STEP 1 sets plus Siklos problems P1 to P75, alongside Phase B.",
+      "pace": {
+        "text": "3/week, alongside B",
+        "perWeek": 3,
+        "unit": "problem"
+      },
+      "alongside": "B",
+      "gate": null,
+      "order": 2,
+      "items": [
+        "extra-pure",
+        "extra-mechanics",
+        "extra-statistics",
+        "siklos-p01",
+        "siklos-p02",
+        "siklos-p03",
+        "siklos-p04",
+        "siklos-p05",
+        "siklos-p06",
+        "siklos-p07",
+        "siklos-p08",
+        "siklos-p09",
+        "siklos-p10",
+        "siklos-p11",
+        "siklos-p12",
+        "siklos-p13",
+        "siklos-p14",
+        "siklos-p15",
+        "siklos-p16",
+        "siklos-p17",
+        "siklos-p18",
+        "siklos-p19",
+        "siklos-p20",
+        "siklos-p21",
+        "siklos-p22",
+        "siklos-p23",
+        "siklos-p24",
+        "siklos-p25",
+        "siklos-p26",
+        "siklos-p27",
+        "siklos-p28",
+        "siklos-p29",
+        "siklos-p30",
+        "siklos-p31",
+        "siklos-p32",
+        "siklos-p33",
+        "siklos-p34",
+        "siklos-p35",
+        "siklos-p36",
+        "siklos-p37",
+        "siklos-p38",
+        "siklos-p39",
+        "siklos-p40",
+        "siklos-p41",
+        "siklos-p42",
+        "siklos-p43",
+        "siklos-p44",
+        "siklos-p45",
+        "siklos-p46",
+        "siklos-p47",
+        "siklos-p48",
+        "siklos-p49",
+        "siklos-p50",
+        "siklos-p51",
+        "siklos-p52",
+        "siklos-p53",
+        "siklos-p54",
+        "siklos-p55",
+        "siklos-p56",
+        "siklos-p57",
+        "siklos-p58",
+        "siklos-p59",
+        "siklos-p60",
+        "siklos-p61",
+        "siklos-p62",
+        "siklos-p63",
+        "siklos-p64",
+        "siklos-p65",
+        "siklos-p66",
+        "siklos-p67",
+        "siklos-p68",
+        "siklos-p69",
+        "siklos-p70",
+        "siklos-p71",
+        "siklos-p72",
+        "siklos-p73",
+        "siklos-p74",
+        "siklos-p75"
+      ]
+    },
+    {
+      "id": "B",
+      "name": "STEP 2",
+      "do": "10 modules in order.",
+      "pace": {
+        "text": "1 module/week",
+        "perWeek": 1,
+        "unit": "module"
+      },
+      "gate": {
+        "text": "Timed past STEP 2 paper: 4 of 6 answered questions at 14/20 or more.",
+        "xp": 200,
+        "evidence": [
+          {
+            "key": "paper",
+            "label": "Paper (year)",
+            "type": "text"
+          },
+          {
+            "key": "minutes",
+            "label": "Time taken (minutes, 180 max)",
+            "type": "number"
+          },
+          {
+            "key": "marks",
+            "label": "Marks for the 6 answered questions, out of 20 each",
+            "type": "text"
+          },
+          {
+            "key": "atLeast14",
+            "label": "Questions at 14/20 or more (need 4)",
+            "type": "number"
+          }
+        ]
+      },
+      "order": 3,
+      "items": [
+        "s2-calculus",
+        "s2-curve-sketching",
+        "s2-complex-numbers",
+        "s2-equations-inequalities",
+        "s2-matrices",
+        "s2-mechanics",
+        "s2-misc-pure",
+        "s2-statistics",
+        "s2-trigonometry",
+        "s2-vectors"
+      ]
+    },
+    {
+      "id": "C",
+      "name": "STEP 3",
+      "do": "11 modules in order.",
+      "pace": {
+        "text": "1 module/week",
+        "perWeek": 1,
+        "unit": "module"
+      },
+      "gate": {
+        "text": "Same bar on a timed past STEP 3 paper: 4 of 6 answered questions at 14/20 or more.",
+        "xp": 200,
+        "evidence": [
+          {
+            "key": "paper",
+            "label": "Paper (year)",
+            "type": "text"
+          },
+          {
+            "key": "minutes",
+            "label": "Time taken (minutes, 180 max)",
+            "type": "number"
+          },
+          {
+            "key": "marks",
+            "label": "Marks for the 6 answered questions, out of 20 each",
+            "type": "text"
+          },
+          {
+            "key": "atLeast14",
+            "label": "Questions at 14/20 or more (need 4)",
+            "type": "number"
+          }
+        ]
+      },
+      "order": 4,
+      "items": [
+        "s3-algebra",
+        "s3-calculus",
+        "s3-complex-numbers",
+        "s3-coordinate-geometry",
+        "s3-differential-equations",
+        "s3-hyperbolic-functions",
+        "s3-matrices",
+        "s3-mechanics",
+        "s3-statistics",
+        "s3-vectors",
+        "s3-mixed-pure"
+      ]
+    },
+    {
+      "id": "D",
+      "name": "Exam practice",
+      "do": "Full past papers, 3 hours, timed.",
+      "pace": {
+        "text": "1 paper/week",
+        "perWeek": 1,
+        "unit": "paper"
+      },
+      "resources": [
+        "step-questions",
+        "worked-step-papers"
+      ],
+      "gate": {
+        "text": "Stable scores; error log trending down.",
+        "xp": 200,
+        "evidence": [
+          {
+            "key": "lastScores",
+            "label": "Last 3 paper totals, out of 120",
+            "type": "text"
+          },
+          {
+            "key": "errorTrend",
+            "label": "Error log trend over 4 weeks (down / flat / up)",
+            "type": "text"
+          }
+        ]
+      },
+      "order": 5,
+      "items": []
+    }
+  ],
+  "blocks": [
+    {
+      "id": "1",
+      "name": "Algebra & graphs",
+      "undergroundBlock": "1",
+      "assignments": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "items": [
+        "found-01",
+        "found-02",
+        "found-03",
+        "found-04"
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Trig, counting, probability",
+      "undergroundBlock": "2",
+      "assignments": [
+        5,
+        6,
+        7,
+        8
+      ],
+      "items": [
+        "found-05",
+        "found-06",
+        "found-07",
+        "found-08"
+      ]
+    },
+    {
+      "id": "3",
+      "name": "Proof & functions",
+      "undergroundBlock": "3",
+      "assignments": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "items": [
+        "found-09",
+        "found-10",
+        "found-11",
+        "found-12"
+      ]
+    },
+    {
+      "id": "4",
+      "name": "Sequences & number",
+      "undergroundBlock": "4",
+      "assignments": [
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "items": [
+        "found-13",
+        "found-14",
+        "found-15",
+        "found-16",
+        "found-17"
+      ]
+    },
+    {
+      "id": "5",
+      "name": "Toward calculus",
+      "undergroundBlock": "5",
+      "assignments": [
+        18,
+        19,
+        20,
+        21
+      ],
+      "items": [
+        "found-18",
+        "found-19",
+        "found-20",
+        "found-21"
+      ]
+    },
+    {
+      "id": "6",
+      "name": "Calculus",
+      "undergroundBlock": "6",
+      "assignments": [
+        22,
+        23,
+        24,
+        25
+      ],
+      "items": [
+        "found-22",
+        "found-23",
+        "found-24",
+        "found-25"
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "found-01",
+      "phase": "A",
+      "block": "1",
+      "kind": "assignment",
+      "n": 1,
+      "title": "Assignment 1",
+      "siteTitle": "STEP Support - Assignment 1",
+      "url": "https://step.maths.org/assignments/step-support-assignment-1",
+      "topics": [
+        "algebraic manipulation",
+        "quadratics",
+        "a geometry question"
+      ],
+      "siteTopics": "This module involves some algebraic manipulation and some work on quadratic equations. There is also a geometry question with a surprising result.",
+      "stepQuestions": [
+        "2005 STEP 1 Q3"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: Assignment 1",
+          "url": "https://step.maths.org/sites/default/files/2023-06/assignment1_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Hints and partial solutions for Assignment 1",
+          "url": "https://step.maths.org/sites/default/files/2023-06/Feedback_A1_7.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "Working through solution to 2005 STEP 1 Question 3 - STEP Support Programme Assignment 1",
+          "url": "https://www.youtube.com/watch?v=uiz3_d0q9zg",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2005 STEP 1 Q3"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-02",
+      "phase": "A",
+      "block": "1",
+      "kind": "assignment",
+      "n": 2,
+      "title": "Assignment 2",
+      "siteTitle": "STEP Support - Assignment 2",
+      "url": "https://step.maths.org/assignments/step-support-assignment-2",
+      "topics": [
+        "algebra",
+        "graph sketching",
+        "max/min values"
+      ],
+      "siteTopics": "This module involves some more algebra, graph sketching and finding the maximum and minimum values of some functions.",
+      "stepQuestions": [
+        "1999 STEP 1 Q6"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment2_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment2_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A2_6.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A2_6.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "Working through solution to 1999 STEP 1 Question 6 - STEP Support Programme Assignment 2",
+          "url": "https://www.youtube.com/watch?v=WqrJhz85vxs",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "1999 STEP 1 Q6"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-03",
+      "phase": "A",
+      "block": "1",
+      "kind": "assignment",
+      "n": 3,
+      "title": "Assignment 3",
+      "siteTitle": "STEP Support - Assignment 3",
+      "url": "https://step.maths.org/assignments/step-support-assignment-3",
+      "topics": [
+        "series",
+        "the floor function",
+        "a linear Diophantine equation"
+      ],
+      "siteTopics": "This module involves some series work, an introduction to the \"floor\" function and a linear Diophantine equation.",
+      "stepQuestions": [
+        "2004 STEP 1 Q2"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment3_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment3_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A3_5.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A3_5.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "Working through solution to 2004 STEP 1 Question 2 - STEP Support Programme Assignment 3",
+          "url": "https://www.youtube.com/watch?v=VVlLmrA79wM",
+          "role": "worked-solution",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "'How to Solve Equations'",
+          "url": "https://www.youtube.com/watch?v=lfXej2qAd8c",
+          "role": "further",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "Numberphile video",
+          "url": "https://www.youtube.com/watch?v=U9qU20VmvaU",
+          "role": "further",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2004 STEP 1 Q2"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-04",
+      "phase": "A",
+      "block": "1",
+      "kind": "assignment",
+      "n": 4,
+      "title": "Assignment 4",
+      "siteTitle": "STEP Support - Assignment 4",
+      "url": "https://step.maths.org/assignments/step-support-assignment-4",
+      "topics": [
+        "circle-theorem proof",
+        "2-variable inequalities",
+        "logic puzzles"
+      ],
+      "siteTopics": "This module includes a proof of a circle theorem, sketching inequalities in 2 variables and a couple of logic puzzles.",
+      "stepQuestions": [
+        "1995 STEP 1 Q1"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment4_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment4_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A4_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A4_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "Worked solution to 1995 STEP 1 Question 1 - STEP Support Programme",
+          "url": "https://www.youtube.com/watch?v=TC5_pnfr-bA",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "1995 STEP 1 Q1"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-05",
+      "phase": "A",
+      "block": "2",
+      "kind": "assignment",
+      "n": 5,
+      "title": "Assignment 5",
+      "siteTitle": "STEP Support - Assignment 5",
+      "url": "https://step.maths.org/assignments/step-support-assignment-5",
+      "topics": [
+        "trigonometry",
+        "a tetrahedron question"
+      ],
+      "siteTopics": "This module involves some trigonometry and a question about a tetrahedron (and a question about socks!).",
+      "stepQuestions": [
+        "2006 STEP 1 Q8"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment5_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment5_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A5_4.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A5_4.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "Step Support Programme Assignment 5 (2006 STEP 1 Question 8) - video solution",
+          "url": "https://www.youtube.com/watch?v=2GtupMAFKa4",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2006 STEP 1 Q8"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-06",
+      "phase": "A",
+      "block": "2",
+      "kind": "assignment",
+      "n": 6,
+      "title": "Assignment 6",
+      "siteTitle": "STEP Support - Assignment 6",
+      "url": "https://step.maths.org/assignments/step-support-assignment-6",
+      "topics": [
+        "arrangements",
+        "probability",
+        "the Prosecutor's fallacy"
+      ],
+      "siteTopics": "This module covers arrangements and some problems with probability, including the \"Prosecutor's fallacy\".",
+      "stepQuestions": [
+        "2005 STEP 1 Q1"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment6_3.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment6_3.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A6_4.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A6_4.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Assignment 6 (2005 STEP 1 Question 1) - video worked solution",
+          "url": "https://www.youtube.com/watch?v=apn2ogv2aUY",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2005 STEP 1 Q1"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-07",
+      "phase": "A",
+      "block": "2",
+      "kind": "assignment",
+      "n": 7,
+      "title": "Assignment 7",
+      "siteTitle": "STEP Support - Assignment 7",
+      "url": "https://step.maths.org/assignments/step-support-assignment-7",
+      "topics": [
+        "graph sketching",
+        "roots of equations"
+      ],
+      "siteTopics": "This module involves some graph sketching and work on the roots of equations.",
+      "stepQuestions": [
+        "2002 STEP 1 Q5"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment7_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment7_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A7_6.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A7_6.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Assignment 7 (2002 STEP 1 Question 5) - video worked solution",
+          "url": "https://www.youtube.com/watch?v=Ksoh8mvZlVE",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2002 STEP 1 Q5"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-08",
+      "phase": "A",
+      "block": "2",
+      "kind": "assignment",
+      "n": 8,
+      "title": "Assignment 8",
+      "siteTitle": "STEP Support - Assignment 8",
+      "url": "https://step.maths.org/assignments/step-support-assignment-8",
+      "topics": [
+        "AM-GM inequality",
+        "intersections of circles and ellipses"
+      ],
+      "siteTopics": "This module introduces the AM-GM inequality and the intersections of circles and ellipses.",
+      "stepQuestions": [
+        "2002 STEP 1 Q1"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment8_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment8_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A8_3.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A8_3.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Assignment 8 (2002 STEP 1 Question 1) - video worked solution",
+          "url": "https://www.youtube.com/watch?v=t4VkOsE9h_w",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2002 STEP 1 Q1"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-09",
+      "phase": "A",
+      "block": "3",
+      "kind": "assignment",
+      "n": 9,
+      "title": "Assignment 9",
+      "siteTitle": "STEP Support - Assignment 9",
+      "url": "https://step.maths.org/assignments/step-support-assignment-9",
+      "topics": [
+        "proofs with triangles",
+        "sketching cubics"
+      ],
+      "siteTopics": "This module includes some proofs involving triangles and sketching cubics.",
+      "stepQuestions": [
+        "1993 STEP 1 Q7"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment9_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment9_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A9_4.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A9_4.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Assignment 9 (1993 STEP 1 Question 7) - video solution",
+          "url": "https://www.youtube.com/watch?v=UO2NffAqDrk",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "1993 STEP 1 Q7"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-10",
+      "phase": "A",
+      "block": "3",
+      "kind": "assignment",
+      "n": 10,
+      "title": "Assignment 10",
+      "siteTitle": "STEP Support - Assignment 10",
+      "url": "https://step.maths.org/assignments/step-support-assignment-10",
+      "topics": [
+        "compound-angle trig formulas",
+        "a new function"
+      ],
+      "siteTopics": "This module derives some of the compound trigonometry formula ($\\sin(\\alpha + \\beta)$ etc.) and introduces a new function.",
+      "stepQuestions": [
+        "2005 STEP 2 Q2"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment10_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment10_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A10_3.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A10_3.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "Worked solution to 2005 STEP 2 Question 2 - STEP Support Programme Assignment 10",
+          "url": "https://www.youtube.com/watch?v=De4iGMtGys0",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2005 STEP 2 Q2"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-11",
+      "phase": "A",
+      "block": "3",
+      "kind": "assignment",
+      "n": 11,
+      "title": "Assignment 11",
+      "siteTitle": "STEP Support - Assignment 11",
+      "url": "https://step.maths.org/assignments/step-support-assignment-11",
+      "topics": [
+        "unusually defined functions",
+        "several equations"
+      ],
+      "siteTopics": "This module includes some functions defined in a way you may not have seen before, and several equations (most of which can be solved with carefully chosen substitutions).",
+      "stepQuestions": [
+        "2013 STEP 1 Q1"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment11_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment11_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A11_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A11_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Foundation Assignment 11 (2013 STEP 1 Q1)",
+          "url": "https://www.youtube.com/watch?v=zfHXOZVRDME",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2013 STEP 1 Q1"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-12",
+      "phase": "A",
+      "block": "3",
+      "kind": "assignment",
+      "n": 12,
+      "title": "Assignment 12",
+      "siteTitle": "STEP Support - Assignment 12",
+      "url": "https://step.maths.org/assignments/step-support-assignment-12",
+      "topics": [
+        "divisibility proofs",
+        "probability",
+        "a puzzle"
+      ],
+      "siteTopics": "This module includes proving divisibility of some expressions, probability and a puzzle which on first reading seems to be unsolvable.",
+      "stepQuestions": [
+        "2011 STEP 1 Q12"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment12_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment12_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A12_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A12_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Assignment 12 (2011 Step 1 Q12)",
+          "url": "https://www.youtube.com/watch?v=T41mqsj606g",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2011 STEP 1 Q12"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-13",
+      "phase": "A",
+      "block": "4",
+      "kind": "assignment",
+      "n": 13,
+      "title": "Assignment 13",
+      "siteTitle": "STEP Support - Assignment 13",
+      "url": "https://step.maths.org/assignments/step-support-assignment-13",
+      "topics": [
+        "graph sketching incl. convex/concave"
+      ],
+      "siteTopics": "This module practises sketching graphs including consideration of whether they are convex or concave, and using these to determine how many roots of an equation there are.",
+      "stepQuestions": [
+        "2012 STEP 1 Q2"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment13_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment13_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A13_3.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A13_3.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Assignment 13 (2012 STEP 1 Q 2)",
+          "url": "https://www.youtube.com/watch?v=ld3h0L0BlmM",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2012 STEP 1 Q2"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-14",
+      "phase": "A",
+      "block": "4",
+      "kind": "assignment",
+      "n": 14,
+      "title": "Assignment 14",
+      "siteTitle": "STEP Support - Assignment 14",
+      "url": "https://step.maths.org/assignments/step-support-assignment-14",
+      "topics": [
+        "useful factorisations",
+        "Fibonacci numbers"
+      ],
+      "siteTopics": "This module includes some useful factorisation results, and some work with Fibonacci numbers.",
+      "stepQuestions": [
+        "2010 STEP 2 Q3"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment14_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment14_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A14_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A14_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Assignment 14 (2010 STEP 2 Q2)",
+          "url": "https://www.youtube.com/watch?v=ZC80bHPPS0w",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "notes": [
+        "Question reference conflict: the page says 2010 STEP 2 Q3; the video title says 2010 STEP 2 Q2. Check the assignment PDF."
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2010 STEP 2 Q3"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-15",
+      "phase": "A",
+      "block": "4",
+      "kind": "assignment",
+      "n": 15,
+      "title": "Assignment 15",
+      "siteTitle": "STEP Support - Assignment 15",
+      "url": "https://step.maths.org/assignments/step-support-assignment-15",
+      "topics": [
+        "sequences",
+        "new notation",
+        "\"crossing the desert\""
+      ],
+      "siteTopics": "This module includes some work on sequences, some notation which you may not have seen before and a problem about crossing the desert.",
+      "stepQuestions": [
+        "2006 STEP 2 Q1"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment15_3.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment15_3.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A15_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A15_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Assignment 15 (2006 STEP 2 Question 1)",
+          "url": "https://www.youtube.com/watch?v=aPraj078ys8",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2006 STEP 2 Q1"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-16",
+      "phase": "A",
+      "block": "4",
+      "kind": "assignment",
+      "n": 16,
+      "title": "Assignment 16",
+      "siteTitle": "STEP Support - Assignment 16",
+      "url": "https://step.maths.org/assignments/step-support-assignment-16",
+      "topics": [
+        "trig inequalities",
+        "solving equations with them"
+      ],
+      "siteTopics": "This module includes some work on trigonometric inequalities and using them to solve equations, and a \"proof\" that all triangles are isosceles.",
+      "stepQuestions": [
+        "2015 STEP 1 Q2"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment16_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment16_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A16_5.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A16_5.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Assignment 16 (2015 STEP 1 Q2)",
+          "url": "https://www.youtube.com/watch?v=QsoDhwfwPuo",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2015 STEP 1 Q2"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-17",
+      "phase": "A",
+      "block": "4",
+      "kind": "assignment",
+      "n": 17,
+      "title": "Assignment 17",
+      "siteTitle": "STEP Support - Assignment 17",
+      "url": "https://step.maths.org/assignments/step-support-assignment-17",
+      "topics": [
+        "summations",
+        "intro to modular arithmetic"
+      ],
+      "siteTopics": "This module includes some work with summations, and an introduction to Modular Arithmetic.",
+      "stepQuestions": [
+        "2003 STEP 1 Q1"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment17_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment17_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A17_3.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A17_3.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Foundation Assignment 17 (2003 STEP 1 Q1)",
+          "url": "https://www.youtube.com/watch?v=RYKhmzLUma8",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2003 STEP 1 Q1"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-18",
+      "phase": "A",
+      "block": "5",
+      "kind": "assignment",
+      "n": 18,
+      "title": "Assignment 18",
+      "siteTitle": "STEP Support - Assignment 18",
+      "url": "https://step.maths.org/assignments/step-support-assignment-18",
+      "topics": [
+        "curve sketching",
+        "equation solving",
+        "intro to fractals"
+      ],
+      "siteTopics": "This STEP support module includes some curve sketching, equation solving and an introduction to fractals.",
+      "stepQuestions": [
+        "2014 STEP 1 Q3"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment18_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment18_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A18_3.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A18_3.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Foundation Assignment 18 (2014 STEP 1 Q3)",
+          "url": "https://www.youtube.com/watch?v=06CgSD92lSw",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2014 STEP 1 Q3"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-19",
+      "phase": "A",
+      "block": "5",
+      "kind": "assignment",
+      "n": 19,
+      "title": "Assignment 19",
+      "siteTitle": "STEP Support - Assignment 19",
+      "url": "https://step.maths.org/assignments/step-support-assignment-19",
+      "topics": [
+        "small-angle approximations",
+        "coordinate geometry"
+      ],
+      "siteTopics": "This module introduces the small angle approximations for $\\sin \\theta$, $\\cos \\theta$ and $\\tan \\theta$ and asks some questions about coordinate geometry.",
+      "stepQuestions": [
+        "2005 STEP 1 Q6"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment19_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment19_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A19_3.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A19_3.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Assignment 19 (2005 STEP 1 Q6)",
+          "url": "https://www.youtube.com/watch?v=yx17h0mZ5So",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2005 STEP 1 Q6"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-20",
+      "phase": "A",
+      "block": "5",
+      "kind": "assignment",
+      "n": 20,
+      "title": "Assignment 20",
+      "siteTitle": "STEP Support - Assignment 20",
+      "url": "https://step.maths.org/assignments/step-support-assignment-20",
+      "topics": [
+        "differentiation from first principles",
+        "intro to induction"
+      ],
+      "siteTopics": "This module includes some differentiation by first principles and an introduction to induction.",
+      "stepQuestions": [
+        "1996 STEP 2 Q3",
+        "2006 STEP 3 Q8"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment20_5.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment20_5.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A20_3.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A20_3.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Assignment 20 (1st Q) (1996 STEP 2 Question 3)",
+          "url": "https://www.youtube.com/watch?v=_bxlbm8XSAI",
+          "role": "worked-solution",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Foundation Assignment 20 Question 2",
+          "url": "https://www.youtube.com/watch?v=BKxwekR3MP0",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "1996 STEP 2 Q3"
+        },
+        {
+          "id": "step-2",
+          "label": "Another STEP question",
+          "step": "2006 STEP 3 Q8"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-21",
+      "phase": "A",
+      "block": "5",
+      "kind": "assignment",
+      "n": 21,
+      "title": "Assignment 21",
+      "siteTitle": "STEP Support - Assignment 21",
+      "url": "https://step.maths.org/assignments/step-support-assignment-21",
+      "topics": [
+        "familiar-looking functions",
+        "modulus-function regions"
+      ],
+      "siteTopics": "This module introduces a couple of functions that might look familiar, and asks you to sketch some regions involving the modulus function.",
+      "stepQuestions": [
+        "1999 STEP 1 Q4"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment21_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment21_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A21_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A21_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Assignment 21 (1991 STEP 1 Q4)",
+          "url": "https://www.youtube.com/watch?v=rK53dae5y_U",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "notes": [
+        "Question reference conflict: the page says 1999 STEP 1 Q4; the video title says 1991 STEP 1 Q4. Check the assignment PDF."
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "1999 STEP 1 Q4"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-22",
+      "phase": "A",
+      "block": "6",
+      "kind": "assignment",
+      "n": 22,
+      "title": "Assignment 22",
+      "siteTitle": "STEP Support - Assignment 22",
+      "url": "https://step.maths.org/assignments/step-support-assignment-22",
+      "topics": [
+        "more differentiation results",
+        "graph sketching"
+      ],
+      "siteTopics": "This module derives some more differentiation results and asks you to sketch some graphs.",
+      "stepQuestions": [
+        "2015 STEP 1 Q1"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment22_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment22_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A22_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A22_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Foundation Assignment 22 (2015 STEP 1 Q1)",
+          "url": "https://www.youtube.com/watch?v=wUCS8AjnTSw",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2015 STEP 1 Q1"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-23",
+      "phase": "A",
+      "block": "6",
+      "kind": "assignment",
+      "n": 23,
+      "title": "Assignment 23",
+      "siteTitle": "STEP Support - Assignment 23",
+      "url": "https://step.maths.org/assignments/step-support-assignment-23",
+      "topics": [
+        "the chain rule",
+        "coordinate geometry"
+      ],
+      "siteTopics": "This module introduces the chain rule and asks some questions about coordinate geometry.",
+      "stepQuestions": [
+        "2009 STEP 1 Q8"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment23_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment23_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A23_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A23_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Foundation Assignment 23 (2009 STEP 1 Q8)",
+          "url": "https://www.youtube.com/watch?v=CC9XGoZgq10",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "2009 STEP 1 Q8"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-24",
+      "phase": "A",
+      "block": "6",
+      "kind": "assignment",
+      "n": 24,
+      "title": "Assignment 24",
+      "siteTitle": "STEP Support - Assignment 24",
+      "url": "https://step.maths.org/assignments/step-support-assignment-24",
+      "topics": [
+        "integration",
+        "an 18th-century series problem"
+      ],
+      "siteTopics": "This module involves integration and an 18th century series problem.",
+      "stepQuestions": [
+        "1998 STEP 2 Q4"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment24_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment24_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A24_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A24_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Assignment 24 (1998 STEP 2 Q 4)",
+          "url": "https://www.youtube.com/watch?v=5A9fJMCJPFw",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "1998 STEP 2 Q4"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "found-25",
+      "phase": "A",
+      "block": "6",
+      "kind": "assignment",
+      "n": 25,
+      "title": "Assignment 25",
+      "siteTitle": "STEP Support - Assignment 25",
+      "url": "https://step.maths.org/assignments/step-support-assignment-25",
+      "topics": [
+        "integration by substitution"
+      ],
+      "siteTopics": "This module introduces integration by substitution.",
+      "stepQuestions": [
+        "1994 STEP 1 Q8"
+      ],
+      "links": [
+        {
+          "kind": "assignment",
+          "label": "Assignment PDF: assignment25_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/assignment25_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Feedback_A25_3.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Feedback_A25_3.pdf",
+          "verified": true
+        },
+        {
+          "kind": "video",
+          "label": "STEP Support Programme Foundation Assignment 25 (1994 STEP 1 Q8)",
+          "url": "https://www.youtube.com/watch?v=tf3qNXr-0K8",
+          "role": "worked-solution",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "warm-up",
+          "label": "Warm-up"
+        },
+        {
+          "id": "preparation",
+          "label": "Preparation"
+        },
+        {
+          "id": "main",
+          "label": "The STEP question",
+          "step": "1994 STEP 1 Q8"
+        },
+        {
+          "id": "warm-down",
+          "label": "Warm-down"
+        }
+      ]
+    },
+    {
+      "id": "extra-pure",
+      "phase": "A+",
+      "kind": "set",
+      "n": 1,
+      "title": "Mixed STEP 1 Pure",
+      "siteTitle": "Mixed Pure STEP 1 questions",
+      "url": "https://step.maths.org/assignments/mixed-pure-step-1-questions",
+      "siteTopics": "A selection of Pure STEP questions based on the 2019 STEP 1 specification.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Pure_STEP1_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Pure_STEP1_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Pure_STEP1_solns_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Pure_STEP1_solns_1.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2012 STEP 1 Q4"
+        },
+        {
+          "id": "Q2",
+          "step": "2012 STEP 1 Q8"
+        },
+        {
+          "id": "Q3",
+          "step": "2010 STEP 1 Q5"
+        },
+        {
+          "id": "Q4",
+          "step": "2014 STEP 1 Q1"
+        },
+        {
+          "id": "Q5",
+          "step": "2005 STEP 1 Q4"
+        },
+        {
+          "id": "Q6",
+          "step": "2013 STEP 1 Q3"
+        },
+        {
+          "id": "Q7",
+          "step": "2008 STEP 1 Q4"
+        },
+        {
+          "id": "Q8",
+          "step": "2013 STEP 1 Q7"
+        }
+      ]
+    },
+    {
+      "id": "extra-mechanics",
+      "phase": "A+",
+      "kind": "set",
+      "n": 2,
+      "title": "Mixed STEP 1 Mechanics",
+      "siteTitle": "Mixed Mechanics STEP 1 questions",
+      "url": "https://step.maths.org/assignments/mixed-mechanics-step-1-questions",
+      "siteTopics": "A selection of Mechanics STEP questions which are based on the 2019 STEP 1 specification.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: STEP 1 Mixed Mechanics Questions",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Mechanics_STEP1_2019_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: STEP 1 Mixed Mechanics Solutions",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Mechanics_STEP1_solns_2019_0.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2012 STEP 1 Q11"
+        },
+        {
+          "id": "Q2",
+          "step": "2010 STEP 1 Q10"
+        },
+        {
+          "id": "Q3",
+          "step": "1993 STEP 1 Q11"
+        },
+        {
+          "id": "Q4",
+          "step": "2006 STEP 2 Q11"
+        },
+        {
+          "id": "Q5",
+          "step": "2008 STEP 2 Q11"
+        }
+      ]
+    },
+    {
+      "id": "extra-statistics",
+      "phase": "A+",
+      "kind": "set",
+      "n": 3,
+      "title": "Mixed STEP 1 Statistics",
+      "siteTitle": "Mixed Statistics STEP 1 questions",
+      "url": "https://step.maths.org/assignments/mixed-statistics-step-1-questions",
+      "siteTopics": "A selection of Statistics STEP questions, which are based on the 2019 STEP 1 specification.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Statistics_STEP1_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Statistics_STEP1_2019_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Statistics_STEP1_solns_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Statistics_STEP1_solns_2019.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2010 STEP 1 Q12"
+        },
+        {
+          "id": "Q2",
+          "step": "2009 STEP 1 Q13"
+        },
+        {
+          "id": "Q3",
+          "step": "1995 STEP 1 Q12"
+        },
+        {
+          "id": "Q4",
+          "step": "1999 STEP 2 Q12"
+        },
+        {
+          "id": "Q5",
+          "step": "2006 STEP 2 Q13"
+        },
+        {
+          "id": "Q6",
+          "step": "2008 STEP 2 Q13"
+        },
+        {
+          "id": "Q7",
+          "step": "2015 STEP 2 Q12"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p01",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 1,
+      "title": "Siklos P1",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P1"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p02",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 2,
+      "title": "Siklos P2",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P2"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p03",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 3,
+      "title": "Siklos P3",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P3"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p04",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 4,
+      "title": "Siklos P4",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P4"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p05",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 5,
+      "title": "Siklos P5",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P5"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p06",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 6,
+      "title": "Siklos P6",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P6"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p07",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 7,
+      "title": "Siklos P7",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P7"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p08",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 8,
+      "title": "Siklos P8",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P8"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p09",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 9,
+      "title": "Siklos P9",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P9"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p10",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 10,
+      "title": "Siklos P10",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P10"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p11",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 11,
+      "title": "Siklos P11",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P11"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p12",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 12,
+      "title": "Siklos P12",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P12"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p13",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 13,
+      "title": "Siklos P13",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P13"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p14",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 14,
+      "title": "Siklos P14",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P14"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p15",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 15,
+      "title": "Siklos P15",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P15"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p16",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 16,
+      "title": "Siklos P16",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P16"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p17",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 17,
+      "title": "Siklos P17",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P17"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p18",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 18,
+      "title": "Siklos P18",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P18"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p19",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 19,
+      "title": "Siklos P19",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P19"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p20",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 20,
+      "title": "Siklos P20",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P20"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p21",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 21,
+      "title": "Siklos P21",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P21"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p22",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 22,
+      "title": "Siklos P22",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P22"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p23",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 23,
+      "title": "Siklos P23",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P23"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p24",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 24,
+      "title": "Siklos P24",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P24"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p25",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 25,
+      "title": "Siklos P25",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P25"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p26",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 26,
+      "title": "Siklos P26",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P26"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p27",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 27,
+      "title": "Siklos P27",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P27"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p28",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 28,
+      "title": "Siklos P28",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P28"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p29",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 29,
+      "title": "Siklos P29",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P29"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p30",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 30,
+      "title": "Siklos P30",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P30"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p31",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 31,
+      "title": "Siklos P31",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P31"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p32",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 32,
+      "title": "Siklos P32",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P32"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p33",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 33,
+      "title": "Siklos P33",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P33"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p34",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 34,
+      "title": "Siklos P34",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P34"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p35",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 35,
+      "title": "Siklos P35",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P35"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p36",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 36,
+      "title": "Siklos P36",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P36"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p37",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 37,
+      "title": "Siklos P37",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P37"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p38",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 38,
+      "title": "Siklos P38",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P38"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p39",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 39,
+      "title": "Siklos P39",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P39"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p40",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 40,
+      "title": "Siklos P40",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P40"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p41",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 41,
+      "title": "Siklos P41",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P41"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p42",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 42,
+      "title": "Siklos P42",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P42"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p43",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 43,
+      "title": "Siklos P43",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P43"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p44",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 44,
+      "title": "Siklos P44",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P44"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p45",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 45,
+      "title": "Siklos P45",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P45"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p46",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 46,
+      "title": "Siklos P46",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P46"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p47",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 47,
+      "title": "Siklos P47",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P47"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p48",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 48,
+      "title": "Siklos P48",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P48"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p49",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 49,
+      "title": "Siklos P49",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P49"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p50",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 50,
+      "title": "Siklos P50",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P50"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p51",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 51,
+      "title": "Siklos P51",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P51"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p52",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 52,
+      "title": "Siklos P52",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P52"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p53",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 53,
+      "title": "Siklos P53",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P53"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p54",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 54,
+      "title": "Siklos P54",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P54"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p55",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 55,
+      "title": "Siklos P55",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P55"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p56",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 56,
+      "title": "Siklos P56",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P56"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p57",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 57,
+      "title": "Siklos P57",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P57"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p58",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 58,
+      "title": "Siklos P58",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P58"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p59",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 59,
+      "title": "Siklos P59",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P59"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p60",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 60,
+      "title": "Siklos P60",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P60"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p61",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 61,
+      "title": "Siklos P61",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P61"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p62",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 62,
+      "title": "Siklos P62",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P62"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p63",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 63,
+      "title": "Siklos P63",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P63"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p64",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 64,
+      "title": "Siklos P64",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P64"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p65",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 65,
+      "title": "Siklos P65",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P65"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p66",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 66,
+      "title": "Siklos P66",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P66"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p67",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 67,
+      "title": "Siklos P67",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P67"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p68",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 68,
+      "title": "Siklos P68",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P68"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p69",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 69,
+      "title": "Siklos P69",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P69"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p70",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 70,
+      "title": "Siklos P70",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P70"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p71",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 71,
+      "title": "Siklos P71",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P71"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p72",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 72,
+      "title": "Siklos P72",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P72"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p73",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 73,
+      "title": "Siklos P73",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P73"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p74",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 74,
+      "title": "Siklos P74",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P74"
+        }
+      ]
+    },
+    {
+      "id": "siklos-p75",
+      "phase": "A+",
+      "kind": "siklos",
+      "n": 75,
+      "title": "Siklos P75",
+      "resource": "siklos",
+      "questions": [
+        {
+          "id": "P75"
+        }
+      ]
+    },
+    {
+      "id": "s2-calculus",
+      "phase": "B",
+      "kind": "module",
+      "n": 1,
+      "title": "Calculus",
+      "siteTitle": "STEP 2 Calculus",
+      "url": "https://step.maths.org/assignments/step-2-calculus",
+      "siteTopics": "This module introduces you to STEP 2 questions which involve Calculus. This STEP 2 module consists of 5 STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: STEP 2 Calculus questions",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Calc_questions_2019_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Calc_II_topic_notes_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Calc_II_topic_notes_2019_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Calc_hints_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Calc_hints_2019_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Calc_solutions_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Calc_solutions_2019_0.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2005 STEP 2 Q1"
+        },
+        {
+          "id": "Q2",
+          "step": "2006 STEP 2 Q4"
+        },
+        {
+          "id": "Q3",
+          "step": "2007 STEP 2 Q6"
+        },
+        {
+          "id": "Q4",
+          "step": "2008 STEP 2 Q7"
+        },
+        {
+          "id": "Q5",
+          "step": "2010 STEP 1 Q6"
+        }
+      ]
+    },
+    {
+      "id": "s2-curve-sketching",
+      "phase": "B",
+      "kind": "module",
+      "n": 2,
+      "title": "Curve Sketching",
+      "siteTitle": "STEP 2 Curve Sketching",
+      "url": "https://step.maths.org/assignments/step-2-curve-sketching",
+      "siteTopics": "This module introduces you to STEP questions which involve Curve Sketching. You will find it helpful to complete the \"STEP 2 Calculus\" module first.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Sketch_questions_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Sketch_questions_2019_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Sketch_topic_notes_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Sketch_topic_notes_2019_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Sketch_hints_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Sketch_hints_2019_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Sketch_solutions_2019_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Sketch_solutions_2019_1.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2004 STEP 2 Q3"
+        },
+        {
+          "id": "Q2",
+          "step": "2007 STEP 2 Q2"
+        },
+        {
+          "id": "Q3",
+          "step": "2011 STEP 2 Q1"
+        },
+        {
+          "id": "Q4",
+          "step": "1999 STEP 2 Q7"
+        }
+      ]
+    },
+    {
+      "id": "s2-complex-numbers",
+      "phase": "B",
+      "kind": "module",
+      "n": 3,
+      "title": "Complex Numbers",
+      "siteTitle": "STEP 2 Complex Numbers",
+      "url": "https://step.maths.org/assignments/step-2-complex-numbers",
+      "siteTopics": "This module introduces you to the complex number topics included in the STEP 2 specification. This STEP 2 module consists of 4 STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Complex_questions_2019_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Complex_questions_2019_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Complex_topic_notes_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Complex_topic_notes_2019_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Complex_hints_2019_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Complex_hints_2019_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Complex_solutions_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Complex_solutions_2019_0.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "1992 STEP 2 Q10"
+        },
+        {
+          "id": "Q2",
+          "step": "2000 STEP 2 Q4"
+        },
+        {
+          "id": "Q3",
+          "step": "2011 STEP 3 Q8"
+        },
+        {
+          "id": "Q4",
+          "step": "2005 STEP 3 Q8"
+        }
+      ]
+    },
+    {
+      "id": "s2-equations-inequalities",
+      "phase": "B",
+      "kind": "module",
+      "n": 4,
+      "title": "Equations and Inequalities",
+      "siteTitle": "STEP 2 Equations and Inequalities",
+      "url": "https://step.maths.org/assignments/step-2-equations-and-inequalities",
+      "siteTopics": "This module introduces you to STEP 2 questions which involve equations and inequalities. This STEP 2 module consists of 4 STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Eqns_questions_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Eqns_questions_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Eqns_topic_notes_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Eqns_topic_notes_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Eqns_hints_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Eqns_hints_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Eqns_solutions_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Eqns_solutions_2019.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "1994 STEP 2 Q5"
+        },
+        {
+          "id": "Q2",
+          "step": "2006 STEP 2 Q2"
+        },
+        {
+          "id": "Q3",
+          "step": "2003 STEP 2 Q1"
+        },
+        {
+          "id": "Q4",
+          "step": "2010 STEP 2 Q7"
+        }
+      ]
+    },
+    {
+      "id": "s2-matrices",
+      "phase": "B",
+      "kind": "module",
+      "n": 5,
+      "title": "Matrices",
+      "siteTitle": "STEP 2 Matrices",
+      "url": "https://step.maths.org/assignments/step-2-matrices",
+      "siteTopics": "This module introduces you to the matrices topics included in the STEP 2 specification. This STEP 2 module consists of some matrices questions from a range of sources, some topic notes and useful formulae, a \"hints\" document and a \"solutions\" document.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Matrix2_questions.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Matrix2_questions.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Matrix2_topic_notes_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Matrix2_topic_notes_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Matrix2_hints.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Matrix2_hints.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Matrix2_solutions.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Matrix2_solutions.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1"
+        },
+        {
+          "id": "Q2"
+        },
+        {
+          "id": "Q3"
+        },
+        {
+          "id": "Q4"
+        },
+        {
+          "id": "Q5"
+        },
+        {
+          "id": "Q6"
+        },
+        {
+          "id": "Q7"
+        },
+        {
+          "id": "Q8"
+        }
+      ],
+      "questionsNote": "Question count read from the questions PDF; these are old A-level questions, so there are no STEP references."
+    },
+    {
+      "id": "s2-mechanics",
+      "phase": "B",
+      "kind": "module",
+      "n": 6,
+      "title": "Mechanics",
+      "siteTitle": "STEP 2 Mechanics",
+      "url": "https://step.maths.org/assignments/step-2-mechanics",
+      "siteTopics": "This module introduces you to STEP 2 questions which involve Mechanics. This STEP 2 module consists of 7 STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Mechanics_questions_2019_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Mechanics_questions_2019_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Mechanics_topic_notes_2019_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Mechanics_topic_notes_2019_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Mech_hints_2019_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Mech_hints_2019_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Mech_solutions_2019_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Mech_solutions_2019_1.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2009 STEP 2 Q9"
+        },
+        {
+          "id": "Q2",
+          "step": "2010 STEP 2 Q11"
+        },
+        {
+          "id": "Q3",
+          "step": "2007 STEP 2 Q11"
+        },
+        {
+          "id": "Q4",
+          "step": "2011 STEP 2 Q9"
+        },
+        {
+          "id": "Q5",
+          "step": "2008 STEP 1 Q9"
+        },
+        {
+          "id": "Q6",
+          "step": "2000 STEP 1 Q10"
+        },
+        {
+          "id": "Q7",
+          "step": "2008 STEP 3 Q10"
+        }
+      ]
+    },
+    {
+      "id": "s2-misc-pure",
+      "phase": "B",
+      "kind": "module",
+      "n": 7,
+      "title": "Miscellaneous Pure",
+      "siteTitle": "STEP 2 Miscellaneous Pure",
+      "url": "https://step.maths.org/assignments/step-2-miscellaneous-pure",
+      "siteTopics": "This STEP 2 module contains a selection of questions which don't fit neatly into the other categories, and consists of 9 STEP 2 questions, some topic notes and useful formulae, \"hints\" sheets and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: misc_questions_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/misc_questions_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: misc_topic_notes_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/misc_topic_notes_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Misc_hints_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Misc_hints_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: misc_solutions_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/misc_solutions_2019_0.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2011 STEP 2 Q2"
+        },
+        {
+          "id": "Q2",
+          "step": "2010 STEP 2 Q6"
+        },
+        {
+          "id": "Q3",
+          "step": "2009 STEP 2 Q1"
+        },
+        {
+          "id": "Q4",
+          "step": "2009 STEP 2 Q4"
+        },
+        {
+          "id": "Q5",
+          "step": "2009 STEP 2 Q6"
+        },
+        {
+          "id": "Q6",
+          "step": "2008 STEP 2 Q1"
+        },
+        {
+          "id": "Q7",
+          "step": "2007 STEP 2 Q1"
+        },
+        {
+          "id": "Q8",
+          "step": "2005 STEP 2 Q5"
+        },
+        {
+          "id": "Q9",
+          "step": "2011 STEP 2 Q7"
+        }
+      ]
+    },
+    {
+      "id": "s2-statistics",
+      "phase": "B",
+      "kind": "module",
+      "n": 8,
+      "title": "Statistics",
+      "siteTitle": "STEP 2 Statistics",
+      "url": "https://step.maths.org/assignments/step-2-statistics",
+      "siteTopics": "This module introduces you to STEP 2 questions which involve Statistics. This STEP 2 module consists of 6 STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Statistics_questions_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Statistics_questions_2019_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Statistics_topic_notes_2019_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Statistics_topic_notes_2019_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Statistics_hints_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Statistics_hints_2019_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Statistics_solutions_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Statistics_solutions_2019_0.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2003 STEP 2 Q13"
+        },
+        {
+          "id": "Q2",
+          "step": "2007 STEP 2 Q14"
+        },
+        {
+          "id": "Q3",
+          "step": "2011 STEP 2 Q12"
+        },
+        {
+          "id": "Q4",
+          "step": "2012 STEP 2 Q13"
+        },
+        {
+          "id": "Q5",
+          "step": "2010 STEP 1 Q13"
+        },
+        {
+          "id": "Q6",
+          "step": "2010 STEP 2 Q13"
+        }
+      ]
+    },
+    {
+      "id": "s2-trigonometry",
+      "phase": "B",
+      "kind": "module",
+      "n": 9,
+      "title": "Trigonometry",
+      "siteTitle": "STEP 2 Trigonometry",
+      "url": "https://step.maths.org/assignments/step-2-trigonometry",
+      "siteTopics": "This module introduces you to STEP 2 questions which involve Trigonometry section. This STEP 2 module consists of 4 STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Trig_questions_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Trig_questions_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Trig_topic_notes_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Trig_topic_notes_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Trig_hints_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Trig_hints_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Trig_solutions_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Trig_solutions_2019.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2010 STEP 2 Q2"
+        },
+        {
+          "id": "Q2",
+          "step": "2009 STEP 2 Q3"
+        },
+        {
+          "id": "Q3",
+          "step": "2007 STEP 2 Q3"
+        },
+        {
+          "id": "Q4",
+          "step": "2011 STEP 2 Q4"
+        }
+      ]
+    },
+    {
+      "id": "s2-vectors",
+      "phase": "B",
+      "kind": "module",
+      "n": 10,
+      "title": "Vectors",
+      "siteTitle": "STEP 2 Vectors",
+      "url": "https://step.maths.org/assignments/step-2-vectors",
+      "siteTopics": "This module introduces you to STEP 2 questions which involve Vectors. This STEP 2 module consists of 4 STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Vectors_questions_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Vectors_questions_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Vectors_topic_notes_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Vectors_topic_notes_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Vectors_hints_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Vectors_hints_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Vectors_solutions_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Vectors_solutions_2019.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2002 STEP 2 Q7"
+        },
+        {
+          "id": "Q2",
+          "step": "2011 STEP 2 Q5"
+        },
+        {
+          "id": "Q3",
+          "step": "2009 STEP 2 Q8"
+        },
+        {
+          "id": "Q4",
+          "step": "2010 STEP 2 Q5"
+        }
+      ]
+    },
+    {
+      "id": "s3-algebra",
+      "phase": "C",
+      "kind": "module",
+      "n": 1,
+      "title": "Algebra",
+      "siteTitle": "STEP 3 Algebra",
+      "url": "https://step.maths.org/assignments/step-3-algebra",
+      "siteTopics": "This module contains some STEP 3 questions involving Algebra and Trigonometry. Each STEP 3 module consists of some STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Algebra3_questions_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Algebra3_questions_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Algebra3_topic_notes_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Algebra3_topic_notes_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Algebra3_hints_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Algebra3_hints_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Algebra3_solutions_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Algebra3_solutions_2.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2008 STEP 3 Q5"
+        },
+        {
+          "id": "Q2",
+          "step": "2003 STEP 3 Q6"
+        },
+        {
+          "id": "Q3",
+          "step": "2012 STEP 3 Q2"
+        },
+        {
+          "id": "Q4",
+          "step": "2010 STEP 3 Q4"
+        }
+      ]
+    },
+    {
+      "id": "s3-calculus",
+      "phase": "C",
+      "kind": "module",
+      "n": 2,
+      "title": "Calculus",
+      "siteTitle": "STEP 3 Calculus",
+      "url": "https://step.maths.org/assignments/step-3-calculus",
+      "siteTopics": "This module introduces you to STEP 3 Calculus questions. Note that differential equations are contained in a separate module! Each STEP 3 module consists of 4 STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Calc3_questions_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Calc3_questions_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Calc3_topic_notes_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Calc3_topic_notes_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Calc3_hints_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Calc3_hints_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Calc3_solutions_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Calc3_solutions_0.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2003 STEP 3 Q1"
+        },
+        {
+          "id": "Q2",
+          "step": "2010 STEP 3 Q2"
+        },
+        {
+          "id": "Q3",
+          "step": "2002 STEP 3 Q1"
+        },
+        {
+          "id": "Q4",
+          "step": "2004 STEP 3 Q7"
+        }
+      ]
+    },
+    {
+      "id": "s3-complex-numbers",
+      "phase": "C",
+      "kind": "module",
+      "n": 3,
+      "title": "Complex Numbers",
+      "siteTitle": "STEP 3 Complex Numbers",
+      "url": "https://step.maths.org/assignments/step-3-complex-numbers",
+      "siteTopics": "This module introduces you to STEP 3 questions involving Complex Numbers. Each STEP 3 module consists of 4 STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Complex_3_questions_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Complex_3_questions_2019_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Complex_3_topic_notes_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Complex_3_topic_notes_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Complex_3_hints_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Complex_3_hints_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Complex_3_solutions_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Complex_3_solutions_2019.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2010 STEP 3 Q3"
+        },
+        {
+          "id": "Q2",
+          "step": "2007 STEP 3 Q6"
+        },
+        {
+          "id": "Q3",
+          "step": "2013 STEP 3 Q4"
+        },
+        {
+          "id": "Q4",
+          "step": "2006 STEP 3 Q5"
+        }
+      ]
+    },
+    {
+      "id": "s3-coordinate-geometry",
+      "phase": "C",
+      "kind": "module",
+      "n": 4,
+      "title": "Coordinate Geometry (incl. polar)",
+      "siteTitle": "STEP 3 Coordinate Geometry (including Polar Coordinates)",
+      "url": "https://step.maths.org/assignments/step-3-coordinate-geometry-including-polar-coordinates",
+      "siteTopics": "This module contains STEP questions on coordinate geometry and polar coordinates. Each STEP 3 module consists of STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: CoordGeom_questions_2.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/CoordGeom_questions_2.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Geom3_topic_notes.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Geom3_topic_notes.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: CoordGeom_Hints_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/CoordGeom_Hints_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: CoordGeom_Solutions_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/CoordGeom_Solutions_1.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2009 STEP 3 Q1"
+        },
+        {
+          "id": "Q2",
+          "step": "2004 STEP 3 Q4"
+        },
+        {
+          "id": "Q3",
+          "step": "1993 STEP 3 Q2"
+        },
+        {
+          "id": "Q4",
+          "step": "2008 STEP 3 Q3"
+        },
+        {
+          "id": "Q5",
+          "step": "2011 STEP 3 Q5"
+        }
+      ]
+    },
+    {
+      "id": "s3-differential-equations",
+      "phase": "C",
+      "kind": "module",
+      "n": 5,
+      "title": "Differential Equations",
+      "siteTitle": "STEP 3 Differential Equations",
+      "url": "https://step.maths.org/assignments/step-3-differential-equations",
+      "siteTopics": "This module introduces you to STEP 3 differential equations questions. Each STEP 3 module consists of some STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: DE_questions.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/DE_questions.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: DE_topic_notes.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/DE_topic_notes.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: DE_hints.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/DE_hints.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: DE_solutions_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/DE_solutions_1.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2007 STEP 3 Q8"
+        },
+        {
+          "id": "Q2",
+          "step": "2010 STEP 3 Q7"
+        },
+        {
+          "id": "Q3",
+          "step": "2010 STEP 3 Q8"
+        },
+        {
+          "id": "Q4",
+          "step": "2012 STEP 3 Q7"
+        }
+      ]
+    },
+    {
+      "id": "s3-hyperbolic-functions",
+      "phase": "C",
+      "kind": "module",
+      "n": 6,
+      "title": "Hyperbolic Functions",
+      "siteTitle": "STEP 3 Hyperbolic Functions",
+      "url": "https://step.maths.org/assignments/step-3-hyperbolic-functions",
+      "siteTopics": "This module contains STEP 3 questions on Hyperbolic Functions. Each STEP 3 module consists of 4 STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Hyp_questions_3_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Hyp_questions_3_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Hyp_topic_notes_3_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Hyp_topic_notes_3_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Hyp_hints_3.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Hyp_hints_3.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Hyp_solutions_3.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Hyp_solutions_3.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2004 STEP 3 Q1"
+        },
+        {
+          "id": "Q2",
+          "step": "2011 STEP 3 Q6"
+        },
+        {
+          "id": "Q3",
+          "step": "2007 STEP 3 Q5"
+        },
+        {
+          "id": "Q4",
+          "step": "2005 STEP 3 Q6"
+        }
+      ]
+    },
+    {
+      "id": "s3-matrices",
+      "phase": "C",
+      "kind": "module",
+      "n": 7,
+      "title": "Matrices",
+      "siteTitle": "STEP 3 Matrices",
+      "url": "https://step.maths.org/assignments/step-3-matrices",
+      "siteTopics": "Matrices were reintroduced to the STEP specifications in 2019. This module introduces you to the matrices topics included in the STEP 3 specification. This STEP 3 module consists of some matrices questions from a range of sources, some topic notes and useful formulae, a \"hints\" document and a \"solutions\" document",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Matrix3_questions-2018-10-03_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Matrix3_questions-2018-10-03_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Matrix3_topic_notes-2018-10-03_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Matrix3_topic_notes-2018-10-03_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Matrix3_hints-2018-10-03.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Matrix3_hints-2018-10-03.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Matrix3_solutions-2018-10-08.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Matrix3_solutions-2018-10-08.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1"
+        },
+        {
+          "id": "Q2"
+        },
+        {
+          "id": "Q3"
+        },
+        {
+          "id": "Q4"
+        },
+        {
+          "id": "Q5"
+        },
+        {
+          "id": "Q6"
+        },
+        {
+          "id": "Q7"
+        },
+        {
+          "id": "Q8"
+        },
+        {
+          "id": "Q9"
+        },
+        {
+          "id": "Q10"
+        },
+        {
+          "id": "Q11"
+        },
+        {
+          "id": "Q12"
+        },
+        {
+          "id": "Q13"
+        },
+        {
+          "id": "Q14"
+        },
+        {
+          "id": "Q15"
+        },
+        {
+          "id": "Q16"
+        },
+        {
+          "id": "Q17"
+        }
+      ],
+      "questionsNote": "Question count read from the questions PDF; these are old A-level questions, so there are no STEP references."
+    },
+    {
+      "id": "s3-mechanics",
+      "phase": "C",
+      "kind": "module",
+      "n": 8,
+      "title": "Mechanics",
+      "siteTitle": "STEP 3 Mechanics",
+      "url": "https://step.maths.org/assignments/step-3-mechanics",
+      "siteTopics": "This module contains Mechanics questions based on the STEP 3 specification. Each STEP 3 module consists of STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Mechanics3_questions_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Mechanics3_questions_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Mechanics3_topic_notes_3.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Mechanics3_topic_notes_3.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Mechanics3_hints_1.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Mechanics3_hints_1.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Mechanics3_solutions_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Mechanics3_solutions_0.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2000 STEP 3 Q9"
+        },
+        {
+          "id": "Q2",
+          "step": "2007 STEP 3 Q9"
+        },
+        {
+          "id": "Q3",
+          "step": "2004 STEP 3 Q9"
+        },
+        {
+          "id": "Q4",
+          "step": "2012 STEP 3 Q10"
+        },
+        {
+          "id": "Q5",
+          "step": "2013 STEP 3 Q9"
+        }
+      ]
+    },
+    {
+      "id": "s3-statistics",
+      "phase": "C",
+      "kind": "module",
+      "n": 9,
+      "title": "Statistics",
+      "siteTitle": "STEP 3 Statistics",
+      "url": "https://step.maths.org/assignments/step-3-statistics",
+      "siteTopics": "This module introduces you to STEP 3 questions from the Statistics section of the specification. Each STEP 3 module consists of 4 STEP questions, some topic notes and useful formulae, a \"hints\" sheet and a \"solutions\" booklet.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Stats3_questions_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Stats3_questions_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Stats3_topic_notes_2019_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Stats3_topic_notes_2019_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Stats3_hints_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Stats3_hints_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Stats3_solutions_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Stats3_solutions_2019.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2007 STEP 3 Q13"
+        },
+        {
+          "id": "Q2",
+          "step": "2010 STEP 3 Q12"
+        },
+        {
+          "id": "Q3",
+          "step": "2013 STEP 3 Q12"
+        },
+        {
+          "id": "Q4",
+          "step": "2005 STEP 3 Q14"
+        }
+      ]
+    },
+    {
+      "id": "s3-vectors",
+      "phase": "C",
+      "kind": "module",
+      "n": 10,
+      "title": "Vectors",
+      "siteTitle": "STEP 3 Vectors",
+      "url": "https://step.maths.org/assignments/step-3-vectors",
+      "siteTopics": "For the 2019 STEP specifications the vector content has been expanded to include the vector product and equations of planes in STEP 3. This module introduces you to these topics. This STEP 3 module consists of some old STEP questions, some topic notes and useful formulae, a \"hints\" document and a \"solutions\" document.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Vectors3_questions.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Vectors3_questions.pdf",
+          "verified": true
+        },
+        {
+          "kind": "topicNotes",
+          "label": "Topic notes: Vectors3_topic_notes_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Vectors3_topic_notes_0.pdf",
+          "verified": true
+        },
+        {
+          "kind": "hints",
+          "label": "Hints file: Vectors3_hints.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Vectors3_hints.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Vectors3_solutions_0.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Vectors3_solutions_0.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "Specimen STEP 2 Q9"
+        },
+        {
+          "id": "Q2",
+          "step": "1992 STEP 2 Q9"
+        },
+        {
+          "id": "Q3",
+          "step": "1993 STEP 2 Q4"
+        },
+        {
+          "id": "Q4",
+          "step": "1995 STEP 3 Q8"
+        }
+      ]
+    },
+    {
+      "id": "s3-mixed-pure",
+      "phase": "C",
+      "kind": "module",
+      "n": 11,
+      "title": "Mixed Pure",
+      "siteTitle": "Mixed STEP 3 Pure questions",
+      "url": "https://step.maths.org/assignments/various-mixed-step-3-pure-questions",
+      "siteTopics": "This assignment contains a selection of STEP 3 Pure questions, each one with a preparation question beforehand.",
+      "links": [
+        {
+          "kind": "questions",
+          "label": "Assignment PDF: Pure_STEP3_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Pure_STEP3_2019.pdf",
+          "verified": true
+        },
+        {
+          "kind": "solutions",
+          "label": "Solutions file: Pure_STEP3_solns_2019.pdf",
+          "url": "https://step.maths.org/sites/default/files/2023-07/Pure_STEP3_solns_2019.pdf",
+          "verified": true
+        }
+      ],
+      "questions": [
+        {
+          "id": "Q1",
+          "step": "2012 STEP 3 Q6"
+        },
+        {
+          "id": "Q2",
+          "step": "2001 STEP 3 Q1"
+        },
+        {
+          "id": "Q3",
+          "step": "2009 STEP 3 Q8"
+        },
+        {
+          "id": "Q4",
+          "step": "2006 STEP 3 Q7"
+        },
+        {
+          "id": "Q5",
+          "step": "1988 STEP 2 Q5"
+        },
+        {
+          "id": "Q6",
+          "step": "2013 STEP 3 Q3"
+        },
+        {
+          "id": "Q7",
+          "step": "2008 STEP 3 Q4"
+        },
+        {
+          "id": "Q8",
+          "step": "2013 STEP 3 Q7"
+        }
+      ]
+    }
+  ]
+}

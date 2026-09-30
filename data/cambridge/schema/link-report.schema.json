@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Link check report (written by scripts/cambridge/verify-links.mjs)",
+  "type": "object",
+  "required": ["checkedAt", "counts", "ok", "broken"],
+  "additionalProperties": false,
+  "properties": {
+    "checkedAt": { "type": "string" },
+    "counts": {
+      "type": "object",
+      "required": ["urls", "references", "ok", "broken", "brokenUnexpected"],
+      "additionalProperties": false,
+      "properties": {
+        "urls": { "type": "integer" },
+        "references": { "type": "integer" },
+        "ok": { "type": "integer" },
+        "broken": { "type": "integer" },
+        "brokenUnexpected": { "type": "integer" }
+      }
+    },
+    "ok": { "type": "array", "items": { "type": "string", "pattern": "^https?://" } },
+    "broken": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["url", "status", "file", "path", "expected"],
+        "additionalProperties": false,
+        "properties": {
+          "url": { "type": "string" },
+          "status": { "type": "integer" },
+          "error": { "type": "string" },
+          "file": { "type": "string" },
+          "path": { "type": "string" },
+          "expected": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

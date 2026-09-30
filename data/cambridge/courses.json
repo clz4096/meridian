@@ -1,0 +1,1816 @@
+{
+  "$schema": "./schema/courses.schema.json",
+  "lastVerified": "2026-09-30",
+  "note": "Part IA, locked until the Phase B gate passes. Edit this file freely: scripts/cambridge/scrape.mjs refreshes only sheet and notes links, sheetYear, siteNote and verified flags, and never deletes an edit.",
+  "scrapedAt": "2026-09-30",
+  "unlock": {
+    "afterGate": "B"
+  },
+  "cadence": {
+    "sheetsPerCourse": 4,
+    "supervisionsPerSheet": 1,
+    "coursesAtOnce": 2
+  },
+  "supervisionPrompt": "{course} supervisor, example sheet {n}",
+  "order": [
+    [
+      "ia-numbers-and-sets",
+      "ia-vectors-and-matrices"
+    ],
+    [
+      "ia-analysis-i",
+      "ia-probability"
+    ],
+    [
+      "ia-groups",
+      "ia-differential-equations"
+    ]
+  ],
+  "terms": [
+    {
+      "id": "michaelmas",
+      "name": "Fall",
+      "cambridge": "Michaelmas",
+      "optional": false,
+      "pure": [
+        "ia-numbers-and-sets",
+        "ia-groups"
+      ],
+      "applied": [
+        "ia-vectors-and-matrices",
+        "ia-differential-equations"
+      ]
+    },
+    {
+      "id": "lent",
+      "name": "Winter",
+      "cambridge": "Lent",
+      "optional": false,
+      "pure": [
+        "ia-analysis-i",
+        "ia-probability"
+      ],
+      "applied": [
+        "ia-vector-calculus",
+        "ia-dynamics-and-relativity"
+      ]
+    },
+    {
+      "id": "easter",
+      "name": "Spring",
+      "cambridge": "Easter",
+      "optional": true,
+      "pure": [
+        "ia-optimisation"
+      ],
+      "applied": [
+        "ia-variational-principles"
+      ]
+    }
+  ],
+  "courses": [
+    {
+      "id": "ia-numbers-and-sets",
+      "name": "Numbers and Sets",
+      "term": "michaelmas",
+      "side": "pure",
+      "page": "https://www.dpmms.cam.ac.uk/study/IA/Numbers%2BSets/",
+      "sheetYear": "2025-2026",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Example sheet 1",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/Numbers%2BSets/2025-2026/NS_1_probs.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Example sheet 2",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/Numbers%2BSets/2025-2026/NS_2_probs.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 3,
+          "label": "Example sheet 3",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/Numbers%2BSets/2025-2026/NS_3_probs.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 4,
+          "label": "Example sheet 4",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/Numbers%2BSets/2025-2026/NS_4_probs.pdf",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IA_M/numbers_and_sets.pdf",
+          "verified": true
+        },
+        {
+          "label": "Notes Hub: more student notes for this course",
+          "kind": "hub",
+          "url": "https://at2027.user.srcf.net/IA.html",
+          "verified": true
+        }
+      ],
+      "pastPapers": "partIA",
+      "schedule": "schedules",
+      "supervisionPrompt": "Numbers and Sets supervisor, example sheet {n}",
+      "siteNote": "This year's sheets are not posted yet; the 2025-2026 sheets come from the previous-years page."
+    },
+    {
+      "id": "ia-groups",
+      "name": "Groups",
+      "term": "michaelmas",
+      "side": "pure",
+      "page": "https://www.dpmms.cam.ac.uk/study/IA/Groups/",
+      "sheetYear": "2025-2026",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Example sheet 1",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/Groups/2025-2026/Groups%20Example%20Sheet%201%202025.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Example sheet 2",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/Groups/2025-2026/Groups%20Example%20Sheet%202%202025.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 3,
+          "label": "Example sheet 3",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/Groups/2025-2026/Groups%20Example%20Sheet%203%202025.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 4,
+          "label": "Example sheet 4",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/Groups/2025-2026/Groups%20Example%20Sheet%204%202025.pdf",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IA_M/groups.pdf",
+          "verified": true
+        },
+        {
+          "label": "Simon Wadsley, lecturer's notes",
+          "kind": "lecturer",
+          "url": "https://www.dpmms.cam.ac.uk/~sjw47/LecturesM17.pdf",
+          "verified": true
+        },
+        {
+          "label": "Oscar Randal-Williams, lecturer's notes",
+          "kind": "lecturer",
+          "url": "https://www.dpmms.cam.ac.uk/~or257/teaching/IAGroups/2019/groups.pdf",
+          "verified": true
+        },
+        {
+          "label": "Notes Hub: more student notes for this course",
+          "kind": "hub",
+          "url": "https://at2027.user.srcf.net/IA.html",
+          "verified": true
+        }
+      ],
+      "pastPapers": "partIA",
+      "schedule": "schedules",
+      "supervisionPrompt": "Groups supervisor, example sheet {n}"
+    },
+    {
+      "id": "ia-vectors-and-matrices",
+      "name": "Vectors and Matrices",
+      "term": "michaelmas",
+      "side": "applied",
+      "page": "https://www.damtp.cam.ac.uk/user/examples/",
+      "damtpCode": "A1",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Vectors and Matrices: Example Sheet 1",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A1a.pdf",
+          "updated": "Mon 20 Oct 2025",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Vectors and Matrices: Example Sheet 2",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A1b.pdf",
+          "updated": "Mon 20 Oct 2025",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 3,
+          "label": "Vectors and Matrices: Example Sheet 3",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A1c.pdf",
+          "updated": "Mon 20 Oct 2025",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 4,
+          "label": "Vectors and Matrices: Example Sheet 4",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A1d.pdf",
+          "updated": "Mon 20 Oct 2025",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IA_M/vectors_and_matrices.pdf",
+          "verified": true
+        },
+        {
+          "label": "Notes Hub: more student notes for this course",
+          "kind": "hub",
+          "url": "https://at2027.user.srcf.net/IA.html",
+          "verified": true
+        },
+        {
+          "label": "Vectors and Matrices: Study Sheet 1 (DAMTP A1e)",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A1e.pdf",
+          "verified": true
+        },
+        {
+          "label": "Vectors and Matrices: Study Sheet 2 (DAMTP A1f)",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A1f.pdf",
+          "verified": true
+        }
+      ],
+      "pastPapers": "partIA",
+      "schedule": "schedules",
+      "supervisionPrompt": "Vectors and Matrices supervisor, example sheet {n}"
+    },
+    {
+      "id": "ia-differential-equations",
+      "name": "Differential Equations",
+      "term": "michaelmas",
+      "side": "applied",
+      "page": "https://www.damtp.cam.ac.uk/user/examples/",
+      "damtpCode": "A3",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Differential Equations: Examples Sheet 1",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A3a.pdf",
+          "updated": "Thu 9 Oct 2025",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Differential Equations: Examples Sheet 2",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A3b.pdf",
+          "updated": "Wed 22 Oct 2025",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 3,
+          "label": "Differential Equations: Examples Sheet 3",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A3c.pdf",
+          "updated": "Tue 4 Nov 2025",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 4,
+          "label": "Differential Equations: Examples Sheet 4",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A3d.pdf",
+          "updated": "Wed 19 Nov 2025",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IA_M/differential_equations.pdf",
+          "verified": true
+        },
+        {
+          "label": "Notes Hub: more student notes for this course",
+          "kind": "hub",
+          "url": "https://at2027.user.srcf.net/IA.html",
+          "verified": true
+        },
+        {
+          "label": "Differential Equations (DAMTP A3La)",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A3La.pdf",
+          "verified": true
+        }
+      ],
+      "pastPapers": "partIA",
+      "schedule": "schedules",
+      "supervisionPrompt": "Differential Equations supervisor, example sheet {n}"
+    },
+    {
+      "id": "ia-analysis-i",
+      "name": "Analysis I",
+      "term": "lent",
+      "side": "pure",
+      "page": "https://www.dpmms.cam.ac.uk/study/IA/AnalysisI/",
+      "sheetYear": "2025-2026",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Example Sheet 1",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/AnalysisI/2025-2026/26sheet1.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Example Sheet 2",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/AnalysisI/2025-2026/26sheet2.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 3,
+          "label": "Example Sheet 3",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/AnalysisI/2025-2026/26sheet3.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 4,
+          "label": "Example Sheet 4",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/AnalysisI/2025-2026/26sheet4.pdf",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IA_L/analysis_i.pdf",
+          "verified": true
+        },
+        {
+          "label": "Tom Korner, lecturer's notes",
+          "kind": "lecturer",
+          "url": "https://www.dpmms.cam.ac.uk/~twk10/C5.pdf",
+          "verified": true
+        },
+        {
+          "label": "Notes Hub: more student notes for this course",
+          "kind": "hub",
+          "url": "https://at2027.user.srcf.net/IA.html",
+          "verified": true
+        }
+      ],
+      "pastPapers": "partIA",
+      "schedule": "schedules",
+      "supervisionPrompt": "Analysis I supervisor, example sheet {n}",
+      "siteNote": "This year's sheets are not posted yet; the 2025-2026 sheets come from the previous-years page."
+    },
+    {
+      "id": "ia-probability",
+      "name": "Probability",
+      "term": "lent",
+      "side": "pure",
+      "page": "https://www.dpmms.cam.ac.uk/study/IA/Probability/",
+      "sheetYear": "2025-2026",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Example sheet 1",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/Probability/2025-2026/pex1-2026.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Example sheet 2",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/Probability/2025-2026/pex2-2026.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 3,
+          "label": "Example sheet 3",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/Probability/2025-2026/pex3-2026.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 4,
+          "label": "Example sheet 4",
+          "url": "https://www.dpmms.cam.ac.uk/study/IA/Probability/2025-2026/pex4-2026.pdf",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IA_L/probability.pdf",
+          "verified": true
+        },
+        {
+          "label": "James Norris, lecturer's notes",
+          "kind": "lecturer",
+          "url": "https://www.statslab.cam.ac.uk/~james/Lectures/p.pdf",
+          "verified": true
+        },
+        {
+          "label": "Notes Hub: more student notes for this course",
+          "kind": "hub",
+          "url": "https://at2027.user.srcf.net/IA.html",
+          "verified": true
+        }
+      ],
+      "pastPapers": "partIA",
+      "schedule": "schedules",
+      "supervisionPrompt": "Probability supervisor, example sheet {n}",
+      "siteNote": "This year's sheets are not posted yet; the 2025-2026 sheets come from the previous-years page."
+    },
+    {
+      "id": "ia-vector-calculus",
+      "name": "Vector Calculus",
+      "term": "lent",
+      "side": "applied",
+      "page": "https://www.damtp.cam.ac.uk/user/examples/",
+      "damtpCode": "A5",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Vector Calculus: Examples Sheet 1",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A5a.pdf",
+          "updated": "Thu 12 Feb 2026",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Vector Calculus: Examples Sheet 2",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A5b.pdf",
+          "updated": "Fri 13 Feb 2026",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 3,
+          "label": "Vector Calculus: Examples Sheet 3",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A5c.pdf",
+          "updated": "Tue 24 Feb 2026",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 4,
+          "label": "Vector Calculus: Examples Sheet 4",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A5d.pdf",
+          "updated": "Thu 12 Mar 2026",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IA_L/vector_calculus.pdf",
+          "verified": true
+        },
+        {
+          "label": "Stephen Cowley, lecturer's notes",
+          "kind": "lecturer",
+          "url": "https://www.damtp.cam.ac.uk/user/sjc1/teaching/VC_2000.pdf",
+          "verified": true
+        },
+        {
+          "label": "Matthias Dorrzapf, lecturer's notes",
+          "kind": "lecturer",
+          "url": "https://www.joh.cam.ac.uk/sites/default/files/2017-11/notes2005.pdf",
+          "verified": false,
+          "reason": "HTTP 404 on 2026-09-30",
+          "lastCheckedStatus": 404
+        },
+        {
+          "label": "Ben Allanach & Jonathan Evans, lecturer's notes",
+          "kind": "lecturer",
+          "url": "https://www.damtp.cam.ac.uk/user/tong/vc/benjonathan.pdf",
+          "verified": true
+        },
+        {
+          "label": "David Tong, lecturer's notes",
+          "kind": "lecturer",
+          "url": "https://www.damtp.cam.ac.uk/user/tong/vc/vc.pdf",
+          "verified": true
+        },
+        {
+          "label": "Robert Hunt, lecturer's notes",
+          "kind": "lecturer",
+          "url": "https://www.damtp.cam.ac.uk/user/reh10/vc/",
+          "verified": true
+        },
+        {
+          "label": "Notes Hub: more student notes for this course",
+          "kind": "hub",
+          "url": "https://at2027.user.srcf.net/IA.html",
+          "verified": true
+        }
+      ],
+      "pastPapers": "partIA",
+      "schedule": "schedules",
+      "supervisionPrompt": "Vector Calculus supervisor, example sheet {n}"
+    },
+    {
+      "id": "ia-dynamics-and-relativity",
+      "name": "Dynamics and Relativity",
+      "term": "lent",
+      "side": "applied",
+      "page": "https://www.damtp.cam.ac.uk/user/examples/",
+      "damtpCode": "A7",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Dynamics and Relativity: Example Sheet 1",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A7a.pdf",
+          "updated": "Tue 9 Dec 2025",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Dynamics and Relativity: Example Sheet 2",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A7b.pdf",
+          "updated": "Tue 9 Dec 2025",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 3,
+          "label": "Dynamics and Relativity: Example Sheet 3",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A7c.pdf",
+          "updated": "Tue 9 Dec 2025",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 4,
+          "label": "Dynamics and Relativity: Example Sheet 4",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/A7d.pdf",
+          "updated": "Tue 9 Dec 2025",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IA_L/dynamics_and_relativity.pdf",
+          "verified": true
+        },
+        {
+          "label": "Stephen Siklos, lecturer's notes",
+          "kind": "lecturer",
+          "url": "https://www.archim.org.uk/lecturenotes/ia/dynamics.pdf",
+          "verified": false,
+          "reason": "HTTP 404 on 2026-09-30",
+          "lastCheckedStatus": 404
+        },
+        {
+          "label": "David Tong, lecturer's notes",
+          "kind": "lecturer",
+          "url": "https://www.damtp.cam.ac.uk/user/tong/relativity/dynrel.pdf",
+          "verified": true
+        },
+        {
+          "label": "Notes Hub: more student notes for this course",
+          "kind": "hub",
+          "url": "https://at2027.user.srcf.net/IA.html",
+          "verified": true
+        }
+      ],
+      "pastPapers": "partIA",
+      "schedule": "schedules",
+      "supervisionPrompt": "Dynamics and Relativity supervisor, example sheet {n}"
+    },
+    {
+      "id": "ia-optimisation",
+      "name": "Optimisation",
+      "term": "easter",
+      "side": "pure",
+      "page": "https://www.dpmms.cam.ac.uk/study/IB/Optimization/",
+      "sheetYear": "2022-2023",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Example sheet 1",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/Optimization/2022-2023/example1_easter23.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Example sheet 2",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/Optimization/2022-2023/example2_easter23.pdf",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IB_E/optimisation.pdf",
+          "verified": true
+        }
+      ],
+      "pastPapers": "partIA",
+      "schedule": "schedules",
+      "supervisionPrompt": "Optimisation supervisor, example sheet {n}",
+      "note": "Filed as Part IB (Easter term) by DPMMS (study/IB/Optimization) and by the Dexter Chua notes (IB_E). Kept here as the optional spring course.",
+      "siteNote": "This year's sheets are not posted yet; the 2022-2023 sheets come from the previous-years page. 2 example sheets found for 2022-2023."
+    },
+    {
+      "id": "ia-variational-principles",
+      "name": "Variational Principles",
+      "term": "easter",
+      "side": "applied",
+      "page": "https://www.damtp.cam.ac.uk/user/examples/",
+      "damtpCode": "B6",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Variational Principles",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/B6a.pdf",
+          "updated": "Mon 27 Apr 2026",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Variational Principles",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/B6b.pdf",
+          "updated": "Mon 27 Apr 2026",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IB_E/variational_principles.pdf",
+          "verified": true
+        },
+        {
+          "label": "Variational Principles condensed notes (2024) (DAMTP B6La)",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/B6La.pdf",
+          "verified": true
+        }
+      ],
+      "pastPapers": "partIA",
+      "schedule": "schedules",
+      "supervisionPrompt": "Variational Principles supervisor, example sheet {n}",
+      "note": "Filed as Part IB (Easter term) by DAMTP (code B6) and by the Dexter Chua notes (IB_E). Kept here as the optional spring course."
+    }
+  ],
+  "schedules": {
+    "url": "https://www.maths.cam.ac.uk/undergrad/files/schedules.pdf",
+    "verified": true,
+    "note": "The Faculty schedules (official topic list for every course), one PDF for all parts."
+  },
+  "pastPapers": {
+    "partIA": {
+      "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/past-ia-ib-and-ii-examination-papers",
+      "verified": true,
+      "note": "Each Part IA paper mixes courses. The per-year pages link the four papers; URL formats differ by year, so each is stored as scraped.",
+      "years": [
+        {
+          "year": 2026,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/mathematical-tripos-part-ia-examination-papers-2026",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2026/Paperia_1_2026.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2026/Paperia_2_2026.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2026/Paperia_3_2026.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2026/Paperia_4_2026.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2026/List_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2025,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/maths-ia/2025",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2025/paperia_1_2025.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2025/paperia_2_2025.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2025/paperia_3_2025.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2025/paperia_4_2025.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2025/list_ia.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2024,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/maths-ia/2024",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2024/paperia_1_2024.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2024/paperia_2_2024.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2024/paperia_3_2024.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2024/paperia_4_2024.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2024/list_ia.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2023,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/maths-ia/2023",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2023/paperia_1_2023.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2023/paperia_2_2023.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2023/paperia_3_2023.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2023/paperia_4_2023.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2023/list_ia.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2022,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/maths-ia/2022",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2022/paperia_1_2022.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2022/paperia_2_2022.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2022/paperia_3_2022.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2022/paperia_4_2022.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2022/list_ia.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2021,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/maths-ia/2021",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2021/paperia_1_2021.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2021/paperia_2_2021.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2021/paperia_3_2021.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2021/paperia_4_2021.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2021/list_ia.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2020,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/maths-ia/2020",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2020/paperia_1_2020.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2020/paperia_2_2020.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2020/list_ia.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2019,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/maths-ia/2019",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2019/paperia_1_2019.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2019/paperia_2_2019.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2019/paperia_3_2019.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2019/paperia_4_2019.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2019/List_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2018,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/maths-ia/2018",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2018/paperia_1_2018.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2018/paperia_2_2018.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2018/paperia_3_2018.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2018/paperia_4_2018.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2018/list_ia_2018.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2017,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/maths-ia/2017",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2017/paperia_1_0.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2017/paperia_2_0.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2017/paperia_3_0.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2017/paperia_4_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2017/list_ia_0.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2016,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2016/maths-ia",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2016/paperia_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2016/paperia_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2016/paperia_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2016/paperia_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2016/list_ia.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2015,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2015/ia",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2015/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2015/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2015/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2015/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2015/List_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2014,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2014/ia",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2014/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2014/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2014/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2014/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2014/List_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2013,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2013/ia",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2013/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2013/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2013/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2013/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2013/List_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2012,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2012/ia",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2012/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2012/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2012/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2012/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2012/List_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2011,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2011/ia",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2011/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2011/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2011/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2011/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2011/List_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2010,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/maths-ia/2010",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2010/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2010/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2010/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2010/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "PaperIA_all",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2010/PaperIA_all.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2009,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/maths-ia/2009",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2009/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2009/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2009/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2009/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2009/List_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2008,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2008/Part_IA",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2008/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2008/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2008/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2008/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2008/list_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2007,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2007/Part_IA",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2007/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2007/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2007/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2007/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 5",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2007/PaperIA_5.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2007/list_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2006,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2006/Part_IA",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2006/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2006/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2006/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2006/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 5",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2006/PaperIA_5.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2006/list_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2005,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2005/Part_IA",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2005/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2005/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2005/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2005/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2005/list_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2004,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2004/Part_IA",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2004/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2004/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2004/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2004/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2004/list_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2003,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2003/Part_IA",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2003/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2003/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2003/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2003/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2003/list_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2002,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2002/Part_IA",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2002/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2002/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2002/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2002/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2002/list_IA.pdf",
+              "verified": true
+            }
+          ]
+        },
+        {
+          "year": 2001,
+          "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/2001/Part_IA",
+          "verified": true,
+          "papers": [
+            {
+              "label": "Paper 1",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2001/PaperIA_1.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 2",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2001/PaperIA_2.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 3",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2001/PaperIA_3.pdf",
+              "verified": true
+            },
+            {
+              "label": "Paper 4",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2001/PaperIA_4.pdf",
+              "verified": true
+            },
+            {
+              "label": "All questions (one PDF)",
+              "url": "https://www.maths.cam.ac.uk/undergrad/pastpapers/files/2001/list_IA.pdf",
+              "verified": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "partIB": [
+    {
+      "id": "ib-linear-algebra",
+      "name": "Linear Algebra",
+      "side": "pure",
+      "page": "https://www.dpmms.cam.ac.uk/study/IB/LinearAlgebra/",
+      "sheetYear": "2025-2026",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Example sheet 1",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/LinearAlgebra/2025-2026/Example%20Sheet%201%20-%20IB%20Linear%20Algebra.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Example sheet 2",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/LinearAlgebra/2025-2026/Example%20Sheet%202.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 3,
+          "label": "Example sheet 3",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/LinearAlgebra/2025-2026/Example%20Sheet%203%20-%20IB%20Linear%20Algebra.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 4,
+          "label": "Example sheet 4",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/LinearAlgebra/2025-2026/Example%20Sheet%204%20-%20IB%20Linear%20Algebra%20(2).pdf",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IB_M/linear_algebra.pdf",
+          "verified": true
+        },
+        {
+          "label": "Simon Wadsley, lecturer's notes",
+          "kind": "lecturer",
+          "url": "https://www.dpmms.cam.ac.uk/~sjw47/LecturesM16.pdf",
+          "verified": true
+        },
+        {
+          "label": "Notes Hub: more student notes for this course",
+          "kind": "hub",
+          "url": "https://at2027.user.srcf.net/IB.html",
+          "verified": true
+        }
+      ],
+      "siteNote": "This year's sheets are not posted yet; the 2025-2026 sheets come from the previous-years page."
+    },
+    {
+      "id": "ib-analysis-and-topology",
+      "name": "Analysis and Topology",
+      "side": "pure",
+      "page": "https://www.dpmms.cam.ac.uk/study/IB/AnalysisandTopology/",
+      "sheetYear": "2024-2025",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Example sheet 1",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/AnalysisandTopology/2024-2025/24sheet1.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Example sheet 2",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/AnalysisandTopology/2024-2025/24sheet2.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 3,
+          "label": "Example sheet 3",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/AnalysisandTopology/2024-2025/24sheet3-v2.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 4,
+          "label": "Example sheet 4",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/AnalysisandTopology/2024-2025/24sheet4-v2%20copy.pdf",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [],
+      "note": "These sheets are from 2024-25, the newest DPMMS has posted. Sheet 4's file name (24sheet4-v2 copy.pdf) looks like a working copy; check it against the course page."
+    },
+    {
+      "id": "ib-statistics",
+      "name": "Statistics",
+      "side": "pure",
+      "page": "https://www.dpmms.cam.ac.uk/study/IB/Statistics/",
+      "sheetYear": "2025-2026",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Example sheet 1",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/Statistics/2025-2026/Qu1.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Example sheet 2",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/Statistics/2025-2026/Qu2.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 3,
+          "label": "Example sheet 3",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/Statistics/2025-2026/Qu3.pdf",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IB_L/statistics.pdf",
+          "verified": true
+        },
+        {
+          "label": "Notes Hub: more student notes for this course",
+          "kind": "hub",
+          "url": "https://at2027.user.srcf.net/IB.html",
+          "verified": true
+        }
+      ],
+      "siteNote": "This year's sheets are not posted yet; the 2025-2026 sheets come from the previous-years page. 3 example sheets found for 2025-2026."
+    },
+    {
+      "id": "ib-markov-chains",
+      "name": "Markov Chains",
+      "side": "pure",
+      "page": "https://www.dpmms.cam.ac.uk/study/IB/MarkovChains/",
+      "sheetYear": "2025-2026",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Example sheet 1",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/MarkovChains/2025-2026/example1.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Example sheet 2",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/MarkovChains/2025-2026/example2.pdf",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IB_M/markov_chains.pdf",
+          "verified": true
+        },
+        {
+          "label": "Notes Hub: more student notes for this course",
+          "kind": "hub",
+          "url": "https://at2027.user.srcf.net/IB.html",
+          "verified": true
+        }
+      ],
+      "siteNote": "This year's sheets are not posted yet; the 2025-2026 sheets come from the previous-years page. 2 example sheets found for 2025-2026."
+    },
+    {
+      "id": "ib-numerical-analysis",
+      "name": "Numerical Analysis",
+      "side": "applied",
+      "page": "https://www.damtp.cam.ac.uk/user/examples/",
+      "damtpCode": "B13",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Numerical Analysis: Example Sheet 1",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/B13a.pdf",
+          "updated": "Fri 9 Feb 2024",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Numerical Analysis: Example Sheet 2",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/B13b.pdf",
+          "updated": "Fri 9 Feb 2024",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 3,
+          "label": "Numerical Analysis: Example Sheet 3",
+          "url": "https://www.damtp.cam.ac.uk/user/examples/B13c.pdf",
+          "updated": "Fri 9 Feb 2024",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IB_L/numerical_analysis.pdf",
+          "verified": true
+        },
+        {
+          "label": "Notes Hub: more student notes for this course",
+          "kind": "hub",
+          "url": "https://at2027.user.srcf.net/IB.html",
+          "verified": true
+        }
+      ]
+    },
+    {
+      "id": "ib-optimisation",
+      "name": "Optimisation",
+      "side": "pure",
+      "page": "https://www.dpmms.cam.ac.uk/study/IB/Optimization/",
+      "sheetYear": "2022-2023",
+      "sheets": [
+        {
+          "n": 1,
+          "label": "Example sheet 1",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/Optimization/2022-2023/example1_easter23.pdf",
+          "verified": true,
+          "questions": []
+        },
+        {
+          "n": 2,
+          "label": "Example sheet 2",
+          "url": "https://www.dpmms.cam.ac.uk/study/IB/Optimization/2022-2023/example2_easter23.pdf",
+          "verified": true,
+          "questions": []
+        }
+      ],
+      "notes": [
+        {
+          "label": "Dexter Chua, student notes (PDF)",
+          "kind": "student",
+          "url": "https://dec41.user.srcf.net/notes/IB_E/optimisation.pdf",
+          "verified": true
+        },
+        {
+          "label": "Notes Hub: more student notes for this course",
+          "kind": "hub",
+          "url": "https://at2027.user.srcf.net/IB.html",
+          "verified": true
+        }
+      ],
+      "sameAs": "ia-optimisation",
+      "siteNote": "This year's sheets are not posted yet; the 2022-2023 sheets come from the previous-years page. 2 example sheets found for 2022-2023."
+    }
+  ],
+  "notes": [
+    "Optimisation and Variational Principles are filed as Part IB (Easter term) by DPMMS, by DAMTP (code B6) and by the Dexter Chua notes (IB_E). They stay here as the optional spring courses.",
+    "Pure sheets come from DPMMS course pages; applied sheets from the DAMTP examples index, whose course codes were checked against codes.html.",
+    "DAMTP study sheets and condensed notes are listed under a course's notes, not its sheets."
+  ]
+}

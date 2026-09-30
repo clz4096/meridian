@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { cambridgeIndex } from './scripts/cambridge/index-plugin.mjs';
 
 /**
  * Fast by default, deep on demand.
@@ -9,7 +10,14 @@ import { defineConfig } from 'vitest/config';
  * mathematical sweep. Same tests either way — only the sample size changes.
  */
 export default defineConfig({
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  // The build-time catalog index Today's cards import (catalogIndex.ts).
+  plugins: [cambridgeIndex()],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@data': fileURLToPath(new URL('./data', import.meta.url)),
+    },
+  },
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     // Component tests (.tsx) need a DOM; the pure logic tests (.ts) stay on the
