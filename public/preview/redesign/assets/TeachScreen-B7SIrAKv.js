@@ -1,1 +1,0 @@
-import{h as o,bp as t,u as r}from"./index-CIVtPabV.js";import{T as e}from"./TeachSection-BnUhWfpl.js";import"./studytracker-Itz3YKDY.js";import"./GatedReveal-BdP5TN5a.js";import"./algorithms-D0u7hDB-.js";import"./ai-D0v5_zxk.js";function s(){return o(()=>{t()},[]),r("div",{class:"pt-root",children:r("div",{class:"wrap",children:r(e,{standalone:!0})})})}export{s as TeachScreen};
