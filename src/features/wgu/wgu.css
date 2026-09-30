@@ -1,94 +1,364 @@
 /*
- * WGU Roadmap — scoped styles. Ported from the source artifact, every selector
- * nested under `.wgu-root` so nothing leaks into other views. Self-contained
- * palette; dark only, like the rest of Meridian.
+ * WGU Roadmap screen. Tokens only (src/styles/tokens.css); every class is prefixed
+ * wgu- so nothing leaks into other views. No local palette: the old dark one
+ * is gone, and the screen reads the same global tokens as the other path screens.
  */
-.wgu-root{
-  --bg:#16171a; --surface:#1d1f23; --surface-2:#23262b;
-  --ink:#eae8e3; --ink-soft:#b2afa8; --ink-faint:#95928b;
-  --line:#2c2f35; --line-strong:#3a3e45;
-  --accent:#87a2ff; --accent-ink:#9db3ff; --accent-wash:#87a2ff14;
-  --oa:#87a2ff; --oa-bg:#87a2ff18;
-  --cert:#e0aa5c; --cert-bg:#e0aa5c18;
-  --pa:#6cc492; --pa-bg:#6cc49218;
-  --cap:#e07cc8; --cap-bg:#e07cc818;
-  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 26px rgba(0,0,0,.28);
-  --radius:14px;
-  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
-  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
-  background:var(--bg); color:var(--ink); font-family:var(--sans);
-  font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; margin:0;
-  padding:clamp(20px,5vw,56px) 20px 96px; border-radius:16px;
+.wgu-root {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  /* .appwrap already supplies the gutter; a second one here doubled it. */
+  padding: 0 0 var(--sp-7);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-3);
+  color: var(--ink);
+}
+.wgu-root *,
+.wgu-root *::before,
+.wgu-root *::after {
+  box-sizing: border-box;
+}
+/* Zero specificity, so every class below can set its own margin. */
+:where(.wgu-root) p {
+  margin: 0;
 }
 
-.wgu-root *{box-sizing:border-box}
-.wgu-root .wrap{max-width:860px;margin:0 auto;}
-.wgu-root p{margin:0 0 12px;}
-.wgu-root a{color:var(--accent-ink);text-decoration:none;border-bottom:1px solid var(--accent-wash);}
-.wgu-root a:hover{border-bottom-color:var(--accent);}
-.wgu-root code{font-family:var(--mono);font-size:.88em;}
+/* ---------- Today card ---------- */
+.wgu-today-course {
+  margin-top: var(--sp-1);
+  font-weight: var(--fw-semibold);
+}
+.wgu-today-next {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-4);
+  line-height: var(--lh-4);
+}
+.wgu-today-detail {
+  margin-top: var(--sp-1);
+  color: var(--ink-2);
+}
+.wgu-today-bar {
+  margin-top: var(--sp-4);
+}
+.wgu-today-cap {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink-3);
+}
 
-.wgu-root header.top{border-bottom:2px solid var(--line-strong);padding-bottom:22px;margin-bottom:28px;}
-.wgu-root .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--accent);font-weight:600;margin:0 0 10px;}
-.wgu-root h1{font-family:var(--serif);font-weight:600;font-size:clamp(30px,6vw,46px);line-height:1.05;
-  letter-spacing:-.01em;margin:0 0 14px;text-wrap:balance;}
-.wgu-root .stats{display:flex;flex-wrap:wrap;gap:10px 26px;font-size:14px;color:var(--ink-soft);
-  font-family:var(--mono);}
-.wgu-root .stats b{color:var(--ink);font-weight:600;}
+/* ---------- plan header ---------- */
+.wgu-top {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+  padding-bottom: var(--sp-4);
+  border-bottom: var(--hairline) solid var(--rule);
+}
+.wgu-degree {
+  color: var(--ink-2);
+}
+/* Four label/value pairs on a two-column grid: plain data, aligned, no ornament. */
+.wgu-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--sp-3) var(--sp-5);
+  margin: var(--sp-2) 0 0;
+}
+.wgu-stats dt {
+  display: block;
+}
+.wgu-stats dd {
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+}
 
-.wgu-root h2{font-family:var(--serif);font-weight:600;font-size:23px;margin:38px 0 4px;letter-spacing:-.005em;}
-.wgu-root .sub{color:var(--ink-faint);font-size:14px;margin:0 0 16px;}
+/* ---------- Day 1 callout ---------- */
+.wgu-callout {
+  margin-top: var(--sp-5);
+}
+.wgu-callout-title {
+  margin: 0 0 var(--sp-2);
+}
+.wgu-list {
+  margin: 0;
+  padding-left: var(--sp-5);
+}
+.wgu-list li {
+  margin-bottom: var(--sp-2);
+  color: var(--ink-2);
+}
+.wgu-list li:last-child {
+  margin-bottom: 0;
+}
+.wgu-list b {
+  color: var(--ink);
+  font-weight: var(--fw-semibold);
+}
 
-.wgu-root .callout{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);
-  border-radius:var(--radius);padding:18px 20px;margin:18px 0;box-shadow:var(--shadow);}
-.wgu-root .callout h3{margin:0 0 10px;font-family:var(--sans);font-size:13px;font-weight:700;
-  letter-spacing:.05em;text-transform:uppercase;color:var(--accent-ink);}
-.wgu-root ol.actions{margin:0;padding-left:20px;} .wgu-root ol.actions li{margin-bottom:9px;color:var(--ink-soft);}
-.wgu-root ol.actions li b{color:var(--ink);}
+.wgu-h2 {
+  margin: 0;
+  font-size: var(--fs-5);
+  line-height: var(--lh-5);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-tight);
+}
 
-.wgu-root .legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:6px 0 4px;font-size:12.5px;}
-.wgu-root .chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;
-  font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;white-space:nowrap;}
-.wgu-root .chip.oa{background:var(--oa-bg);color:var(--oa);} .wgu-root .chip.cert{background:var(--cert-bg);color:var(--cert);}
-.wgu-root .chip.pa{background:var(--pa-bg);color:var(--pa);} .wgu-root .chip.cap{background:var(--cap-bg);color:var(--cap);}
+/* ---------- assessment chips ----------
+   The series hues are chart colors and fail 4.5:1 as text, so the hue sits in a
+   decorative dot and the label is ink on a neutral fill. */
+.wgu-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-2);
+  padding: 0;
+  list-style: none;
+}
+.wgu-chip {
+  --wgu-kind: var(--rule-strong);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 28px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  white-space: nowrap;
+}
+.wgu-chip::before {
+  content: '';
+  flex: none;
+  width: var(--sp-2);
+  height: var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--wgu-kind);
+}
+.wgu-chip[data-kind='oa'] {
+  --wgu-kind: var(--series-4);
+}
+.wgu-chip[data-kind='cert'] {
+  --wgu-kind: var(--series-3);
+}
+.wgu-chip[data-kind='pa'] {
+  --wgu-kind: var(--series-2);
+}
+.wgu-chip[data-kind='cap'] {
+  --wgu-kind: var(--series-1);
+}
 
-.wgu-root .week{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
-  padding:20px 22px;margin:16px 0;box-shadow:var(--shadow);break-inside:avoid;}
-.wgu-root .week__head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;
-  border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:14px;}
-.wgu-root .week__n{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--accent);}
-.wgu-root .week__dates{font-family:var(--mono);font-size:12.5px;color:var(--ink-faint);}
-.wgu-root .week__theme{font-size:14px;color:var(--ink-soft);margin-left:auto;font-style:italic;}
+/* ---------- week cards ---------- */
+.wgu-week {
+  margin-top: var(--sp-4);
+  break-inside: avoid;
+}
+.wgu-week-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+  padding-bottom: var(--sp-3);
+  border-bottom: var(--hairline) solid var(--rule);
+}
+.wgu-week-n {
+  margin: 0;
+  font-size: var(--fs-4);
+  line-height: var(--lh-4);
+  font-weight: var(--fw-semibold);
+  color: var(--accent-ink);
+}
+.wgu-week-dates {
+  font-size: var(--fs-2);
+  color: var(--ink-3);
+}
+.wgu-week-theme {
+  flex-basis: 100%;
+  font-size: var(--fs-2);
+  color: var(--ink-2);
+}
 
-.wgu-root .course{display:grid;grid-template-columns:24px 1fr;gap:0 12px;padding:12px 0;border-top:1px dashed var(--line);}
-.wgu-root .course:first-of-type{border-top:none;}
-.wgu-root .course input{margin-top:2px;width:24px;height:24px;accent-color:var(--accent);}
-.wgu-root .course__body{min-width:0;}
-.wgu-root .course__title{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:5px;}
-.wgu-root .course__code{font-family:var(--mono);font-weight:700;font-size:13px;color:var(--ink);}
-.wgu-root .course__name{font-weight:600;font-size:15px;}
-.wgu-root .kv{font-size:14px;color:var(--ink-soft);margin:2px 0;}
-.wgu-root .kv b{color:var(--ink);font-weight:600;font-family:var(--mono);font-size:11px;letter-spacing:.04em;
-  text-transform:uppercase;margin-right:6px;}
-.wgu-root .links{font-size:13.5px;margin-top:4px;}
+.wgu-courses {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wgu-course {
+  padding: var(--sp-3) 0;
+  border-bottom: var(--hairline) solid var(--rule);
+}
+.wgu-course:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.wgu-course-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--sp-2);
+}
+/* The label fills the rest of the row, so tapping the course name ticks it too, and
+   the chip always wraps to its own line under the name instead of squeezing it. */
+.wgu-course-label {
+  flex: 1 1 calc(100% - var(--tap) - var(--sp-2));
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  cursor: pointer;
+}
+.wgu-code {
+  font-size: var(--fs-2);
+  margin-right: var(--sp-1);
+  color: var(--ink-2);
+}
+.wgu-name {
+  font-weight: var(--fw-semibold);
+}
+.wgu-course-head .wgu-chip {
+  margin-left: calc(var(--tap) + var(--sp-2));
+}
+/* Body text lines up under the course name, past the 44px checkbox column. */
+.wgu-course-body {
+  padding-left: calc(var(--tap) + var(--sp-2));
+}
+.wgu-kv {
+  margin-top: var(--sp-2);
+  color: var(--ink-2);
+}
+.wgu-kv .m-label {
+  margin-right: var(--sp-2);
+  color: var(--ink);
+}
+.wgu-links {
+  margin: var(--sp-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+/* URL labels are long unbroken strings; let them wrap anywhere rather than overflow. */
+.wgu-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  max-width: 100%;
+  color: var(--accent-ink);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-medium);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.wgu-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.wgu-admin {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: var(--hairline) solid var(--rule);
+  font-size: var(--fs-2);
+  color: var(--ink-2);
+}
 
-.wgu-root ol.logic{margin:8px 0;padding-left:20px;} .wgu-root ol.logic li{margin-bottom:8px;color:var(--ink-soft);}
-.wgu-root ol.logic li b{color:var(--ink);}
+/* ---------- checkbox ----------
+   The input covers the whole 44px cell at opacity 0; the drawn box follows its state. */
+.wgu-box {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+}
+.wgu-check {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.wgu-mark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: calc(var(--hairline) * 2) solid var(--rule-strong);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  transition: background var(--dur-1) var(--ease-standard), border-color var(--dur-1) var(--ease-standard);
+  pointer-events: none;
+}
+.wgu-check:checked + .wgu-mark {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+/* The tick: two borders of a rotated box, drawn only when checked. */
+.wgu-check:checked + .wgu-mark::after {
+  content: '';
+  width: 6px;
+  height: 11px;
+  margin-top: -2px;
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.wgu-check:focus-visible + .wgu-mark {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
 
-.wgu-root .check{list-style:none;padding:0;margin:8px 0;columns:2;column-gap:28px;}
-.wgu-root .check li{break-inside:avoid;margin-bottom:9px;font-size:14px;}
-.wgu-root .check label{display:flex;align-items:flex-start;gap:9px;min-height:32px;cursor:pointer;}
-.wgu-root .check input{margin-top:0;width:24px;height:24px;accent-color:var(--accent);flex:none;}
-.wgu-root .check .c{font-family:var(--mono);font-weight:700;font-size:12px;color:var(--accent-ink);}
+/* ---------- progress checklist ---------- */
+.wgu-progress {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  columns: 2;
+  column-gap: var(--sp-5);
+}
+.wgu-prog-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  break-inside: avoid;
+  border-bottom: var(--hairline) solid var(--rule);
+}
 
-.wgu-root .caveats{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);
-  padding:16px 20px;margin-top:16px;}
-.wgu-root .caveats li{margin-bottom:8px;color:var(--ink-soft);font-size:14px;}
-.wgu-root .caveats li b{color:var(--ink);}
+/* ---------- caveats ---------- */
+.wgu-caveats {
+  margin: 0;
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) calc(var(--sp-4) + var(--sp-4));
+  border-radius: var(--r-3);
+  background: var(--surface-2);
+}
+.wgu-caveats li {
+  margin-bottom: var(--sp-2);
+  color: var(--ink-2);
+}
+.wgu-caveats li:last-child {
+  margin-bottom: 0;
+}
+.wgu-caveats b {
+  color: var(--ink);
+  font-weight: var(--fw-semibold);
+}
 
-.wgu-root footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
-  font-family:var(--mono);font-size:12px;color:var(--ink-faint);}
+.wgu-foot {
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-4);
+  border-top: var(--hairline) solid var(--rule);
+  font-size: var(--fs-2);
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
 
-@media (max-width:560px){ .wgu-root .check{columns:1;} .wgu-root .week__theme{margin-left:0;width:100%;} }
+@media (max-width: 560px) {
+  .wgu-progress {
+    columns: 1;
+  }
+}

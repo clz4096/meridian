@@ -4,7 +4,7 @@
  * store-free so they stay deterministic.
  */
 import { describe, it, expect } from 'vitest';
-import { bandOf, ascentLedger, GRADE_MASTERY, type AscentHistory } from './ascent';
+import { bandOf, ascentLedger, GRADE_MASTERY, MCOLOR, type AscentHistory } from './ascent';
 
 describe('ascent · bandOf', () => {
   it('collapses the two learning masteries (2,3) into one band, else strictly rising', () => {
@@ -43,5 +43,13 @@ describe('ascent · ascentLedger', () => {
 
   it('an empty run yields a zeroed ledger', () => {
     expect(ascentLedger([])).toEqual({ solid: 0, shaky: 0, newlyLearned: 0 });
+  });
+});
+
+describe('ascent · MCOLOR', () => {
+  // A raw hex here would pin the retired dark palette (bug A15); every mastery
+  // must resolve through a token so the dot follows the theme.
+  it('maps every mastery value to a CSS custom property, never a literal colour', () => {
+    for (const m of [0, 1, 2, 3, 4, 5]) expect(MCOLOR[m]).toMatch(/^var\(--m-[a-z]+\)$/);
   });
 });

@@ -51,6 +51,26 @@ const TABS: ReadonlyArray<readonly [TrackerTab, string]> = [
   ['playbook', 'Playbook'],
 ];
 
+/** Only the selected panel is rendered, so both tabs control the one panel id. */
+const TAB_PANEL = 'pt-tabpanel';
+
+/**
+ * Arrow keys, Home and End move between tabs and select on focus (the WAI-ARIA
+ * automatic-activation pattern): switching is instant and cheap here, and the
+ * roving tabIndex means Tab alone would otherwise skip the unselected tab.
+ */
+function onTabKey(e: KeyboardEvent): void {
+  const i = TABS.findIndex(([id]) => id === activeTab.value);
+  const n = TABS.length;
+  const next =
+    e.key === 'ArrowRight' ? (i + 1) % n : e.key === 'ArrowLeft' ? (i - 1 + n) % n : e.key === 'Home' ? 0 : e.key === 'End' ? n - 1 : -1;
+  if (next < 0) return;
+  e.preventDefault();
+  const id = TABS[next]![0];
+  setTab(id);
+  document.getElementById('pt-tab-' + id)?.focus();
+}
+
 /** External link that opens outside the PWA. */
 function Ext({ href, children }: { href: string; children: preact.ComponentChildren }) {
   return (
@@ -180,14 +200,17 @@ export function StudyTrackerView() {
         </div>
 
         {/* SUB-TAB SEGMENTED CONTROL */}
-        <div class="pt-tabs" role="tablist" aria-label="Study tracker sections">
+        <div class="pt-tabs" role="tablist" aria-label="Study tracker sections" onKeyDown={onTabKey}>
           {TABS.map(([id, label]) => (
             <button
               key={id}
+              id={'pt-tab-' + id}
               class={'pt-tab' + (tab === id ? ' on' : '')}
               type="button"
               role="tab"
               aria-selected={tab === id}
+              aria-controls={TAB_PANEL}
+              tabIndex={tab === id ? 0 : -1}
               onClick={() => setTab(id)}
             >
               {label}
@@ -196,7 +219,7 @@ export function StudyTrackerView() {
         </div>
 
         {tab === 'today' && (
-          <>
+          <div role="tabpanel" id={TAB_PANEL} aria-labelledby="pt-tab-today">
             {/* THE STANDARD SURFACE — one continuous scroll of the six surfaces
                 in the brief's literal 1–6 order. The glance strip above is #0. */}
 
@@ -261,7 +284,7 @@ export function StudyTrackerView() {
                   return (
                     <div key={r.id} class="scrow">
                       <div class="txt"><b>{r.b}</b>{r.t}</div>
-                      <div class="seg" role="group">
+                      <div class="seg" role="group" aria-label={r.b.replace(/:\s*$/, '')}>
                         {SCORE_LABELS.map((lbl, n) => {
                           const on = rated && raw === n;
                           return (
@@ -308,11 +331,11 @@ export function StudyTrackerView() {
                 literal 1–6 scroll stays contiguous. Collapsed by default. */}
             <PapersSection />
             <ProofJournal />
-          </>
+          </div>
         )}
 
         {tab === 'playbook' && (
-          <div class="pt-playbook">
+          <div class="pt-playbook" role="tabpanel" id={TAB_PANEL} aria-labelledby="pt-tab-playbook">
             <details>
               <summary>The path, in three climbs</summary>
               <div class="det-body">

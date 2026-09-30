@@ -11,6 +11,7 @@ import { chart, type ChartOpts } from '@/ui/charts/chart';
 import { PERIOD_LABEL, type Period } from '@/ui/charts/progress';
 import { progPeriod, logScale, controlsOpen, progLift } from '@/ui/store';
 import { toggleControls } from '@/ui/actions';
+import { IconChevronDown } from '@/ui/components/Icons';
 
 const SEG: Array<[Period, string]> = [
   ['day', 'D'],
@@ -30,22 +31,22 @@ export function ProgControls() {
         <div class="seg-row">
           <div class="seg">
             {(['lin', 'log'] as const).map((s) => (
-              <button class={(s === 'log') === logScale.value ? 'on' : ''} onClick={() => (logScale.value = s === 'log')}>
+              <button class={(s === 'log') === logScale.value ? 'on' : ''} aria-pressed={(s === 'log') === logScale.value} aria-label={s === 'lin' ? 'Linear scale' : 'Log scale'} onClick={() => (logScale.value = s === 'log')}>
                 {s === 'lin' ? 'Lin' : 'Log'}
               </button>
             ))}
           </div>
           <div class="seg">
             {SEG.map(([per, l]) => (
-              <button class={per === p ? 'on' : ''} title={PERIOD_LABEL[per]} onClick={() => (progPeriod.value = per)}>
+              <button class={per === p ? 'on' : ''} title={PERIOD_LABEL[per]} aria-label={PERIOD_LABEL[per]} aria-pressed={per === p} onClick={() => (progPeriod.value = per)}>
                 {l}
               </button>
             ))}
           </div>
         </div>
       )}
-      <button class={'ctrl-toggle' + (open ? ' on' : '')} aria-label="Chart scale and range" onClick={toggleControls}>
-        {open ? '⌃' : `${pl} ⌄`}
+      <button class={'ctrl-toggle' + (open ? ' on' : '')} aria-label="Chart scale and range" aria-expanded={open} onClick={toggleControls}>
+        {open ? '⌃' : <>{pl} <IconChevronDown /></>}
       </button>
     </div>
   );
@@ -65,7 +66,7 @@ export function LiftPicker({ lifts }: { lifts: string[] }) {
   return (
     <div class="prog-lift" data-keepx="lift">
       {lifts.map((l) => (
-        <button class={l === cur ? 'on' : ''} onClick={() => (progLift.value = l)}>
+        <button class={l === cur ? 'on' : ''} aria-pressed={l === cur} onClick={() => (progLift.value = l)}>
           {l}
         </button>
       ))}
@@ -99,7 +100,8 @@ export function Carousel({ keepKey, children }: { keepKey: string; children: Com
           {kids.map((_, i) => (
             <button
               class={'cdot' + (i === active ? ' on' : '')}
-              aria-label={`Graph ${i + 1}`}
+              aria-label={`Graph ${i + 1} of ${kids.length}`}
+              aria-current={i === active ? 'true' : undefined}
               onClick={() => ref.current?.scrollTo({ left: i * stride(), behavior: 'smooth' })}
             />
           ))}

@@ -6,6 +6,7 @@
  * `meridian.papers.v1` (namespaced localStorage).
  */
 import { signal } from '@preact/signals';
+import { localEpochDay } from '@/core/util';
 
 export interface Paper {
   title: string;
@@ -126,10 +127,14 @@ export const PAPERS: readonly Paper[] = [
 },
 ];
 
-/** Days since epoch / 7, so the pick advances once per week and is stable within it. */
+/**
+ * Local days since epoch / 7, so the pick advances once per week and is stable within it.
+ * Local, not UTC: a UTC week would flip at 8 pm New York time on Wednesday. The week still
+ * starts on Thursday (1970-01-01 was one), which keeps the current paper where it was.
+ */
 export function paperOfWeek(d: Date = new Date()): Paper | undefined {
   if (!PAPERS.length) return undefined;
-  const week = Math.floor(d.getTime() / (7 * 86_400_000));
+  const week = Math.floor(localEpochDay(d) / 7);
   const n = PAPERS.length;
   return PAPERS[((week % n) + n) % n];
 }
@@ -149,6 +154,16 @@ function load(): PaperProgress {
 }
 
 export const paperProgress = signal<PaperProgress>(load());
+
+/**
+ * "Karp · 1972". The authors field carries its own "(1972)" so the picker pills read
+ * "Karp (1972)"; the byline appends the year itself, so drop that suffix here when
+ * it repeats the same year (TR-10).
+ */
+export function paperByline(p: Paper): string {
+  const who = p.authors.replace(new RegExp(`\\s*\\(${p.year}\\)\\s*$`), '');
+  return `${who} · ${p.year}`;
+}
 
 /** Stable key for a paper (title is unique in the catalogue). */
 export function paperKey(p: Paper): string {

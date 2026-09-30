@@ -10,13 +10,17 @@ import type { Period } from '@/ui/charts/progress';
 import type { Split, ScratchStatus } from '@/core/types';
 import type { Weather } from '@/services/weather';
 
-export type Tab = 'today' | 'todos' | 'scratch' | 'workout' | 'meal' | 'knowledge' | 'data' | 'tracker' | 'roadmap';
+/** `wgu`, `math` and `cs` are the study-path screens; `roadmap` is kept as an alias of
+ *  `wgu` (the same view) so older links and saved reopen targets still work. */
+export type Tab =
+  | 'today' | 'todos' | 'scratch' | 'workout' | 'meal' | 'knowledge' | 'data' | 'tracker' | 'roadmap'
+  | 'wgu' | 'math' | 'cs' | 'teach';
 
 // ── navigation ──
 export const currentTab = signal<Tab>('today'); // boot lands on Today (the home)
 
 // ── Today home ──
-export const clockNow = signal(Date.now()); // ticked each second by the Today screen
+export const clockNow = signal(Date.now()); // ticked by the Today screen while it is open
 /** clockNow floored to the minute: only changes once a minute, so views that need the
  *  date or time of day (not the seconds) don't re-render every second. */
 export const clockMinute = computed(() => Math.floor(clockNow.value / 60_000) * 60_000);
@@ -51,6 +55,7 @@ export const kgRevealed = signal<Record<string, boolean>>({});
 /** Topic-screen cards graded this visit (id → next-interval hint) — locks the card so re-tapping can't re-log. */
 export const kgGraded = signal<Record<string, string>>({});
 export const kgItems = signal<Record<string, KnowledgeItem[]>>({}); // fetched question bank
+export const kgIndexIds = signal<Record<string, string[]> | null>(null); // curated ids by topic, from questions/index.json (Today's mastery %)
 export const kgProgressOpen = signal(false); // secondary charts/trends view, opened on demand from the gallery
 export const kgOverview = signal(true); // the card gallery is the default landing; false = a topic's study body
 // Study-mode router: the Knowledge tab opens on a session chooser, then routes to
@@ -80,6 +85,10 @@ export const scratchAdding = signal(false); // FAB-revealed capture form
 
 // ── data UI state ──
 export const dataMsg = signal<{ text: string; bad: boolean }>({ text: '', bad: false });
+/** The Backup textarea's text. State, not a DOM value: the textarea can be remounted by a
+ *  re-render (the status line appearing after Export did exactly that), and a value
+ *  written imperatively into the old node was lost, so Copy found nothing. */
+export const dataIo = signal('');
 
 // ── reactivity trigger: bump after any data-store mutation ──
 export const dataRev = signal(0);

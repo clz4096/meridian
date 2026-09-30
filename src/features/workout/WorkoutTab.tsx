@@ -16,6 +16,8 @@ import { DATA } from '@/core/data/index';
 import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkShowAll, wkProgOpen, activeExercise, awayMode, editingSet, progPeriod, progLift, dataRev, notPending } from '@/ui/store';
 import { dstr, dateLabel } from '@/app/bootstrap';
 import { host } from '@/ui/host';
+import { PageHead } from '@/ui/components/PageHead';
+import { IconPencil, IconUndo } from '@/ui/components/Icons';
 
 /* ── plate calculator (barbell lifts only) ── */
 const BAR_LB: Record<string, number> = { 'Bench Press': 45 };
@@ -191,6 +193,9 @@ function WeekStrip({ state, today, selected, sundayFullBody }: { state: WorkoutS
             <button
               class={'wkday' + cls + (done ? ' done' : '') + (isSel ? ' sel' : '') + (isToday ? ' today' : '')}
               onClick={() => goToDate(date)}
+              aria-pressed={isSel}
+              aria-current={isToday ? 'date' : undefined}
+              aria-label={`${label} ${dayNum(date)}, ${rest ? 'rest' : split === 'upper' ? 'upper' : split === 'lower' ? 'lower' : split === 'full' ? 'full body' : 'no session'}${done ? ', logged' : split ? ', planned' : ''}`}
             >
               <span class="wkday-l">{label}</span>
               <span class="wkday-n">{dayNum(date)}</span>
@@ -219,7 +224,6 @@ function RestDay({ date, today, vm, o }: { date: string; today: string; vm: VM; 
         </span>
       </div>
       <div class="restday">
-        <div class="restday-icon">🌙</div>
         <div class="restday-t">Rest day</div>
         <div class="restday-sub">Nothing scheduled — recovery is when the work pays off.</div>
         <button class="restday-go" onClick={() => workoutActions.changeSplit(vm.suggestion.due)}>
@@ -264,15 +268,15 @@ function WorkoutCharts() {
     <div class="prog">
       <ProgControls />
       <Carousel keepKey="workout">
-        <Chart opts={{ kind: 'line', title: 'Body growth', points: bodyweightSeries(W, period), unit: 'lb', format: (v) => v.toFixed(1), reference: goal != null ? { value: goal, label: `goal ${goal}` } : null, color: 'var(--fuel)' }} />
+        <Chart opts={{ kind: 'line', title: 'Body growth', points: bodyweightSeries(W, period), unit: 'lb', format: (v) => v.toFixed(1), reference: goal != null ? { value: goal, label: `goal ${goal}` } : null, color: 'var(--series-1)' }} />
         {lift ? (
           <div>
             <LiftPicker lifts={lifts} />
-            <Chart opts={{ kind: 'line', title: 'Strength', points: strengthSeries(W, lift, period), unit: 'lb', color: 'var(--teal)' }} />
+            <Chart opts={{ kind: 'line', title: 'Strength', points: strengthSeries(W, lift, period), unit: 'lb', color: 'var(--series-2)' }} />
           </div>
         ) : null}
-        <Chart opts={{ kind: 'bar', title: 'Volume · working sets', points: volumeSeries(W, period), summary: 'sum', color: 'var(--fuel)' }} />
-        <Chart opts={{ kind: 'bar', title: 'Tonnage', points: tonnageSeries(W, period), unit: 'lb', summary: 'sum', color: 'var(--teal)' }} />
+        <Chart opts={{ kind: 'bar', title: 'Volume · working sets', points: volumeSeries(W, period), summary: 'sum', color: 'var(--series-3)' }} />
+        <Chart opts={{ kind: 'bar', title: 'Tonnage', points: tonnageSeries(W, period), unit: 'lb', summary: 'sum', color: 'var(--series-4)' }} />
       </Carousel>
     </div>
   );
@@ -480,8 +484,8 @@ function PastSetRow({ date, s }: { date: string; s: Any }) {
       val={cardio ? fmtCardio(s) : `${s.weight} × ${s.reps}`}
       trailing={
         <span class="setrow-actions">
-          <button class="setundo" onClick={() => (editingSet.value = id)}>✎ Edit</button>
-          <button class="setundo" onClick={() => workoutActions.deleteSet(date, id)}>✕ Remove</button>
+          <button class="setundo" onClick={() => (editingSet.value = id)}><IconPencil class="ico" />Edit</button>
+          <button class="setundo" onClick={() => workoutActions.deleteSet(date, id)}>× Remove</button>
         </span>
       }
     />
@@ -524,7 +528,7 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
                 label={setTypeLabel(s.type)}
                 val={s.type === 'cardio' ? fmtCardio(s) : `${s.weight} × ${s.reps}`}
                 trailing={i === performed.length - 1 ? (
-                  <button class="setundo" onClick={() => workoutActions.undoLastSet(active)}>↩ Undo</button>
+                  <button class="setundo" onClick={() => workoutActions.undoLastSet(active)}><IconUndo class="ico" />Undo</button>
                 ) : null}
               />
             ))}
@@ -563,7 +567,7 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
             const undo =
               state === 'done' && i === next - 1 ? (
                 <button class="setundo" onClick={() => workoutActions.undoLastSet(active)}>
-                  ↩ Undo
+                  <IconUndo class="ico" />Undo
                 </button>
               ) : null;
             return <SetLine state={state} label={label} val={val} trailing={undo} />;
@@ -658,6 +662,7 @@ export function WorkoutView() {
   }
   return (
     <>
+      <PageHead title="Workout" />
       <WeekStrip state={W} today={today} selected={date} sundayFullBody={sundayFullBody} />
 
       {isRest ? (
@@ -672,9 +677,10 @@ export function WorkoutView() {
               <button
                 class={'ex-opts' + (awayMode.value ? ' on' : '')}
                 onClick={() => (awayMode.value = !awayMode.value)}
+                aria-pressed={awayMode.value}
                 title="Away from Life Time — show dumbbell alternates"
               >
-                {awayMode.value ? '🏠 Away' : '🏋 Gym'}
+                {awayMode.value ? 'Away' : 'Gym'}
               </button>
             </span>
           </div>
@@ -685,7 +691,7 @@ export function WorkoutView() {
             ))}
           </div>
           {!vm.isPast && otherSplit && (
-            <button class="wk-showall" onClick={() => (wkShowAll.value = !showAll)}>
+            <button class="wk-showall" aria-expanded={showAll} onClick={() => (wkShowAll.value = !showAll)}>
               {showAll ? `Hide ${otherSplit} day` : `Show all · + ${otherSplit} day`}
             </button>
           )}
@@ -704,7 +710,7 @@ export function WorkoutView() {
         </>
       )}
 
-      <button class={'wk-progtoggle' + (progOpen ? ' on' : '')} onClick={() => (wkProgOpen.value = !progOpen)}>
+      <button class={'wk-progtoggle' + (progOpen ? ' on' : '')} aria-expanded={progOpen} onClick={() => (wkProgOpen.value = !progOpen)}>
         {progOpen ? '▾' : '▸'} Progress
       </button>
       {progOpen && <WorkoutCharts />}

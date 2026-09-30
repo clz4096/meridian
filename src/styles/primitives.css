@@ -1,0 +1,363 @@
+/*
+ * Meridian primitives: the small shared vocabulary every screen builds from.
+ * Tokens only (src/styles/tokens.css); no raw colors or sizes live here.
+ * Everything is a class so it composes with feature CSS without specificity fights.
+ */
+
+/* ---------- text ---------- */
+
+/* Small caps label. The subset fonts carry no smcp glyphs, so the browser synthesizes
+   them; a medium weight and positive tracking keep the synthesized caps from looking thin. */
+.m-label {
+  font-family: var(--font-sans);
+  font-size: var(--fs-label);
+  line-height: var(--lh-2);
+  font-weight: var(--fw-semibold);
+  font-variant-caps: all-small-caps;
+  letter-spacing: var(--ls-caps);
+  color: var(--ink-2);
+}
+
+/* Numbers that change or line up in columns must not jitter. */
+.m-num {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+.m-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.m-rule {
+  border: 0;
+  border-top: var(--hairline) solid var(--rule);
+  margin: 0;
+  height: 0;
+}
+
+/* ---------- containers ---------- */
+
+.m-card {
+  background: var(--surface);
+  border: var(--hairline) solid var(--rule);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-1);
+  padding: var(--sp-4);
+  color: var(--ink);
+}
+/* A card that is also a link or button: the whole card is the target. */
+.m-card[role='link'],
+a.m-card,
+button.m-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+  transition: box-shadow var(--dur-2) var(--ease-standard), transform var(--dur-2) var(--ease-standard);
+}
+a.m-card:hover,
+button.m-card:hover {
+  box-shadow: var(--shadow-2);
+}
+a.m-card:active,
+button.m-card:active {
+  transform: translateY(1px);
+  box-shadow: var(--shadow-1);
+}
+
+.m-section {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-2);
+  margin: var(--sp-6) 0 var(--sp-3);
+  border-bottom: var(--hairline) solid var(--rule);
+}
+.m-section > h1,
+.m-section > h2,
+.m-section > .m-label {
+  margin: 0;
+}
+/* A section title: Today's "Today's reading", and every screen's own title. */
+.m-title {
+  margin: 0;
+  font-size: var(--fs-5);
+  line-height: var(--lh-5);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-tight);
+  color: var(--ink);
+}
+/* The first section head on a screen sits closer to the brand row. */
+.m-pagehead {
+  margin-top: var(--sp-5);
+}
+.m-section > .m-label {
+  text-align: right;
+}
+/* A short note never wraps into a column beside the title; the title wraps instead. */
+.m-pagehead > .m-label:last-child {
+  flex: none;
+}
+
+.m-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+  padding: var(--sp-2) var(--sp-3); /* inset, so a selected row's wash doesn't run flush to the text */
+  border-bottom: var(--hairline) solid var(--rule);
+  color: var(--ink);
+}
+.m-row:last-child {
+  border-bottom: 0;
+}
+.m-row[aria-current='true'],
+.m-row[aria-selected='true'] {
+  background: var(--accent-wash);
+}
+.m-row-meta {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: var(--fs-1);
+}
+
+/* ---------- controls ---------- */
+
+.m-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0 var(--sp-4);
+  border: var(--hairline) solid var(--rule-strong);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-standard), border-color var(--dur-1) var(--ease-standard),
+    transform var(--dur-1) var(--ease-standard);
+}
+.m-btn:hover {
+  background: var(--surface-2);
+}
+.m-btn:active {
+  transform: translateY(1px);
+}
+.m-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.m-btn-primary:hover {
+  background: var(--accent-ink);
+  border-color: var(--accent-ink);
+}
+/* Quiet: text-weight action, no box until touched. Still 44px tall. */
+.m-btn-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+.m-btn-quiet:hover {
+  background: var(--accent-wash);
+}
+.m-btn:disabled,
+.m-btn[aria-disabled='true'] {
+  cursor: not-allowed;
+  background: var(--surface-2);
+  border-color: var(--rule);
+  color: var(--ink-3);
+  transform: none;
+}
+
+/* One focus style for every interactive primitive. The 2px bg gap keeps the ring
+   readable against a coral fill as well as against the page. */
+.m-btn:focus-visible,
+.m-chip:focus-visible,
+.m-card:focus-visible,
+.m-row:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.m-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: 28px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-pill);
+  background: var(--peach);
+  color: var(--ink);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  border: var(--hairline) solid transparent;
+}
+.m-chip-sand {
+  background: var(--sand);
+}
+/* An interactive chip gets the full touch target through padding, not a bigger pill. */
+button.m-chip {
+  min-height: var(--tap);
+  font-family: inherit;
+  cursor: pointer;
+}
+button.m-chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+}
+
+/* ---------- checkbox ----------
+   Markup: <span class="m-check"><input type="checkbox" …/><span class="m-check-mark"/></span>.
+   The native input covers the whole 44px cell at opacity 0 and the drawn 22px box
+   follows its state (the WGU pattern). The negative inline margin keeps the box, not
+   the target, aligned with the text beside it. */
+.m-check {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  margin: 0 calc((22px - var(--tap)) / 2);
+}
+.m-check > input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.m-check-mark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: calc(var(--hairline) * 2) solid var(--rule-strong);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  transition: background var(--dur-1) var(--ease-standard), border-color var(--dur-1) var(--ease-standard);
+  pointer-events: none;
+}
+.m-check > input:checked + .m-check-mark {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.m-check > input:checked + .m-check-mark::after {
+  content: '';
+  width: 6px;
+  height: 11px;
+  margin-top: -2px;
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.m-check > input:focus-visible + .m-check-mark {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- progress ----------
+   Markup: <div class="m-progress" role="progressbar" aria-valuemin="0" aria-valuemax="13"
+   aria-valuenow="2" aria-valuetext="2 of 13 courses" aria-label="WGU progress">
+   <div class="m-progress-fill" style="--m-progress: 15.4%"></div></div>
+   The visible "2 of 13" text sits next to the bar, so the bar itself is supplementary. */
+.m-progress {
+  position: relative;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--track);
+  overflow: hidden;
+}
+.m-progress-fill {
+  display: block; /* works on a <span> as well as a <div>: inline fills draw nothing */
+  height: 100%;
+  width: var(--m-progress, 0%);
+  min-width: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--dur-3) var(--ease-calm);
+}
+
+/* ---------- skeleton ---------- */
+.m-skel {
+  display: block;
+  border-radius: var(--r-1);
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--track) 40%, var(--surface-2) 80%);
+  background-size: 250% 100%;
+  animation: m-skel var(--dur-4) var(--ease-standard) infinite;
+  color: transparent;
+  user-select: none;
+}
+.m-skel-line {
+  height: 1em;
+  margin: 0.3em 0;
+}
+@keyframes m-skel {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-skel {
+    animation: none;
+    background: var(--surface-2);
+  }
+}
+
+/* ---------- state blocks: empty, error, offline ---------- */
+.m-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border-radius: var(--r-3);
+  border: var(--hairline) dashed var(--rule-strong);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--fs-2);
+}
+.m-state-title {
+  margin: 0;
+  color: var(--ink);
+  font-weight: var(--fw-semibold);
+}
+.m-state-body {
+  margin: 0;
+}
+.m-state[data-kind='error'] {
+  border-style: solid;
+  border-color: var(--danger);
+  background: var(--surface);
+}
+.m-state[data-kind='error'] .m-state-title {
+  color: var(--danger);
+}
+/* Offline is not an error: cached content stays normal, only a quiet note is added. */
+.m-state[data-kind='offline'] {
+  border: 0;
+  padding: 0;
+  background: none;
+  flex-direction: row;
+  align-items: center;
+  color: var(--ink-3);
+  font-size: var(--fs-1);
+}

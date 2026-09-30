@@ -1,183 +1,209 @@
 /**
- * Today — the home. A calm, read-only hero (greeting + clock left, weather
- * right), then today's agenda as a plain checkable todo list, two small quick
- * buttons (add a todo / capture an idea) that launch into Todos + Scratchpad,
- * and the tracker tiles. Reads dataRev + clockNow to re-derive.
+ * Today, the home. Five blocks in contract order (docs/redesign-contract.md):
+ * 1 date and weather, 2 today's reading, 3 today's studies (WGU, Math, Computer
+ * Science), 4 your day (due todos and the two quick actions), 5 every other screen.
+ *
+ * Blocks 2 and 3 read modules that live in other chunks, so they load with import()
+ * after the first paint, each behind a skeleton of its final size. index.html carries
+ * a static copy of this layout so the first paint already has the frame (DECISIONS D15).
  */
 import { useEffect } from 'preact/hooks';
 import { dstr } from '@/app/bootstrap';
-import { dataRev, clockNow, clockMinute, weather, notPending } from '@/ui/store';
-import type { HubStat } from '@/ui/hubTypes';
-import { core, hubStats, openSection, todosActions, tickClock, refreshWeather, setWeatherCity } from '@/ui/actions';
+import { dataRev, clockMinute, notPending, type Tab } from '@/ui/store';
+import type { HubKey, HubStat } from '@/ui/hubTypes';
+import { core, hubStats, openSection, todosActions, tickClock } from '@/ui/actions';
 import { dueTodos } from '@/features/todos/todosSelectors';
-import { weatherSvg, weatherColor, cachedWeather } from '@/services/weather';
-import crestUrl from '@/features/studytracker/princeton-shield.png';
+import type { PathId, PathSummary } from '@/features/paths/types';
+import { PathCard, PathCardError, PathCardSkeleton } from '@/features/paths/PathCard';
+import { WeatherBlock } from './WeatherBlock';
+import { ReadingBlock } from './ReadingBlock';
+import { lazyMod, page, readSaved, savedWhen, useSaveOnChange, type LazyMod } from './lazyContent';
+import './today.css';
 
-const TRACKERS = new Set(['meal', 'workout', 'knowledge', 'data', 'tracker', 'roadmap']);
-const toneColor = (t: HubStat['tone']): string | undefined =>
-  t === 'cyan' ? 'var(--teal)'
-    : t === 'kcal' ? 'var(--fuel)'
-    : t === 'ok' ? 'var(--ok)'
-    : t === 'orange' ? '#F58A2E' // Princeton orange (dark-legible shade)
-    : t === 'blue' ? '#87A2FF' // WGU blue (dark-legible shade)
-    : undefined;
-
-const WD = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-const MO = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-/** Mono, uppercase date for the header eyebrow, e.g. "TUE · AUG 4". */
-const monoDate = (ms: number): string => {
-  const d = new Date(ms);
-  return `${WD[d.getDay()]} · ${MO[d.getMonth()]} ${d.getDate()}`;
-};
-
-// Time-of-day glyph beside the date: sun by day, moon in the evening/night.
-const SUN = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M5 19l1.4-1.4"/></svg>';
-const MOON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" stroke="none"><path d="M20.5 15.2A8.2 8.2 0 0 1 9.3 4 8.2 8.2 0 1 0 20.5 15.2z"/></svg>';
-const todGlyph = (period: string): string => (period === 'day' || period === 'dawn' ? SUN : MOON);
-const todColor = (period: string): string => (period === 'day' || period === 'dawn' ? 'var(--hub)' : '#AEBBDA');
-/** The date eyebrow tints with the time of day so it stays legible over the glow. */
-const eyebrowColor = (period: string): string =>
-  period === 'dawn' ? '#EAD0A6' : period === 'day' ? '#C4D6EE' : period === 'dusk' ? '#EDC6AB' : '#BAC7E6';
-
-/** Split the clock into hour:minute + seconds + am/pm so each can be styled. */
-function clockParts(ms: number): { hm: string; ss: string; ap: string } {
-  const d = new Date(ms);
-  let h = d.getHours();
-  const ap = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return { hm: `${h}:${String(d.getMinutes()).padStart(2, '0')}`, ss: String(d.getSeconds()).padStart(2, '0'), ap };
+interface PathModule {
+  currentSummary(now?: Date): PathSummary;
 }
 
-/** Time-of-day bucket that drives the ambient hero wash. */
-const periodOf = (h: number): string => (h < 5 ? 'night' : h < 8 ? 'dawn' : h < 17 ? 'day' : h < 20 ? 'dusk' : 'night');
+/** Each path's summary module, in card order. Never imported statically: see D13. */
+export const PATH_MODS: ReadonlyArray<{ id: PathId; title: string; mod: LazyMod<PathModule> }> = [
+  { id: 'wgu', title: 'WGU', mod: lazyMod<PathModule>(() => import('@/features/paths/wgu')) },
+  { id: 'math', title: 'Math', mod: lazyMod<PathModule>(() => import('@/features/paths/math')) },
+  { id: 'cs', title: 'Computer Science', mod: lazyMod<PathModule>(() => import('@/features/paths/cs')) },
+];
 
-/** Spawn a tap ripple inside an action card. */
-function ripple(e: PointerEvent): void {
-  const btn = e.currentTarget as HTMLElement | null;
-  if (!btn) return;
-  const r = btn.getBoundingClientRect();
-  const s = document.createElement('span');
-  s.className = 'ripple';
-  const size = Math.max(r.width, r.height) * 2;
-  s.style.width = s.style.height = `${size}px`;
-  s.style.left = `${e.clientX - r.left}px`;
-  s.style.top = `${e.clientY - r.top}px`;
-  btn.appendChild(s);
-  window.setTimeout(() => s.remove(), 600);
-}
+/** Every screen other than the paths. `stat` is the hubStats() entry shown on the tile. */
+const NAV: ReadonlyArray<{ tab: Tab; name: string; kind: string; stat?: HubKey; sub?: string }> = [
+  { tab: 'meal', name: 'Surplus', kind: 'Food & Body', stat: 'meal' },
+  { tab: 'workout', name: 'Overload', kind: 'Workout', stat: 'workout' },
+  { tab: 'tracker', name: 'Massey Standard', kind: 'Princeton tracker', stat: 'tracker' },
+  { tab: 'teach', name: 'Learn by Teaching', kind: 'Teach it, then defend it', sub: "Teach today's algorithm" },
+  { tab: 'knowledge', name: 'Knowledge', kind: 'Spaced review', stat: 'knowledge' },
+  { tab: 'data', name: 'Data', kind: 'Sync and storage', stat: 'data' },
+];
 
-/** The only part of Today that changes every second, so only it re-renders each tick
- *  (the whole screen used to, re-deriving every tile once a second). */
-function LiveClock() {
-  const { hm, ss, ap } = clockParts(clockNow.value);
+export function TodayView() {
+  dataRev.value; // subscribe: re-derive on store mutations
+
+  useEffect(() => {
+    tickClock();
+    // Today shows the date and minute-level data only, so a slow tick is enough.
+    const id = window.setInterval(tickClock, 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   return (
-    <div class="today-time">
-      {hm}
-      <span class="today-secs">:{ss}</span>
-      <span class="today-ampm">{ap}</span>
+    <div class="td-root">
+      <WeatherBlock />
+      <ReadingBlock />
+      <Studies />
+      <YourDay />
+      <Elsewhere />
     </div>
   );
 }
 
-export function TodayView() {
-  const now = clockMinute.value;
-  const w = weather.value;
-  dataRev.value; // subscribe: re-derive on store mutations
+/** What one path card can show: its live summary, or that the module failed or threw. */
+interface SlotState {
+  summary: PathSummary | null;
+  failed: boolean;
+}
 
+function readSlot(mod: LazyMod<PathModule>, now: Date): SlotState {
+  const m = mod.mod.value;
+  if (!m) return { summary: null, failed: mod.failed.value };
+  try {
+    // Reads the path's own signals, so ticking a course re-renders this card.
+    return { summary: m.currentSummary(now), failed: false };
+  } catch {
+    // The module loaded but its summary threw (bad content, corrupt checks): treat it
+    // like a failed load so the saved copy or the error card shows.
+    return { summary: null, failed: true };
+  }
+}
+
+function PathSlot({ id, title, slot }: { id: PathId; title: string; slot: SlotState }) {
+  const { summary, failed } = slot;
+  useSaveOnChange(`path.${id}`, summary);
+  const open = (): void => openSection(id);
+  if (summary) return <PathCard summary={summary} onOpen={open} />;
+  if (!failed) return <PathCardSkeleton title={title} />;
+  const saved = readSaved<PathSummary>(`path.${id}`);
+  return saved ? <PathCard summary={saved.value} onOpen={open} /> : <PathCardError title={title} onRetry={() => page.reload()} />;
+}
+
+function Studies() {
+  const nowMs = clockMinute.value; // the summaries depend on the date
   useEffect(() => {
-    if (!weather.value) weather.value = cachedWeather();
-    void refreshWeather();
-    const id = window.setInterval(tickClock, 1000); // tick every second (live seconds)
-    return () => window.clearInterval(id);
+    for (const p of PATH_MODS) void p.mod.load();
   }, []);
-
-  const today = dstr();
-  const due = dueTodos(core(), today).filter(notPending);
-  const glance = hubStats().filter((s) => TRACKERS.has(s.key));
-  const tod = periodOf(new Date(now).getHours());
-
+  const now = new Date(nowMs);
+  const slots = PATH_MODS.map((p) => readSlot(p.mod, now));
+  // One quiet note for the section when any card is showing its saved copy, whether
+  // its chunk failed to load or its summary threw.
+  let savedAt = 0;
+  PATH_MODS.forEach((p, i) => {
+    if (slots[i]!.failed) savedAt = Math.max(savedAt, readSaved(`path.${p.id}`)?.at ?? 0);
+  });
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
   return (
-    <>
-      <div class="today-wash" data-tod={tod} />
-      <div class="today-body">
-      <div class="today-hero">
-        <div class="today-eyebrow" style={{ color: eyebrowColor(tod) }}>
-          <span
-            class="today-eyi"
-            style={{ color: todColor(tod) }}
-            dangerouslySetInnerHTML={{ __html: todGlyph(tod) }}
-          />
-          <span>{monoDate(now)}</span>
-        </div>
-        <div class="today-herorow">
-          <div>
-            <LiveClock />
-          </div>
-          <div class="today-wxblock" onClick={setWeatherCity} title="Set location">
-            {w ? (
-              <>
-                <div class="today-wxt">
-                  <span
-                    class="today-wxi"
-                    style={{ color: weatherColor(w.code) }}
-                    dangerouslySetInnerHTML={{ __html: weatherSvg(w.code) }}
-                  />
-                  <span class="today-wxdeg">{w.tempF}°</span>
-                </div>
-                {w.city && <div class="today-wxc">{w.city}</div>}
-              </>
-            ) : (
-              <div class="today-wxt today-wxset">📍 Set location</div>
-            )}
-          </div>
-        </div>
-        {w && (
-          <div class="today-wxline" style={{ background: `linear-gradient(90deg, ${weatherColor(w.code)}55, transparent 72%)` }} />
+    <section class="td-block" aria-labelledby="td-studies-h">
+      <div class="m-section">
+        <h2 class="td-h2" id="td-studies-h">
+          Today's studies
+        </h2>
+        {savedAt ? (
+          <span class="m-state m-num" data-kind="offline">
+            {offline ? 'Offline · ' : ''}Saved copy from {savedWhen(savedAt, nowMs)}
+          </span>
+        ) : (
+          <span class="m-label">Next step on each path</span>
         )}
       </div>
-
-      {/* Today's agenda — a plain checkable list */}
-      <div class="today-sec">Today</div>
-      {due.length ? (
-        due.map((t) => (
-          <div class="todo-row">
-            <button class="todo-chk" onClick={() => todosActions.toggle(String(t.id))} aria-label="Mark done" />
-            <span class="todo-text">{t.text}</span>
-            {t.due && t.due < today ? <span class="todo-due overdue">overdue</span> : <span class="todo-due today">today</span>}
-          </div>
-        ))
-      ) : (
-        <div class="empty">Nothing due — you’re clear.</div>
-      )}
-
-      {/* Two side-by-side quick actions: add a todo (neutral), capture an idea (warm) */}
-      <div class="today-actions">
-        <button class="today-qbtn" onPointerDown={ripple} onClick={() => openSection('todos')}>
-          <span class="qi">＋</span>
-          <span class="ql">Add a todo</span>
-        </button>
-        <button class="today-qbtn scratch" onPointerDown={ripple} onClick={() => openSection('scratch')}>
-          <span class="qi">✎</span>
-          <span class="ql">Capture an idea</span>
-        </button>
-      </div>
-
-      <div class="today-sec">At a glance</div>
-      <div class="today-tiles">
-        {glance.map((s) => (
-          <button class="tile" onClick={() => openSection(s.key)}>
-            {s.key === 'tracker' && <img class="tile-crest" src={crestUrl} alt="" />}
-            <span class="tile-l">{s.label}</span>
-            <span class="tile-v" style={toneColor(s.tone) ? { color: toneColor(s.tone) } : undefined}>
-              {s.dot && <span class="hdot" />}
-              {s.value}
-              {s.unit && <span class="tile-u">{s.unit}</span>}
-            </span>
-            <span class="tile-sub">{s.sub}</span>
-          </button>
+      <div class="td-paths">
+        {PATH_MODS.map((p, i) => (
+          <PathSlot key={p.id} id={p.id} title={p.title} slot={slots[i]!} />
         ))}
       </div>
+    </section>
+  );
+}
+
+function YourDay() {
+  const today = dstr();
+  const due = dueTodos(core(), today).filter(notPending);
+  return (
+    <section class="td-block" aria-labelledby="td-day-h">
+      <div class="m-section">
+        <h2 class="td-h2" id="td-day-h">
+          Your day
+        </h2>
+        <span class="m-label m-num">{due.length ? `${due.length} due` : 'Clear'}</span>
       </div>
-    </>
+      {due.length ? (
+        <ul class="td-todos">
+          {due.map((t) => (
+            <li class="m-row td-todo" key={String(t.id)}>
+              <button
+                type="button"
+                class="td-check"
+                onClick={() => todosActions.toggle(String(t.id))}
+                aria-label={`Mark done: ${t.text}`}
+              />
+              <span class="td-todo-text">{t.text}</span>
+              <span class={`m-row-meta${t.due && t.due < today ? ' td-overdue' : ''}`}>
+                {t.due && t.due < today ? 'Overdue' : 'Today'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="td-clear">Nothing due today.</p>
+      )}
+      <div class="td-actions">
+        <button type="button" class="m-btn td-add" onClick={() => openSection('todos')}>
+          Add a todo
+        </button>
+        <button type="button" class="m-btn td-idea" onClick={() => openSection('scratch')}>
+          Capture an idea
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function Elsewhere() {
+  const stats = new Map<HubKey, HubStat>(hubStats().map((s) => [s.key, s]));
+  return (
+    <nav class="td-block" aria-labelledby="td-nav-h">
+      <div class="m-section">
+        <h2 class="td-h2" id="td-nav-h">
+          Everything else
+        </h2>
+      </div>
+      <ul class="td-tiles">
+        {NAV.map((n) => {
+          const s = n.stat ? stats.get(n.stat) : undefined;
+          return (
+            <li key={n.tab}>
+              <button type="button" class="m-card td-tile" data-route={n.tab} onClick={() => openSection(n.tab)}>
+                <span class="td-tile-name">{n.name}</span>
+                <span class="td-tile-kind">{n.kind}</span>
+                <span class="td-tile-value m-num">
+                  {s ? (
+                    <>
+                      {s.value}
+                      {s.unit && <span class="td-tile-unit">{s.unit}</span>}
+                    </>
+                  ) : (
+                    <span class="td-tile-unit">Open</span>
+                  )}
+                </span>
+                <span class="td-tile-sub m-num">{s?.sub ?? n.sub}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }

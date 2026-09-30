@@ -35,7 +35,7 @@ const H = 142;
 const PAD_L = 6;
 const PAD_R = 8;
 const PAD_T = 8;
-const PAD_B = 18;
+const PAD_B = 22; // room for 14px axis labels
 const PLOT_W = W - PAD_L - PAD_R;
 const PLOT_H = H - PAD_T - PAD_B;
 
@@ -65,7 +65,7 @@ function labelIndices(n: number, max = 5): Set<number> {
 export function chart(opts: ChartOpts): string {
   const { kind, title, points } = opts;
   const fmt = opts.format ?? ((v: number) => String(Math.round(v)));
-  const color = opts.color ?? 'var(--fuel)';
+  const color = opts.color ?? 'var(--series-1)';
   const unit = opts.unit ? ` ${esc(opts.unit)}` : '';
 
   if (!points.length) {
@@ -115,10 +115,11 @@ export function chart(opts: ChartOpts): string {
   if (opts.reference) {
     const ry = y(opts.reference.value).toFixed(1);
     marks.push(
-      `<line x1="${PAD_L}" y1="${ry}" x2="${PAD_L + PLOT_W}" y2="${ry}" stroke="var(--ok)" stroke-width="1" stroke-dasharray="3 3" opacity="0.7"/>`,
+      `<line x1="${PAD_L}" y1="${ry}" x2="${PAD_L + PLOT_W}" y2="${ry}" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3"/>`,
     );
     marks.push(
-      `<text x="${PAD_L + PLOT_W}" y="${(y(opts.reference.value) - 2).toFixed(1)}" text-anchor="end" font-size="7" fill="var(--ok)">${esc(opts.reference.label)}</text>`,
+      // Label above the line, or below it when the line sits too near the top to fit 13px text.
+      `<text x="${PAD_L + PLOT_W}" y="${(y(opts.reference.value) < PAD_T + 13 ? y(opts.reference.value) + 13 : y(opts.reference.value) - 3).toFixed(1)}" text-anchor="end" font-size="13" fill="var(--ink-2)">${esc(opts.reference.label)}</text>`,
     );
   }
 
@@ -135,7 +136,7 @@ export function chart(opts: ChartOpts): string {
     marks.push(`<path d="${area}" fill="url(#${gid})" stroke="none"/>`);
     marks.push(`<path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
     // end marker on the latest point, ringed so it reads as the "current" value
-    marks.push(`<circle cx="${xLine(n - 1).toFixed(1)}" cy="${y(vals[n - 1]).toFixed(1)}" r="3.2" fill="${color}" stroke="var(--surface-1)" stroke-width="1.5"/>`);
+    marks.push(`<circle cx="${xLine(n - 1).toFixed(1)}" cy="${y(vals[n - 1]).toFixed(1)}" r="3.2" fill="${color}" stroke="var(--surface)" stroke-width="1.5"/>`);
   } else {
     const slot = PLOT_W / n;
     const bw = Math.max(1, slot - 2); // 2px surface gap between bars
@@ -152,7 +153,9 @@ export function chart(opts: ChartOpts): string {
   }
 
   // sparse x-axis labels — pin the first/last to the plot edges so they never clip
-  const want = labelIndices(n);
+  // As many labels as fit at 14px without touching (about 7px per character plus a gap).
+  const avgLen = points.reduce((m, p) => m + p.label.length, 0) / n;
+  const want = labelIndices(n, Math.max(2, Math.min(5, Math.floor(PLOT_W / (avgLen * 7 + 16)))));
   const xLabels = points
     .map((p, i) => {
       if (!want.has(i)) return '';
@@ -160,7 +163,7 @@ export function chart(opts: ChartOpts): string {
       const last = i === n - 1;
       const anchor = first ? 'start' : last ? 'end' : 'middle';
       const cx = first ? PAD_L : last ? PAD_L + PLOT_W : kind === 'line' ? xLine(i) : PAD_L + (i + 0.5) * (PLOT_W / n);
-      return `<text x="${cx.toFixed(1)}" y="${H - 5}" text-anchor="${anchor}" font-size="9" fill="var(--faint)">${esc(p.label)}</text>`;
+      return `<text x="${cx.toFixed(1)}" y="${H - 5}" text-anchor="${anchor}" font-size="14" fill="var(--ink-3)">${esc(p.label)}</text>`;
     })
     .join('');
 
@@ -170,7 +173,7 @@ export function chart(opts: ChartOpts): string {
   return (
     `<figure class="chart">` +
     `<figcaption class="chart-h"><span class="chart-t">${esc(title)}</span>` +
-    `<span class="chart-v" style="color:${color}">${esc(fmt(headline))}${unit}</span></figcaption>` +
+    `<span class="chart-v"><span class="chart-key" style="background:${color}" aria-hidden="true"></span>${esc(fmt(headline))}${unit}</span></figcaption>` +
     `<div class="chart-sub">${esc(sub)}</div>` +
     (opts.controls ?? '') +
     `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">` +

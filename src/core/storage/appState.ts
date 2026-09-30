@@ -104,7 +104,11 @@ export interface AppState {
   markWorkoutDirty(): void;
   markMealDirty(): void;
   markKnowledgeDirty(): void;
-  markTheoristDirty(): void;
+  /**
+   * `system: true` is for changes the app makes on its own (the tracker's day
+   * rollover on boot). They save exactly like an edit but don't earn a "Saved ✓".
+   */
+  markTheoristDirty(opts?: { system?: boolean }): void;
   anyDirty(): boolean;
   save(): Promise<SaveResult>;
   flush(reason: string): void;
@@ -118,6 +122,9 @@ export interface AppState {
 export function createAppState(deps: AppStateDeps): AppState {
   /** All four legacy dirty flags collapse to one: they were only ever OR'd and reset together. */
   let dirtyLocal = false;
+  // A user edit is waiting for its "Saved ✓". Without it, a save the app starts on its
+  // own (boot rollover, a fresh profile's first write) would flash with no action.
+  let userEdited = false;
   let saveTimer: number | null = null;
   let flushing = false;
   let cloudIssue: 'offline' | 'failed' | undefined;
@@ -174,8 +181,12 @@ export function createAppState(deps: AppStateDeps): AppState {
       paintChip('All changes saved');
     }
     // The pill now hides on a clean save, so confirm the save with the transient flash.
-    // A failure keeps the pill visible instead (no flash).
-    if (clean && r.cloud !== 'failed') deps.host.flashSaved(); // no "Saved ✓" beside "Not synced"
+    // A failure keeps the pill visible instead (no flash), and the edit stays pending so
+    // the successful retry confirms it. No "Saved ✓" beside "Not synced".
+    if (clean && r.cloud !== 'failed') {
+      if (userEdited) deps.host.flashSaved();
+      userEdited = false;
+    }
   }
 
   function armAutosave(): void {
@@ -185,6 +196,7 @@ export function createAppState(deps: AppStateDeps): AppState {
 
   function markDirty(): void {
     dirtyLocal = true;
+    userEdited = true;
     paintChip();
     // Only the generic/core edit path arms the long autosave safety-net; the
     // per-view marks below intentionally do not (explicit Save + exit-flush cover them).
@@ -194,21 +206,25 @@ export function createAppState(deps: AppStateDeps): AppState {
   // path arms the debounced autosave — it fires AUTOSAVE_MS after you stop editing.
   function markWorkoutDirty(): void {
     dirtyLocal = true;
+    userEdited = true;
     paintChip();
     armAutosave();
   }
   function markMealDirty(): void {
     dirtyLocal = true;
+    userEdited = true;
     paintChip();
     armAutosave();
   }
   function markKnowledgeDirty(): void {
     dirtyLocal = true;
+    userEdited = true;
     paintChip();
     armAutosave();
   }
-  function markTheoristDirty(): void {
+  function markTheoristDirty(opts: { system?: boolean } = {}): void {
     dirtyLocal = true;
+    if (!opts.system) userEdited = true;
     paintChip();
     armAutosave();
   }

@@ -1,0 +1,12 @@
+[
+  {"label": "Home usable, seeded (A/B median)", "before": "1,162 ms", "after": "537 ms"},
+  {"label": "Home usable, empty (A/B median)", "before": "803 ms", "after": "486 ms"},
+  {"label": "Lighthouse Performance (mobile)", "before": 99, "after": 96, "target": ">= 90"},
+  {"label": "Lighthouse Accessibility (mobile)", "before": 84, "after": 100, "target": ">= 95"},
+  {"label": "Lighthouse TBT", "before": "87 ms", "after": "7 ms"},
+  {"label": "Worst INP proxy, seeded", "before": "256 ms", "after": "152 ms"},
+  {"label": "Worst route CLS", "before": "0.065", "after": "0.000"},
+  {"label": "Main JS gzip", "before": "100.1 KB", "after": "73.3 KB"},
+  {"label": "Main CSS gzip", "before": "22.2 KB", "after": "15.2 KB"},
+  {"label": "Contrast pairs failing AA", "before": "not checked", "after": "0"}
+]

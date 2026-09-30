@@ -148,15 +148,19 @@ export function syncTrackerFromStore(): void {
   trackerState.value = project(readStore());
 }
 
-/** Persist a next `TheoristState`, re-project the signal, and mark the store dirty. */
-function commit(next: TheoristState): void {
+/**
+ * Persist a next `TheoristState`, re-project the signal, and mark the store dirty.
+ * `system` marks a change the app made on its own (the day rollover), which saves
+ * the same way but doesn't show the "Saved ✓" meant for the user's own edits.
+ */
+function commit(next: TheoristState, opts: { system?: boolean } = {}): void {
   // Default `day.events` to `{}` on every write (leave `dayType` untouched) so
   // the persisted shape is always Phase-2 canonical. Absent-tolerant in merge,
   // so no migration marker is needed.
   const norm: TheoristState = { ...next, day: { ...next.day, events: next.day.events ?? {} } };
   appState.set('theorist', norm as unknown as Record<string, unknown>);
   trackerState.value = project(norm);
-  appState.markTheoristDirty();
+  appState.markTheoristDirty(opts);
 }
 
 /**
@@ -191,11 +195,11 @@ export function ensureToday(): void {
     if (xp > 0 && xp > (banked[old.date] ?? 0)) banked = { ...banked, [old.date]: xp };
     const day = freshDay();
     if (inSabbathWindow(now)) day.dayType = 'light';
-    commit({ ...t, banked, day, dayTouchedAt: Date.now() });
+    commit({ ...t, banked, day, dayTouchedAt: Date.now() }, { system: true });
     return;
   }
   if (t.day.dayType === undefined && inSabbathWindow(now)) {
-    commit({ ...t, day: { ...t.day, dayType: 'light' }, dayTouchedAt: Date.now() });
+    commit({ ...t, day: { ...t.day, dayType: 'light' }, dayTouchedAt: Date.now() }, { system: true });
   }
 }
 

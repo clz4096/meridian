@@ -1,0 +1,111 @@
+/*
+ * PathCard. Every row has a fixed height, so the card, its skeleton and its error
+ * state are the same box and swapping between them never shifts the page.
+ * Rows: title+count, course (2 lines), next action (2 lines), meta (2 lines), bar, caption.
+ * Course names and next-action details are often longer than one phone line, so each gets
+ * two lines before it clips.
+ */
+.pc {
+  --pc-rows: 1.5rem calc(2 * 1.75rem) calc(2 * var(--fs-3) * var(--lh-3)) calc(2 * var(--fs-2) * var(--lh-2)) 6px
+    calc(var(--fs-1) * var(--lh-1));
+  --pc-h: calc(
+    1.5rem + 2 * 1.75rem + 2 * var(--fs-3) * var(--lh-3) + 2 * var(--fs-2) * var(--lh-2) +
+      var(--fs-1) * var(--lh-1) + 6px + 5 * var(--sp-2) + 2 * var(--sp-4) + 2 * var(--hairline)
+  );
+  display: grid;
+  grid-template-rows: var(--pc-rows);
+  row-gap: var(--sp-2);
+  height: var(--pc-h);
+  overflow: hidden;
+}
+button.m-card.pc {
+  display: grid;
+  color: var(--ink);
+}
+.pc > * {
+  min-width: 0;
+}
+.pc-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.pc-count {
+  font-size: var(--fs-2);
+  color: var(--ink-2);
+}
+.pc-course {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--fs-4);
+  line-height: 1.75rem;
+  font-weight: var(--fw-semibold);
+  color: var(--ink);
+}
+.pc-next {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--fs-3);
+  line-height: var(--lh-3);
+  color: var(--ink);
+}
+.pc-next-label {
+  margin-right: var(--sp-2);
+  color: var(--accent-ink);
+}
+/* The detail is a sentence (a source, a one-liner), so it gets the 16px reading floor. */
+.pc-meta {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink-3);
+}
+.pc-caption {
+  display: block;
+  font-size: var(--fs-1);
+  line-height: var(--lh-1);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pc .m-progress {
+  align-self: center;
+}
+
+/* skeleton */
+.pc-skel .m-skel-line {
+  align-self: center;
+  margin: 0;
+}
+.pc-w-80 {
+  width: 80%;
+}
+.pc-w-60 {
+  width: 60%;
+}
+.pc-w-40 {
+  width: 40%;
+}
+.pc-skel-bar {
+  height: 6px;
+  border-radius: var(--r-pill);
+}
+
+/* error: the m-state block at the card's height */
+.m-state.pc-error {
+  display: flex;
+  height: var(--pc-h);
+  justify-content: center;
+}

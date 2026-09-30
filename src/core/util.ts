@@ -86,3 +86,30 @@ export function shiftDate(date: string, days: number): string {
   dt.setUTCDate(dt.getUTCDate() + days);
   return dt.toISOString().slice(0, 10);
 }
+
+/**
+ * Days since 1970-01-01 in the LOCAL calendar. Daily and weekly rotations key on this so
+ * they turn over at local midnight; a UTC day count flips at 8 pm in New York. Building a
+ * UTC timestamp from the local Y/M/D keeps the count stable across DST changes.
+ */
+export function localEpochDay(d: Date): number {
+  return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86_400_000);
+}
+
+/** True when both instants (ms) fall on the same local calendar day. */
+export function sameLocalDay(a: number, b: number): boolean {
+  return localEpochDay(new Date(a)) === localEpochDay(new Date(b));
+}
+
+/**
+ * "1,234" for 1234, as toLocaleString('en-US') prints it (up to 3 decimals). Hand
+ * rolled on purpose: the first toLocaleString call in a page loads ICU number data,
+ * about 18 ms on a laptop and 70 ms on a throttled phone, and Today's first render
+ * made that call, so it sat on the startup path.
+ */
+export function groupThousands(n: number): string {
+  if (!Number.isFinite(n)) return String(n);
+  const [int = '0', frac] = String(Math.abs(Math.round(n * 1000) / 1000)).split('.');
+  const sign = n < 0 && (int !== '0' || frac) ? '-' : '';
+  return sign + int.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (frac ? `.${frac}` : '');
+}

@@ -15,8 +15,14 @@ export interface OrganizedTodos {
 
 type CoreTodos = Pick<CoreState, 'todos'>;
 
-const byDueThenCreated = (a: TodoItem, b: TodoItem): number =>
-  (a.due ?? '').localeCompare(b.due ?? '') || a.created - b.created;
+// Due dates are ISO YYYY-MM-DD, so code-unit order is date order. localeCompare gave
+// the same order but built an ICU collator on its first call, about 50 ms at 4x CPU on
+// Today's first render.
+const byDueThenCreated = (a: TodoItem, b: TodoItem): number => {
+  const da = a.due ?? '';
+  const db = b.due ?? '';
+  return da < db ? -1 : da > db ? 1 : a.created - b.created;
+};
 
 /** Split todos into due-buckets + done, each sorted. `todayStr` is local YYYY-MM-DD. */
 export function organizeTodos(core: CoreTodos, todayStr: string): OrganizedTodos {

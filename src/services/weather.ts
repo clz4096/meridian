@@ -1,22 +1,42 @@
 /**
- * Weather for the Today screen — Open-Meteo (free, no API key, CORS-friendly),
- * so nothing here needs a Supabase function or a secret. Browser-coupled (fetch +
- * geolocation + localStorage), like the adapters.
+ * Weather for the Today screen: Open-Meteo (free, no API key, CORS-friendly), so
+ * nothing here needs a Supabase function or a secret. Browser-coupled (fetch +
+ * localStorage), like the adapters. Contract: docs/redesign-contract.md, "Weather".
  *
- * Resolution order: a saved city wins (forward-geocoded); otherwise browser
- * geolocation (reverse-geocoded for a label). Any failure falls back to the last
- * cached reading, so a declined permission or offline still shows something.
+ * Location: a saved city wins (forward-geocoded once, the coordinates cached with
+ * it); otherwise Brooklyn, NY. There is no geolocation prompt.
+ * Freshness: one forecast call, cached with its fetch time, and reused for 30
+ * minutes. A failed or offline fetch falls back to the cache, so Today still shows
+ * the last reading with its time.
  */
+import { sameLocalDay } from '@/core/util';
 
 export interface Weather {
   tempF: number;
   code: number; // WMO weather code
   city: string;
   at: number; // fetch timestamp (ms)
+  /* Today's forecast. Optional because readings cached before the Stage 4 rebuild
+     lack them; such a reading is treated as stale (see isFresh). */
+  highF?: number;
+  lowF?: number;
+  /** Highest hourly precipitation probability today, 0 to 100. */
+  precipPct?: number;
+  /** Total precipitation expected today, inches. */
+  precipIn?: number;
+  /** Which location the reading is for, so changing the city makes the cache stale. */
+  loc?: string;
 }
+
+/** The default location. */
+export const BROOKLYN = { lat: 40.6782, lon: -73.9442, label: 'Brooklyn' } as const;
+export const WEATHER_TZ = 'America/New_York';
+/** A cached reading younger than this is shown without a new fetch. */
+export const WEATHER_MAX_AGE_MS = 30 * 60_000;
 
 const CACHE_KEY = 'meridian_weather';
 const CITY_KEY = 'meridian_city';
+const CITY_GEO_KEY = 'meridian_city_geo';
 
 /** WMO weather-code → a compact icon + label + a condition colour. */
 const WMO: Array<{ max: number; icon: string; label: string; color: string }> = [
@@ -63,14 +83,22 @@ export function setSavedCity(city: string): void {
     if (city) localStorage.setItem(CITY_KEY, city);
     else localStorage.removeItem(CITY_KEY);
   } catch {
-    /* private mode — best effort */
+    /* private mode: best effort */
   }
+}
+
+/** Cache key of the location readings are fetched for right now. */
+export function locationKey(city: string = savedCity()): string {
+  const c = city.trim().toLowerCase();
+  return c ? `city:${c}` : 'brooklyn';
 }
 
 export function cachedWeather(): Weather | null {
   try {
     const s = localStorage.getItem(CACHE_KEY);
-    return s ? (JSON.parse(s) as Weather) : null;
+    if (!s) return null;
+    const w = JSON.parse(s) as Weather;
+    return w && typeof w.tempF === 'number' && typeof w.at === 'number' ? w : null;
   } catch {
     return null;
   }
@@ -83,69 +111,140 @@ function cache(w: Weather): void {
   }
 }
 
-async function geocodeCity(name: string): Promise<{ lat: number; lon: number; label: string } | null> {
+/** True when the reading's high, low and rain are for the day `now` falls on. */
+export function isTodaysForecast(w: Weather, now: number): boolean {
+  return sameLocalDay(w.at, now);
+}
+
+/** True when `w` can be shown without a new fetch: same location, has today's
+ *  forecast fields, is under 30 minutes old, and was fetched today (a reading from
+ *  23:50 holds yesterday's high and low at 00:10). A clock that moved backwards
+ *  (negative age) counts as stale rather than fresh forever. */
+export function isFresh(w: Weather | null, now: number, loc: string = locationKey()): boolean {
+  if (!w || w.loc !== loc || typeof w.highF !== 'number') return false;
+  const age = now - w.at;
+  return age >= 0 && age < WEATHER_MAX_AGE_MS && isTodaysForecast(w, now);
+}
+
+/** The one Open-Meteo request (units and fields pinned by the contract). */
+export function forecastUrl(lat: number, lon: number): string {
+  const q = new URLSearchParams({
+    latitude: String(lat),
+    longitude: String(lon),
+    current: 'temperature_2m,weather_code',
+    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum',
+    temperature_unit: 'fahrenheit',
+    precipitation_unit: 'inch',
+    timezone: WEATHER_TZ,
+    forecast_days: '1',
+  });
+  return `https://api.open-meteo.com/v1/forecast?${q.toString()}`;
+}
+
+interface Place {
+  lat: number;
+  lon: number;
+  label: string;
+}
+
+async function geocodeCity(name: string): Promise<Place | null> {
   const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1`);
-  const j = (await r.json()) as { results?: Array<{ latitude: number; longitude: number; name: string; admin1?: string }> };
+  if (!r.ok) throw new Error('geocode HTTP ' + r.status);
+  const j = (await r.json()) as { results?: Array<{ latitude: number; longitude: number; name: string }> };
   const hit = j.results?.[0];
   return hit ? { lat: hit.latitude, lon: hit.longitude, label: hit.name } : null;
 }
 
-async function reverseCity(lat: number, lon: number): Promise<string> {
+/** Saved city (geocoded once, then from its cache) or Brooklyn. */
+async function resolvePlace(city: string): Promise<Place> {
+  if (!city) return BROOKLYN;
   try {
-    const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
-    const j = (await r.json()) as { city?: string; locality?: string; principalSubdivision?: string };
-    return j.city || j.locality || j.principalSubdivision || '';
+    const g = JSON.parse(localStorage.getItem(CITY_GEO_KEY) || 'null') as (Place & { q: string }) | null;
+    if (g && g.q === city && Number.isFinite(g.lat) && Number.isFinite(g.lon)) return g;
   } catch {
-    return '';
+    /* unreadable: geocode again */
   }
+  const hit = await geocodeCity(city);
+  // An unknown city shows Brooklyn under its own name, rather than an error that
+  // would hide the weather until the city is changed.
+  if (!hit) return BROOKLYN;
+  try {
+    localStorage.setItem(CITY_GEO_KEY, JSON.stringify({ ...hit, q: city }));
+  } catch {
+    /* best effort */
+  }
+  return hit;
 }
 
-async function fetchWeatherAt(lat: number, lon: number): Promise<{ tempF: number; code: number }> {
-  const r = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`,
-  );
+const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+async function fetchForecast(p: Place): Promise<Omit<Weather, 'city' | 'at' | 'loc'>> {
+  const r = await fetch(forecastUrl(p.lat, p.lon));
   // A failed or partial response must throw, not read as "0°, clear" (which was then cached).
   if (!r.ok) throw new Error('weather HTTP ' + r.status);
-  const j = (await r.json()) as { current?: { temperature_2m?: number; weather_code?: number } };
-  const t = j.current?.temperature_2m;
-  if (typeof t !== 'number' || !Number.isFinite(t)) throw new Error('weather: no current reading');
-  return { tempF: Math.round(t), code: j.current?.weather_code ?? 0 };
+  const j = (await r.json()) as {
+    current?: { temperature_2m?: unknown; weather_code?: unknown };
+    daily?: {
+      temperature_2m_max?: unknown[];
+      temperature_2m_min?: unknown[];
+      precipitation_probability_max?: unknown[];
+      precipitation_sum?: unknown[];
+    };
+  };
+  const t = num(j.current?.temperature_2m);
+  if (t === null) throw new Error('weather: no current reading');
+  const d = j.daily ?? {};
+  const hi = num(d.temperature_2m_max?.[0]);
+  const lo = num(d.temperature_2m_min?.[0]);
+  const pp = num(d.precipitation_probability_max?.[0]);
+  const pin = num(d.precipitation_sum?.[0]);
+  return {
+    tempF: Math.round(t),
+    code: num(j.current?.weather_code) ?? 0,
+    ...(hi !== null && { highF: Math.round(hi) }),
+    ...(lo !== null && { lowF: Math.round(lo) }),
+    ...(pp !== null && { precipPct: Math.round(pp) }),
+    ...(pin !== null && { precipIn: Math.round(pin * 100) / 100 }),
+  };
 }
 
-function geolocate(): Promise<{ lat: number; lon: number } | null> {
-  return new Promise((resolve) => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
-      () => resolve(null),
-      { timeout: 8000, maximumAge: 30 * 60 * 1000 },
-    );
-  });
+/**
+ * Where a reading came from:
+ * - `fresh`: fetched now, or a cache under 30 minutes old
+ * - `stale`: the fetch failed or the device is offline, so this is the last cache
+ * - `none`: offline with no cache (Today shows the empty state)
+ * - `error`: the fetch failed while online and there is no cache
+ */
+export type WeatherSource = 'fresh' | 'stale' | 'none' | 'error';
+export interface WeatherResult {
+  weather: Weather | null;
+  source: WeatherSource;
+}
+
+const isOffline = (): boolean => typeof navigator !== 'undefined' && navigator.onLine === false;
+
+/**
+ * The current reading. Fetches only when the cache is stale (older than 30 minutes,
+ * another location, or missing today's forecast) or `force` is set (a tap on refresh).
+ */
+export async function getWeather(now: number, opts: { force?: boolean } = {}): Promise<WeatherResult> {
+  const city = savedCity();
+  const loc = locationKey(city);
+  const cached = cachedWeather();
+  if (!opts.force && isFresh(cached, now, loc)) return { weather: cached, source: 'fresh' };
+  if (isOffline()) return { weather: cached, source: cached ? 'stale' : 'none' };
+  try {
+    const place = await resolvePlace(city);
+    const w = await fetchForecast(place);
+    const out: Weather = { ...w, city: place.label, at: now, loc };
+    cache(out);
+    return { weather: out, source: 'fresh' };
+  } catch {
+    return { weather: cached, source: cached ? 'stale' : 'error' };
+  }
 }
 
 /** Resolve the current weather, or the last cached reading on any failure. */
 export async function loadWeather(now: number): Promise<Weather | null> {
-  try {
-    const city = savedCity();
-    if (city) {
-      const g = await geocodeCity(city);
-      if (g) {
-        const w = await fetchWeatherAt(g.lat, g.lon);
-        const out: Weather = { ...w, city: g.label, at: now };
-        cache(out);
-        return out;
-      }
-    } else {
-      const pos = await geolocate();
-      if (pos) {
-        const w = await fetchWeatherAt(pos.lat, pos.lon);
-        const out: Weather = { ...w, city: await reverseCity(pos.lat, pos.lon), at: now };
-        cache(out);
-        return out;
-      }
-    }
-  } catch {
-    /* fall through to cache */
-  }
-  return cachedWeather();
+  return (await getWeather(now)).weather;
 }

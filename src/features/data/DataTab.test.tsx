@@ -10,9 +10,12 @@ import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { DataView } from '@/features/data/DataTab';
 import { dataActions } from '@/ui/actions';
 import { host } from '@/ui/host';
+import { dataIo, dataMsg } from '@/ui/store';
 
 afterEach(() => {
   cleanup();
+  dataIo.value = '';
+  dataMsg.value = { text: '', bad: false };
   vi.restoreAllMocks();
   localStorage.clear();
 });
@@ -39,13 +42,30 @@ describe('DataView', () => {
     expect(copySpy).toHaveBeenCalledOnce();
   });
 
-  it('reads the pasted JSON by id when Import is clicked', () => {
+  it('reads the pasted JSON when Import is clicked', () => {
     const importSpy = vi.spyOn(dataActions, 'importPasted').mockImplementation(() => {});
     const { getByText, container } = render(<DataView />);
     const io = container.querySelector('#d-io') as HTMLTextAreaElement;
-    io.value = '{"overload":{}}';
+    fireEvent.input(io, { target: { value: '{"overload":{}}' } });
     fireEvent.click(getByText('Import', { selector: '.dcard .mbtn' }));
     expect(importSpy).toHaveBeenCalledWith('{"overload":{}}');
+  });
+
+  // BUGS P1-a: the status line appearing after Export re-rendered the card and the
+  // textarea came back empty, so Copy copied nothing.
+  it('keeps the exported JSON in the textarea after Export, and Copy copies it', async () => {
+    const copy = vi.spyOn(host, 'copy').mockResolvedValue(true);
+    const { getByText, container } = render(<DataView />);
+    fireEvent.click(getByText('Export'));
+    await Promise.resolve();
+    const io = container.querySelector('#d-io') as HTMLTextAreaElement;
+    expect(io.isConnected).toBe(true);
+    expect(io.value.length).toBeGreaterThan(0);
+    expect(JSON.parse(io.value)).toBeTypeOf('object');
+    expect(getByText('Exported all 5 stores.')).toBeTruthy();
+    fireEvent.click(getByText('Copy'));
+    await Promise.resolve();
+    expect(copy).toHaveBeenCalledWith(io.value);
   });
 
   it('masks a stored Supabase URL — shows the subdomain + ellipsis, never the whole host', () => {

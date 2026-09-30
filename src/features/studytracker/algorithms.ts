@@ -6,6 +6,8 @@
  * port, common pitfalls, and practice problems. Content is static (no network)
  * so it is always available and reviewable.
  */
+import { localEpochDay } from '@/core/util';
+
 export interface AlgoProblem {
   name: string;
   url: string;
@@ -1114,15 +1116,10 @@ def max_non_overlapping(intervals: List[Tuple[int, int]]) -> int:
 },
 ];
 
-/** Days since the Unix epoch (UTC), used to rotate the entry deterministically per day. */
-function epochDay(d: Date): number {
-  return Math.floor(d.getTime() / 86_400_000);
-}
-
-/** The algorithm for a given day (defaults to today), rotating through the catalogue. */
+/** The algorithm for a given LOCAL day (defaults to today), rotating through the catalogue. */
 export function algoOfDay(d: Date = new Date()): AlgoEntry {
   const n = ALGORITHMS.length;
-  const i = ((epochDay(d) % n) + n) % n;
+  const i = ((localEpochDay(d) % n) + n) % n;
   return ALGORITHMS[i]!;
 }
 

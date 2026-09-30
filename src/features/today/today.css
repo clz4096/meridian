@@ -1,0 +1,403 @@
+/*
+ * Today. Tokens and primitives only (src/styles/tokens.css, primitives.css).
+ * Blocks that load late (weather, reading) have fixed row heights, so the skeleton,
+ * the content and the error card are the same box and CLS stays 0. index.html's
+ * static shell repeats these heights; change both together.
+ */
+
+/* The shared brand row sits on the cream page on Today; the old dark tokens
+   (retired in Stage 5, D12) would leave it near-white on cream. */
+body.at-home .brand,
+body.at-home .brand b {
+  color: var(--ink);
+}
+body.at-home .brand .mn {
+  color: var(--accent-ink);
+}
+
+.td-root {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding-bottom: var(--sp-7);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-3);
+}
+.td-root ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.td-h2 {
+  margin: 0;
+  font-size: var(--fs-5);
+  line-height: var(--lh-5);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-tight);
+  color: var(--ink);
+}
+.td-root .m-section > .m-state[data-kind='offline'] {
+  margin: 0;
+}
+.td-w-30 {
+  width: 30%;
+}
+.td-w-40 {
+  width: 40%;
+}
+.td-w-60 {
+  width: 60%;
+}
+.td-w-80 {
+  width: 80%;
+}
+
+/* Weather arrives late and fades in; opacity never shifts layout. The reading and
+   path cards appear at once: the reading title is Today's largest paint, and a fade
+   from opacity 0 held back its LCP (perf/stage5-perf.md). */
+.td-wx-main {
+  animation: td-in var(--dur-3) var(--ease-calm);
+}
+@keyframes td-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---------- 1. date and weather ---------- */
+.td-wx {
+  padding-top: var(--sp-2);
+}
+.td-date {
+  margin: 0 0 var(--sp-2);
+}
+.td-wx-body {
+  --wx-main: 3.25rem;
+  --wx-grid: calc(var(--fs-2) * var(--lh-2) + 1.75rem + 2 * var(--sp-2) + 2 * var(--hairline));
+  display: grid;
+  grid-template-rows: var(--wx-main) var(--wx-grid) var(--tap);
+  row-gap: var(--sp-3);
+  height: calc(var(--wx-main) + var(--wx-grid) + var(--tap) + 2 * var(--sp-3));
+}
+.td-wx-main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.td-wx-where {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.td-wx-place {
+  position: relative;
+  align-self: flex-start;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-4);
+  line-height: 1.75rem;
+  font-weight: var(--fw-semibold);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-decoration-thickness: var(--hairline);
+  text-underline-offset: 5px;
+  cursor: pointer;
+}
+/* The name reads as text, but the tap target is the full 44px. */
+.td-wx-place::after {
+  content: '';
+  position: absolute;
+  inset: calc((var(--tap) - 1.75rem) / -2) 0;
+}
+.td-wx-place:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.td-wx-cond {
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink-2);
+}
+.td-wx-temp {
+  margin: 0;
+  font-size: var(--fs-7);
+  line-height: var(--wx-main);
+  font-weight: var(--fw-regular);
+  letter-spacing: var(--ls-tight);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.td-wx-unit {
+  margin-left: 2px;
+  font-size: var(--fs-4);
+  color: var(--ink-2);
+  letter-spacing: 0;
+}
+.td-wx-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: var(--sp-2) 0;
+  border-top: var(--hairline) solid var(--rule);
+  border-bottom: var(--hairline) solid var(--rule);
+}
+.td-wx-grid > div {
+  min-width: 0;
+}
+.td-wx-grid > div + div {
+  padding-left: var(--sp-3);
+  border-left: var(--hairline) solid var(--rule);
+}
+.td-wx-grid dt {
+  display: block;
+}
+.td-wx-grid dd {
+  margin: 0;
+  font-size: var(--fs-4);
+  line-height: 1.75rem;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.td-wx-unit-sm {
+  font-size: var(--fs-1);
+  color: var(--ink-2);
+}
+.td-wx-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.td-wx-updated,
+.td-wx-foot .m-state[data-kind='offline'] {
+  margin: 0;
+  font-size: var(--fs-2);
+  color: var(--ink-3);
+}
+/* Pull the label flush with the grid's right edge. Only by 8px: the shell's side padding
+   is 14px on phones, so a full --sp-4 pull put the button 2px past the viewport. */
+.td-wx-refresh {
+  padding-right: var(--sp-2);
+  margin-right: calc(-1 * var(--sp-2));
+}
+.td-wx-state {
+  grid-row: 1 / -1;
+  justify-content: center;
+}
+.td-wx-skel {
+  display: contents;
+}
+.td-wx-skel .td-wx-where {
+  flex: 1;
+}
+.td-wx-skel-temp {
+  width: 5.5rem;
+  height: var(--fs-7);
+  margin-bottom: 0.25rem;
+}
+.td-wx-skel .td-wx-foot {
+  justify-content: flex-start;
+}
+.td-wx-skel .td-wx-foot .m-skel-line {
+  flex: none;
+}
+
+/* ---------- 2. reading ---------- */
+.td-read {
+  --read-h: calc(
+    1.5rem + 2 * 1.75rem + var(--fs-2) * var(--lh-2) + var(--tap) + 3 * var(--sp-2) + 2 * var(--sp-4) +
+      2 * var(--hairline)
+  );
+  display: grid;
+  grid-template-rows: 1.5rem calc(2 * 1.75rem) calc(var(--fs-2) * var(--lh-2)) var(--tap);
+  row-gap: var(--sp-2);
+  height: var(--read-h);
+  overflow: hidden;
+}
+.td-read > * {
+  min-width: 0;
+}
+.td-read-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin: 0;
+}
+.td-read-time {
+  font-size: var(--fs-2);
+  color: var(--ink-2);
+}
+.td-read-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  margin: 0;
+  font-size: var(--fs-4);
+  line-height: 1.75rem;
+  font-weight: var(--fw-semibold);
+}
+/* Authors and area, or next week's title: a readable line, so the 16px floor. */
+.td-read-meta {
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-2);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.td-read-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+/* Pulls the quiet button's label onto the text edge. The pull equals the m-card
+   padding, so the hit area stops at the card's inner edge and never past it; checked
+   at 375 and 320px with the longest label ("Mark Reproduce done"), which wraps to two
+   lines inside the 44px button at 320 rather than overflowing. */
+.td-read-actions .m-btn-quiet {
+  margin-left: calc(-1 * var(--sp-4));
+}
+.td-read .m-skel-line {
+  align-self: center;
+  margin: 0;
+}
+.td-read-skel-btn {
+  justify-self: end;
+  width: 9rem;
+  height: var(--tap);
+  border-radius: var(--r-2);
+}
+.m-state.td-read-state {
+  height: calc(
+    1.5rem + 2 * 1.75rem + var(--fs-2) * var(--lh-2) + var(--tap) + 3 * var(--sp-2) + 2 * var(--sp-4) +
+      2 * var(--hairline)
+  );
+  justify-content: center;
+}
+
+/* ---------- 3. studies ---------- */
+.td-paths {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+/* ---------- 4. your day ---------- */
+.td-todo {
+  gap: var(--sp-2);
+}
+.td-check {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  margin: calc(-1 * var(--sp-2)) 0 calc(-1 * var(--sp-2)) calc(-1 * var(--sp-3));
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.td-check::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--rule-strong);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  transition: border-color var(--dur-1) var(--ease-standard);
+}
+.td-check:hover::before {
+  border-color: var(--accent);
+}
+.td-check:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+  border-radius: var(--r-2);
+}
+.td-todo-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.td-todo .m-row-meta {
+  flex: none;
+}
+.td-overdue {
+  color: var(--danger);
+}
+.td-clear {
+  margin: 0;
+  padding: var(--sp-2) 0;
+  color: var(--ink-2);
+}
+.td-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+
+/* ---------- 5. everything else ---------- */
+.td-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+.td-tiles > li {
+  display: flex;
+  min-width: 0;
+}
+button.m-card.td-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  color: var(--ink);
+}
+.td-tile > span {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.td-tile-name {
+  font-size: var(--fs-3);
+  line-height: var(--lh-3);
+  font-weight: var(--fw-semibold);
+}
+.td-tile-kind,
+.td-tile-sub {
+  font-size: var(--fs-1);
+  line-height: var(--lh-1);
+  color: var(--ink-3);
+}
+.td-tile-value {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-4);
+  line-height: var(--lh-4);
+  font-weight: var(--fw-semibold);
+}
+.td-tile-unit {
+  font-size: var(--fs-2);
+  font-weight: var(--fw-regular);
+  color: var(--ink-2);
+}

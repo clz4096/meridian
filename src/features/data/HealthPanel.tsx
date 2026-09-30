@@ -60,7 +60,7 @@ function Table({ children }: { children: ComponentChildren }) {
     <div class="hp-scroll">
       <table class="hp-table">
         <thead>
-          <tr><th scope="col" /><th scope="col">typical</th><th scope="col">slow (p95)</th><th scope="col">n</th></tr>
+          <tr><th scope="col"><span class="sr-only">Metric</span></th><th scope="col">typical</th><th scope="col">slow (p95)</th><th scope="col">n</th></tr>
         </thead>
         <tbody>{children}</tbody>
       </table>
@@ -133,7 +133,7 @@ function Body() {
 
       <div class="dadv-sec">In the app</div>
       <Table>
-        <Row label="Enter to Today" s={m['boot:enter']} good={300} poor={1000} />
+        <Row label="Start to Today" s={m['boot:enter']} good={300} poor={1000} />
         {tabs.map((k) => <Row key={k} label={'Open ' + (TAB_LABELS[k.slice(4)] ?? k.slice(4))} s={m[k]} good={100} poor={300} />)}
         <Row label={`Long tasks (${c.longtask ?? 0} total)`} s={m.longtask} good={100} poor={250} />
       </Table>

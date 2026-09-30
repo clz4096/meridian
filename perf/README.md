@@ -9,6 +9,7 @@
 | `npm run perf -- --only resources` | Renderer process CPU and memory against the limits in `src/core/resourceBudgets.json` |
 | `npm run perf -- --only resources --check` | Same, and exits 1 if any limit is exceeded |
 | `npm run perf -- --against <ref>` | A/B: alternates runs of `<ref>` and the working tree |
+| `npm run perf -- --port <n>` | Serves on ports `<n>` and `<n>+1` when the defaults (4317, 4318) are taken |
 
 Use `--against` to judge a change. Background load on a laptop moves timings by up to 3x between separate runs, so two separate runs compare noise. Alternating runs puts both builds under the same conditions. With 5 runs each, a result counts as clear when every new run beats every old one (rank test, p ≈ 0.008).
 

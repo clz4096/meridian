@@ -23,6 +23,10 @@ export interface Course {
 export interface Week {
   n: string;
   dates: string;
+  /** First day of the week, YYYY-MM-DD local date. Logic reads this, never `dates`. */
+  start: string;
+  /** Last day of the week, inclusive, YYYY-MM-DD local date. */
+  end: string;
   theme: string;
   courses: Course[];
   admin?: string;
@@ -37,7 +41,7 @@ export const CHIP_LABEL: Record<Chip, string> = {
 
 export const HEADER = {
   eyebrow: 'WGU BS Software Engineering · finish plan',
-  title: '13 courses, 37 days.',
+  title: '13 courses in a 37-day plan',
   stats: [
     ['Start', 'Sep 17, 2026'],
     ['Target', '~Oct 24, 2026'],
@@ -54,7 +58,7 @@ export const DAY1 = [
 
 export const WEEKS: readonly Week[] = [
   {
-    n: 'Week 1', dates: 'Sep 17 to 23', theme: 'Two fast knowledge exams',
+    n: 'Week 1', dates: 'Sep 17 to 23', start: '2026-09-17', end: '2026-09-23', theme: 'Two fast knowledge exams',
     courses: [
       {
         code: 'C955', name: 'Applied Probability & Statistics', chip: 'oa', chipLabel: 'OA',
@@ -71,7 +75,7 @@ export const WEEKS: readonly Week[] = [
     ],
   },
   {
-    n: 'Week 2', dates: 'Sep 24 to 30', theme: 'Two more knowledge exams',
+    n: 'Week 2', dates: 'Sep 24 to 30', start: '2026-09-24', end: '2026-09-30', theme: 'Two more knowledge exams',
     admin: 'Admin: schedule the AWS CLF-C02 exam for end of Week 3.',
     courses: [
       {
@@ -95,7 +99,7 @@ export const WEEKS: readonly Week[] = [
     ],
   },
   {
-    n: 'Week 3', dates: 'Oct 1 to 7', theme: 'Big networking OA + the AWS cert',
+    n: 'Week 3', dates: 'Oct 1 to 7', start: '2026-10-01', end: '2026-10-07', theme: 'Big networking OA + the AWS cert',
     courses: [
       {
         code: 'D315', name: 'Network & Security Foundations', chip: 'oa', chipLabel: 'OA',
@@ -118,7 +122,7 @@ export const WEEKS: readonly Week[] = [
     ],
   },
   {
-    n: 'Week 4', dates: 'Oct 8 to 14', theme: 'ITIL cert + the SQL project',
+    n: 'Week 4', dates: 'Oct 8 to 14', start: '2026-10-08', end: '2026-10-14', theme: 'ITIL cert + the SQL project',
     courses: [
       {
         code: 'D336', name: 'Business of IT: Applications', chip: 'cert', chipLabel: 'ITIL 4',
@@ -135,7 +139,7 @@ export const WEEKS: readonly Week[] = [
     ],
   },
   {
-    n: 'Week 5', dates: 'Oct 15 to 21', theme: 'Software projects (execution, not learning)',
+    n: 'Week 5', dates: 'Oct 15 to 21', start: '2026-10-15', end: '2026-10-21', theme: 'Software projects (execution, not learning)',
     courses: [
       {
         code: 'D284', name: 'Software Engineering', chip: 'pa', chipLabel: 'Project',
@@ -164,7 +168,7 @@ export const WEEKS: readonly Week[] = [
     ],
   },
   {
-    n: 'Week 6', dates: 'Oct 22 to 28 (buffer)', theme: 'UX project + the capstone',
+    n: 'Week 6', dates: 'Oct 22 to 28 (buffer)', start: '2026-10-22', end: '2026-10-28', theme: 'UX project + the capstone',
     courses: [
       {
         code: 'D479', name: 'User Experience Design', chip: 'pa', chipLabel: 'Project',
@@ -217,3 +221,9 @@ export const FOOTER =
   'Coursera-only, verified 2026-09-17. Source: wgu-remaining-courses-coursera-only-2026-09-17.md · picks confirmed against WGU competencies via live page checks.';
 
 export const TOTAL_COURSES = PROGRESS.length;
+
+/**
+ * The plan's target finish ('~Oct 24, 2026' in HEADER), as a YYYY-MM-DD local date.
+ * Days-left captions count to this, so edit it together with the HEADER text.
+ */
+export const TERM_END = '2026-10-24';

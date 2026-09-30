@@ -10,13 +10,15 @@
  * Runs in jsdom (see vitest.config): the bodies call host.setValue/status, which
  * touch document.getElementById — harmlessly no-op when the element is absent.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mealActions, knowledgeActions, workoutActions, todosActions, scratchActions, dataActions, restTimer, flushPendingDelete, undoDelete, openSection, goHome, handleBack, todaySession, topicReviewSession, sessionForTopic, REVIEW_PREFIX, INTERVIEW_PREFIX, hubStats, allKGItems, sg, kg, core, wk } from '@/ui/actions';
 import { appState, dstr, sync, handleHide } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import { selectWorkoutView } from '@/features/workout/workoutSelectors';
 import defaultWorkout from '@/core/data/defaultWorkout.json';
-import { pendingDeletes, undoToast, dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems, kgOverview, kgSession, kgInterview, kgGym, currentTab, activeExercise } from '@/ui/store';
+import { pendingDeletes, undoToast, dataRev, sgDate, wkDate, wkDeload, kgTopic, kgItems, kgIndexIds, kgOverview, kgSession, kgInterview, kgGym, currentTab, activeExercise } from '@/ui/store';
 
 const today = dstr();
 
@@ -31,6 +33,7 @@ beforeEach(() => {
   wkDate.value = null;
   kgTopic.value = 'algorithms';
   kgItems.value = {};
+  kgIndexIds.value = null;
 });
 
 describe('meal addMeal', () => {
@@ -138,6 +141,46 @@ describe('hubStats knowledge tile — mastery % of the whole curriculum', () => 
       generated: { algorithms: [{ id: 'ai-1', prompt: 'p', reveal: 'r', mins: 5, flow: 'flip', src: { book: '', ref: 'AI' }, tags: ['algorithms'], ai: true }] },
     });
     expect(hubStats().find((s) => s.key === 'knowledge')!.value).toBe('5'); // still 1/20, not 2/21
+  });
+});
+
+describe('hubStats knowledge tile: index ids vs the full bank (Stage 2 perf change)', () => {
+  // Today used to download all 15 topic files to count the curriculum; it now reads the
+  // ids from questions/index.json. Pin the user-facing number on the REAL shipped files:
+  // 34 of the 339 curated questions mastered reads 10%, from either source.
+  const pub = resolve(__dirname, '../../public');
+  const index = JSON.parse(readFileSync(resolve(pub, 'questions/index.json'), 'utf8')) as {
+    topics: Record<string, { file: string; ids: string[] }>;
+  };
+  const bank = Object.fromEntries(Object.entries(index.topics).map(([t, e]) => [t, JSON.parse(readFileSync(resolve(pub, e.file), 'utf8'))]));
+  const allIds = Object.values(bank).flatMap((items) => (items as Array<{ id: string }>).map((q) => String(q.id)));
+
+  function knownState(): void {
+    const mastered = allIds.slice(0, 34);
+    Object.assign(kg(), {
+      // plus a retired id and an AI card, neither of which may count
+      mastery: Object.fromEntries([...mastered, 'retired-q', 'ai-9'].map((id) => [id, 5])),
+      srs: Object.fromEntries([...mastered, 'retired-q', 'ai-9'].map((id) => [id, reviewedToday()])),
+      log: [], gymDone: {},
+      generated: { algorithms: [{ id: 'ai-9', prompt: 'p', reveal: 'r', mins: 5, ai: true }] },
+    });
+  }
+  const tile = () => hubStats().find((s) => s.key === 'knowledge')!.value;
+
+  it('the shipped bank has 339 questions (update this pin deliberately when it grows)', () => {
+    expect(allIds).toHaveLength(339);
+  });
+
+  it('reads 10% from the full bank (the old path: Knowledge opened, no index)', () => {
+    knownState();
+    kgItems.value = bank as never;
+    expect(tile()).toBe('10');
+  });
+
+  it('reads the same 10% from index.json alone, with the bank never loaded (Today now)', () => {
+    knownState();
+    kgIndexIds.value = Object.fromEntries(Object.entries(index.topics).map(([t, e]) => [t, e.ids]));
+    expect(tile()).toBe('10');
   });
 });
 
@@ -455,6 +498,28 @@ describe('navigation (Today home + hybrid nav)', () => {
     expect(handleBack()).toBe(true);
     expect(currentTab.value).toBe('today');
     expect(handleBack()).toBe(false);
+  });
+
+  it('opens a section at the top and restores Today\'s scroll on the way back', () => {
+    // Queue frames by hand so the test controls when "after render" happens.
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => frames.push(cb));
+    const flush = (): void => frames.splice(0).forEach((cb) => cb(0));
+    try {
+      const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+      Object.defineProperty(window, 'scrollY', { value: 640, configurable: true });
+      openSection('math');
+      expect(scrollTo).not.toHaveBeenCalled(); // waits for the new screen's render
+      flush();
+      expect(scrollTo).toHaveBeenLastCalledWith(0, 0);
+      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+      expect(handleBack()).toBe(true);
+      flush();
+      expect(currentTab.value).toBe('today');
+      expect(scrollTo).toHaveBeenLastCalledWith(0, 640);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

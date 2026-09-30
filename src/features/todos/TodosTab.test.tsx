@@ -61,4 +61,14 @@ describe('TodosView', () => {
     expect(toggle).toHaveBeenCalledWith('t1');
     expect(remove).toHaveBeenCalledWith('t1');
   });
+
+  it('labels a future due date like en-US "Mon D"', () => {
+    seed([
+      { id: 'a', text: 'a', done: false, created: 1, due: '2999-09-05' },
+      { id: 'b', text: 'b', done: false, created: 2, due: '2999-12-31' },
+    ]);
+    const { container } = render(<TodosView />);
+    const labels = [...container.querySelectorAll('.todo-due')].map((e) => e.textContent);
+    expect(labels).toEqual(['Sep 5', 'Dec 31']);
+  });
 });

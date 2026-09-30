@@ -18,8 +18,18 @@ export const GRADE_MASTERY: Record<Grade, Mastery> = { 1: 1, 2: 3, 3: 4, 4: 5 };
 
 /** Mastery value (0 = unseen, else 1–5) → word. Mirrors KnowledgeTab's MASTERY_TEXT. */
 export const MWORD: Record<number, string> = { 0: 'new', 1: 'shaky', 2: 'learning', 3: 'learning', 4: 'solid', 5: 'mastered' };
-/** Mastery value → dot colour. Mirrors KnowledgeTab's MASTERY_COLOUR / the proto's MCOLOR. */
-export const MCOLOR: Record<number, string> = { 0: '#5C6678', 1: '#D8654F', 2: '#E0A64B', 3: '#E0A64B', 4: '#6BBF73', 5: '#4FB0A5' };
+/**
+ * Mastery value → dot colour, as CSS custom properties defined in app.css so the
+ * dot follows the active palette instead of pinning the old dark theme hexes.
+ */
+export const MCOLOR: Record<number, string> = {
+  0: 'var(--m-new)',
+  1: 'var(--m-shaky)',
+  2: 'var(--m-learning)',
+  3: 'var(--m-learning)',
+  4: 'var(--m-solid)',
+  5: 'var(--m-mastered)',
+};
 
 /**
  * Mastery value → BAND index. The five visible bands are new · shaky · learning ·

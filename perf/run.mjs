@@ -10,6 +10,7 @@
  *   npm run perf -- --only resources  process CPU/memory vs src/core/resourceBudgets.json
  *   npm run perf -- --only resources --check   exit 1 if any resource limit is exceeded
  *   npm run perf -- --seed-days 365   longer synthetic history (default 90)
+ *   npm run perf -- --port 4417       preview ports (default 4317, and 4318 for --against)
  *   npm run perf -- --save-baseline   also write perf/baseline.json (single mode)
  *
  * Use --against to judge a change. A laptop's background load moves these
@@ -59,9 +60,10 @@ function buildSizes(dir, build) {
     // Entry chunks are index-*; lazy chunks keep their module name (e.g. StudyTracker-*).
     const name = f.replace(/-[\w-]{8}\.(js|css)$/, '');
     const ext = f.endsWith('.css') ? 'css' : 'js';
-    const kind = name === 'index'
-      ? (ext === 'css' ? 'css' : buf.includes('WebGLRenderer') ? 'jsLanding' : 'jsMain')
-      : `lazy:${name}:${ext}`;
+    // The three.js landing was an unnamed index-* chunk until Stage 2 named it intro-*.
+    const kind = ext === 'js' && buf.includes('WebGLRenderer') ? 'jsLanding'
+      : name === 'index' ? (ext === 'css' ? (buf.includes('#landing') && !buf.includes('.appwrap') ? 'lazy:intro:css' : 'css') : 'jsMain')
+        : `lazy:${name}:${ext}`;
     sizes[kind] = {
       file: f, raw: buf.length, gzip: gzipSync(buf, { level: 9 }).length,
       brotli: brotliCompressSync(buf, { params: { [zc.BROTLI_PARAM_QUALITY]: 11 } }).length,
@@ -98,18 +100,41 @@ async function loadRun(t) {
   }
 }
 
-/* ── runtime: Enter -> Today, then open/close every section ── */
-// Label -> how to open it from Today. Tiles are matched by label; Todos/Scratch are quick buttons.
+/* ── runtime: startup -> Today, then open/close every section ── */
+// The old landing's Enter button. Clicked when present (older refs in an A/B), skipped when not.
+const GATE = '#enter';
+// Label -> how to open it from Today. 'tile:<tab>' matches the Stage 4 Today's path cards
+// and tiles by data-route (same as perf/routes.mjs), then falls back to the pre-Stage-4
+// hub tile whose .tile-l text is the label, so an --against run on an older ref still
+// works. Todos/Scratch are quick buttons (new class first, old class second). A section
+// the page doesn't have is reported as missing rather than timing out the run.
 const SECTIONS = [
-  ['Todos', '.today-qbtn:not(.scratch)'],
-  ['Scratchpad', '.today-qbtn.scratch'],
-  ['Knowledge', 'tile'], ['Princeton Roadmap', 'tile'], ['WGU Roadmap', 'tile'],
-  ['Workout', 'tile'], ['Food & Body', 'tile'], ['Data', 'tile'],
+  ['Todos', '.td-add, .today-qbtn:not(.scratch)'],
+  ['Scratchpad', '.td-idea, .today-qbtn.scratch'],
+  ['WGU Roadmap', 'tile:wgu'], ['Math', 'tile:math'], ['Computer Science', 'tile:cs'],
+  ['Knowledge', 'tile:knowledge'], ['Princeton Roadmap', 'tile:tracker'], ['Learn by Teaching', 'tile:teach'],
+  ['Workout', 'tile:workout'], ['Food & Body', 'tile:meal'], ['Data', 'tile:data'],
 ];
+// Today is usable: a navigation tile is on screen (new Today, then the old hub).
+const HOME_READY = 'button.td-tile, button.tile';
+// Waits for a section's opener (window.__find, installed by PRELUDE); false when the page
+// has no such section. Path cards render after their lazy summary loads, so allow a
+// little time rather than checking once.
+const hasSection = (page, label, how) => page
+  .waitForFunction((l, h) => !!window.__find(l, h), { timeout: 10_000 }, label, how)
+  .then(() => true, () => false);
+const clickSection = (page, label, how) => page.evaluate((l, h) => window.__find(l, h)?.click(), label, how);
 
 const PRELUDE = (seed) => {
   if (seed) for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, v);
   window.__lt = [];
+  window.__find = (label, how) => {
+    if (!how.startsWith('tile:')) return document.querySelector(how);
+    const route = how.slice(5);
+    return [...document.querySelectorAll('[data-route]')].find((b) => b.getAttribute('data-route') === route)
+      ?? [...document.querySelectorAll('button.tile')].find((b) => b.querySelector('.tile-l')?.textContent === label)
+      ?? null;
+  };
   new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__lt.push(e.duration); })
     .observe({ type: 'longtask', buffered: true });
   // Two frames after the work: the pane has been laid out and painted.
@@ -131,8 +156,6 @@ async function runtimeRun(t, seed) {
     await page.evaluateOnNewDocument(PRELUDE, seed);
 
     await page.goto(t.url, { waitUntil: 'load' });
-    await page.waitForSelector('#enter');
-    await sleep(1500); // landing chunk settles
 
     const measure = async (act, readySel) => {
       const n = await page.evaluate(() => window.__lt.length);
@@ -144,23 +167,47 @@ async function runtimeRun(t, seed) {
       return { ms: t1 - t0, longMs: lts.reduce((s, d) => s + d, 0) };
     };
 
-    const out = { enter: await measure(() => page.click('#enter'), 'button.tile'), sections: {}, errors };
+    // Home usable: with the old Enter gate, time to the gate being tappable plus
+    // Enter -> Today (the pause before the tap is excluded); without it, navigation
+    // start -> Today painted. Same definition as perf/routes.mjs, so A/B across the
+    // gate removal compares like with like. `enter` keeps the gate-only figure.
+    let enter;
+    let homeReadyMs;
+    if (await page.$(GATE)) {
+      await page.waitForSelector(GATE, { visible: true });
+      const gateMs = await page.evaluate(() => performance.now());
+      await sleep(1500); // landing chunk settles
+      enter = await measure(() => page.click(GATE), HOME_READY);
+      homeReadyMs = gateMs + enter.ms;
+    } else {
+      await page.waitForSelector(HOME_READY, { timeout: 120_000 });
+      const t1 = await page.evaluate(() => window.__frame());
+      const lts = await page.evaluate(() => window.__lt);
+      enter = { ms: t1, longMs: lts.reduce((s, d) => s + d, 0) };
+      homeReadyMs = t1;
+    }
+
+    const out = { enter, homeReadyMs, sections: {}, errors };
     await sleep(2500); // past the deferred 2 s cloud pull (aborted offline)
 
     for (const [label, how] of SECTIONS) {
-      const open = () => page.evaluate((l, h) => {
-        const el = h === 'tile'
-          ? [...document.querySelectorAll('button.tile')].find((b) => b.querySelector('.tile-l')?.textContent === l)
-          : document.querySelector(h);
-        el?.click();
-      }, label, how);
+      if (!(await hasSection(page, label, how))) {
+        out.sections[label] = { missing: true };
+        continue;
+      }
+      const open = () => clickSection(page, label, how);
       // A lazy pane shows .pane-loading until its chunk arrives; ready means real content.
-    const o = await measure(open, '[id^="pane-"]:not(#pane-today):not(:has(.pane-loading))');
-      const b = await measure(() => page.evaluate(() => history.back()), 'button.tile');
+      const o = await measure(open, '[id^="pane-"]:not(#pane-today):not(:has(.pane-loading))');
+      const b = await measure(() => page.evaluate(() => history.back()), HOME_READY);
       out.sections[label] = { ms: o.ms, longMs: o.longMs, backMs: b.ms };
       await sleep(400);
     }
     out.heapMB = await page.evaluate(() => performance.memory.usedJSHeapSize / 1048576);
+    // The read above includes garbage the collector hasn't reached yet, so it moves with
+    // GC timing. heapLiveMB is what the page actually retains after the tour.
+    await cdp.send('HeapProfiler.collectGarbage');
+    await cdp.send('HeapProfiler.collectGarbage');
+    out.heapLiveMB = (await cdp.send('Runtime.getHeapUsage')).usedSize / 1048576;
     return out;
   } finally {
     await browser.close();
@@ -169,15 +216,18 @@ async function runtimeRun(t, seed) {
 
 function summariseRuntime(runs) {
   const s = {
+    homeReadyMs: stat(runs.map((r) => r.homeReadyMs)),
     enterMs: stat(runs.map((r) => r.enter.ms)), enterLongMs: stat(runs.map((r) => r.enter.longMs)),
-    heapMB: stat(runs.map((r) => r.heapMB)), sections: {},
+    heapMB: stat(runs.map((r) => r.heapMB)), heapLiveMB: stat(runs.map((r) => r.heapLiveMB ?? NaN)), sections: {},
     errors: [...new Set(runs.flatMap((r) => r.errors))],
   };
   for (const [label] of SECTIONS) {
+    const found = runs.map((r) => r.sections[label]).filter((x) => x && !x.missing);
+    if (!found.length) continue; // this build has no such section
     s.sections[label] = {
-      ms: stat(runs.map((r) => r.sections[label].ms)),
-      longMs: stat(runs.map((r) => r.sections[label].longMs)),
-      backMs: stat(runs.map((r) => r.sections[label].backMs)),
+      ms: stat(found.map((x) => x.ms)),
+      longMs: stat(found.map((x) => x.longMs)),
+      backMs: stat(found.map((x) => x.backMs)),
     };
   }
   return s;
@@ -239,10 +289,12 @@ async function resourceRun(t, seed) {
     const metric = async (name) => (await cdp.send('Performance.getMetrics')).metrics.find((m) => m.name === name)?.value ?? 0;
     const pid = browser.process().pid;
     await page.goto(t.url, { waitUntil: 'load' });
-    await page.waitForSelector('#enter');
-    await sleep(1500);
-    await page.click('#enter');
-    await page.waitForSelector('button.tile');
+    if (await page.$(GATE)) {
+      await page.waitForSelector(GATE, { visible: true });
+      await sleep(1500);
+      await page.click(GATE);
+    }
+    await page.waitForSelector(HOME_READY);
     await sleep(3000); // boot, lazy loads, deferred pull
     let peakRss = 0;
     const idle = async (ms) => {
@@ -259,24 +311,21 @@ async function resourceRun(t, seed) {
     let peakDom = 0;
     for (let round = 0; round < 2; round++) {
       for (const [label, how] of SECTIONS) {
-        await page.evaluate((l, h) => {
-          const el = h === 'tile'
-            ? [...document.querySelectorAll('button.tile')].find((b) => b.querySelector('.tile-l')?.textContent === l)
-            : document.querySelector(h);
-          el?.click();
-        }, label, how);
+        if (!(await hasSection(page, label, how))) continue;
+        await clickSection(page, label, how);
         await page.waitForSelector('[id^="pane-"]:not(#pane-today):not(:has(.pane-loading))', { timeout: 60_000 });
         await sleep(300);
         peakDom = Math.max(peakDom, await page.evaluate(() => document.getElementsByTagName('*').length));
         peakRss = Math.max(peakRss, totalRss(rendererStats(pid))); // memory likely peaks while switching
         await page.evaluate(() => history.back());
-        await page.waitForSelector('button.tile');
+        await page.waitForSelector(HOME_READY);
       }
     }
     const activeDt = (Date.now() - t0) / 1000;
     const activeBusyPct = (100 * ((await metric('TaskDuration')) - busy0)) / activeDt;
     const longest = Math.max(0, ...(await page.evaluate((k) => window.__lt.slice(k), lt0)));
-    await page.evaluate(() => [...document.querySelectorAll('button.tile')].find((b) => b.querySelector('.tile-l')?.textContent === 'Workout')?.click());
+    await hasSection(page, 'Workout', 'tile:workout');
+    await clickSection(page, 'Workout', 'tile:workout');
     await page.waitForSelector('#pane-workout:not(:has(.pane-loading))', { timeout: 60_000 });
     await sleep(1500); // let the first render settle before the idle window
     const idleWorkout = await idle(10_000);
@@ -306,13 +355,15 @@ const RESOURCE_CHECKS = [
 
 /* ── targets: the working tree, plus a git ref in a throwaway worktree for A/B ── */
 const cwd = process.cwd();
-const targets = [{ name: 'current', dir: cwd, port: 4317 }];
+// --port N moves both preview servers (N and N+1) when the defaults are taken.
+const PORT = Number(opt('--port', 4317));
+const targets = [{ name: 'current', dir: cwd, port: PORT }];
 let worktree = null;
 if (AGAINST) {
   worktree = resolve(tmpdir(), `meridian-perf-${Date.now()}`);
   execSync(`git worktree add -q --detach ${worktree} ${AGAINST}`, { stdio: 'ignore' });
   symlinkSync(resolve(cwd, 'node_modules'), `${worktree}/node_modules`);
-  targets.unshift({ name: AGAINST, dir: worktree, port: 4318 });
+  targets.unshift({ name: AGAINST, dir: worktree, port: PORT + 1 });
 }
 for (const t of targets) t.url = `http://localhost:${t.port}/meridian/`;
 
@@ -408,14 +459,17 @@ line('TTI', 'load.tti', ' ms');
 for (const name of ['empty', 'seeded']) {
   if (!cur[`runtime_${name}`]) continue;
   console.log(`\nruntime (${name}${name === 'seeded' ? `, ${SEED_DAYS} days, ${round(result.seedKB)} KB of state` : ''})`);
-  line('  Enter -> Today', `runtime_${name}.enterMs`, ' ms');
-  line('  Enter long tasks', `runtime_${name}.enterLongMs`, ' ms');
+  line('  Home usable', `runtime_${name}.homeReadyMs`, ' ms');
+  // With a gate: Enter tap -> Today. Without: navigation -> Today (so not comparable across the gate).
+  line('  Enter (or load) -> Today', `runtime_${name}.enterMs`, ' ms');
+  line('  ...long tasks', `runtime_${name}.enterLongMs`, ' ms');
   for (const [label] of SECTIONS) {
     line(`  ${label}`, `runtime_${name}.sections.${label}.ms`, ' ms');
     line('    long tasks', `runtime_${name}.sections.${label}.longMs`, ' ms');
   }
   line('  back to Today (Data)', `runtime_${name}.sections.Data.backMs`, ' ms');
   line('  JS heap', `runtime_${name}.heapMB`, ' MB', 1);
+  line('  JS heap after GC', `runtime_${name}.heapLiveMB`, ' MB', 1);
   const errs = cur[`runtime_${name}`].errors;
   if (errs.length) console.log('  PAGE ERRORS:', errs);
 }

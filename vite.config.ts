@@ -8,18 +8,29 @@ import { VitePWA } from 'vite-plugin-pwa';
 // build.mjs (esbuild + HTML splice) and sw.js (manual cache bumps): Rollup emits
 // content-hashed chunks (the Three/graph landing splits off automatically from the
 // dynamic import), and Workbox generates the precache manifest + service worker.
-export default defineConfig({
-  base: '/meridian/',
+// `--mode demo` builds the public preview (VITE_DEMO=1 from .env.demo): demo data,
+// no service worker, served under /meridian/preview/redesign/.
+export default defineConfig(({ mode }) => ({
+  base: mode === 'demo' ? '/meridian/preview/redesign/' : '/meridian/',
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: {
     target: 'es2022',
     // Three's landing chunk is ~500 KB; keep the warning threshold out of the way.
     chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        // Name the on-demand intro (three.js + src/landing) so the service worker
+        // can leave it out of the precache by file name (see globIgnores below).
+        manualChunks: (id) => (/[\\/](node_modules[\\/]three|src[\\/]landing)[\\/]/.test(id) ? 'intro' : undefined),
+      },
+    },
   },
   plugins: [
     preact(),
-    VitePWA({
+    mode !== 'demo' && VitePWA({
       registerType: 'autoUpdate',
+      // A deferred <script> instead of the default parser-blocking one in <head>.
+      injectRegister: 'script-defer',
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Meridian',
@@ -27,8 +38,8 @@ export default defineConfig({
         description: 'Personal tracker: workouts, meals, knowledge study.',
         start_url: './index.html',
         display: 'standalone',
-        background_color: '#070B14',
-        theme_color: '#070B14',
+        background_color: '#FBF7F1',
+        theme_color: '#FBF7F1',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
@@ -41,12 +52,21 @@ export default defineConfig({
         // preserving the old sw.js bypass.
         globPatterns: ['**/*.{js,css,html,svg,png,json,webmanifest}'],
         navigateFallback: 'index.html',
-        // Previews under /preview/ are their own pages, never the app shell, and not
-        // part of the app's offline cache.
+        // The demo preview under /preview/ is its own page, never the app shell (DECISIONS D3).
         navigateFallbackDenylist: [/\/preview\//],
-        globIgnores: ['preview/**'],
+        // The intro (three.js, ~134 KB gzip) only plays from the Data tab, so it is not
+        // worth downloading on every first visit. It is cached the first time it plays
+        // (runtimeCaching below), and works offline from then on.
+        globIgnores: ['preview/**', 'assets/intro-*'],
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/intro-[\w-]+\.(?:js|css)$/,
+            handler: 'CacheFirst', // content-hashed names: a cached copy is never stale
+            options: { cacheName: 'meridian-intro', expiration: { maxEntries: 4 } },
+          },
+        ],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
     }),
   ],
-});
+}));

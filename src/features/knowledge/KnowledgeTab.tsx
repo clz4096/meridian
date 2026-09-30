@@ -8,12 +8,13 @@ import { DATA } from '@/core/data/index';
 import type { KnowledgeViewModel, KnowledgeItem, GymLink } from '@/features/knowledge/types';
 import { masterySeries, questionsSolvedSeries, xpSeries, studyDaysSeries, currentStreak } from '@/ui/charts/progress';
 import { ProgControls, Carousel, Chart } from '@/ui/components/Charts';
-import { SecHero } from '@/ui/components/SecHero';
+import { PageHead } from '@/ui/components/PageHead';
 import { kg, core, dueItems, allTargetItems, todayPathItems, knowledgeActions, loadKnowledge, retryQuestionBank } from '@/ui/actions';
 import { knowledgeGrowth, INTERVIEW_PRESETS, isMastered } from '@/features/knowledge/knowledgeSelectors';
 import { AscentSession } from '@/features/knowledge/AscentSession';
 import { srcHref, practiceLinks, seeLinks } from '@/features/knowledge/source';
 import { KnowledgeRail } from '@/features/knowledge/KnowledgeRail';
+import { Markdown, MdInlineText } from '@/ui/components/Markdown';
 import { kgLoaded, kgProgressOpen, kgGym, kgTopic, kgTime, kgTarget, kgItems, kgRevealed, kgGraded, kgOverview, kgSession, kgInterview, kgGenerating, kgGenMsg, kgBankError, progPeriod, dataRev, notPending } from '@/ui/store';
 import { dstr } from '@/app/bootstrap';
 import { previewIntervals, readFsrs, type Grade } from '@/features/knowledge/fsrs';
@@ -98,11 +99,11 @@ function KnowledgeProgress() {
   const g = knowledgeGrowth(K, today, 30, curatedIds);
   const total = curatedIds.size;
   const masteryPct = total ? Math.round((100 * g.solid) / total) : 0;
-  const sub = streak > 0 ? `🔥 ${streak}-day streak` : g.seen ? `${g.solid} of ${total} mastered` : 'nothing yet';
+  const sub = streak > 0 ? `${streak}-day streak` : g.seen ? `${g.solid} of ${total} mastered` : 'nothing yet';
   const retentionTxt = g.retention == null ? '—' : `${Math.round(g.retention * 100)}%`;
   return (
     <>
-      <SecHero eyebrow="Knowledge" value={masteryPct} unit="% mastery" sub={sub} tone="ok" />
+      <PageHead title="Knowledge progress" note={`${masteryPct}% mastery · ${sub}`} />
       <div class="kgrowth">
         <div class="kg-stat"><div class="kg-v">{retentionTxt}</div><div class="kg-k">retention</div></div>
         <div class="kg-stat"><div class="kg-v">{g.solid}</div><div class="kg-k">solid</div></div>
@@ -111,10 +112,10 @@ function KnowledgeProgress() {
       <div class="prog">
         <ProgControls />
         <Carousel keepKey="knowledge">
-          <Chart opts={{ kind: 'line', title: 'Mastery %', points: masterySeries(K, period, total, curatedIds), unit: '%', color: 'var(--ok)' }} />
-          <Chart opts={{ kind: 'bar', title: 'Questions solved', points: questionsSolvedSeries(K, period), summary: 'sum', color: 'var(--teal)' }} />
-          <Chart opts={{ kind: 'bar', title: 'XP earned', points: xpSeries(C, period, 'kg'), summary: 'sum', color: 'var(--fuel)' }} />
-          <Chart opts={{ kind: 'bar', title: 'Study days', points: studyDaysSeries(K, period), summary: 'sum', color: 'var(--protein)' }} />
+          <Chart opts={{ kind: 'line', title: 'Mastery %', points: masterySeries(K, period, total, curatedIds), unit: '%', color: 'var(--series-1)' }} />
+          <Chart opts={{ kind: 'bar', title: 'Questions solved', points: questionsSolvedSeries(K, period), summary: 'sum', color: 'var(--series-2)' }} />
+          <Chart opts={{ kind: 'bar', title: 'XP earned', points: xpSeries(C, period, 'kg'), summary: 'sum', color: 'var(--series-3)' }} />
+          <Chart opts={{ kind: 'bar', title: 'Study days', points: studyDaysSeries(K, period), summary: 'sum', color: 'var(--series-4)' }} />
         </Carousel>
       </div>
     </>
@@ -155,14 +156,23 @@ const TPC_GRADES: ReadonlyArray<{ g: Grade; id: string; label: string }> = [
   { g: 4, id: 'easy', label: 'Easy' },
 ];
 
+/** True when a split point leaves every backtick and `**` pair on one side. */
+const balancedMd = (s: string): boolean => (s.split('`').length - 1) % 2 === 0 && (s.split('**').length - 1) % 2 === 0;
+
 function Reveal({ text }: { text: string }) {
   if (!text) return null;
-  const m = /^(.*?[.!?])(\s+)([\s\S]*)$/.exec(text);
-  if (!m) return <b>{text}</b>;
+  // Lead with the first sentence in bold, but only when that cut cannot land
+  // inside a code fence, a line break, or an open Markdown span.
+  const m = text.includes('\n') ? null : /^(.*?[.!?])(\s+)([\s\S]*)$/.exec(text);
+  if (!m || !balancedMd(m[1])) return <Markdown text={text} />;
   return (
     <>
-      <b style="color:var(--text)">{m[1]}</b>
-      <div style="margin-top:7px">{m[3]}</div>
+      <b style="color:var(--ink)">
+        <MdInlineText text={m[1]} />
+      </b>
+      <div style="margin-top:7px">
+        <Markdown text={m[3]} />
+      </div>
     </>
   );
 }
@@ -235,11 +245,11 @@ function TopicCard({ it, vm }: { it: KnowledgeItem; vm: KnowledgeViewModel }) {
       <div class="tpc-qc-top">
         <span class="tpc-mchip">
           <span class="dot2" style={`background:${M_VAR[m]}`} aria-hidden="true" />
-          <span class="tpc-mword" style={`color:${M_VAR[m]}`}>
+          <span class="tpc-mword">
             {M_WORD[m]}
           </span>
         </span>
-        {it.ai && <span class="tpc-aibadge" title="AI-generated — verify before trusting">✨ AI</span>}
+        {it.ai && <span class="tpc-aibadge" title="AI-generated — verify before trusting">AI</span>}
         <span class="tpc-echip">
           <EffortClock />
           {it.mins} min
@@ -248,6 +258,7 @@ function TopicCard({ it, vm }: { it: KnowledgeItem; vm: KnowledgeViewModel }) {
           <button
             class="tpc-aidiscard"
             title="Discard this AI card"
+            aria-label="Discard this AI card"
             onClick={() => knowledgeActions.discardGenerated(it.id, (it as Any).topic || kgTopic.value)}
           >
             ×
@@ -320,11 +331,11 @@ function TopicCard({ it, vm }: { it: KnowledgeItem; vm: KnowledgeViewModel }) {
 function GymRow({ l }: { l: GymLink }) {
   return (
     <div class="goalrow">
-      <span class="chk" style="width:20px;height:20px" onClick={() => knowledgeActions.toggleGymDone(l.key)}>
+      <button type="button" class="chk" aria-pressed={l.done} aria-label={`${l.label}: done`} onClick={() => knowledgeActions.toggleGymDone(l.key)}>
         {l.done ? '✓' : ''}
-      </span>
-      <span style={'flex:1' + (l.done ? ';opacity:.5;text-decoration:line-through' : '')}>{l.label}</span>
-      <a href={l.url} target="_blank" rel="noopener" style="color:var(--teal)">
+      </button>
+      <span class={'goalrow-t' + (l.done ? ' done' : '')}>{l.label}</span>
+      <a href={l.url} target="_blank" rel="noopener">
         open ↗
       </a>
     </div>
@@ -336,9 +347,7 @@ function GymRow({ l }: { l: GymLink }) {
 function GymScreen({ vm, title }: { vm: KnowledgeViewModel; title: string }) {
   return (
     <div class="tpc-root">
-      <div class="tpc-gym-head">
-        <span class="tpc-th-name">🎧 Gym — {title}</span>
-      </div>
+      <PageHead title={title} note="Gym" />
       {vm.gym ? (
         <>
           <div class="panel">
@@ -429,7 +438,7 @@ function KnowledgeBody({ vm }: { vm: KnowledgeViewModel }) {
           </div>
         </div>
         <button class="tpc-gym" onClick={() => knowledgeActions.toggleGym()}>
-          🎧 Gym
+          Gym
         </button>
       </div>
 
@@ -439,7 +448,7 @@ function KnowledgeBody({ vm }: { vm: KnowledgeViewModel }) {
           disabled={kgGenerating.value}
           onClick={() => void knowledgeActions.generateCards(vm.topicId, 5)}
         >
-          {kgGenerating.value ? 'Generating…' : '✨ Generate cards'}
+          {kgGenerating.value ? 'Generating…' : 'Generate cards'}
         </button>
         {kgGenMsg.value && <span class="tpc-genmsg">{kgGenMsg.value}</span>}
       </div>
@@ -499,19 +508,18 @@ export function overviewTopics(): OverviewTopic[] {
 
 /** The Knowledge tab's entry: pick how you're studying today. All modes share progress. */
 function StudyModeChooser() {
-  const modes: Array<{ id: 'home' | 'gym' | 'interview'; icon: string; title: string; desc: string }> = [
-    { id: 'home', icon: '🏠', title: 'At Home', desc: 'Full study — every topic, the climb, and your progress.' },
-    { id: 'gym', icon: '🎧', title: 'At the Gym', desc: 'Hands-free — concepts, videos & reading for one topic.' },
-    { id: 'interview', icon: '🎯', title: 'Interview Prep', desc: 'A focused deck of the most relevant cards for your interview.' },
+  const modes: Array<{ id: 'home' | 'gym' | 'interview'; title: string; desc: string }> = [
+    { id: 'home', title: 'At Home', desc: 'Full study — every topic, the climb, and your progress.' },
+    { id: 'gym', title: 'At the Gym', desc: 'Hands-free — concepts, videos & reading for one topic.' },
+    { id: 'interview', title: 'Interview Prep', desc: 'A focused deck of the most relevant cards for your interview.' },
   ];
   return (
     <div class="kgchooser">
-      <div class="kgchooser-eyb">Knowledge</div>
-      <h2 class="kgchooser-h">How are you studying?</h2>
+      <PageHead title="Knowledge" />
+      <p class="kgchooser-q">How are you studying?</p>
       <div class="kgchooser-grid">
         {modes.map((m) => (
           <button class="kgmode" onClick={() => knowledgeActions.chooseMode(m.id)}>
-            <span class="kgmode-i" aria-hidden="true">{m.icon}</span>
             <span class="kgmode-t">{m.title}</span>
             <span class="kgmode-d">{m.desc}</span>
           </button>
@@ -527,8 +535,8 @@ function GymTopicPicker() {
   return (
     <div class="kgpicker">
       <button class="kgpicker-back" onClick={() => window.history.back()}>‹ Modes</button>
-      <div class="kgchooser-eyb">Gym session</div>
-      <h2 class="kgchooser-h">Which topic?</h2>
+      <PageHead title="Gym session" />
+      <p class="kgchooser-q">Which topic?</p>
       <div class="kgpicker-list">
         {topics.map((t) => (
           <button class="kgpick" onClick={() => knowledgeActions.pickGymTopic(t.id)}>
@@ -546,8 +554,8 @@ function InterviewPicker() {
   return (
     <div class="kgpicker">
       <button class="kgpicker-back" onClick={() => window.history.back()}>‹ Modes</button>
-      <div class="kgchooser-eyb">Interview prep</div>
-      <h2 class="kgchooser-h">What are you interviewing for?</h2>
+      <PageHead title="Interview prep" />
+      <p class="kgchooser-q">What are you interviewing for?</p>
       <div class="kgpicker-list">
         {INTERVIEW_PRESETS.map((p) => (
           <button class="kgpick" onClick={() => knowledgeActions.pickInterview(p.id)}>
