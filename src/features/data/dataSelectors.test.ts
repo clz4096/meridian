@@ -432,3 +432,65 @@ describe('normaliseCore drops rows that cannot be merged', () => {
     expect(n.scratch![0]!.status).toBe('idea'); // unknown status falls back
   });
 });
+
+/* ================================================================== */
+/* Cambridge store: export / import                                    */
+/* ================================================================== */
+
+describe('cambridge store in export / import', () => {
+  const cam = {
+    v: 1,
+    items: {
+      'step-1': {
+        id: 'step-1', stage: 'supervised', updatedAt: 50, writeup: 'Proof. $x^2 \\ge 0$', photos: ['ph-1'],
+        questions: { 1: { q: '1', coldSec: 4000, status: 'partial', stalledAt: 'the substitution', mark: 12 }, 2: { q: '2', coldSec: 60, runningSince: 99 } },
+        hintsUnlockedEarly: true, supervisedAt: 40, weakPoints: ['a', 'b', 'c'], redoQs: ['1', '2'], redoDue: 60, redoneAt: 55,
+      },
+      gone: { id: 'gone', stage: 'not-started', questions: {}, updatedAt: 70, deleted: true },
+    },
+    errors: { e1: { id: 'e1', itemId: 'step-1', q: '1', cause: "didn't see the idea", topic: 'inequalities', fix: 'try AM-GM', at: 41, updatedAt: 41 } },
+    gates: { A: { phase: 'A', passedAt: 80, evidence: { step: '14/20' }, updatedAt: 80 } },
+    weeks: { '2026-W40': { week: '2026-W40', scores: { cold: 2, writeup: 1, supervisions: 2, redo: 2, pace: 0 }, updatedAt: 90 } },
+    awarded: { 'cam:writeup:step-1': 39, 'cam:gatePassed:A': 80 },
+    migratedAt: 1,
+  };
+
+  it('survives normalise and an export→import round-trip unchanged', () => {
+    const state = normaliseState({ cambridge: cam });
+    expect(state.cambridge).toEqual(cam);
+    const r = roundTrip(state);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.cambridge).toEqual(cam);
+    expect(r.missing).toEqual([]);
+    expect(normaliseState(r.state)).toEqual(r.state);
+  });
+
+  it('a pre-Cambridge backup reports the store missing, without a warning', () => {
+    const old = { ...normaliseState({}) } as Record<string, unknown>;
+    delete old.cambridge;
+    const r = importBundle(JSON.stringify({ meridian: BUNDLE_VERSION, exportedAt: 'x', data: old }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.missing).toEqual(['cambridge']);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it('normalise clamps and repairs a malformed store without inventing records', () => {
+    const n = normaliseState({
+      cambridge: {
+        items: { x: { stage: 'bogus', questions: { 1: { coldSec: -5, mark: 99, status: 'maybe' } }, updatedAt: 'nope' } },
+        errors: { e: { cause: 'bad luck' } },
+        weeks: { w: { scores: { cold: 7, redo: -1 } } },
+        awarded: { ok: 5, bad: 'x' },
+        junk: 1,
+      },
+    }).cambridge;
+    expect(n.items.x).toEqual({ id: 'x', stage: 'not-started', questions: { 1: { q: '1', coldSec: 0, mark: 20 } }, updatedAt: 0 });
+    expect(n.errors.e!.cause).toBe('concept');
+    expect(n.weeks.w!.scores).toEqual({ cold: 2, writeup: 0, supervisions: 0, redo: 0, pace: 0 });
+    expect(n.awarded).toEqual({ ok: 5 });
+    expect(Object.keys(n).sort()).toEqual(['awarded', 'errors', 'gates', 'items', 'v', 'weeks']);
+    expect(storageMetrics(normaliseState({ cambridge: cam })).perStore.cambridge).toBeGreaterThan(0);
+  });
+});

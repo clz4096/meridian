@@ -23,6 +23,7 @@ import {
   type StoreKey,
   SyncEngine,
 } from '@/core/sync/SyncEngine';
+import { mergeStore } from '@/core/sync/mergeStores';
 
 const RUNS = Number(process.env.FC_RUNS ?? 150);
 
@@ -95,7 +96,7 @@ class FakePantryCloud implements CloudProvider {
   seedFromOtherDevice(store: StoreKey, items: Collection['items'], rev: number): void {
     const base: CloudPayload = this.payload
       ? structuredClone(this.payload)
-      : { rev: 0, syncedAt: 0, core: {}, overload: {}, surplus: {}, csgraph: {}, theorist: {} };
+      : { rev: 0, syncedAt: 0, core: {}, overload: {}, surplus: {}, csgraph: {}, theorist: {}, cambridge: {} };
     base[store] = { items: items ?? [], _del: {} } satisfies Collection;
     base.rev = rev;
     this.rev = Math.max(this.rev, rev);
@@ -765,5 +766,83 @@ describe('merge is a well-behaved CRDT-style operation', () => {
       }),
       { numRuns: RUNS },
     );
+  });
+});
+
+/* ================================================================== */
+/* Mixed builds: a device still on the five-store build                */
+/* ================================================================== */
+
+describe('an old (five-store) build pushing over a cloud that has the cambridge store', () => {
+  // The old build writes the blob from exactly these five fields (its pushOnce
+  // payload literal), so whatever it pushes has no `cambridge` key.
+  async function oldBuildPush(cloud: FakePantryCloud, theorist: Record<string, unknown>): Promise<void> {
+    const cur = cloud.current()!;
+    await cloud.write({
+      rev: cur.rev + 1, syncedAt: 0,
+      core: cur.core, overload: cur.overload, surplus: cur.surplus, csgraph: cur.csgraph, theorist,
+    });
+  }
+  const camData = {
+    v: 1, items: { 'step-1': { id: 'step-1', stage: 'written-up', questions: { 1: { q: '1', coldSec: 4000 } }, writeup: 'w', updatedAt: 5 } },
+    errors: {}, gates: {}, weeks: {}, awarded: { 'cam:writeup:step-1': 5 }, migratedAt: 1,
+  };
+  const newEngine = (cloud: FakePantryCloud) =>
+    new SyncEngine({ storage: new FakeStorage(), cloud, clock: new ManualClock(), merge: (l, r, k, lw) => mergeStore(k, l, r, lw) });
+
+  it('does drop the key from the cloud: the old payload has no cambridge field', async () => {
+    const cloud = new FakePantryCloud();
+    const a = newEngine(cloud);
+    a.edit('cambridge', () => structuredClone(camData));
+    await a.save();
+    expect(cloud.current()!.cambridge).toEqual(camData);
+    await oldBuildPush(cloud, { banked: { '2026-09-29': 40 }, day: { date: '2026-09-29', blocks: {}, scores: {}, banked: true } });
+    expect('cambridge' in cloud.current()!).toBe(false);
+  });
+
+  it('the new build treats the missing store as no remote change, keeps local, and republishes it', async () => {
+    const cloud = new FakePantryCloud();
+    const a = newEngine(cloud);
+    a.edit('cambridge', () => structuredClone(camData));
+    await a.save();
+    await oldBuildPush(cloud, { banked: { '2026-09-29': 40 }, day: { date: '2026-09-29', blocks: {}, scores: {}, banked: true } });
+
+    const res = await a.pull();
+    expect(res.applied).toBe(true);
+    expect(a.getStore('cambridge')).toEqual(camData); // never wiped, never regressed
+    expect((a.getStore('theorist') as { banked: Record<string, number> }).banked['2026-09-29']).toBe(40); // the old device's edit still lands
+    expect(a.isDirtyCloud('cambridge')).toBe(true); // the cloud lost it: queued to go back up
+
+    await a.save();
+    expect(cloud.current()!.cambridge).toEqual(camData);
+    // A fresh device now receives it.
+    const b = newEngine(cloud);
+    await b.pull();
+    expect(b.getStore('cambridge')).toEqual(camData);
+  });
+
+  it('a push that folds in an old-build blob keeps local cambridge too', async () => {
+    const cloud = new FakePantryCloud();
+    const a = newEngine(cloud);
+    a.edit('cambridge', () => structuredClone(camData));
+    await a.save();
+    await oldBuildPush(cloud, { banked: {}, day: { date: '', blocks: {}, scores: {}, banked: false } });
+    // An unrelated edit triggers a push; the push reads the newer cloud first.
+    a.edit('core', () => ({ items: [{ id: 'n' }], _del: {} }));
+    const r = await a.save();
+    expect(r.cloud).toBe('synced');
+    expect(cloud.current()!.cambridge).toEqual(camData);
+  });
+
+  it('a device with no Cambridge data is not marked dirty by an old-build blob', async () => {
+    const cloud = new FakePantryCloud();
+    const other = newEngine(cloud);
+    other.edit('core', () => ({ items: [{ id: 'c' }], _del: {} }));
+    await other.save();
+    await oldBuildPush(cloud, { banked: {}, day: { date: '', blocks: {}, scores: {}, banked: false } });
+    const fresh = newEngine(cloud);
+    await fresh.pull();
+    expect(fresh.getStore('cambridge')).toEqual({});
+    expect(fresh.isDirtyCloud('cambridge')).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Meridian — merge semantics for the five real stores.
+ * Meridian — merge semantics for the six real stores.
  *
  * Union-by-id for collections, key-wise last-writer-wins for scalars, and
  * tombstones that suppress a row from either side. Each operation is
@@ -11,8 +11,9 @@ import type {
 } from '@/core/types';
 import { pruneTombstones, toId, toNum } from '@/core/util';
 import { DEFAULT_CONFIG } from '@/core/types';
+import type { CamItem, CamQuestion, CambridgeState } from '@/features/cambridge/types';
 
-export type StoreKey = 'core' | 'overload' | 'surplus' | 'csgraph' | 'theorist';
+export type StoreKey = 'core' | 'overload' | 'surplus' | 'csgraph' | 'theorist' | 'cambridge';
 
 interface Identified { id: unknown }
 
@@ -295,6 +296,150 @@ export function mergeTheorist(local: TheoristState, remote: TheoristState, _loca
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* Cambridge: per-record last-writer-wins                               */
+/* ------------------------------------------------------------------ */
+
+interface Stamped { updatedAt: number; deleted?: boolean }
+
+/**
+ * The newer of two copies of one record. A tie must still pick the same copy
+ * whichever side is local, or two devices would each keep their own and never
+ * converge: a tombstone wins the tie (a delete is the more deliberate act), then
+ * the larger serialisation, which is arbitrary but symmetric.
+ */
+function newer<T extends Stamped>(a: T, b: T): T {
+  const at = toNum(a.updatedAt, 0);
+  const bt = toNum(b.updatedAt, 0);
+  if (at !== bt) return at > bt ? a : b;
+  if (!!a.deleted !== !!b.deleted) return a.deleted ? a : b;
+  return JSON.stringify(a) >= JSON.stringify(b) ? a : b;
+}
+
+function mergeRecords<T extends Stamped>(
+  a: Record<string, T> | undefined,
+  b: Record<string, T> | undefined,
+  pick: (a: T, b: T) => T = newer,
+): Record<string, T> {
+  const out: Record<string, T> = {};
+  for (const k of new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})])) {
+    const av = a?.[k];
+    const bv = b?.[k];
+    out[k] = av === undefined ? bv! : bv === undefined ? av : pick(av, bv);
+  }
+  return out;
+}
+
+/**
+ * Orders two copies of one item: the later stamp, then a tombstone, then the
+ * larger serialisation of everything but the questions. 0 means the copies are
+ * identical apart from their questions. The questions are left out because the
+ * merge changes them, and a merged copy must compare exactly as its source did,
+ * or merging in a different order would give a different answer.
+ */
+function itemOrder(a: CamItem, b: CamItem): number {
+  const at = toNum(a.updatedAt, 0);
+  const bt = toNum(b.updatedAt, 0);
+  if (at !== bt) return at - bt;
+  if (!!a.deleted !== !!b.deleted) return a.deleted ? 1 : -1;
+  const ra = JSON.stringify({ ...a, questions: undefined });
+  const rb = JSON.stringify({ ...b, questions: undefined });
+  return ra === rb ? 0 : ra > rb ? 1 : -1;
+}
+
+/**
+ * Orders two copies of one question from equally new items. A bare timer
+ * (nothing but its cold time, as the merge leaves a question only an older copy
+ * had) always loses to a copy with more fields.
+ */
+function questionOrder(a: CamQuestion, b: CamQuestion): number {
+  const fields = (q: CamQuestion): number => Object.entries(q).filter(([k, v]) => k !== 'coldSec' && v !== undefined).length;
+  const d = fields(a) - fields(b);
+  if (d !== 0) return d;
+  const ka = JSON.stringify({ ...a, coldSec: undefined });
+  const kb = JSON.stringify({ ...b, coldSec: undefined });
+  return ka === kb ? 0 : ka > kb ? 1 : -1;
+}
+
+/** Every question from both sides; on a clash the larger by `questionOrder`, always with the larger cold time. */
+function joinQuestions(a: CamItem['questions'], b: CamItem['questions']): CamItem['questions'] {
+  const out: CamItem['questions'] = {};
+  for (const q of new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})])) {
+    const aq = a?.[q];
+    const bq = b?.[q];
+    if (!aq || !bq) { out[q] = (aq ?? bq)!; continue; }
+    const base = questionOrder(aq, bq) >= 0 ? aq : bq;
+    out[q] = { ...base, coldSec: Math.max(toNum(aq.coldSec, 0), toNum(bq.coldSec, 0)) };
+  }
+  return out;
+}
+
+/**
+ * The newer item wins, fields and questions alike, except that cold-attempt
+ * time never goes down: each question keeps the largest time any copy has, and
+ * a question only the older copy had stays as a bare timer (its time, not its
+ * other fields, which go with the older copy). Minutes spent thinking are real
+ * work, so they are never merged away. Because the timers form a max-register
+ * per question and everything else is a single winner, the result is the same
+ * in whatever order devices sync (the property test checks associativity).
+ */
+function mergeItem(a: CamItem, b: CamItem): CamItem {
+  const order = itemOrder(a, b);
+  if (order === 0) return { ...a, questions: joinQuestions(a.questions, b.questions) };
+  const [win, lose] = order > 0 ? [a, b] : [b, a];
+  let questions: CamItem['questions'] | null = null;
+  for (const [q, lq] of Object.entries(lose.questions ?? {})) {
+    const wq = win.questions?.[q];
+    const sec = toNum(lq.coldSec, 0);
+    if (wq && sec <= toNum(wq.coldSec, 0)) continue;
+    questions ??= { ...(win.questions ?? {}) };
+    questions[q] = wq ? { ...wq, coldSec: sec } : { q, coldSec: sec };
+  }
+  return questions ? { ...win, questions } : win;
+}
+
+/**
+ * Merge two Cambridge stores (contract 1.1). Items, errors, gates and weeks are
+ * last-writer-wins per record by `updatedAt`, so an edit reaches the other
+ * device (unlike `unionById`, where local always wins). Deletions are
+ * tombstones carried by the record itself. `awarded` is a grow-only union that
+ * keeps the earliest payout time, so an XP guard can never be lost.
+ */
+export function mergeCambridge(local: CambridgeState, remote: CambridgeState, _localWins: boolean): CambridgeState {
+  const awarded: Record<string, number> = {};
+  for (const k of new Set([...Object.keys(local.awarded ?? {}), ...Object.keys(remote.awarded ?? {})])) {
+    const lv = local.awarded?.[k];
+    const rv = remote.awarded?.[k];
+    awarded[k] = lv === undefined ? rv! : rv === undefined ? lv : Math.min(lv, rv);
+  }
+  const lm = toNum(local.migratedAt, 0);
+  const rm = toNum(remote.migratedAt, 0);
+  const migratedAt = lm && rm ? Math.min(lm, rm) : lm || rm;
+  return {
+    v: 1,
+    items: mergeRecords(local.items, remote.items, mergeItem),
+    errors: mergeRecords(local.errors, remote.errors),
+    gates: mergeRecords(local.gates, remote.gates),
+    weeks: mergeRecords(local.weeks, remote.weeks),
+    awarded,
+    ...(migratedAt ? { migratedAt } : {}),
+  };
+}
+
+/** Drop Cambridge tombstones older than the shared tombstone age (30 days). */
+function pruneCambridge(data: CambridgeState, now: number): CambridgeState {
+  const cutoff = now - DEFAULT_CONFIG.tombstoneMaxAgeDays * 86_400_000;
+  const stale = (r: Stamped): boolean => !!r.deleted && toNum(r.updatedAt, 0) <= cutoff;
+  const keep = <T extends Stamped>(m: Record<string, T> | undefined): Record<string, T> | null => {
+    if (!m || !Object.values(m).some(stale)) return null;
+    return Object.fromEntries(Object.entries(m).filter(([, r]) => !stale(r)));
+  };
+  const items = keep(data.items);
+  const errors = keep(data.errors);
+  if (!items && !errors) return data;
+  return { ...data, ...(items ? { items } : {}), ...(errors ? { errors } : {}) };
+}
+
 /** Dispatch by store key. This is the `MergeFn` the SyncEngine is given. */
 export function mergeStore(
   key: StoreKey,
@@ -308,6 +453,7 @@ export function mergeStore(
     case 'core':     return mergeCore(local as never, remote as never, localWins) as never;
     case 'csgraph':  return mergeKnowledge(local as never, remote as never, localWins) as never;
     case 'theorist': return mergeTheorist(local as never, remote as never, localWins) as never;
+    case 'cambridge': return mergeCambridge(local as never, remote as never, localWins) as never;
     default:         return localWins ? local : remote;
   }
 }
@@ -325,6 +471,7 @@ export function sanitizeStore(
   now: number,
 ): Record<string, unknown> {
   if (key === 'csgraph' || key === 'theorist') return data;
+  if (key === 'cambridge') return pruneCambridge(data as never, now) as never;
   const del = (data as { _del?: Tombstones })._del;
   if (!del || Object.keys(del).length === 0) return data;
   const pruned = pruneTombstones(del, now, DEFAULT_CONFIG);

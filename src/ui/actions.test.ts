@@ -117,6 +117,14 @@ describe('handleBack — knowledge study-mode router (no dead-ends from a stale 
   });
 });
 
+describe('hubStats tracker tile', () => {
+  it('is labeled The Cambridge Method, not the Princeton Roadmap', () => {
+    const t = hubStats().find((s) => s.key === 'tracker')!;
+    expect(t.label).toBe('The Cambridge Method');
+    expect(`${t.label} ${t.desc}`).not.toMatch(/Massey|Princeton/);
+  });
+});
+
 describe('hubStats knowledge tile — mastery % of the whole curriculum', () => {
   it('a beginner who mastered 1 of 20 curriculum questions reads ~5%, NOT 100%', () => {
     // Reality check: a known beginner state must not read near-full mastery.

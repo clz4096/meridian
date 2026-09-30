@@ -21,7 +21,7 @@ const LOAD_ROWS: Array<[string, string, number, number, (v: number) => string]> 
   ['interaction:worst', 'Slowest tap response', 200, 500, ms],
 ];
 const TAB_LABELS: Record<string, string> = {
-  todos: 'Todos', scratch: 'Scratchpad', knowledge: 'Knowledge', tracker: 'Princeton Roadmap',
+  todos: 'Todos', scratch: 'Scratchpad', knowledge: 'Knowledge', tracker: 'The Cambridge Method',
   roadmap: 'WGU Roadmap', workout: 'Workout', meal: 'Food & Body', data: 'Data',
 };
 

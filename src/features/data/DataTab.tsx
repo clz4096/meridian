@@ -3,22 +3,22 @@
  * Advanced disclosure. Ports renderDataHTML to JSX; inputs stay uncontrolled (by
  * id) and are read via host.readValue in the handlers, matching the old flow.
  */
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { normaliseState, storageMetrics } from '@/features/data/dataSelectors';
 import type { DataViewModel } from '@/features/data/types';
 import type { StoreKey } from '@/core/storage/appState';
 import { sync, cloudEnabled } from '@/app/bootstrap';
 import { host } from '@/ui/host';
 import { dataRev, dataMsg, dataIo } from '@/ui/store';
-import { wk, sg, kg, core, tg, dataActions, discard } from '@/ui/actions';
+import { wk, sg, kg, core, tg, cam, dataActions, discard } from '@/ui/actions';
 import { HealthPanel } from '@/features/data/HealthPanel';
 import { PageHead } from '@/ui/components/PageHead';
 import { IconCloud } from '@/ui/components/Icons';
 
-const KEYS: StoreKey[] = ['core', 'overload', 'surplus', 'csgraph', 'theorist'];
+const KEYS: StoreKey[] = ['core', 'overload', 'surplus', 'csgraph', 'theorist', 'cambridge'];
 
 function dataVM(): DataViewModel {
-  const state = normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: tg() });
+  const state = normaliseState({ core: core(), overload: wk(), surplus: sg(), csgraph: kg(), theorist: tg(), cambridge: cam() });
   const u = host.getItem('meridian_supabase_url');
   // One size figure: storageMetrics already measures every store. A second
   // whole-state stringify here cost time on every render and disagreed with the
@@ -68,6 +68,55 @@ function IntroCard() {
       {state === 'failed' && (
         <div class="note" role="alert">Couldn’t load the intro. Check your connection, then try again.</div>
       )}
+    </div>
+  );
+}
+
+const fmtBytes = (n: number): string =>
+  n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${Math.round((n / (1024 * 1024)) * 10) / 10} MB`;
+
+/**
+ * The Massey backup the Cambridge migration took on this device (DECISIONS C3),
+ * as a file, plus how much room the local-only study photos use. Both modules
+ * load on demand so the main chunk does not carry them.
+ */
+function MasseyBackupCard() {
+  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
+  const [photoBytes, setPhotoBytes] = useState<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    import('@/features/cambridge/photos')
+      .then((m) => m.photoUsageBytes())
+      .then((n) => { if (live) setPhotoBytes(n); }, () => { if (live) setPhotoBytes(null); });
+    return () => { live = false; };
+  }, []);
+  const download = (): void => {
+    if (state === 'saving') return;
+    setState('saving');
+    import('@/features/cambridge/migration')
+      .then((m) => m.downloadMasseyBackup())
+      .then(() => setState('saved'), () => setState('failed'));
+  };
+  return (
+    <div class="dcard">
+      <div class="dcard-h">
+        <span class="dcard-t">Massey backup</span>
+      </div>
+      <div class="dcard-desc">
+        A copy of the Massey Standard tracker data, taken on this device before the Cambridge Method first ran.
+      </div>
+      <div class="dactions">
+        <button class="mbtn" type="button" onClick={download} aria-busy={state === 'saving'}>
+          {state === 'saving' ? 'Preparing…' : 'Download Massey backup'}
+        </button>
+      </div>
+      {state === 'saved' && <div class="note" role="status">Saved the backup file.</div>}
+      {state === 'failed' && (
+        <div class="note" role="alert">Couldn’t prepare the backup file. Try again.</div>
+      )}
+      <div class="note">
+        Study photos on this device: {photoBytes === null ? '…' : fmtBytes(photoBytes)} (kept here only, not synced)
+      </div>
     </div>
   );
 }
@@ -222,6 +271,8 @@ export function DataView() {
         />
         <div id="d-msg" class="note" style="color:var(--ok)" />
       </div>
+
+      <MasseyBackupCard />
 
       <HealthPanel />
 

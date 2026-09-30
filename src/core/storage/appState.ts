@@ -21,7 +21,7 @@
 import { addTombstone } from '@/core/util';
 import type { AppHost } from '@/core/appHost';
 
-export type StoreKey = 'core' | 'overload' | 'surplus' | 'csgraph' | 'theorist';
+export type StoreKey = 'core' | 'overload' | 'surplus' | 'csgraph' | 'theorist' | 'cambridge';
 
 /** The subset of the SyncEngine facade (MeridianCore.sync) this module drives. */
 export interface SyncFacade {

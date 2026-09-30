@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import type { MealState, WorkoutState } from '@/core/types';
 import {
-  mergeCore, mergeKnowledge, mergeMeals, mergeScalarMap, mergeStore, mergeWorkout, sanitizeStore, unionById,
+  mergeCambridge, mergeCore, mergeKnowledge, mergeMeals, mergeScalarMap, mergeStore, mergeWorkout, sanitizeStore, unionById,
 } from '@/core/sync/mergeStores';
+import { emptyCambridge, type CamItem, type CambridgeState } from '@/features/cambridge/types';
 import { DEFAULT_CONFIG } from '@/core/types';
 import { shiftDate } from '@/core/util';
 
@@ -252,5 +253,141 @@ describe('mergeKnowledge reset epoch propagates a wipe across devices', () => {
     expect(m.srs['ai-1']).toBeUndefined();
     expect(m.log.length).toBe(0); // log entry stripped
     expect(m.genDiscarded).toContain('ai-1'); // tombstone carried forward
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Cambridge: per-record LWW, tombstones, timer max                     */
+/* ------------------------------------------------------------------ */
+
+describe('mergeCambridge', () => {
+  const DAY = 86_400_000;
+  const item = (id: string, updatedAt: number, over: Partial<CamItem> = {}): CamItem =>
+    ({ id, stage: 'attempting', questions: {}, updatedAt, ...over });
+  const cam = (over: Partial<CambridgeState> = {}): CambridgeState => ({ ...emptyCambridge(), ...over });
+
+  it('the newer record wins, per record, whichever side is local', () => {
+    const a = cam({ items: { x: item('x', 10, { writeup: 'old' }), y: item('y', 30, { writeup: 'mine' }) } });
+    const b = cam({ items: { x: item('x', 20, { writeup: 'edited elsewhere' }), y: item('y', 5, { writeup: 'stale' }) } });
+    for (const m of [mergeCambridge(a, b, true), mergeCambridge(b, a, false)]) {
+      expect(m.items.x!.writeup).toBe('edited elsewhere'); // an edit reaches the device that already had the item
+      expect(m.items.y!.writeup).toBe('mine');
+    }
+  });
+
+  it('errors, gates and weeks are LWW per record too', () => {
+    const err = (fix: string, updatedAt: number) => ({ id: 'e', itemId: 'x', q: '1', cause: 'concept' as const, topic: 't', fix, at: 1, updatedAt });
+    const a = cam({
+      errors: { e: err('old', 1) },
+      gates: { A: { phase: 'A', passedAt: 5, evidence: { a: 'old' }, updatedAt: 5 } },
+      weeks: { '2026-W40': { week: '2026-W40', scores: { cold: 2, writeup: 2, supervisions: 2, redo: 2, pace: 2 }, updatedAt: 9 } },
+    });
+    const b = cam({
+      errors: { e: err('new', 2) },
+      gates: { A: { phase: 'A', passedAt: 5, evidence: { a: 'new' }, updatedAt: 6 } },
+      weeks: { '2026-W40': { week: '2026-W40', scores: { cold: 0, writeup: 0, supervisions: 0, redo: 0, pace: 0 }, updatedAt: 8 } },
+    });
+    const m = mergeCambridge(a, b, true);
+    expect(m.errors.e!.fix).toBe('new');
+    expect(m.gates.A!.evidence).toEqual({ a: 'new' });
+    expect(m.weeks['2026-W40']!.scores.cold).toBe(2);
+  });
+
+  it('a newer tombstone deletes; a newer live copy re-creates', () => {
+    const live = cam({ items: { x: item('x', 10, { writeup: 'w' }) } });
+    const dead = cam({ items: { x: { ...item('x', 20), deleted: true } } });
+    expect(mergeCambridge(live, dead, true).items.x!.deleted).toBe(true);
+    expect(mergeCambridge(dead, live, true).items.x!.deleted).toBe(true);
+    const revived = cam({ items: { x: item('x', 30, { writeup: 'again' }) } });
+    expect(mergeCambridge(dead, revived, true).items.x).toMatchObject({ writeup: 'again' });
+    expect(mergeCambridge(dead, revived, true).items.x!.deleted).toBeUndefined();
+  });
+
+  it('a timestamp tie still converges: the tombstone wins on both devices', () => {
+    const live = cam({ items: { x: item('x', 10) } });
+    const dead = cam({ items: { x: { ...item('x', 10), deleted: true } } });
+    expect(mergeCambridge(live, dead, true)).toEqual(mergeCambridge(dead, live, true));
+    expect(mergeCambridge(live, dead, true).items.x!.deleted).toBe(true);
+  });
+
+  it('cold-attempt time takes the per-question max, even from the older copy', () => {
+    const longer = cam({ items: { x: item('x', 10, { questions: { 1: { q: '1', coldSec: 4000 }, 2: { q: '2', coldSec: 50 } } }) } });
+    const newer = cam({ items: { x: item('x', 20, { writeup: 'w', questions: { 1: { q: '1', coldSec: 1200, status: 'partial' } } }) } });
+    const m = mergeCambridge(newer, longer, true);
+    expect(m.items.x!.writeup).toBe('w');
+    expect(m.items.x!.questions['1']).toEqual({ q: '1', coldSec: 4000, status: 'partial' });
+    expect(m.items.x!.questions['2']).toEqual({ q: '2', coldSec: 50 }); // started only on the older copy: kept
+  });
+
+  it('awarded is a union that keeps the first payout time; migratedAt keeps the earliest', () => {
+    const a = cam({ awarded: { 'cam:writeup:x': 5, 'cam:redo:x': 9 }, migratedAt: 100 });
+    const b = cam({ awarded: { 'cam:writeup:x': 3, 'cam:gatePassed:A': 7 }, migratedAt: 50 });
+    const m = mergeCambridge(a, b, true);
+    expect(m.awarded).toEqual({ 'cam:writeup:x': 3, 'cam:redo:x': 9, 'cam:gatePassed:A': 7 });
+    expect(m.migratedAt).toBe(50);
+  });
+
+  it('is dispatched from mergeStore', () => {
+    const a = cam({ items: { x: item('x', 1) } });
+    const b = cam({ items: { y: item('y', 1) } });
+    expect(Object.keys((mergeStore('cambridge', a as never, b as never, true) as never as CambridgeState).items).sort()).toEqual(['x', 'y']);
+  });
+
+  // Few distinct values on purpose: timestamp ties and field clashes are the hard cases.
+  const arbItem: fc.Arbitrary<CamItem> = fc.record({
+    id: fc.constant('x'),
+    stage: fc.constantFrom<CamItem['stage']>('attempting', 'written-up', 'supervised'),
+    questions: fc.dictionary(
+      fc.constantFrom('1', '2', '3'),
+      fc.record({ q: fc.constant('q'), coldSec: fc.integer({ min: 0, max: 9000 }), status: fc.constantFrom<'solved' | 'stuck'>('solved', 'stuck') }),
+      { maxKeys: 3 },
+    ),
+    updatedAt: fc.integer({ min: 1, max: 3 }),
+    writeup: fc.constantFrom('a', 'b'),
+  }).chain((it) => fc.boolean().map((deleted): CamItem => (deleted ? { ...it, deleted: true } : it)));
+  const arbCam: fc.Arbitrary<CambridgeState> = fc.record({
+    items: fc.dictionary(fc.constantFrom('x', 'y', 'z'), arbItem, { maxKeys: 3 }),
+    awarded: fc.dictionary(fc.constantFrom('k1', 'k2', 'k3'), fc.integer({ min: 1, max: 100 }), { maxKeys: 3 }),
+  }).map((p) => cam(p));
+
+  it('is commutative, idempotent and associative (devices converge in any sync order)', () => {
+    fc.assert(fc.property(arbCam, arbCam, arbCam, (a, b, c) => {
+      const m = mergeCambridge(a, b, true);
+      expect(m).toEqual(mergeCambridge(b, a, false));
+      expect(mergeCambridge(m, m, true)).toEqual(m);
+      expect(mergeCambridge(m, a, true)).toEqual(m);
+      expect(mergeCambridge(m, b, true)).toEqual(m);
+      expect(mergeCambridge(m, c, true)).toEqual(mergeCambridge(a, mergeCambridge(b, c, true), true));
+    }), { numRuns: Math.max(RUNS, 1000) });
+  });
+
+  it('never lowers a live question\'s cold time', () => {
+    fc.assert(fc.property(arbCam, arbCam, (a, b) => {
+      const m = mergeCambridge(a, b, true);
+      for (const side of [a, b]) {
+        for (const [id, it] of Object.entries(side.items)) {
+          const out = m.items[id]!;
+          if (it.deleted || out.deleted) continue;
+          for (const [q, x] of Object.entries(it.questions)) expect(out.questions[q]!.coldSec).toBeGreaterThanOrEqual(x.coldSec);
+        }
+      }
+    }), opts);
+  });
+
+  it('sanitizeStore prunes Cambridge tombstones after 30 days and keeps everything else', () => {
+    const now = 100 * DAY;
+    const s = cam({
+      items: {
+        old: { ...item('old', now - 31 * DAY), deleted: true },
+        fresh: { ...item('fresh', now - 2 * DAY), deleted: true },
+        live: item('live', now - 90 * DAY),
+      },
+      errors: { e: { id: 'e', itemId: 'x', q: '1', cause: 'concept', topic: '', fix: '', at: 1, updatedAt: now - 40 * DAY, deleted: true } },
+    });
+    const out = sanitizeStore('cambridge', s as never, now) as never as CambridgeState;
+    expect(Object.keys(out.items).sort()).toEqual(['fresh', 'live']);
+    expect(out.errors).toEqual({});
+    // Nothing to prune: the same object comes back.
+    expect(sanitizeStore('cambridge', out as never, now)).toBe(out);
   });
 });

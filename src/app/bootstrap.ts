@@ -13,6 +13,8 @@ import { host } from '@/ui/host';
 import { bump } from '@/ui/store';
 import { syncTrackerFromStore, ensureToday as ensureTrackerToday } from '@/features/studytracker/trackerStore';
 import { span, count } from '@/core/telemetry';
+import { normaliseCambridge } from '@/features/data/dataSelectors';
+import { snapshotMassey } from '@/features/cambridge/masseyKeys';
 
 export const STORAGE_KEYS: Record<StoreKey, string> = {
   core: 'meridian-core',
@@ -20,15 +22,17 @@ export const STORAGE_KEYS: Record<StoreKey, string> = {
   surplus: 'surplus-tracker-state',
   csgraph: 'csgraph_profile_v2',
   theorist: 'meridian-theorist',
+  cambridge: 'meridian-cambridge',
 };
 
-/* ── the four store objects (owned here; read/mutated in place by actions) ── */
+/* ── the store objects (owned here; read/mutated in place by actions) ── */
 export const stores: Record<StoreKey, Record<string, unknown>> = {
   core: { schedule: {}, entries: [], todos: [], scratch: [] },
   overload: { settings: {}, days: {}, bw: {}, rpe: {} },
   surplus: { settings: {}, days: {}, tad: {} },
   csgraph: { mastery: {}, srs: {}, log: [], gymDone: {} },
   theorist: { banked: {}, day: { date: '', blocks: {}, scores: {}, banked: false } },
+  cambridge: { v: 1, items: {}, errors: {}, gates: {}, weeks: {}, awarded: {} },
 };
 
 /* ── load gate ──
@@ -114,6 +118,7 @@ function createSync(config: SyncSetup): SyncEngine {
       surplus: config.read('surplus'),
       csgraph: config.read('csgraph'),
       theorist: config.read('theorist'),
+      cambridge: config.read('cambridge'),
     },
   );
   return engine;
@@ -319,23 +324,96 @@ function wireLifecycle(): void {
   });
 }
 
+let resolveCambridgeReady: () => void = () => {};
+/**
+ * Resolves once the Cambridge store has loaded and, on a device's first run,
+ * the Massey backup has been taken. Cambridge screens await it (through
+ * features/cambridge/store) before their first write, which is how "back up
+ * before any Cambridge write" holds. It lives here, not in the store module,
+ * so the main chunk does not carry the store's helpers.
+ */
+export const cambridgeReady: Promise<void> = new Promise((resolve) => { resolveCambridgeReady = resolve; });
+
+/**
+ * Load the Cambridge store. On this device's first run of the Cambridge build,
+ * the migration (a lazy chunk) first backs up every Massey key, and only then
+ * is the store marked migrated. Nothing writes Cambridge data before this
+ * resolves: the store stays unloaded (so sync leaves it alone) and
+ * `cambridgeReady` gates the Cambridge screens.
+ */
+async function loadCambridge(snapshot: Record<string, string | null> | null): Promise<void> {
+  let cam = normaliseCambridge(null);
+  try {
+    const raw = await storeGet(STORAGE_KEYS.cambridge);
+    if (raw) cam = normaliseCambridge(JSON.parse(raw));
+  } catch {
+    /* unreadable: start empty; the old keys are untouched either way */
+  }
+  let migrated = false;
+  if (!cam.migratedAt) {
+    try {
+      const m = await import('@/features/cambridge/migration');
+      const res = await m.runMigration(cam, { now: Date.now(), theorist: stores.theorist, ...(snapshot ? { snapshot } : {}) });
+      migrated = res.state !== cam;
+      cam = res.state;
+    } catch {
+      /* offline first run with no cached chunk: retried on the next launch */
+    }
+  }
+  stores.cambridge = cam as unknown as Record<string, unknown>;
+  markStoreLoaded('cambridge');
+  // The marker saves like any system change; if the app closes first, the next
+  // launch simply takes the backup again.
+  if (migrated) appState.markTheoristDirty({ system: true });
+  resolveCambridgeReady();
+}
+
+/** Whether this device's fast localStorage copy already carries the migration marker. */
+function migratedLocally(): boolean {
+  try {
+    return !!(JSON.parse(host.getItem(STORAGE_KEYS.cambridge) ?? 'null') as { migratedAt?: number } | null)?.migratedAt;
+  } catch {
+    return false;
+  }
+}
+
 /* ── boot: init sync, load the durable core store, then background-pull ── */
 export async function boot(): Promise<void> {
+  // First, synchronously, before the first render: what the Massey keys hold as
+  // the old build left them. The backup is written later (lazy chunk), and by
+  // then a tap could already have changed a key. Only on the first run.
+  const masseySnapshot = migratedLocally() ? null : snapshotMassey(typeof localStorage !== 'undefined' ? localStorage : null);
   appState.init();
   wireLifecycle();
   stores.core = await appState.loadCore();
   markStoreLoaded('core');
   stores.theorist = await appState.loadTheorist();
   markStoreLoaded('theorist');
-  syncTrackerFromStore();
+  // After theorist, so the backup can include the loaded tracker store.
+  const camLoad = loadCambridge(masseySnapshot);
+  // Rendering only reads, so it never waits for the backup: publish the loaded
+  // stores now. On a first run, holding this re-render (and its layout) behind the
+  // backup's IndexedDB round trips put it on the path to Today's first paint.
+  syncTrackerFromStore(); // project the durable theorist store into the tracker signal
+  bump(); // core (schedule/entries/todos/scratch) is in: re-derive anything already mounted
+  appState.paintChip();
+  // The rollover below is the first write to a Massey key. On the first run of this
+  // build it waits for the backup, so the backup holds the Massey keys exactly as
+  // the old build left them. Later launches find the marker in localStorage and
+  // do not wait.
+  const waited = !migratedLocally();
+  if (waited) await camLoad;
   // A new day since last use: auto-bank the old one now, before the boot pull
   // could replace this device's unbanked day with another device's newer one.
+  // Its commit re-projects the tracker signal, which re-renders that signal's readers.
+  const tracker = appState.get('theorist');
   ensureTrackerToday();
+  // After a wait, the render above has already gone out, so screens that read the
+  // tracker store directly (the Data tab) need a fresh pass. Without the wait, the
+  // rollover ran in the same task as that bump, so the render already sees it.
+  if (waited && appState.get('theorist') !== tracker) bump();
   // Saves before the gate opened were local-only; publish them once it does.
   void allStoresLoaded.then(() => { if (sync.anyDirty()) void appState.save(); });
-  syncTrackerFromStore(); // project the durable theorist store into the tracker signal
-  bump(); // core (schedule/entries/todos/scratch) is in — re-derive anything already mounted
-  appState.paintChip();
   if (cloudEnabled()) {
     window.setTimeout(async () => {
       try {
