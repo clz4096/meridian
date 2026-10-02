@@ -1144,7 +1144,8 @@ export function plannedSlots(
     const slot = canonicalSlot(ex);
     if (slotSplit(state, slot, config) === split) out.add(slot);
   }
-  return [...out].sort((a, b) => exerciseOrder(state, a) - exerciseOrder(state, b));
+  // Name breaks order ties so the result does not depend on how the names were collected.
+  return [...out].sort((a, b) => exerciseOrder(state, a) - exerciseOrder(state, b) || (a < b ? -1 : a > b ? 1 : 0));
 }
 
 /**
@@ -1224,18 +1225,25 @@ export function exerciseScore(
   return completion * (sum / done.length);
 }
 
+type Half = 'upper' | 'lower';
+
 export interface DayScore {
-  split: 'upper' | 'lower';
-  /** Mean over the planned slots that have a target; null when every one is new. */
+  /** The splits trained that day: one for a pure day, both for a mixed day. */
+  splits: Half[];
+  /** Per split: mean over its planned slots that have a target; null when every one is new. */
+  halves: Partial<Record<Half, number | null>>;
+  /** Mean of the scored halves; null when every lift was new. */
   score: number | null;
   label: StrengthGrade | 'new';
   exercises: Array<{ slot: string; score: number | null }>;
 }
 
 /**
- * Score a training day: the mean of `exerciseScore` over its split's planned
- * slots (skips count 0, new lifts are left out). `null` when no upper or lower
- * lifting was logged that day.
+ * Score a training day. Each split present that day (at least one of its planned,
+ * non-retired lifts or a substitute logged) scores the mean of `exerciseScore`
+ * over that split's planned slots (skips count 0, new lifts are left out). A
+ * mixed day is graded as both halves and the day score is their mean, so every
+ * lift done counts. `null` when no upper or lower lifting was logged that day.
  */
 export const dayScore = indexed(function dayScore(
   state: WorkoutState,
@@ -1243,15 +1251,32 @@ export const dayScore = indexed(function dayScore(
   overrides: SessionOverrides = {},
   config: ProgressionConfig = DEFAULT_CONFIG,
 ): DayScore | null {
-  const split = splitOfDate(state, date, config);
-  if (split !== 'upper' && split !== 'lower') return null;
-  const exercises = plannedSlots(state, date, split, config).map((slot) => ({
-    slot,
-    score: exerciseScore(state, slot, date, overrides, config),
-  }));
-  const graded = exercises.flatMap((e) => (e.score === null ? [] : [e.score]));
-  const score = graded.length > 0 ? graded.reduce((a, b) => a + b, 0) / graded.length : null;
-  return { split, score, label: score === null ? 'new' : gradeOf(score), exercises };
+  const present = new Set<Half>();
+  for (const ex of loggedExercises(state, date)) {
+    if (isRetired(ex) || isCardio(state, ex)) continue;
+    const s = slotSplit(state, canonicalSlot(ex), config);
+    if (s === 'upper' || s === 'lower') present.add(s);
+  }
+  // A day of only retired lifts keeps its label split, so it still reads as a session.
+  if (present.size === 0) {
+    const fallback = splitOfDate(state, date, config);
+    if (fallback !== 'upper' && fallback !== 'lower') return null;
+    present.add(fallback);
+  }
+  const splits = (['upper', 'lower'] as const).filter((h) => present.has(h));
+  const mean = (xs: number[]): number | null => (xs.length > 0 ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  const halves: Partial<Record<Half, number | null>> = {};
+  const exercises: DayScore['exercises'] = [];
+  for (const h of splits) {
+    const part = plannedSlots(state, date, h, config).map((slot) => ({
+      slot,
+      score: exerciseScore(state, slot, date, overrides, config),
+    }));
+    exercises.push(...part);
+    halves[h] = mean(part.flatMap((e) => (e.score === null ? [] : [e.score])));
+  }
+  const score = mean(splits.flatMap((h) => (halves[h] == null ? [] : [halves[h]!])));
+  return { splits, halves, score, label: score === null ? 'new' : gradeOf(score), exercises };
 });
 
 /** Monday of the calendar week holding `date`. The weekday of a calendar date is timezone independent. */
@@ -1289,15 +1314,21 @@ export const weekScore = indexed(function weekScore(
   const monday = mondayOf(today);
   const scores = { upper: [] as number[], lower: [] as number[] };
   const done = { upper: 0, lower: 0 };
+  let days = 0;
   let todayTrained = false;
   for (let i = 0; i < 7; i++) {
     const d = shiftDate(monday, i);
     if (d > today) break;
     const day = dayScore(state, d, overrides, config);
     if (!day) continue;
-    done[day.split]++;
+    days++;
+    // A mixed day fills one upper and one lower slot, each with its own half score.
+    for (const h of day.splits) {
+      done[h]++;
+      const v = day.halves[h];
+      if (v != null) scores[h].push(v);
+    }
     if (d === today) todayTrained = true;
-    if (day.score !== null) scores[day.split].push(day.score);
   }
   const todayIx = dayGap(monday, today);
   const open = Math.max(0, 4 - todayIx) + (todayIx <= 4 && !todayTrained ? 1 : 0);
@@ -1319,7 +1350,7 @@ export const weekScore = indexed(function weekScore(
     score,
     label: score === null ? 'rest' : gradeOf(score),
     soFar: open > 0 && owed > 0,
-    sessions: done.upper + done.lower,
+    sessions: days,
     planned: WEEK_TRAINING_TARGET,
   };
 });

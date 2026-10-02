@@ -862,7 +862,7 @@ describe('workout score: exercise and day', () => {
 
   it('a full perfect upper day is Strong 1.00', () => {
     const day = dayScore(stateOf([...at(D(0)), ...at(D(3))]), D(3))!;
-    expect(day.split).toBe('upper');
+    expect(day.splits).toEqual(['upper']);
     expect(day.exercises).toHaveLength(6);
     expect(day.score).toBeCloseTo(1, 9);
     expect(day.label).toBe('strong');
@@ -918,17 +918,27 @@ describe('workout score: exercise and day', () => {
     expect(fresh.label).toBe('new');
   });
 
-  it('a lower day is graded against lower lifts, even beside a long upper lift', () => {
-    // Three short lower lifts and one long upper lift: set count says upper, lifts say lower.
-    const day = (d: string) => [
-      ...lift(d, 'Calf Raise (Machine)', 'calves', [200, 8]),
-      ...lift(d, 'Hip Abduction', 'hips', [100, 8]),
-      ...lift(d, 'Leg Extension', 'quads', [150, 8]),
-      ...lift(d, 'Overhead Press', 'shoulders', [60, 8], [[60, 8], [60, 8], [60, 8], [60, 8]]),
-    ];
-    const s = stateOf([...day(D(0)), ...day(D(3))]);
-    expect(splitOfDate(s, D(3))).toBe('lower');
-    expect(dayScore(s, D(3))!.exercises.map((e) => e.slot).sort()).toEqual(['Calf Raise (Machine)', 'Hip Abduction', 'Leg Extension']);
+  it('a mixed day is graded as both halves and averages them', () => {
+    // Upper hits its target (1.00); lower lifts half the target load (0.50).
+    const s = stateOf([
+      ...lift(D(0), 'Overhead Press', 'shoulders', [60, 8]),
+      ...lift(D(0), 'Hack Squat', 'quads', [200, 5]),
+      ...lift(D(3), 'Overhead Press', 'shoulders', [60, 8]),
+      ...lift(D(3), 'Hack Squat', 'quads', [100, 5]),
+    ]);
+    const day = dayScore(s, D(3))!;
+    expect(day.splits).toEqual(['upper', 'lower']);
+    expect(day.halves.upper).toBeCloseTo(1, 9);
+    expect(day.halves.lower).toBeCloseTo(0.5, 9);
+    expect(day.score).toBeCloseTo(0.75, 9);
+    expect(day.label).toBe('moderate');
+    expect(day.exercises.map((e) => e.slot).sort()).toEqual(['Hack Squat', 'Overhead Press']);
+    // The week picks up each half, and each mixed day is one trained day. D(0) is in
+    // the same week but all new, so it adds a day without adding a score.
+    const wk = weekScore(s, D(3));
+    expect(wk.upper).toBeCloseTo(1, 9);
+    expect(wk.lower).toBeCloseTo(0.5, 9);
+    expect(wk.sessions).toBe(2);
   });
 
   it('a session label names the split when every set carries one', () => {
@@ -1068,17 +1078,17 @@ describe('target fixes', () => {
   });
 });
 
-// The owner's early real log. Mixed gym days classify upper (more distinct upper
-// lifts); 07-22 is a lone first-time Leg Press beside four skipped lower lifts;
+// The owner's early real log. Mixed gym days grade both halves and average them;
+// 07-22 is a lone first-time Leg Press beside four skipped lower lifts;
 // 07-23 logged only the retired grip lifts.
 const SEED_EXPECTED: string[] = [
-  '2026-07-03 upper new -',
-  '2026-07-05 upper moderate 0.75',
-  '2026-07-07 upper moderate 0.78',
-  '2026-07-09 upper strong 0.99',
+  '2026-07-03 upper+lower new -',
+  '2026-07-05 upper+lower moderate 0.76',
+  '2026-07-07 upper+lower moderate 0.81',
+  '2026-07-09 upper+lower strong 0.95',
   '2026-07-10 upper weak 0.50',
-  '2026-07-12 upper weak 0.27',
-  '2026-07-14 upper strong 0.88',
+  '2026-07-12 upper+lower weak 0.26',
+  '2026-07-14 upper+lower weak 0.59',
   '2026-07-17 upper weak 0.24',
   '2026-07-22 lower weak 0.00',
   '2026-07-23 upper weak 0.00',
@@ -1100,7 +1110,7 @@ describe('workout score on the REAL seeded log', () => {
       .sort()
       .map((d) => {
         const day = dayScore(real(), d);
-        return day ? `${d} ${day.split} ${day.label} ${day.score === null ? '-' : day.score.toFixed(2)}` : `${d} none`;
+        return day ? `${d} ${day.splits.join('+')} ${day.label} ${day.score === null ? '-' : day.score.toFixed(2)}` : `${d} none`;
       });
     expect(got).toEqual(SEED_EXPECTED);
   });
