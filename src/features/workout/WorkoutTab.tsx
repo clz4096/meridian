@@ -683,7 +683,11 @@ export function WorkoutView() {
   // "Show all" reveals the OTHER split (e.g. an upper day shows the lower lifts) in
   // its own labeled group below today's — never mixed in.
   const otherSplit: Split | null = vm.split === 'upper' ? 'lower' : vm.split === 'lower' ? 'upper' : null;
-  const otherVm = showAll && otherSplit ? selectWorkoutView(W, date, today, { deload: wkDeload.value, split: otherSplit, away }, DEFAULT_CONFIG) : null;
+  const otherAll = otherSplit ? selectWorkoutView(W, date, today, { deload: wkDeload.value, split: otherSplit, away }, DEFAULT_CONFIG) : null;
+  // A mixed day: lifts from the other split were logged on this date, so that group is
+  // part of the session. Show it (with its grades) without needing "Show all".
+  const otherDone = !!otherAll && otherAll.exercises.some((ex) => !vm.exercises.includes(ex) && (otherAll.performed[ex] ?? []).length > 0);
+  const otherVm = (showAll || otherDone) ? otherAll : null;
   const done = vm.exercises.filter((e) => vm.completed[e]).length;
   const status = vm.sessionComplete ? '✓ complete' : `${done} / ${vm.exercises.length} logged`;
   const splitLabel = vm.split === 'upper' ? 'Upper' : vm.split === 'lower' ? 'Lower' : vm.split === 'all' ? 'Full body' : 'Session';
@@ -692,9 +696,9 @@ export function WorkoutView() {
   // Per-exercise grades for the day's split. Before a lift is started today its
   // skip is not final, so it only shows a grade once logged (or on a past day).
   const daySlots = new Map((day?.exercises ?? []).map((e) => [e.slot, e.score]));
-  const gradeFor = (ex: string): Grade | null => {
+  const gradeFor = (ex: string, view: typeof vm = vm): Grade | null => {
     const slot = canonicalSlot(ex);
-    if (!daySlots.has(slot) || (!vm.isPast && (vm.performed[ex] ?? []).length === 0)) return null;
+    if (!daySlots.has(slot) || (!view.isPast && (view.performed[ex] ?? []).length === 0)) return null;
     const sc = daySlots.get(slot)!;
     return sc === null ? 'new' : gradeOf(sc);
   };
@@ -740,19 +744,20 @@ export function WorkoutView() {
               <ExerciseCardFace vm={vm} exercise={ex} grade={gradeFor(ex)} />
             ))}
           </div>
-          {!vm.isPast && otherSplit && (
+          {/* On a mixed day the other split's group is part of the session and always shown. */}
+          {!vm.isPast && otherSplit && !otherDone && (
             <button class="wk-showall" aria-expanded={showAll} onClick={() => (wkShowAll.value = !showAll)}>
               {showAll ? `Hide ${otherSplit} day` : `Show all · + ${otherSplit} day`}
             </button>
           )}
-          {showAll && otherVm && otherVm.exercises.length > 0 && (
+          {otherVm && otherVm.exercises.length > 0 && (
             <>
-              <div class="wkgroup-h">{otherSplit === 'lower' ? 'Lower body' : 'Upper body'} · not today</div>
+              <div class="wkgroup-h">{otherSplit === 'lower' ? 'Lower body' : 'Upper body'} · {otherDone ? 'also done today' : 'not today'}</div>
               <div class="exgrid">
                 {/* A 'both'/cardio (or 'other') lift qualifies for both splits — it's
                     already in today's grid, so exclude it here to avoid a double card. */}
                 {otherVm.exercises.filter((ex) => !vm.exercises.includes(ex)).map((ex) => (
-                  <ExerciseCardFace vm={otherVm} exercise={ex} />
+                  <ExerciseCardFace vm={otherVm} exercise={ex} grade={gradeFor(ex, otherVm)} />
                 ))}
               </div>
             </>

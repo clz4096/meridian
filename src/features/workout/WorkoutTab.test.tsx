@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { WorkoutView } from '@/features/workout/WorkoutTab';
 import { wk, workoutActions } from '@/ui/actions';
-import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, activeExercise, awayMode } from '@/ui/store';
+import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkShowAll, activeExercise, awayMode } from '@/ui/store';
 
 beforeEach(() => {
   // The view shows "Loading…" and kicks off a real async loadWorkout() in an
@@ -43,6 +43,7 @@ afterEach(() => {
   wkDeload.value = {};
   activeExercise.value = null;
   awayMode.value = false;
+  wkShowAll.value = false;
   const W = wk() as any;
   W.days = {};
   W.bw = {};
@@ -120,5 +121,25 @@ describe('WorkoutView', () => {
     const r = render(<WorkoutView />);
     expect(r.container.querySelector('.exdetail')).toBeTruthy();
     expect(r.getByText('Log set')).toBeTruthy();
+  });
+
+  it('on a mixed day the other split shows on its own, and its lifts carry grades too', () => {
+    // A lower day where an upper lift was also logged. Before this fix only today's
+    // split got per-exercise grades, so the upper lifts of a mixed day had none.
+    // Today, not a past day: a past day already lists every logged lift in one grid.
+    const today = new Date().toISOString().slice(0, 10);
+    const W = wk() as any;
+    W.days[today] = [
+      { id: 't1', ex: 'Leg Press', muscle: 'quads', group: 'legs', type: 'top', weight: 210, reps: 8 },
+      { id: 't2', ex: 'Bench Press', muscle: 'chest', group: 'push', type: 'top', weight: 100, reps: 5 },
+    ];
+    wkDate.value = today;
+    wkSplit.value = 'lower';
+    const { container } = render(<WorkoutView />);
+    const heads = [...container.querySelectorAll('.wkgroup-h')].map((e) => e.textContent ?? '');
+    expect(heads.some((h) => h.includes('Upper body') && h.includes('also done today'))).toBe(true);
+    const bench = [...container.querySelectorAll('.excard-name')].find((c) => c.textContent?.includes('Bench Press'));
+    expect(bench).toBeTruthy();
+    expect(bench!.querySelector('.effchip')).toBeTruthy(); // 'New' on a first session
   });
 });
