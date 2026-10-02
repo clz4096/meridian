@@ -142,4 +142,21 @@ describe('WorkoutView', () => {
     expect(bench).toBeTruthy();
     expect(bench!.querySelector('.effchip')).toBeTruthy(); // 'New' on a first session
   });
+
+  it('labels a planned weekday that passed with nothing logged as Missed, from the week of Sep 28, 2026 on', () => {
+    // Tue 2026-09-29 is a past weekday with nothing logged (the seed logs 2020-01-01 only).
+    wkSplitTouched.value = false;
+    wkDate.value = '2026-09-29';
+    const { container } = render(<WorkoutView />);
+    expect(container.querySelector('.todayhd .effchip')?.textContent).toBe('Missed');
+    expect(container.querySelector('.placeholder')?.textContent).toContain('Missed');
+    const strip = [...container.querySelectorAll('.wkday')].map((b) => b.getAttribute('aria-label') ?? '');
+    expect(strip.some((l) => l.startsWith('Tue 29') && l.includes('missed'))).toBe(true);
+    // The week before (Tue 2026-09-22) predates the Missed marks, so it is left unmarked.
+    cleanup();
+    wkDate.value = '2026-09-22';
+    const r = render(<WorkoutView />);
+    expect(r.container.querySelector('.todayhd .effchip')).toBeNull();
+    expect(r.container.querySelectorAll('.wkday.missed').length).toBe(0);
+  });
 });

@@ -95,11 +95,15 @@ function weekDaysFor(date: string): string[] {
 }
 
 /** What one day of the week holds. `full` = full-body (Sunday opt-in). */
+/** Monday of the week "Missed" marks began; planned days before it are never marked missed. */
+const MISSED_FROM = '2026-09-28';
+
 type PlanSplit = 'upper' | 'lower' | 'full' | null;
 interface PlanDay {
   split: PlanSplit;
   done: boolean; // you logged a real session that day
   rest: boolean; // scheduled off (Sat, and Sun by default)
+  missed?: boolean; // a planned training day already past with nothing logged
 }
 
 /**
@@ -118,6 +122,9 @@ const weekPlan = withHistoryIndex(function weekPlan(state: WorkoutState, days: s
   const before = sortedDates(state).filter((d) => d < days[0]);
   for (let i = before.length - 1; i >= 0 && last == null; i--) last = splitOfDate(state, before[i], DEFAULT_CONFIG);
 
+  // Missed marks start the week they shipped (owner's call, 2026-10-01): earlier weeks
+  // are left unmarked rather than judged retroactively.
+  const isMissed = (date: string): boolean => date < today && date >= MISSED_FROM;
   const plan: Record<string, PlanDay> = {};
   days.forEach((date, i) => {
     const logged = splitOfDate(state, date, DEFAULT_CONFIG); // what you actually did
@@ -133,11 +140,11 @@ const weekPlan = withHistoryIndex(function weekPlan(state: WorkoutState, days: s
       return;
     }
     if (isFullSunday) {
-      plan[date] = { split: 'full', done: false, rest: false }; // stands outside the U/L alternation
+      plan[date] = { split: 'full', done: false, rest: false, missed: isMissed(date) }; // stands outside the U/L alternation
       return;
     }
     if (date < today) {
-      plan[date] = { split: null, done: false, rest: false }; // a weekday you skipped
+      plan[date] = { split: null, done: false, rest: false, missed: isMissed(date) }; // a weekday you skipped
       return;
     }
     const next: Split = last === 'upper' ? 'lower' : 'upper'; // alternate off the trend
@@ -186,16 +193,16 @@ function WeekStrip({ state, today, selected, sundayFullBody }: { state: WorkoutS
           const date = days[i];
           const isToday = date === today;
           const isSel = date === selected;
-          const { split, done, rest } = plan[date];
+          const { split, done, rest, missed } = plan[date];
           const cls =
             split === 'upper' ? ' up' : split === 'lower' ? ' lo' : split === 'full' ? ' full' : rest ? ' rest' : '';
           return (
             <button
-              class={'wkday' + cls + (done ? ' done' : '') + (isSel ? ' sel' : '') + (isToday ? ' today' : '')}
+              class={'wkday' + cls + (done ? ' done' : '') + (missed ? ' missed' : '') + (isSel ? ' sel' : '') + (isToday ? ' today' : '')}
               onClick={() => goToDate(date)}
               aria-pressed={isSel}
               aria-current={isToday ? 'date' : undefined}
-              aria-label={`${label} ${dayNum(date)}, ${rest ? 'rest' : split === 'upper' ? 'upper' : split === 'lower' ? 'lower' : split === 'full' ? 'full body' : 'no session'}${done ? ', logged' : split ? ', planned' : ''}`}
+              aria-label={`${label} ${dayNum(date)}, ${rest ? 'rest' : split === 'upper' ? 'upper' : split === 'lower' ? 'lower' : split === 'full' ? 'full body' : 'no session'}${done ? ', logged' : missed ? ', missed' : split ? ', planned' : ''}`}
             >
               <span class="wkday-l">{label}</span>
               <span class="wkday-n">{dayNum(date)}</span>
@@ -254,11 +261,11 @@ const buildOptions = withHistoryIndex(function buildOptions(state: Any, date: st
 });
 
 type Grade = StrengthGrade | 'new';
-const GRADE_WORD: Record<Grade | 'rest', string> = { strong: 'Strong', moderate: 'Moderate', weak: 'Weak', new: 'New', rest: 'Rest' };
+const GRADE_WORD: Record<Grade | 'rest' | 'missed', string> = { strong: 'Strong', moderate: 'Moderate', weak: 'Weak', new: 'New', rest: 'Rest', missed: 'Missed' };
 const fmtScore = (x: number | null): string => (x === null ? '-' : x.toFixed(2));
 
 /** A small text grade chip. The word carries the meaning; color only reinforces it. */
-function GradeChip({ grade, score }: { grade: Grade | 'rest'; score?: number | null }) {
+function GradeChip({ grade, score }: { grade: Grade | 'rest' | 'missed'; score?: number | null }) {
   return (
     <span class={'effchip eff-' + grade}>
       {GRADE_WORD[grade]}
@@ -726,7 +733,7 @@ export function WorkoutView() {
           <div class="todayhd">
             <div class="todayhd-split">{vm.isPast ? o.dateLabel(vm.date) : `${splitLabel} day`}</div>
             <span class="exhead-r">
-              {day && <GradeChip grade={day.label} />}
+              {day ? <GradeChip grade={day.label} /> : dp?.missed ? <GradeChip grade="missed" /> : null}
               <span class="exhead-m">{status}</span>
               <button
                 class={'ex-opts' + (awayMode.value ? ' on' : '')}
@@ -738,7 +745,9 @@ export function WorkoutView() {
               </button>
             </span>
           </div>
-          {vm.isPast && vm.exercises.length === 0 && <div class="placeholder">No workout logged on {o.dateLabel(vm.date)}.</div>}
+          {vm.isPast && vm.exercises.length === 0 && (
+            <div class="placeholder">{dp?.missed ? `Missed: a planned session on ${o.dateLabel(vm.date)}, nothing logged. It counts as 0 in the week.` : `No workout logged on ${o.dateLabel(vm.date)}.`}</div>
+          )}
           <div class="exgrid">
             {vm.exercises.map((ex) => (
               <ExerciseCardFace vm={vm} exercise={ex} grade={gradeFor(ex)} />
