@@ -14,6 +14,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/preact';
 import { WorkoutView } from '@/features/workout/WorkoutTab';
+import tpl from '@/core/data/defaultWorkout.json';
 import { wk, workoutActions } from '@/ui/actions';
 import { wkLoaded, wkDate, wkSplit, wkSplitTouched, wkDeload, wkShowAll, activeExercise, awayMode } from '@/ui/store';
 
@@ -159,4 +160,30 @@ describe('WorkoutView', () => {
     expect(r.container.querySelector('.todayhd .effchip')).toBeNull();
     expect(r.container.querySelectorAll('.wkday.missed').length).toBe(0);
   });
+
+  it("today: attempted lifts carry a badge on the card and their page, unstarted ones none, and the top shows the session so far", () => {
+    // The owner's real early history, then today: a partly done upper session (two lifts started).
+    const W = wk() as any;
+    Object.assign(W.days, JSON.parse(JSON.stringify((tpl as any).days)));
+    const today = new Date().toISOString().slice(0, 10);
+    const src = (tpl as any).days['2026-07-17'] as any[];
+    const started = [...new Set(src.map((x) => x.ex))].slice(0, 2) as string[];
+    W.days[today] = src.filter((x) => started.includes(x.ex)).map((x, i) => ({ ...x, id: 'td' + i }));
+    wkDate.value = today;
+    wkSplitTouched.value = false;
+    const { container } = render(<WorkoutView />);
+    // The top of the page: the average of what's been attempted, marked "so far".
+    expect(container.querySelector('.todayhd .effchip')?.textContent).toContain('so far');
+    const card = (name: string) => [...container.querySelectorAll('.excard-name')].find((e) => e.textContent?.includes(name));
+    for (const ex of started) expect(card(ex)?.querySelector('.effchip')).toBeTruthy();
+    const unstarted = [...container.querySelectorAll('.excard-name')].filter((e) => !started.some((ex) => e.textContent?.includes(ex)) && !e.textContent?.includes('Treadmill'));
+    expect(unstarted.length).toBeGreaterThan(0);
+    for (const e of unstarted) expect(e.querySelector('.effchip')).toBeNull();
+    // The exercise's own page shows the same badge.
+    cleanup();
+    activeExercise.value = started[0]!;
+    const r = render(<WorkoutView />);
+    expect(r.container.querySelector('.exdetail-name .effchip')).toBeTruthy();
+  });
 });
+

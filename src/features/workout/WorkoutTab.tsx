@@ -265,11 +265,12 @@ const GRADE_WORD: Record<Grade | 'rest' | 'missed', string> = { strong: 'Strong'
 const fmtScore = (x: number | null): string => (x === null ? '-' : x.toFixed(2));
 
 /** A small text grade chip. The word carries the meaning; color only reinforces it. */
-function GradeChip({ grade, score }: { grade: Grade | 'rest' | 'missed'; score?: number | null }) {
+function GradeChip({ grade, score, note }: { grade: Grade | 'rest' | 'missed'; score?: number | null; note?: string }) {
   return (
     <span class={'effchip eff-' + grade}>
       {GRADE_WORD[grade]}
       {score != null ? ` ${score.toFixed(2)}` : ''}
+      {note ? ` · ${note}` : ''}
     </span>
   );
 }
@@ -540,7 +541,7 @@ function PastSetRow({ date, s }: { date: string; s: Any }) {
 }
 
 /** The full-screen logging view for one exercise, with a back link and a switcher to the others. */
-function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutViewOptions; exercise: string; exercises: string[] }) {
+function ExerciseDetail({ vm, o, exercise, exercises, grade = null }: { vm: VM; o: WorkoutViewOptions; exercise: string; exercises: string[]; grade?: Grade | null }) {
   // In Away mode the sets/plan/completion live under the dumbbell substitute (the same
   // identity LogInput logs under). Every per-slot control must key off THAT name, not
   // the gym-slot prop, or it silently no-ops / edits the wrong lift.
@@ -644,6 +645,7 @@ function ExerciseDetail({ vm, o, exercise, exercises }: { vm: VM; o: WorkoutView
           {displayExercise(exercise)}
           {plan?.deload ? <> <span class="cue deload">deload</span></> : null}
           {awayMode.value && exSwap(exercise) ? <span class="exswap-tag">away</span> : null}
+          {grade ? <> <GradeChip grade={grade} /></> : null}
         </h2>
         {ph && <PlateBar spec={ph} />}
         {body}
@@ -699,7 +701,9 @@ export function WorkoutView() {
   const status = vm.sessionComplete ? '✓ complete' : `${done} / ${vm.exercises.length} logged`;
   const splitLabel = vm.split === 'upper' ? 'Upper' : vm.split === 'lower' ? 'Lower' : vm.split === 'all' ? 'Full body' : 'Session';
   const progOpen = wkProgOpen.value;
-  const day = dayScore(W, date);
+  // Today: the average of the lifts attempted so far; any other day: the whole session.
+  const isToday = date === today;
+  const day = dayScore(W, date, {}, DEFAULT_CONFIG, isToday);
   // Per-exercise grades for the day's split. Before a lift is started today its
   // skip is not final, so it only shows a grade once logged (or on a past day).
   const daySlots = new Map((day?.exercises ?? []).map((e) => [e.slot, e.score]));
@@ -718,7 +722,7 @@ export function WorkoutView() {
     const sp = exerciseSplit(W, active, DEFAULT_CONFIG);
     const dv = selectWorkoutView(W, date, today, { deload: wkDeload.value, split: sp === 'upper' || sp === 'lower' ? sp : 'all', away }, DEFAULT_CONFIG);
     if (dv.exercises.includes(active)) {
-      return <ExerciseDetail vm={dv} o={o} exercise={active} exercises={dv.exercises} />;
+      return <ExerciseDetail vm={dv} o={o} exercise={active} exercises={dv.exercises} grade={gradeFor(active, dv)} />;
     }
   }
   return (
@@ -733,7 +737,9 @@ export function WorkoutView() {
           <div class="todayhd">
             <div class="todayhd-split">{vm.isPast ? o.dateLabel(vm.date) : `${splitLabel} day`}</div>
             <span class="exhead-r">
-              {day ? <GradeChip grade={day.label} /> : dp?.missed ? <GradeChip grade="missed" /> : null}
+              {day && (!isToday || day.exercises.length > 0) ? (
+                <GradeChip grade={day.label} note={isToday ? 'so far' : undefined} />
+              ) : dp?.missed ? <GradeChip grade="missed" /> : null}
               <span class="exhead-m">{status}</span>
               <button
                 class={'ex-opts' + (awayMode.value ? ' on' : '')}

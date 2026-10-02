@@ -1192,6 +1192,9 @@ function gradingTargets(
  * home substitute is graded against the substitute's own plan.
  *
  * Returns `null` ("new") when there is no target yet: cardio, or no prior history.
+ *
+ * `soFar` (today's session in progress): judge only how the logged sets went, not
+ * how many are left, since the day isn't over; the caller skips unattempted slots.
  */
 export function exerciseScore(
   state: WorkoutState,
@@ -1199,6 +1202,7 @@ export function exerciseScore(
   date: string,
   overrides: SessionOverrides = {},
   config: ProgressionConfig = DEFAULT_CONFIG,
+  soFar = false,
 ): number | null {
   if (isCardio(state, slot)) return null;
   const working = (ex: string): WorkoutSet[] => setsOn(state, ex, date).filter((s) => s.type === 'top' || s.type === 'back');
@@ -1221,8 +1225,22 @@ export function exerciseScore(
     const target = s.type === 'back' ? (t.backs[back++] ?? t.top) : t.top;
     sum += setScore(toNum(s.weight), toNum(s.reps), target);
   }
-  const completion = Math.min(1, done.length / (1 + plan.backs.length));
+  const completion = soFar ? 1 : Math.min(1, done.length / (1 + plan.backs.length));
   return completion * (sum / done.length);
+}
+
+/** Whether a slot (or its home substitute) is marked completed on `date`. */
+export function slotCompleted(state: WorkoutState, slot: string, date: string): boolean {
+  const done = (state.done?.[date] ?? []) as string[];
+  const sub = GYM_TO_SUB[slot];
+  return done.includes(slot) || (!!sub && done.includes(sub));
+}
+
+/** Whether a slot (or its home substitute) has a working set logged on `date`. */
+export function slotAttempted(state: WorkoutState, slot: string, date: string): boolean {
+  const worked = (ex: string): boolean => setsOn(state, ex, date).some((s) => s.type === 'top' || s.type === 'back');
+  const sub = GYM_TO_SUB[slot];
+  return worked(slot) || (!!sub && worked(sub));
 }
 
 type Half = 'upper' | 'lower';
@@ -1250,6 +1268,9 @@ export const dayScore = indexed(function dayScore(
   date: string,
   overrides: SessionOverrides = {},
   config: ProgressionConfig = DEFAULT_CONFIG,
+  /** Today's session in progress: average only the lifts attempted so far, and grade a
+   *  lift that isn't completed yet on how its logged sets went (its sets aren't all in). */
+  soFar: boolean = false,
 ): DayScore | null {
   const present = new Set<Half>();
   for (const ex of loggedExercises(state, date)) {
@@ -1268,9 +1289,10 @@ export const dayScore = indexed(function dayScore(
   const halves: Partial<Record<Half, number | null>> = {};
   const exercises: DayScore['exercises'] = [];
   for (const h of splits) {
-    const part = plannedSlots(state, date, h, config).map((slot) => ({
+    const slots = plannedSlots(state, date, h, config).filter((slot) => !soFar || slotAttempted(state, slot, date));
+    const part = slots.map((slot) => ({
       slot,
-      score: exerciseScore(state, slot, date, overrides, config),
+      score: exerciseScore(state, slot, date, overrides, config, soFar && !slotCompleted(state, slot, date)),
     }));
     exercises.push(...part);
     halves[h] = mean(part.flatMap((e) => (e.score === null ? [] : [e.score])));
