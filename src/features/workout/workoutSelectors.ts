@@ -307,11 +307,18 @@ export function loggedExercises(
 /* Progression                                                         */
 /* ================================================================== */
 
+/** Recent top-set jumps that inferIncrement learns the step from. */
+const INCREMENT_WINDOW = 8;
+/** Free weights load in fixed plate steps, so a learned step snaps to 2.5 or 5 lb. */
+const FREE_WEIGHT = /dumbbell|barbell|bench press/i;
+
 /**
  * Smallest usable weight step for an exercise.
  *
- * User override wins; otherwise infer the most common positive jump between
- * consecutive top sets. Falls back to the configured default.
+ * User override wins. Otherwise take the most common positive jump among recent
+ * consecutive top sets, but only if it repeats: one big jump (a PR attempt, a
+ * different machine) is not a step size. Free weights snap to 2.5 or 5 lb; a
+ * machine keeps its consistent stack step. Falls back to the configured default.
  */
 export function inferIncrement(
   state: WorkoutState,
@@ -326,20 +333,25 @@ export function inferIncrement(
     const top = topSetOf(setsOn(state, exercise, date));
     if (top) tops.push(toNum(top.weight));
   }
+  const recent = tops.slice(-(INCREMENT_WINDOW + 1));
   const counts = new Map<number, number>();
-  for (let i = 1; i < tops.length; i++) {
-    const delta = tops[i] - tops[i - 1];
+  for (let i = 1; i < recent.length; i++) {
+    // Round to hundredths so float noise (42.5 - 40.0) does not split one step into two.
+    const delta = Math.round((recent[i] - recent[i - 1]) * 100) / 100;
     if (delta > 0) counts.set(delta, (counts.get(delta) ?? 0) + 1);
   }
-  let best = config.defaultIncrement;
-  let bestCount = 0;
+  let best = 0;
+  let bestCount = 1; // a step must repeat to be learned
   for (const [delta, count] of counts) {
-    if (count > bestCount) {
+    // Ties go to the smaller step, the conservative progression.
+    if (count > bestCount || (count === bestCount && best > 0 && delta < best)) {
       bestCount = count;
       best = delta;
     }
   }
-  return best > 0 ? best : config.defaultIncrement;
+  if (best <= 0) return config.defaultIncrement;
+  if (FREE_WEIGHT.test(exercise)) return best <= 2.5 ? 2.5 : 5;
+  return best;
 }
 
 /**
@@ -348,13 +360,17 @@ export function inferIncrement(
  * Uses the modal warm-up/back-off counts across the last N sessions so one
  * rushed day cannot permanently drop sets from the prescription, and averages
  * each slot's ratio to the top set so the shape scales with the weight.
+ * With `before`, only sessions strictly before it count, so a day's own sets
+ * never shape the targets it is graded against.
  */
 export function setTemplate(
   state: WorkoutState,
   exercise: string,
   config: ProgressionConfig = DEFAULT_CONFIG,
+  before?: string,
 ): { warms: Array<{ ratio: number; reps: number }>; backs: Array<{ ratio: number; reps: number }> } | null {
   const sessions = exerciseDates(state, exercise)
+    .filter((date) => before === undefined || date < before)
     .map((date) => ({ date, sets: setsOn(state, exercise, date) }))
     .filter((s) => topSetOf(s.sets) !== null)
     .slice(-config.templateWindow);
@@ -534,40 +550,6 @@ export function daysSinceLast(state: WorkoutState, exercise: string, date: strin
   return prev ? dayGap(prev.date, date) : null;
 }
 
-export type Effort = 'strong' | 'moderate' | 'weak';
-
-/**
- * Grade a session — Strong / Moderate / Weak — from *this* session alone: where
- * each lift's top set landed inside its class rep range [reset … ceiling]. Hitting
- * the ceiling (ready to add load) scores strong; the bottom scores weak; the middle
- * is moderate. Working-set-weighted so compounds count for more. Absolute (no
- * comparison to prior sessions), so exactly repeating no longer reads as "strong".
- * Returns null when the date has no gradable lifting.
- */
-export function sessionEffort(
-  state: WorkoutState,
-  date: string,
-  config: ProgressionConfig = DEFAULT_CONFIG,
-): Effort | null {
-  let weighted = 0;
-  let total = 0;
-  for (const ex of loggedExercises(state, date)) {
-    if (isCardio(state, ex)) continue;
-    const top = topSetOf(setsOn(state, ex, date));
-    if (!top) continue;
-    const reps = toNum(top.reps);
-    const ceiling = repCeiling(state, ex, config);
-    const floor = repsAfterBumpFor(state, ex, config);
-    const score = reps >= ceiling ? 1 : reps > floor ? 0.6 : 0.2;
-    const w = setsOn(state, ex, date).length || 1;
-    weighted += score * w;
-    total += w;
-  }
-  if (total === 0) return null;
-  const mean = weighted / total;
-  return mean >= config.sessionStrong ? 'strong' : mean <= config.sessionWeak ? 'weak' : 'moderate';
-}
-
 /**
  * Best top-set weight over the last `recoveryWindow` sessions strictly before
  * `before` — the recovery anchor. This is DERIVED from history (never persisted),
@@ -735,13 +717,15 @@ export function buildPlan(
     // best; a genuine ceiling PR climbs past it.
     const stepped = roundDownTo(lastWeight, step) + step;
     weight = belowBest ? Math.min(stepped, best) : stepped;
-    reps = repFloor;
+    // Shed two reps for the heavier load rather than dropping to the floor, so one
+    // bump does not throw away most of the reps just earned.
+    reps = Math.max(repFloor, lastReps - 2);
   } else {
     weight = lastWeight;
     reps = lastReps;
   }
 
-  const template = setTemplate(state, exercise, config);
+  const template = setTemplate(state, exercise, config, date);
   const base = DEFAULT_TEMPLATES[exercise];
   // Floor the BACK-OFF count at the lift's baked-in default. `setTemplate` takes
   // the modal back-off count over recent sessions, so a run of short (top-set-
@@ -866,26 +850,17 @@ export const EXERCISE_ORDER: Record<string, number> = {
 };
 
 /**
- * Static per-exercise metadata that is NOT derivable from logged sets.
- *
- * Muscle/group come off the sets themselves (see `exerciseMeta`); this table is
- * the home for exercise-identity facts the log can't tell us. Today that is just
- * `optional` — accessory/grip work that shouldn't count toward strength grading.
+ * Lifts retired from the program (grip/forearm finishers). Their logged history
+ * stays untouched; they are just never planned, listed for a new session, or graded.
  */
-export interface ExerciseMetaStatic {
-  /** Accessory work (grip/forearm finishers): excluded from strength grading entirely. */
-  optional?: boolean;
-}
+export const RETIRED_EXERCISES: ReadonlySet<string> = new Set([
+  'Hammer Curl (Dumbbell)',
+  'Wrist Curl (Dumbbell)',
+  'Reverse Wrist Curl (Dumbbell)',
+]);
 
-export const EXERCISE_META: Record<string, ExerciseMetaStatic> = {
-  'Hammer Curl (Dumbbell)': { optional: true },
-  'Wrist Curl (Dumbbell)': { optional: true },
-  'Reverse Wrist Curl (Dumbbell)': { optional: true },
-};
-
-/** True for accessory lifts excluded from the week strength grade. */
-export function isOptional(exercise: string): boolean {
-  return EXERCISE_META[exercise]?.optional === true;
+export function isRetired(exercise: string): boolean {
+  return RETIRED_EXERCISES.has(exercise);
 }
 
 export function exerciseOrder(
@@ -937,14 +912,34 @@ function splitOfDateScan(state: WorkoutState, date: string, config: ProgressionC
   const sets = (state.days?.[date] ?? []).filter(
     (s) => s.type !== 'cardio' && !dead.has(toId(s.id)),
   );
+  // The session's own label wins when every strength set carries one and they agree
+  // ("Life Time - Lower"), since that is the day the lifter planned.
+  let gUpper = 0;
+  let gLower = 0;
+  let gNone = 0;
+  const exLower = new Set<string>();
+  const exUpper = new Set<string>();
   let lower = 0;
   let upper = 0;
   for (const set of sets) {
+    const g = set.group ?? '';
+    if (/upper/i.test(g)) gUpper++;
+    else if (/lower/i.test(g)) gLower++;
+    else gNone++;
     const split = exerciseSplit(state, set.ex, config);
-    if (split === 'lower') lower++;
-    else if (split === 'upper') upper++;
+    if (split === 'lower') {
+      lower++;
+      exLower.add(set.ex);
+    } else if (split === 'upper') {
+      upper++;
+      exUpper.add(set.ex);
+    }
   }
   if (lower === 0 && upper === 0) return null;
+  if (gNone === 0 && (gUpper === 0) !== (gLower === 0)) return gUpper > 0 ? 'upper' : 'lower';
+  // Otherwise the majority of distinct lifts, so a lower day with many short calf
+  // sets is not outvoted by one long upper lift. Set count only breaks a tie.
+  if (exLower.size !== exUpper.size) return exLower.size > exUpper.size ? 'lower' : 'upper';
   return lower >= upper ? 'lower' : 'upper';
 }
 
@@ -1080,52 +1075,122 @@ export function bodyweightTrend(state: WorkoutState): number | null {
 }
 
 /* ================================================================== */
-/* Week strength grade — pure, derived, NEVER persisted                */
+/* Workout score: pure, derived, NEVER persisted                       */
 /* ================================================================== */
 
 /*
- * The at-a-glance workout tile grades how the training week actually went,
- * against each lift's own planned target. Everything here is a pure selector
- * over the logged sets + the plan: nothing is stored on the state, so the grade
- * can never drift out of sync with the log (a persisted grade would be a stale
- * cache and a corruption surface). The single source of truth stays the sets.
+ * One metric everywhere (Today tile, Workout tab, week trend). Each planned lift
+ * scores completion x execution against its planned sets; a day is the mean over
+ * its split's planned lifts; a week is the mean of the upper and lower averages.
+ * Nothing is stored on the state, so the score can never drift from the log.
  */
 
 export type StrengthGrade = 'weak' | 'moderate' | 'strong';
-/** A week with zero gradable training is `rest`, not a strength grade. */
+/** A week with nothing scored yet is `rest`, not a strength grade. */
 export type WeekStrength = StrengthGrade | 'rest';
 
-/** Ordinal value of a grade, for averaging and taking a median. */
-const GRADE_VALUE: Record<StrengthGrade, number> = { weak: 1, moderate: 2, strong: 3 };
-const GRADE_BY_VALUE: Record<number, StrengthGrade> = { 1: 'weak', 2: 'moderate', 3: 'strong' };
+/** Planned sessions per split each week. No setting overrides this yet: the program is 2 upper + 2 lower. */
+export const PLANNED_PER_SPLIT = { upper: 2, lower: 2 } as const;
+/** Target training days a week (the tile's "n of 4 days"). */
+export const WEEK_TRAINING_TARGET = PLANNED_PER_SPLIT.upper + PLANNED_PER_SPLIT.lower;
 
-/**
- * Band a continuous 1..3 score into a grade. The partition is total — every
- * value lands in exactly one band:
- *   avg < 1.67 → weak · 1.67 ≤ avg < 2.34 → moderate · avg ≥ 2.34 → strong.
- * Used for a DAY's average of per-lift scores. The WEEK grade takes a median of
- * whole grades instead and rounds it to an ordinal (see `weekStrength`).
- */
-export function bandScore(avg: number): StrengthGrade {
-  if (avg >= 2.34) return 'strong';
-  if (avg >= 1.67) return 'moderate';
+/** Plate rounding and stack quirks make exact loads noisy, so within 3% of target counts as met. */
+const LOAD_MET = 0.97;
+
+/** Band a 0..1 score. The epsilon keeps a float like 0.8499999 from slipping a band. */
+export function gradeOf(score: number): StrengthGrade {
+  if (score >= 0.85 - 1e-9) return 'strong';
+  if (score >= 0.6 - 1e-9) return 'moderate';
   return 'weak';
 }
 
+interface Target {
+  weight: number;
+  reps: number;
+}
+
+/** One working set against its target: reps ratio (capped at 1) times load ratio (1 inside the noise band). */
+function setScore(weight: number, reps: number, t: Target): number {
+  const repPart = t.reps > 0 ? Math.min(1, Math.max(0, reps) / t.reps) : 1;
+  const loadPart = t.weight > 0 && weight < LOAD_MET * t.weight ? Math.max(0, weight) / t.weight : 1;
+  return repPart * loadPart;
+}
+
+/** A slot's split, falling back to its home substitute's muscle when the gym lift has no history. */
+function slotSplit(state: WorkoutState, slot: string, config: ProgressionConfig): Split {
+  const s = exerciseSplit(state, slot, config);
+  const sub = GYM_TO_SUB[slot];
+  return s === 'other' && sub ? exerciseSplit(state, sub, config) : s;
+}
+
 /**
- * Grade one exercise on one day against its planned top set.
+ * The lifts a `split` day on `date` plans: every non-cardio, non-retired lift of
+ * that split first logged on or before `date`, with substitutes folded into the
+ * gym slot they stand in for. This matches what the Workout tab lists for the day.
+ */
+export function plannedSlots(
+  state: WorkoutState,
+  date: string,
+  split: 'upper' | 'lower',
+  config: ProgressionConfig = DEFAULT_CONFIG,
+): string[] {
+  const ix = historyIndex(state);
+  const names = ix ? [...ix.byEx.keys()] : allExercises(state);
+  const out = new Set<string>();
+  for (const ex of names) {
+    if (isRetired(ex) || isCardio(state, ex)) continue;
+    const first = exerciseDates(state, ex)[0];
+    if (first === undefined || first > date) continue;
+    const slot = canonicalSlot(ex);
+    if (slotSplit(state, slot, config) === split) out.add(slot);
+  }
+  return [...out].sort((a, b) => exerciseOrder(state, a) - exerciseOrder(state, b));
+}
+
+/**
+ * Targets to grade one exercise's working sets against: the plan's top set and
+ * back-offs, with two corrections.
  *
- * The target is the plan's prescribed top set for that date — `buildPlan().top`
- * — i.e. the weight×reps the progression expected of you, derived from history
- * strictly before `date`. Then:
- *   - Strong: actual top weight ≥ target weight AND actual reps ≥ target reps
- *   - Weak:   missed both (weight < target AND reps < target)
- *   - Moderate: hit exactly one
- *   - a planned lift with NO logged top set that day → Weak (skipping hurts)
+ * A below-best recovery bump only asks you to climb back toward your best, so its
+ * reps grade against what you last achieved, not the rep ceiling.
  *
- * Returns `null` when the slot is ungradable — the lift is cardio, or there is
- * no prior history to progress from so there is no target (a first-timer) — so
- * the day average skips it rather than inventing a score.
+ * When the gym lift's plan auto-deloaded for a layoff but the slot was actually kept
+ * trained through its home substitute, the layoff is false: grade against the held
+ * (pre-deload) top so a stretch of home training does not make the first gym day easy.
+ * A stall reset also sets autoDeload but is a real lower target, so it is left alone.
+ */
+function gradingTargets(
+  state: WorkoutState,
+  active: string,
+  date: string,
+  plan: ExercisePlan,
+  config: ProgressionConfig,
+): { top: Target; backs: Target[] } {
+  const best = bestRecentTopWeight(state, active, date, config) ?? plan.lastTopWeight;
+  const belowBest = plan.lastTopWeight < best - 1e-9;
+  let top: Target = { weight: plan.top.weight, reps: plan.bumped && belowBest ? plan.lastTopReps : plan.top.reps };
+  const sub = GYM_TO_SUB[active];
+  if (plan.deload && plan.autoDeload && sub) {
+    const gymGap = daysSinceLast(state, active, date) ?? Infinity;
+    const subGap = daysSinceLast(state, sub, date) ?? Infinity;
+    if (gymGap > config.gapRepeatDays && subGap <= config.gapDeloadDays && subGap < gymGap) {
+      top = { weight: plan.lastTopWeight, reps: Math.min(plan.lastTopReps, plan.repHigh) };
+    }
+  }
+  // Back-offs scale with whatever top target won, so they stay in proportion.
+  const ratio = plan.top.weight > 0 ? top.weight / plan.top.weight : 1;
+  return { top, backs: plan.backs.map((b) => ({ weight: b.weight * ratio, reps: b.reps })) };
+}
+
+/**
+ * Score one planned slot on one day, 0..1: completion x execution.
+ *
+ * completion = working sets done / planned working sets (capped at 1; warm-ups
+ * excluded; top and back-offs are working sets). execution = mean set score over
+ * the done working sets. A skipped planned lift is 0. A slot trained through its
+ * home substitute is graded against the substitute's own plan.
+ *
+ * Returns `null` ("new") when there is no target yet: cardio, or no prior history.
  */
 export function exerciseScore(
   state: WorkoutState,
@@ -1133,236 +1198,154 @@ export function exerciseScore(
   date: string,
   overrides: SessionOverrides = {},
   config: ProgressionConfig = DEFAULT_CONFIG,
-): StrengthGrade | null {
+): number | null {
   if (isCardio(state, slot)) return null;
-  // A slot may be trained via its gym lift OR (in home mode) its dumbbell substitute —
-  // the two carry different loads, so grade whichever identity actually topped out that
-  // day against ITS OWN plan. A staple that neither identity topped is a real skip.
+  const working = (ex: string): WorkoutSet[] => setsOn(state, ex, date).filter((s) => s.type === 'top' || s.type === 'back');
   const sub = GYM_TO_SUB[slot];
-  const gymTop = topSetOf(setsOn(state, slot, date));
-  const subTop = sub ? topSetOf(setsOn(state, sub, date)) : null;
-  const actual = gymTop ?? subTop;
-  const active = gymTop ? slot : subTop ? sub : slot;
-  const plan = buildPlan(state, active, date, overrides, config);
-  if (!plan || plan.cardio) return null; // no target to grade against (first-timer)
-  if (!actual) return 'weak'; // planned staple but never topped out → a skipped slot
-  const target = gradingTarget(state, active, date, plan, config);
-  const hitWeight = toNum(actual.weight) >= target.weight;
-  const hitReps = toNum(actual.reps) >= target.reps;
-  if (hitWeight && hitReps) return 'strong';
-  if (!hitWeight && !hitReps) return 'weak';
-  return 'moderate';
-}
-
-/**
- * The top-set target to grade against. Normally the plan's prescribed top, but it
- * corrects one cross-identity case: when the gym lift's plan auto-deloaded because it
- * looks detrained, yet the slot was actually kept trained through its home substitute
- * within the layoff window, that "layoff" is false — grade against the held (pre-deload)
- * top so a stretch of home training doesn't inflate the first gym day back to Strong.
- */
-function gradingTarget(
-  state: WorkoutState,
-  active: string,
-  date: string,
-  plan: ExercisePlan,
-  config: ProgressionConfig,
-): { weight: number; reps: number } {
-  // A below-best RECOVERY bump resets prescribed reps to the class floor to rebuild,
-  // so grade its reps against the double-progression GOAL (repHigh) instead — otherwise
-  // a grinder who merely scrapes the floor reads as hitting target. Holds, deloads, and
-  // normal (not-below-best) ceiling bumps grade against the plan's prescribed reps as-is.
-  const best = bestRecentTopWeight(state, active, date, config) ?? plan.lastTopWeight;
-  const belowBest = plan.lastTopWeight < best - 1e-9;
-  const repTarget = plan.bumped && belowBest ? plan.repHigh : plan.top.reps;
-  const prescribed = { weight: plan.top.weight, reps: repTarget };
-  const held = { weight: plan.lastTopWeight, reps: Math.min(plan.lastTopReps, plan.repHigh) };
-  if (!plan.deload || !plan.autoDeload) return prescribed;
-  const sub = GYM_TO_SUB[active]; // `active` is the gym lift here (it logged a top set)
-  if (!sub) return prescribed;
-  const gymGap = daysSinceLast(state, active, date) ?? Infinity;
-  const subGap = daysSinceLast(state, sub, date) ?? Infinity;
-  // Correct ONLY a layoff-driven deload — i.e. the gym lift itself looks detrained
-  // (its own gap exceeds the layoff threshold). A stall reset (recent gym history, flat
-  // e1RM) also sets autoDeload but is a legitimate lower target, so it must NOT be
-  // reverted. When it IS a layoff and the substitute kept the slot trained through that
-  // gap, it wasn't a real layoff → grade against the held top instead of the eased one.
-  if (gymGap > config.gapRepeatDays && subGap <= config.gapDeloadDays && subGap < gymGap) return held;
-  return prescribed;
-}
-
-/** How many recent same-split sessions define a lift's "habitual" status. */
-export const STAPLE_WINDOW = 4;
-
-/**
- * The lifter's *habitual* lifts for a date's split — the "staples".
- *
- * The grade must punish skipping a lift you normally do, but must NOT punish
- * not-doing a lift that merely sits in the seeded default program. So the slate
- * is behavioural, not the full roster: a lift is a staple when it appears in at
- * least half of the last `STAPLE_WINDOW` (4) same-split sessions STRICTLY BEFORE
- * `date`. We read the day's split (`splitOfDate`, else the alternation due that
- * day), collect the recent session dates of that same split, and keep the
- * non-optional, non-cardio lifts that clear the ≥50% bar. With no prior
- * same-split history there are no staples (nothing is habitual yet).
- */
-export const habitualStaples = indexed(function habitualStaples(
-  state: WorkoutState,
-  date: string,
-  config: ProgressionConfig = DEFAULT_CONFIG,
-): string[] {
-  const daySplit = splitOfDate(state, date, config) ?? suggestSplit(state, date, config).due;
-  const priorSameSplit = sortedDates(state)
-    .filter((d) => d < date && splitOfDate(state, d, config) === daySplit)
-    .slice(-STAPLE_WINDOW);
-  const sessions = priorSameSplit.length;
-  if (sessions === 0) return [];
-  const seen = new Map<string, number>();
-  for (const d of priorSameSplit) {
-    // Count each SLOT once per day: a lift trained via its home substitute (Goblet
-    // Squat) is the same habitual slot as its gym lift (Leg Press), so switching
-    // gym↔home doesn't split one habit into two and mis-flag either as skipped.
-    const slotsToday = new Set<string>();
-    for (const ex of loggedExercises(state, d)) {
-      if (isCardio(state, ex) || isOptional(ex)) continue;
-      slotsToday.add(canonicalSlot(ex));
-    }
-    for (const slot of slotsToday) seen.set(slot, (seen.get(slot) ?? 0) + 1);
+  const gymSets = working(slot);
+  const subSets = sub ? working(sub) : [];
+  const active = gymSets.length > 0 || !sub || subSets.length === 0 ? slot : sub;
+  const done = active === slot ? gymSets : subSets;
+  // A skipped slot still has a target if either identity has one.
+  const plan =
+    buildPlan(state, active, date, overrides, config) ??
+    (done.length === 0 && sub ? buildPlan(state, sub, date, overrides, config) : null);
+  if (!plan || plan.cardio) return null;
+  if (done.length === 0) return 0;
+  const t = gradingTargets(state, active, date, plan, config);
+  let sum = 0;
+  let back = 0;
+  for (const s of done) {
+    // Extra back-offs beyond the plan grade against the top target rather than being dropped.
+    const target = s.type === 'back' ? (t.backs[back++] ?? t.top) : t.top;
+    sum += setScore(toNum(s.weight), toNum(s.reps), target);
   }
-  const staples: string[] = [];
-  for (const [slot, count] of seen) if (count / sessions >= 0.5) staples.push(slot);
-  return staples;
-});
+  const completion = Math.min(1, done.length / (1 + plan.backs.length));
+  return completion * (sum / done.length);
+}
+
+export interface DayScore {
+  split: 'upper' | 'lower';
+  /** Mean over the planned slots that have a target; null when every one is new. */
+  score: number | null;
+  label: StrengthGrade | 'new';
+  exercises: Array<{ slot: string; score: number | null }>;
+}
 
 /**
- * Grade a whole day.
- *
- * The graded set is the day's staples UNION the non-optional, non-cardio lifts
- * actually topped out that day. Each is scored by `exerciseScore`, so a skipped
- * staple (no top set) is Weak, a hit staple/lift is graded against its target,
- * and a first-timer with no target drops out (null). The day grade is the band
- * of those scores' average.
- *
- * Returns `null` when the day is *ungradable*: it was trained, but its only
- * strength work was first-timers with no target — that day must not be forced
- * to Weak and drag the week down, so the week median simply skips it. A day
- * whose only work is cardio, by contrast, is a genuinely Weak lifting day.
+ * Score a training day: the mean of `exerciseScore` over its split's planned
+ * slots (skips count 0, new lifts are left out). `null` when no upper or lower
+ * lifting was logged that day.
  */
-export const dayGrade = indexed(function dayGrade(
+export const dayScore = indexed(function dayScore(
   state: WorkoutState,
   date: string,
   overrides: SessionOverrides = {},
   config: ProgressionConfig = DEFAULT_CONFIG,
-): StrengthGrade | null {
-  const dead = tombstoneIds(state);
-  const graded = new Set(habitualStaples(state, date, config)); // slot names
-  const logged = loggedExercises(state, date);
-  for (const ex of logged) {
-    if (isCardio(state, ex) || isOptional(ex)) continue;
-    // Canonicalize to the slot so a substitute topped today counts as its gym slot
-    // (never as a second, separate lift alongside the staple it satisfies).
-    if (topSetOf(setsOn(state, ex, date))) graded.add(canonicalSlot(ex));
-  }
-
-  const scores: number[] = [];
-  for (const slot of graded) {
-    const s = exerciseScore(state, slot, date, overrides, config);
-    if (s) scores.push(GRADE_VALUE[s]);
-  }
-  if (scores.length > 0) {
-    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-    return bandScore(avg);
-  }
-
-  // Nothing scored. Distinguish "trained but ungradable" from "cardio-only".
-  const live = (state.days?.[date] ?? []).some((s) => !dead.has(toId(s.id)));
-  if (!live) return null; // not a training day at all
-  const hasStrength = logged.some((ex) => !isCardio(state, ex) && !isOptional(ex));
-  if (hasStrength) return null; // only first-timers / no targets → ungradable, skip it
-  return 'weak'; // cardio-only (or accessory-only) training day is a weak lifting day
+): DayScore | null {
+  const split = splitOfDate(state, date, config);
+  if (split !== 'upper' && split !== 'lower') return null;
+  const exercises = plannedSlots(state, date, split, config).map((slot) => ({
+    slot,
+    score: exerciseScore(state, slot, date, overrides, config),
+  }));
+  const graded = exercises.flatMap((e) => (e.score === null ? [] : [e.score]));
+  const score = graded.length > 0 ? graded.reduce((a, b) => a + b, 0) / graded.length : null;
+  return { split, score, label: score === null ? 'new' : gradeOf(score), exercises };
 });
 
-/** Days with at least one live (non-tombstoned) set in the 7 days ending at `today`. */
-export function trainedDaysInWeek(state: WorkoutState, today: string): string[] {
-  const start = shiftDate(today, -6);
-  const dead = tombstoneIds(state);
-  return sortedDates(state).filter(
-    (d) =>
-      d >= start &&
-      d <= today &&
-      (state.days?.[d] ?? []).some((s) => !dead.has(toId(s.id))),
-  );
+/** Monday of the calendar week holding `date`. The weekday of a calendar date is timezone independent. */
+export function mondayOf(date: string): string {
+  const dow = (new Date(Date.parse(date + 'T00:00:00Z')).getUTCDay() + 6) % 7; // 0 = Mon
+  return shiftDate(date, -dow);
 }
 
-function dropBand(g: StrengthGrade): StrengthGrade {
-  return g === 'strong' ? 'moderate' : 'weak';
-}
-
-/**
- * Median grade VALUE of an ordinal list of grade values (1/2/3).
- *
- * For an even count the two central grades are averaged and a half-step ties
- * DOWN to the lower (more conservative) grade — so [weak, moderate] → weak and
- * [moderate, strong] → moderate, symmetrically. This avoids running a
- * half-integer (1.5, 2.5) through the continuous day-band thresholds, which
- * would band 1.5→weak but 2.5→strong asymmetrically.
- */
-function medianGradeValue(values: number[]): number {
-  const xs = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(xs.length / 2);
-  if (xs.length % 2) return xs[mid]!;
-  return Math.floor((xs[mid - 1]! + xs[mid]!) / 2);
-}
-
-/** Target training days a week; falling short pulls the week grade down. */
-export const WEEK_TRAINING_TARGET = 4;
-
-/**
- * Combine a week's per-day grades into the week grade — the pure median+cap
- * rule, isolated from data access so it can be unit-tested directly.
- *
- * `trainedDays` is the count of training days (ungradable ones included), which
- * drives the frequency cap; `dayGrades` are those days' grades with `null` for
- * ungradable (all-new-lift) days, which are dropped from the median. Median of
- * the remaining grades, then the cap: ≥ 4 trained days keeps the median; 2–3
- * pulls it down one band; ≤ 1 floors at Weak. Nothing gradable → `rest`.
- */
-export function weekGrade(
-  dayGrades: ReadonlyArray<StrengthGrade | null>,
-  trainedDays: number,
-): WeekStrength {
-  if (trainedDays <= 0) return 'rest';
-  const graded = dayGrades.filter((g): g is StrengthGrade => g !== null);
-  // ≤ 1 training day floors at Weak; a lone ungradable day has no grade → rest.
-  if (trainedDays === 1) return graded.length === 0 ? 'rest' : 'weak';
-  if (graded.length === 0) return 'rest';
-  const base = GRADE_BY_VALUE[medianGradeValue(graded.map((g) => GRADE_VALUE[g]))]!;
-  return trainedDays < WEEK_TRAINING_TARGET ? dropBand(base) : base;
+export interface WeekScore {
+  monday: string;
+  upper: number | null;
+  lower: number | null;
+  score: number | null;
+  label: WeekStrength;
+  /** The week still has planned sessions to come, so the label is on pace, not final. */
+  soFar: boolean;
+  sessions: number;
+  planned: number;
 }
 
 /**
- * The at-a-glance week strength grade over the 7 days ending at `today`.
+ * Score the calendar week (Monday start) holding `today`, using days up to `today`.
  *
- * Grades each training day, then folds them with `weekGrade`. Ungradable days (a
- * legitimate all-new-lift session) are excluded from the median but still count
- * as training days for the frequency cap. Zero trained days, or a week with
- * nothing gradable, is `rest`.
+ * Each split's average is the mean of its day scores, plus a 0 for every planned
+ * session that can no longer fit this week (the Mon to Fri slots left, counting
+ * today if it is still open). Mid-week that is "on pace": sessions not yet missed
+ * do not count against you. The week score is the mean of the split averages.
  */
-export const weekStrength = indexed(function weekStrength(
+export const weekScore = indexed(function weekScore(
   state: WorkoutState,
   today: string,
   overrides: SessionOverrides = {},
   config: ProgressionConfig = DEFAULT_CONFIG,
-): WeekStrength {
-  const days = trainedDaysInWeek(state, today);
-  const n = days.length;
-  if (n === 0) return 'rest';
-  // ≤ 1 training day floors before touching the median (see weekGrade).
-  if (n === 1) return dayGrade(state, days[0]!, overrides, config) === null ? 'rest' : 'weak';
-  return weekGrade(
-    days.map((d) => dayGrade(state, d, overrides, config)),
-    n,
-  );
+): WeekScore {
+  const monday = mondayOf(today);
+  const scores = { upper: [] as number[], lower: [] as number[] };
+  const done = { upper: 0, lower: 0 };
+  let todayTrained = false;
+  for (let i = 0; i < 7; i++) {
+    const d = shiftDate(monday, i);
+    if (d > today) break;
+    const day = dayScore(state, d, overrides, config);
+    if (!day) continue;
+    done[day.split]++;
+    if (d === today) todayTrained = true;
+    if (day.score !== null) scores[day.split].push(day.score);
+  }
+  const todayIx = dayGap(monday, today);
+  const open = Math.max(0, 4 - todayIx) + (todayIx <= 4 && !todayTrained ? 1 : 0);
+  const avg = (split: 'upper' | 'lower'): number | null => {
+    const missed = Math.max(0, PLANNED_PER_SPLIT[split] - done[split] - open);
+    const n = scores[split].length + missed;
+    return n > 0 ? scores[split].reduce((a, b) => a + b, 0) / n : null;
+  };
+  const upper = avg('upper');
+  const lower = avg('lower');
+  const parts = [upper, lower].filter((x): x is number => x !== null);
+  const score = parts.length > 0 ? parts.reduce((a, b) => a + b, 0) / parts.length : null;
+  const owed =
+    Math.max(0, PLANNED_PER_SPLIT.upper - done.upper) + Math.max(0, PLANNED_PER_SPLIT.lower - done.lower);
+  return {
+    monday,
+    upper,
+    lower,
+    score,
+    label: score === null ? 'rest' : gradeOf(score),
+    soFar: open > 0 && owed > 0,
+    sessions: done.upper + done.lower,
+    planned: WEEK_TRAINING_TARGET,
+  };
+});
+
+/**
+ * The last `weeks` week scores, oldest first, the current week scored up to `today`.
+ * Weeks that end before the first logged set are `rest` rather than a wall of zeros.
+ */
+export const weekTrend = indexed(function weekTrend(
+  state: WorkoutState,
+  today: string,
+  weeks: number = 8,
+  config: ProgressionConfig = DEFAULT_CONFIG,
+): WeekScore[] {
+  const first = sortedDates(state)[0];
+  const out: WeekScore[] = [];
+  for (let k = weeks - 1; k >= 0; k--) {
+    const monday = shiftDate(mondayOf(today), -7 * k);
+    const end = k === 0 ? today : shiftDate(monday, 6);
+    if (first === undefined || end < first) {
+      out.push({ monday, upper: null, lower: null, score: null, label: 'rest', soFar: false, sessions: 0, planned: WEEK_TRAINING_TARGET });
+    } else {
+      out.push(weekScore(state, end, {}, config));
+    }
+  }
+  return out;
 });
 
 /* ================================================================== */
@@ -1409,6 +1392,7 @@ export const selectWorkoutView = indexed(function selectWorkoutView(
       : forwardCandidates
           .filter((ex) => {
             if (SUB_NAMES.has(ex)) return false; // never list a substitute as its own lift
+            if (isRetired(ex)) return false; // history stays, but it is no longer planned
             if (split === 'all') return true;
             let s = exerciseSplit(state, ex, config);
             // A gym slot with no logged history classifies as 'other' (null muscle). In

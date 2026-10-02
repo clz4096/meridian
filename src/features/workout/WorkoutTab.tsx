@@ -4,7 +4,7 @@
  * tuck behind the ⚙. Ports workoutCharts (app.ts) + renderWorkoutHTML to JSX.
  */
 import { useEffect } from 'preact/hooks';
-import { selectWorkoutView, restSeconds, inferIncrement, splitOfDate, sortedDates, sessionEffort, exerciseSplit, withHistoryIndex} from '@/features/workout/workoutSelectors';
+import { selectWorkoutView, restSeconds, inferIncrement, splitOfDate, sortedDates, exerciseSplit, withHistoryIndex, dayScore, weekTrend, canonicalSlot, gradeOf, type StrengthGrade, type WeekScore } from '@/features/workout/workoutSelectors';
 import type { WorkoutViewOptions } from '@/features/workout/types';
 import { bodyweightGoal, trackedLifts, bodyweightSeries, strengthSeries, volumeSeries, tonnageSeries } from '@/ui/charts/progress';
 import { DEFAULT_CONFIG, type SetType, type ExercisePlan, type Split, type WorkoutState } from '@/core/types';
@@ -252,7 +252,46 @@ const buildOptions = withHistoryIndex(function buildOptions(state: Any, date: st
   const toGoal = bw.current !== null && bw.goal !== null ? Math.round((bw.goal - bw.current) * 10) / 10 : null;
   return { restSeconds: rest, increments, videoUrl: exVideo, bodyweight: { ...bw, toGoal }, dateLabel, isToday: date === today };
 });
-const effortOf = withHistoryIndex(sessionEffort);
+
+type Grade = StrengthGrade | 'new';
+const GRADE_WORD: Record<Grade | 'rest', string> = { strong: 'Strong', moderate: 'Moderate', weak: 'Weak', new: 'New', rest: 'Rest' };
+const fmtScore = (x: number | null): string => (x === null ? '-' : x.toFixed(2));
+
+/** A small text grade chip. The word carries the meaning; color only reinforces it. */
+function GradeChip({ grade, score }: { grade: Grade | 'rest'; score?: number | null }) {
+  return (
+    <span class={'effchip eff-' + grade}>
+      {GRADE_WORD[grade]}
+      {score != null ? ` ${score.toFixed(2)}` : ''}
+    </span>
+  );
+}
+
+/** This week's upper and lower averages, the week label, and the last eight weeks as a trend row. */
+function WeekScores({ trend }: { trend: WeekScore[] }) {
+  const wk = trend[trend.length - 1];
+  if (!wk) return null;
+  return (
+    <div class="wkscore">
+      <div class="wkgroup-h">This week{wk.soFar && wk.label !== 'rest' ? ' · so far' : ''}</div>
+      <div class="wkscore-row">
+        <span>Upper <b>{fmtScore(wk.upper)}</b></span>
+        <span>Lower <b>{fmtScore(wk.lower)}</b></span>
+        <GradeChip grade={wk.label} score={wk.score} />
+        <span class="meta">{wk.sessions} of {wk.planned} days</span>
+      </div>
+      <ol class="wkscore-trend" aria-label="Last 8 weeks">
+        {trend.map((w) => (
+          <li title={`Week of ${fmtMD(w.monday)}`}>
+            <span class="wkscore-bar" style={{ height: `${Math.round((w.score ?? 0) * 40)}px` }} />
+            <span class="meta">{fmtScore(w.score)}</span>
+            <span class="meta">{w.label === 'rest' ? '-' : GRADE_WORD[w.label]}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
 
 /* ── Progress charts (collapsed by default, below the session) ── */
 function WorkoutCharts() {
@@ -389,7 +428,7 @@ function SetLine({ state, label, val, trailing }: { state: 'done' | 'now' | 'up'
 }
 
 /** A tappable exercise card in the list/grid. Tapping opens the full-screen detail. */
-function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
+function ExerciseCardFace({ vm, exercise, grade }: { vm: VM; exercise: string; grade?: Grade | null }) {
   const plan: Any = vm.plans[exercise] ?? null;
   const performed: Any[] = vm.performed[exercise] ?? [];
   const complete = vm.completed[exercise] === true;
@@ -426,6 +465,7 @@ function ExerciseCardFace({ vm, exercise }: { vm: VM; exercise: string }) {
           <div class="excard-name">
             {displayExercise(exercise)}
             {plan?.deload ? <> <span class="cue deload">deload</span></> : null}
+            {grade ? <> <GradeChip grade={grade} /></> : null}
           </div>
           <div class="excard-meta">
             <span class="excard-v">{sv}</span>
@@ -648,7 +688,17 @@ export function WorkoutView() {
   const status = vm.sessionComplete ? '✓ complete' : `${done} / ${vm.exercises.length} logged`;
   const splitLabel = vm.split === 'upper' ? 'Upper' : vm.split === 'lower' ? 'Lower' : vm.split === 'all' ? 'Full body' : 'Session';
   const progOpen = wkProgOpen.value;
-  const effort = effortOf(W, date);
+  const day = dayScore(W, date);
+  // Per-exercise grades for the day's split. Before a lift is started today its
+  // skip is not final, so it only shows a grade once logged (or on a past day).
+  const daySlots = new Map((day?.exercises ?? []).map((e) => [e.slot, e.score]));
+  const gradeFor = (ex: string): Grade | null => {
+    const slot = canonicalSlot(ex);
+    if (!daySlots.has(slot) || (!vm.isPast && (vm.performed[ex] ?? []).length === 0)) return null;
+    const sc = daySlots.get(slot)!;
+    return sc === null ? 'new' : gradeOf(sc);
+  };
+  const trend = weekTrend(W, date < today ? date : today);
 
   // Master–detail: an active exercise takes over the whole screen. Resolve it in
   // its own split's view so it opens whether it's in today's split or the other one.
@@ -672,7 +722,7 @@ export function WorkoutView() {
           <div class="todayhd">
             <div class="todayhd-split">{vm.isPast ? o.dateLabel(vm.date) : `${splitLabel} day`}</div>
             <span class="exhead-r">
-              {effort && <span class={'effchip eff-' + effort}>{effort}</span>}
+              {day && <GradeChip grade={day.label} />}
               <span class="exhead-m">{status}</span>
               <button
                 class={'ex-opts' + (awayMode.value ? ' on' : '')}
@@ -687,7 +737,7 @@ export function WorkoutView() {
           {vm.isPast && vm.exercises.length === 0 && <div class="placeholder">No workout logged on {o.dateLabel(vm.date)}.</div>}
           <div class="exgrid">
             {vm.exercises.map((ex) => (
-              <ExerciseCardFace vm={vm} exercise={ex} />
+              <ExerciseCardFace vm={vm} exercise={ex} grade={gradeFor(ex)} />
             ))}
           </div>
           {!vm.isPast && otherSplit && (
@@ -709,6 +759,8 @@ export function WorkoutView() {
           )}
         </>
       )}
+
+      {trend.some((w) => w.label !== 'rest') && <WeekScores trend={trend} />}
 
       <button class={'wk-progtoggle' + (progOpen ? ' on' : '')} aria-expanded={progOpen} onClick={() => (wkProgOpen.value = !progOpen)}>
         {progOpen ? '▾' : '▸'} Progress

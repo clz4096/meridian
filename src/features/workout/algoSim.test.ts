@@ -31,7 +31,6 @@ import {
   isCompound,
   repCeiling,
   roundDownTo,
-  sessionEffort,
   splitOfDate,
   suggestSplit,
 } from '@/features/workout/workoutSelectors';
@@ -239,29 +238,6 @@ describe('progression algorithm — simulated training blocks', () => {
 
         if (n === 30) traj.plateauer = { planWeights, autoDeloadAt };
         expect(flat).toBe(true);
-      });
-
-      /* ---------------- Effort grading ---------------- */
-      it('sessionEffort grades this session absolutely by reps in the rep range', () => {
-        // Absolute (no prior comparison): where the top set lands in [floor … ceiling].
-        function effortFor(reps: number): ReturnType<typeof sessionEffort> {
-          const s = emptyState();
-          const [, d1] = trainingDates(START, 10);
-          logTop(s, BENCH, d1, 135, reps, 'chest');
-          return sessionEffort(s, d1);
-        }
-        const strong = effortFor(C.repHighCompound); // 6 = ceiling → strong
-        const moderate = effortFor(C.repHighCompound - 1); // 5 = mid → moderate
-        const weak = effortFor(C.repsAfterBumpCompound); // 3 = floor → weak
-
-        record(n, "sessionEffort 'strong'", strong === 'strong', `ceiling reps → ${strong}`);
-        record(n, "sessionEffort 'moderate'", moderate === 'moderate', `mid-range reps → ${moderate}`);
-        record(n, "sessionEffort 'weak'", weak === 'weak', `floor reps → ${weak}`);
-        if (n === 30) traj.effort = { strong, moderate, weak };
-
-        expect(strong).toBe('strong');
-        expect(moderate).toBe('moderate');
-        expect(weak).toBe('weak');
       });
 
       /* ---------------- Class-specific ceilings ---------------- */
@@ -512,22 +488,6 @@ describe('progression algorithm — adversarial edge cases', () => {
     traj.spiral = { weights, deloadCount: deloadAt.length };
   });
 
-  it('effort is absolute: exactly repeating a mid-range session is not auto-strong', () => {
-    // Now graded by reps in the range, not versus the last session. Two identical
-    // mid-range sessions both score 'moderate' (they used to score 'strong').
-    const s = emptyState();
-    s.incr[BENCH] = 5;
-    const [d0, d1] = trainingDates(START, 10);
-    logTop(s, BENCH, d0, 100, 5, 'chest'); // mid-range (floor 3 < 5 < ceiling 6)
-    logTop(s, BENCH, d1, 100, 5, 'chest'); // exact repeat
-    const eff = sessionEffort(s, d1);
-    notes.push(
-      `Effort is now absolute (reps in the class range): an exact repeat of a mid-range session scores '${eff}' ` +
-      `(was 'strong' under the old self-referential grade). Strong requires hitting the ceiling this session.`,
-    );
-    expect(eff).toBe('moderate');
-  });
-
   it('no geometric decay: an obeyed manual deload holds flat at the best-anchored floor', () => {
     // Holding the manual flag and obeying every session must NOT compound the cut
     // (90→81→72…). The deload anchors on best (derived), so it is idempotent.
@@ -709,11 +669,6 @@ afterAll(() => {
     lines.push('The logged e1RM is flat forever (the lifter ignores the deload); the *plan* drops 100→90 the moment the stall window fills and holds there because `lastWeight` stays pinned at 100.');
     lines.push('');
   }
-  if (traj.effort) {
-    const e = traj.effort as Record<string, string>;
-    lines.push(`**Effort grades** (single-lift session vs prescription): over-deliver → \`${e.strong}\`, 0.97× → \`${e.moderate}\`, 0.70× → \`${e.weak}\`.`);
-    lines.push('');
-  }
   if (traj.splits) {
     lines.push(`**Split alternation** (N=30, Mon/Thu upper · Tue/Fri lower): \`${(traj.splits as string[]).join(', ')}\` — clean upper/lower alternation, and \`suggestSplit\` proposes the opposite of the last logged day.`);
     lines.push('');
@@ -732,7 +687,6 @@ afterAll(() => {
   lines.push('2. **Manual deload is a one-shot.** `buildPlan` ignores the flag once today’s top set is logged, and `logSet` clears the flag on the first top — so obeying the eased prescription never re-triggers the cut.');
   lines.push('3. **Layoffs no longer suppress a bump.** Only a gap over `gapDeloadDays` (7) cuts, and only once (never while recovering below best); moderate gaps at the ceiling bump normally.');
   lines.push('4. **Recovery + off-grid.** Below best, a bump climbs one step per session capped at best, resuming double progression once back; an off-grid load snaps to the grid before stepping (102.5 → 105, not 110).');
-  lines.push('5. **Effort — ABSOLUTE.** `sessionEffort` grades the current session by where each top set lands in its class rep range (ceiling = strong, floor = weak, middle = moderate).');
   lines.push('');
   lines.push('_Note: `layoffMildFactor` is retained in the config but is now reserved/unused — the graduated mild-layoff tier was removed. With `stallSessions = 3` a flat plateau first auto-deloads on the session after the 4th flat session; tune `stallSessions` to change the cadence._');
 

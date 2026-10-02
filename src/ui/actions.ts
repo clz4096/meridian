@@ -10,7 +10,7 @@
 import { signal } from '@preact/signals';
 import { RestTimer } from '@/ui/restTimer';
 import { chime, unlockChime } from '@/ui/chime';
-import { inferIncrement, restSeconds, plannedSetCount, isExerciseComplete, weekStrength, trainedDaysInWeek, WEEK_TRAINING_TARGET } from '@/features/workout/workoutSelectors';
+import { inferIncrement, restSeconds, plannedSetCount, isExerciseComplete, weekScore } from '@/features/workout/workoutSelectors';
 import type { WorkoutActions } from '@/features/workout/types';
 import { groupThousands, shiftDate } from '@/core/util';
 import { navStart } from '@/core/telemetry';
@@ -1335,13 +1335,12 @@ export function hubStats(): HubStat[] {
   const mastered = Object.keys(K.mastery ?? {}).filter((id) => validIds.has(id) && isMastered(K, id, today)).length;
   const masteryPct = totalQ ? Math.round((100 * mastered) / totalQ) : 0;
   const W = wk();
-  // Week strength is a qualitative grade of how the training week actually went
-  // (median day grade vs each lift's planned target, capped by frequency) — a
-  // pure selector over the log, never a stored value. The honest trained-day
-  // count stays as the subtext.
-  const wkGrade = weekStrength(W, today);
-  const wkTrained = trainedDaysInWeek(W, today).length;
+  // The same week score the Workout tab shows: a pure selector over the log, never
+  // stored. Mid-week it is on pace, so the subtext says "so far".
+  const wkScore = weekScore(W, today);
+  const wkGrade = wkScore.label;
   const wkWord = wkGrade === 'rest' ? 'Rest' : wkGrade.charAt(0).toUpperCase() + wkGrade.slice(1);
+  const wkSub = `${wkScore.soFar && wkGrade !== 'rest' ? 'so far · ' : ''}${wkScore.sessions} of ${wkScore.planned} days`;
   const G = sg();
   const todayCal = ((G.days?.[today] ?? []) as Store[]).reduce((a: number, m: Store) => a + (+m.cal || 0), 0);
   const dirty = (Object.keys(STORAGE_KEYS) as StoreKey[]).some((k) => sync.isDirtyCloud(k));
@@ -1358,7 +1357,7 @@ export function hubStats(): HubStat[] {
     { key: 'knowledge', label: 'Knowledge', desc: 'Study & spaced review', value: String(masteryPct), unit: '%', sub: 'mastery', tone: 'cyan' },
     { key: 'tracker', label: 'The Cambridge Method', desc: 'Daily study tracker', value: String(tsum.todayXP), unit: ' XP', sub: `Lv ${tsum.level} · ${tsum.streak}/7`, tone: 'orange' },
     { key: 'roadmap', label: 'WGU Roadmap', desc: 'Course finish plan', value: `${rsum.done}/${rsum.total}`, unit: '', sub: 'courses', tone: 'blue' },
-    { key: 'workout', label: 'Workout', desc: 'Training log & progression', value: wkWord, unit: '', sub: `${wkTrained} of ${WEEK_TRAINING_TARGET} days`, tone: wkGrade === 'strong' ? 'ok' : wkGrade === 'weak' ? 'kcal' : '' },
+    { key: 'workout', label: 'Workout', desc: 'Training log & progression', value: wkWord, unit: '', sub: wkSub, tone: wkGrade === 'strong' ? 'ok' : wkGrade === 'weak' ? 'kcal' : '' },
     { key: 'meal', label: 'Food & Body', desc: 'Calories & bodyweight', value: groupThousands(todayCal), unit: ' kcal', sub: todayCal ? 'today' : 'not logged', tone: 'kcal' },
     { key: 'data', label: 'Data', desc: 'Sync, storage & export', value: cloudEnabled() ? (dirty ? 'Unsaved' : 'Synced') : 'Local', unit: '', sub: kb === null ? 'storage' : `${kb} KB`, tone: !cloudEnabled() || dirty ? '' : 'ok', dot: cloudEnabled() && !dirty },
   ];

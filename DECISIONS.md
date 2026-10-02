@@ -322,3 +322,11 @@ The images are the owner's own files from Downloads. They are not redrawn: each 
 - **Accessibility:** emblems inside headings are decorative (empty alt), so the heading names stay "The Cambridge Method" and "Supervision".
 - **Layout:** every image has fixed width and height, so the layout never shifts. The Pembroke badge is clipped to its circle so its white corners don't show on the cream page.
 - **The wordmark is unchanged:** the owner reviewed the M-tilde, R-hat and I-bar mocks and chose to keep the current logo.
+
+**D-workout-1. One workout score everywhere (2026-10-01, owner request).**
+The Today tile, the Workout tab chips and the week trend all read `workoutSelectors.ts` (`exerciseScore`, `dayScore`, `weekScore`, `weekTrend`). It replaces the old top-set grade, the staple model, the median week and `sessionEffort`.
+- **Exercise:** completion (working sets done over planned) times execution (mean set score: reps ratio capped at 1, times load ratio, with loads at 97% or more of target counting as met). A skipped planned lift is 0. A lift with no target yet is "new" and left out. Strong is 0.85 or more, Moderate 0.60 or more, else Weak.
+- **Day:** the mean over the planned lifts of the day's split. A day is upper or lower by its session label when every set agrees, else by the majority of distinct lifts.
+- **Week:** Monday start. The score is the mean of the upper and lower averages, with 2 + 2 planned sessions. A session that can no longer fit this week counts 0. Before that point the label is "so far".
+- **Retired:** Hammer Curl, Wrist Curl and Reverse Wrist Curl are no longer planned. Their logged sets are untouched.
+- **Targets:** the step size is learned only from a repeated jump. A bump sheds 2 reps instead of dropping to the floor. Back-off targets only use sessions before the graded day.
