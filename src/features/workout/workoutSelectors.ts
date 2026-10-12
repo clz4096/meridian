@@ -307,6 +307,26 @@ export function loggedExercises(
 /* Progression                                                         */
 /* ================================================================== */
 
+/**
+ * Selector-stack machines at the owner's gym whose plates are fixed, so every target
+ * must land on a real plate. Leg Extension is a Hoist with 15 lb plates (15 to 270),
+ * no add-on weight (owner, 2026-10-12).
+ */
+export const MACHINE_STACKS: Record<string, { step: number; min: number; max: number }> = {
+  'Leg Extension': { step: 15, min: 15, max: 270 },
+};
+
+/**
+ * Snap a load onto a machine's stack (nearest plate, within the stack); other lifts pass
+ * through. A manual Stack step (`state.incr`) means the owner set the step themselves,
+ * so their step governs and nothing is snapped.
+ */
+export function snapToStack(exercise: string, weight: number, state?: WorkoutState): number {
+  const st = MACHINE_STACKS[exercise];
+  if (!st || !(weight > 0) || toNum(state?.incr?.[exercise], 0) > 0) return weight;
+  return Math.min(st.max, Math.max(st.min, Math.round(weight / st.step) * st.step));
+}
+
 /** Recent top-set jumps that inferIncrement learns the step from. */
 const INCREMENT_WINDOW = 8;
 /** Free weights load in fixed plate steps, so a learned step snaps to 2.5 or 5 lb. */
@@ -327,6 +347,10 @@ export function inferIncrement(
 ): number {
   const override = state.incr?.[exercise];
   if (override !== undefined && toNum(override, 0) > 0) return toNum(override);
+  // A known stack's plate size is the step; learning it from history could pick up
+  // jumps logged on a different machine.
+  const stack = MACHINE_STACKS[exercise];
+  if (stack) return stack.step;
 
   const tops: number[] = [];
   for (const date of exerciseDates(state, exercise)) {
@@ -724,6 +748,9 @@ export function buildPlan(
     weight = lastWeight;
     reps = lastReps;
   }
+  // On a fixed stack every target must be a plate the machine has (an older log on a
+  // different machine may hold an off-stack weight like 185 on a 15 lb stack).
+  weight = snapToStack(exercise, weight, state);
 
   const template = setTemplate(state, exercise, config, date);
   const base = DEFAULT_TEMPLATES[exercise];
@@ -736,7 +763,7 @@ export function buildPlan(
   // history (skipping them is legitimate and never triggers auto-complete).
   const backSlots = (template?.backs.length ?? 0) >= (base?.backs.length ?? 0) ? template?.backs ?? [] : base!.backs;
   const scale = (slots: Array<{ ratio: number; reps: number }>): PrescribedSet[] =>
-    slots.map((s) => ({ weight: roundTo(s.ratio * weight, step), reps: s.reps }));
+    slots.map((s) => ({ weight: snapToStack(exercise, roundTo(s.ratio * weight, step), state), reps: s.reps }));
 
   return {
     exercise,
