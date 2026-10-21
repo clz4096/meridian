@@ -76,12 +76,27 @@ describe('Leg Extension stack', () => {
     expect(snapToStack('Leg Extension', 185)).toBe(185);
     expect(snapToStack('Leg Extension', 195)).toBe(205);
   });
+  it('runs from 15 to 345: a lone 15 lb start, then 25, 45, ... 345', () => {
+    expect(snapToStack('Leg Extension', 10)).toBe(15);
+    expect(snapToStack('Leg Extension', 19)).toBe(15);
+    expect(snapToStack('Leg Extension', 21)).toBe(25);
+    expect(snapToStack('Leg Extension', 400)).toBe(345);
+  });
   it('resets 185 x 3 to 165 for the 8 to 14 range', () => {
     const W = state({
       '2026-10-12': [set('Leg Extension', 'top', 185, 3, 'quads'), set('Leg Extension', 'back', 170, 6, 'quads')],
       '2026-10-15': [set('Leg Extension', 'top', 185, 3, 'quads'), set('Leg Extension', 'back', 165, 10, 'quads')],
     });
     expect(buildPlan(W, 'Leg Extension', '2026-10-21')!.top).toEqual({ weight: 165, reps: 8 });
+  });
+});
+
+describe('Leg Press stack', () => {
+  it('is 10 lb, then 20, 40, 60 ...', () => {
+    expect(snapToStack('Leg Press', 12)).toBe(10);
+    expect(snapToStack('Leg Press', 16)).toBe(20);
+    expect(snapToStack('Leg Press', 105)).toBe(100);
+    expect(snapToStack('Leg Press', 112)).toBe(120);
   });
 });
 

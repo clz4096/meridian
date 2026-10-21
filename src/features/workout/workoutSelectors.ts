@@ -322,12 +322,15 @@ export function loggedExercises(
 
 /**
  * Selector-stack machines at the owner's gym whose plates are fixed, so every target
- * must land on a real plate. Leg Extension is the Life Time Hoist HS-355: 20 lb plates on
- * the 5 + 20n grid (145, 165, 185), matching the log (owner, 2026-10-21). The true lowest and
- * highest plates are not known yet, so the bounds are wide.
+ * must land on a real plate. Leg Extension is the Life Time Hoist HS-355: 15 lb at the
+ * start, then 20 lb plates on the 25 + 20n grid up to 345 (145, 165, 185 match the log;
+ * owner, 2026-10-21). Leg Press (Life Time) is 10 lb, then 20, 40, 60 ... (owner,
+ * 2026-10-21); its top plate is not known yet, so the max is wide. `first` is a lone stop
+ * below the grid.
  */
-export const MACHINE_STACKS: Record<string, { step: number; min: number; max: number }> = {
-  'Leg Extension': { step: 20, min: 5, max: 305 },
+export const MACHINE_STACKS: Record<string, { step: number; min: number; max: number; first?: number }> = {
+  'Leg Extension': { step: 20, min: 25, max: 345, first: 15 },
+  'Leg Press': { step: 20, min: 20, max: 1000, first: 10 },
 };
 
 /**
@@ -338,13 +341,15 @@ export const MACHINE_STACKS: Record<string, { step: number; min: number; max: nu
 export function snapToStack(exercise: string, weight: number, state?: WorkoutState): number {
   const st = MACHINE_STACKS[exercise];
   if (!st || !(weight > 0) || toNum(state?.incr?.[exercise], 0) > 0) return weight;
-  return Math.min(st.max, Math.max(st.min, st.min + Math.round((weight - st.min) / st.step) * st.step));
+  const grid = Math.min(st.max, Math.max(st.min, st.min + Math.round((weight - st.min) / st.step) * st.step));
+  return st.first !== undefined && weight - st.first < grid - weight ? st.first : grid;
 }
 
 /** The heaviest real plate at or below `weight` (stack lifts), else round down to the step. */
 function snapDown(exercise: string, weight: number, step: number, state: WorkoutState): number {
   const st = MACHINE_STACKS[exercise];
   if (st && !(toNum(state.incr?.[exercise], 0) > 0)) {
+    if (st.first !== undefined && weight < st.min) return st.first;
     return Math.min(st.max, Math.max(st.min, st.min + Math.floor((weight - st.min) / st.step + 1e-9) * st.step));
   }
   return roundDownTo(weight, step);

@@ -70,11 +70,11 @@ const arbDate = fc
   .integer({ min: 0, max: 400 })
   .map((offset) => shiftDate('2025-01-01', offset));
 
-// Leg Extension is left out: it is a fixed 15 lb stack (MACHINE_STACKS), so the free-load
+// Leg Extension and Leg Press are left out: they are fixed 20 lb stacks (MACHINE_STACKS), so the free-load
 // invariants below (a bump always rises, a hold never moves) don't apply at its cap or to
 // off-stack history. It has its own tests in 'target fixes'.
 const arbExercise = fc.constantFrom(
-  'Bench Press', 'Lat Pulldown', 'Leg Press', 'Hip Adduction',
+  'Bench Press', 'Lat Pulldown', 'Tricep Pushdown (Rope)', 'Hip Adduction',
   'Calf Raise (Machine)', 'Hip Abduction', 'Bicep Curl (Dumbbell)',
   'Hammer Curl (Dumbbell)', 'Wrist Curl (Dumbbell)', 'Treadmill',
 );
@@ -1047,15 +1047,15 @@ describe('target fixes', () => {
     stateOf(weights.map((weight, i) => ({ date: D(i * 3), ex, weight, reps: 5, muscle })));
 
   it('inferIncrement ignores a single 20 lb jump', () => {
-    expect(inferIncrement(tops('Leg Press', 'quads', [100, 105, 110, 130]), 'Leg Press')).toBe(5);
-    expect(inferIncrement(tops('Leg Press', 'quads', [100, 120]), 'Leg Press')).toBe(5);
+    expect(inferIncrement(tops('Lat Pulldown', 'back', [100, 105, 110, 130]), 'Lat Pulldown')).toBe(5);
+    expect(inferIncrement(tops('Lat Pulldown', 'back', [100, 120]), 'Lat Pulldown')).toBe(5);
   });
 
   it('keeps a consistent machine step and snaps free weights to 2.5 or 5', () => {
     expect(inferIncrement(tops('Hip Abduction', 'glutes', [100, 110, 120]), 'Hip Abduction')).toBe(10);
   });
 
-  it('Leg Extension is the Hoist HS-355: 20 lb plates on the 5 + 20n grid (145, 165, 185)', () => {
+  it('Leg Extension is the Hoist HS-355: 15 lb start, then 20 lb plates on the 25 + 20n grid (145, 165, 185)', () => {
     const st = tops('Leg Extension', 'quads', [145, 165, 185]);
     expect(inferIncrement(st, 'Leg Extension')).toBe(20);
     const plan = buildPlan(st, 'Leg Extension', D(30))!;
@@ -1066,8 +1066,8 @@ describe('target fixes', () => {
     }
     expect(snapToStack('Leg Extension', 185)).toBe(185);
     expect(snapToStack('Leg Extension', 180)).toBe(185);
-    expect(snapToStack('Leg Extension', 400)).toBe(305);
-    expect(snapToStack('Leg Press', 185)).toBe(185); // not a fixed stack
+    expect(snapToStack('Leg Extension', 400)).toBe(345);
+    expect(snapToStack('Lat Pulldown', 185)).toBe(185); // not a fixed stack
     // The owner's manual Stack step wins: their step, no snapping.
     const own = { ...st, incr: { 'Leg Extension': 10 } } as WorkoutState;
     expect(inferIncrement(own, 'Leg Extension')).toBe(10);
