@@ -70,18 +70,21 @@ describe('WorkoutView', () => {
     activeExercise.value = 'Leg Press'; // open the full-screen detail
     const r = render(<WorkoutView />);
     expect(r.queryByText('Log set')).toBeTruthy();
-    expect(r.container.querySelector('#w-leg-press-top0')).toBeTruthy();
-    expect(r.container.querySelector('#r-leg-press-top0')).toBeTruthy();
+    // The first input is the current set: a warm-up under the full-body program, else the top set.
+    expect(r.container.querySelector('[id^="w-leg-press-"]')).toBeTruthy();
+    expect(r.container.querySelector('[id^="r-leg-press-"]')).toBeTruthy();
   });
 
   it('reads the weight/reps inputs by id and passes them to workoutActions.logSet', () => {
     const logSpy = vi.spyOn(workoutActions, 'logSet').mockImplementation(() => {});
     activeExercise.value = 'Leg Press';
     const { getByText, container } = render(<WorkoutView />);
-    (container.querySelector('#w-leg-press-top0') as HTMLInputElement).value = '185';
-    (container.querySelector('#r-leg-press-top0') as HTMLInputElement).value = '10';
+    const w = container.querySelector('[id^="w-leg-press-"]') as HTMLInputElement;
+    const type = w.id.includes('-warm') ? 'warm' : 'top';
+    w.value = '185';
+    (container.querySelector('[id^="r-leg-press-"]') as HTMLInputElement).value = '10';
     fireEvent.click(getByText('Log set'));
-    expect(logSpy).toHaveBeenCalledWith('Leg Press', 'top', 185, 10);
+    expect(logSpy).toHaveBeenCalledWith('Leg Press', type, 185, 10);
   });
 
   it('fires toggleSessionDone when the Mark-session-complete button is tapped', () => {

@@ -1,0 +1,115 @@
+import { describe, expect, it } from 'vitest';
+import type { WorkoutSet, WorkoutState } from '@/core/types';
+import { buildPlan, snapToStack } from './workoutSelectors';
+import { benchDay, jogPlan, jogStage, segKcal, totals, trueLevel } from './program';
+
+let n = 0;
+const set = (ex: string, type: WorkoutSet['type'], weight: number, reps: number, muscle = 'chest'): WorkoutSet =>
+  ({ id: `s${n++}`, ex, type, weight, reps, muscle } as WorkoutSet);
+
+const state = (days: Record<string, WorkoutSet[]>): WorkoutState =>
+  ({ settings: {}, days, bw: {}, rpe: {}, done: {}, sessionDone: {} } as unknown as WorkoutState);
+
+describe('full-body program prescriptions', () => {
+  it('resets a top set below the range to a weight the true level supports (bench 125 x 3 -> 120 x 5)', () => {
+    const W = state({
+      '2026-10-11': [set('Bench Press', 'top', 135, 4), set('Bench Press', 'back', 125, 6)],
+      '2026-10-12': [set('Bench Press', 'top', 135, 3), set('Bench Press', 'back', 125, 6)],
+      '2026-10-15': [set('Bench Press', 'top', 125, 3), set('Bench Press', 'back', 125, 6)],
+    });
+    const p = buildPlan(W, 'Bench Press', '2026-10-21')!;
+    expect(p.day).toBe('A');
+    expect(p.top).toEqual({ weight: 120, reps: 5 });
+    expect(p.warms.map((w) => w.weight)).toEqual([45, 60, 85, 100]);
+    expect(p.backs).toHaveLength(2);
+  });
+
+  it('holds the weight and asks for one more rep inside the range', () => {
+    const W = state({ '2026-10-21': [set('Bench Press', 'top', 120, 6)] });
+    const p = buildPlan(W, 'Bench Press', '2026-10-25')!; // Day B next; check the heavy day after it
+    expect(p.day).toBe('B');
+    const W2 = state({ '2026-10-21': [set('Bench Press', 'top', 120, 6)], '2026-10-25': [set('Bench Press', 'top', 100, 8)] });
+    const a = buildPlan(W2, 'Bench Press', '2026-10-26')!;
+    expect(a.day).toBe('A');
+    expect(a.top).toEqual({ weight: 120, reps: 7 });
+  });
+
+  it('adds one step and restarts at the bottom of the range at the top of it', () => {
+    const W = state({ '2026-10-21': [set('Lat Pulldown', 'top', 90, 12, 'back')] });
+    const p = buildPlan(W, 'Lat Pulldown', '2026-10-22')!;
+    expect(p.bumped).toBe(true);
+    expect(p.top.reps).toBe(8);
+    expect(p.top.weight).toBeGreaterThan(90);
+  });
+
+  it('Day B bench is three straight sets at about 85% of the last heavy top set', () => {
+    const W = state({ '2026-10-21': [set('Bench Press', 'top', 120, 5)] });
+    const p = buildPlan(W, 'Bench Press', '2026-10-22')!;
+    expect(p.day).toBe('B');
+    expect(p.top).toEqual({ weight: 100, reps: 8 });
+    expect(p.backs).toEqual([{ weight: 100, reps: 8 }, { weight: 100, reps: 8 }]);
+  });
+
+  it('a missed trip never skips a heavy day: A/B alternate by bench sessions done', () => {
+    expect(benchDay([], '2026-10-21')).toBe('A');
+    expect(benchDay(['2026-10-21'], '2026-10-29')).toBe('B');
+    expect(benchDay(['2026-10-21', '2026-10-22'], '2026-11-02')).toBe('A');
+    expect(benchDay(['2026-10-15'], '2026-10-21')).toBe('A'); // pre-program sessions don't count
+  });
+
+  it('leaves sessions before the program on the old rules', () => {
+    const W = state({ '2026-10-12': [set('Bench Press', 'top', 135, 3)] });
+    expect(buildPlan(W, 'Bench Press', '2026-10-15')!.why).toBeUndefined();
+  });
+
+  it('cuts about 10% after more than 14 days off a lift', () => {
+    const W = state({ '2026-10-21': [set('Leg Press', 'top', 120, 9, 'quads')] });
+    const p = buildPlan(W, 'Leg Press', '2026-11-10')!;
+    expect(p.top.weight).toBeLessThan(120);
+    expect(p.top.reps).toBe(8);
+  });
+});
+
+describe('Leg Extension stack', () => {
+  it('snaps to the 20 lb plates the Hoist has (145, 165, 185)', () => {
+    expect(snapToStack('Leg Extension', 170)).toBe(165);
+    expect(snapToStack('Leg Extension', 185)).toBe(185);
+    expect(snapToStack('Leg Extension', 195)).toBe(205);
+  });
+  it('resets 185 x 3 to 165 for the 8 to 14 range', () => {
+    const W = state({
+      '2026-10-12': [set('Leg Extension', 'top', 185, 3, 'quads'), set('Leg Extension', 'back', 170, 6, 'quads')],
+      '2026-10-15': [set('Leg Extension', 'top', 185, 3, 'quads'), set('Leg Extension', 'back', 165, 10, 'quads')],
+    });
+    expect(buildPlan(W, 'Leg Extension', '2026-10-21')!.top).toEqual({ weight: 165, reps: 8 });
+  });
+});
+
+describe('treadmill', () => {
+  it('derives minutes and miles from segments', () => {
+    const t = totals([{ kind: 'walk', mins: 5, mph: 2.5, incline: 4 }, { kind: 'walk', mins: 10, mph: 3.5, incline: 6 }], 120);
+    expect(t.mins).toBe(15);
+    expect(t.miles).toBeCloseTo(0.79, 2);
+    expect(t.kcal).toBeGreaterThan(70);
+    expect(t.kcal).toBeLessThan(95);
+  });
+  it('counts repeated interval segments', () => {
+    const t = totals(jogPlan(0), 120);
+    expect(t.mins).toBe(5 + 6 * 1 + 6 * 1.5);
+  });
+  it('jogging burns more than walking at the same speed', () => {
+    expect(segKcal({ kind: 'jog', mins: 1, mph: 4.5, incline: 1 }, 120)).toBeGreaterThan(segKcal({ kind: 'walk', mins: 1, mph: 3.5, incline: 1 }, 120));
+  });
+  it('moves up a jog stage after two sessions', () => {
+    expect(jogStage(0)).toBe(0);
+    expect(jogStage(2)).toBe(1);
+    expect(jogStage(99)).toBe(4);
+  });
+});
+
+describe('true level', () => {
+  it('is the middle of the last three sessions, so one day cannot swing it', () => {
+    expect(trueLevel([150, 100, 152, 149])).toBe(149);
+    expect(trueLevel([])).toBe(0);
+  });
+});

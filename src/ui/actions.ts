@@ -11,6 +11,7 @@ import { signal } from '@preact/signals';
 import { RestTimer } from '@/ui/restTimer';
 import { chime, unlockChime } from '@/ui/chime';
 import { inferIncrement, restSeconds, plannedSetCount, isExerciseComplete, weekScore } from '@/features/workout/workoutSelectors';
+import { totals as treadmillTotals } from '@/features/workout/program';
 import type { WorkoutActions } from '@/features/workout/types';
 import { groupThousands, shiftDate } from '@/core/util';
 import { navStart } from '@/core/telemetry';
@@ -188,6 +189,23 @@ export const workoutActions: WorkoutActions = {
     appState.markWorkoutDirty();
     st.bump();
   },
+  logTreadmill(ex, segs) {
+    const clean = segs.filter((g) => g.mins > 0 && g.mph > 0);
+    if (!ex || clean.length === 0) return;
+    const t = treadmillTotals(clean, Number(currentBW()) || 120);
+    const W = wk();
+    const td = st.wkDate.value ?? dstr();
+    if (!W.days[td]) W.days[td] = [];
+    const m = exMeta(ex);
+    W.days[td].push({ id: uid(), ex, muscle: m.muscle || 'cardio', group: m.group || '', type: 'cardio', weight: 0, reps: 0, mins: t.mins, dist: t.miles, kcal: t.kcal, segs: clean });
+    if (!W.done) W.done = {};
+    if (!W.done[td]) W.done[td] = [];
+    if (W.done[td].indexOf(ex) < 0) W.done[td].push(ex);
+    if (W.reopened?.[td]) W.reopened[td] = W.reopened[td].filter((e: string) => e !== ex);
+    restTimer.dismissFor(ex);
+    appState.markWorkoutDirty();
+    st.bump();
+  },
   deleteSet(date, id) {
     deleteWithUndo(id, 'Set removed', () => {
       const W = wk();
@@ -207,6 +225,7 @@ export const workoutActions: WorkoutActions = {
     if (patch.reps !== undefined) s.reps = patch.reps;
     if (patch.mins !== undefined) s.mins = patch.mins;
     if (patch.dist !== undefined) s.dist = patch.dist;
+    if (patch.rir !== undefined) s.rir = patch.rir;
     appState.markWorkoutDirty();
     st.bump();
   },

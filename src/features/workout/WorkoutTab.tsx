@@ -3,8 +3,9 @@
  * inline (collapsed exercise cards). Bodyweight / date / split / mark-complete
  * tuck behind the ⚙. Ports workoutCharts (app.ts) + renderWorkoutHTML to JSX.
  */
-import { useEffect } from 'preact/hooks';
-import { selectWorkoutView, restSeconds, inferIncrement, splitOfDate, sortedDates, exerciseSplit, withHistoryIndex, dayScore, weekTrend, canonicalSlot, gradeOf, type StrengthGrade, type WeekScore } from '@/features/workout/workoutSelectors';
+import { useEffect, useState } from 'preact/hooks';
+import { CUES, LOCATION, PRESETS, SUPERSETS, benchDay, inProgram, jogPlan, jogSessionsBefore, jogStage, totals, type Segment } from '@/features/workout/program';
+import { selectWorkoutView, exerciseDates, restSeconds, inferIncrement, splitOfDate, sortedDates, exerciseSplit, withHistoryIndex, dayScore, weekTrend, canonicalSlot, gradeOf, type StrengthGrade, type WeekScore } from '@/features/workout/workoutSelectors';
 import type { WorkoutViewOptions } from '@/features/workout/types';
 import { bodyweightGoal, trackedLifts, bodyweightSeries, strengthSeries, volumeSeries, tonnageSeries } from '@/ui/charts/progress';
 import { DEFAULT_CONFIG, type SetType, type ExercisePlan, type Split, type WorkoutState } from '@/core/types';
@@ -99,6 +100,8 @@ function weekDaysFor(date: string): string[] {
 const MISSED_FROM = '2026-09-28';
 
 type PlanSplit = 'upper' | 'lower' | 'full' | null;
+/** Program training days by index in the Mon-first week: Mon, Wed, Thu, Sun. */
+const PROGRAM_DAYS = [0, 2, 3, 6];
 interface PlanDay {
   split: PlanSplit;
   done: boolean; // you logged a real session that day
@@ -128,6 +131,13 @@ const weekPlan = withHistoryIndex(function weekPlan(state: WorkoutState, days: s
   const plan: Record<string, PlanDay> = {};
   days.forEach((date, i) => {
     const logged = splitOfDate(state, date, DEFAULT_CONFIG); // what you actually did
+    if (inProgram(date)) {
+      // Full-body program: Sun, Mon, Wed, Thu (owner, 2026-10-21). Any logged day is a session.
+      if (logged) plan[date] = { split: 'full', done: true, rest: false };
+      else if (!PROGRAM_DAYS.includes(i)) plan[date] = { split: null, done: false, rest: true };
+      else plan[date] = { split: 'full', done: false, rest: false, missed: date < today };
+      return;
+    }
     if (logged) {
       plan[date] = { split: logged === 'upper' || logged === 'lower' ? logged : 'full', done: true, rest: false };
       if (logged === 'upper' || logged === 'lower') last = logged;
@@ -392,6 +402,73 @@ function CardioInput({ exercise, prev }: { exercise: string; prev?: { mins?: Any
   );
 }
 
+/** Reps left in the tank after a working set: one optional tap. */
+function RirPicker({ date, set }: { date: string; set: Any }) {
+  const cur = set.rir == null ? null : Number(set.rir);
+  return (
+    <div class="rir" role="group" aria-label="Reps left in the tank">
+      <span class="rir-q">Reps left?</span>
+      {[0, 1, 2, 3, 4].map((n) => (
+        <button
+          type="button"
+          class={'rir-b' + (cur === n ? ' on' : '')}
+          aria-pressed={cur === n}
+          onClick={() => workoutActions.editSet(date, String(set.id), { rir: n })}
+        >
+          {n === 4 ? '4+' : n}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Treadmill as segments: speed, incline and minutes per stretch; miles and calories derived. */
+function TreadmillInput({ exercise, date }: { exercise: string; date: string }) {
+  const W = wk();
+  const day = benchDay(exerciseDates(W, 'Bench Press'), date);
+  const stage = jogStage(jogSessionsBefore(W, date));
+  const initial: Segment[] = day === 'A' ? jogPlan(stage) : [PRESETS[0]!.seg, PRESETS[1]!.seg];
+  const [segs, setSegs] = useState<Segment[]>(initial);
+  const bw = Number(currentBW()) || 120;
+  const t = totals(segs, bw);
+  const upd = (i: number, k: keyof Segment, v: string): void =>
+    setSegs(segs.map((g, j) => (j === i ? { ...g, [k]: k === 'kind' ? v : Number(v) || 0 } : g)));
+  return (
+    <>
+      <div class="rx">
+        <span class="rx-what">
+          {day === 'A' ? `Day A · jog stage ${stage + 1}: talk-in-short-sentences pace` : 'Day B · incline walk'}
+        </span>
+      </div>
+      <div class="tm-segs">
+        {segs.map((g, i) => (
+          <div class="tm-seg">
+            <select class="fv" value={g.kind} onChange={(e) => upd(i, 'kind', (e.target as HTMLSelectElement).value)} aria-label="Walk or jog">
+              <option value="walk">walk</option>
+              <option value="jog">jog</option>
+            </select>
+            <label><input class="fv" type="number" inputmode="decimal" value={g.mins} onInput={(e) => upd(i, 'mins', (e.target as HTMLInputElement).value)} aria-label="Minutes" /> min</label>
+            <label><input class="fv" type="number" inputmode="decimal" value={g.mph} onInput={(e) => upd(i, 'mph', (e.target as HTMLInputElement).value)} aria-label="Speed (mph)" /> mph</label>
+            <label><input class="fv" type="number" inputmode="decimal" value={g.incline} onInput={(e) => upd(i, 'incline', (e.target as HTMLInputElement).value)} aria-label="Incline (%)" /> %</label>
+            <label>× <input class="fv" type="number" inputmode="numeric" value={g.times ?? 1} onInput={(e) => upd(i, 'times', (e.target as HTMLInputElement).value)} aria-label="Repeats" /></label>
+            <button type="button" class="setundo" onClick={() => setSegs(segs.filter((_, j) => j !== i))} aria-label="Remove segment">×</button>
+          </div>
+        ))}
+      </div>
+      <div class="tm-presets">
+        {PRESETS.map((p) => (
+          <button type="button" class="setundo" onClick={() => setSegs([...segs, { ...p.seg }])}>+ {p.label}</button>
+        ))}
+        <button type="button" class="setundo" onClick={() => setSegs(jogPlan(stage))}>+ Jog stage {stage + 1}</button>
+      </div>
+      <div class="logrow">
+        <span class="rx-cue muted">{t.mins} min · {t.miles} mi · about {t.kcal} kcal</span>
+        <button class="logbtn" onClick={() => workoutActions.logTreadmill(exercise, segs)}>Log</button>
+      </div>
+    </>
+  );
+}
+
 function LogInput({ exercise, type, label, set, index, cue, setNo, setTotal }: { exercise: string; type: SetType; label: string; set: { weight: number; reps: number }; index: number; cue?: preact.JSX.Element | null; setNo: number; setTotal: number }) {
   const id = domId(exercise);
   const wid = `w-${id}-${type}${index}`;
@@ -478,6 +555,8 @@ function ExerciseCardFace({ vm, exercise, grade }: { vm: VM; exercise: string; g
           <div class="excard-meta">
             <span class="excard-v">{sv}</span>
             {showCount ? <span class="excard-tag">· {setCount} sets</span> : sl ? <span class="excard-tag">· {sl}</span> : null}
+            {plan?.day ? <span class="excard-tag">· Day {plan.day} {plan.day === 'A' ? 'heavy' : 'light'}</span> : null}
+            {inProgram(vm.date) && SUPERSETS[exercise] ? <span class="excard-tag">· superset</span> : null}
           </div>
         </div>
         {topSpec?.loadable ? <Barbell spec={topSpec} mini /> : null}
@@ -589,7 +668,11 @@ function ExerciseDetail({ vm, o, exercise, exercises, grade = null }: { vm: VM; 
   } else if (plan.cardio) {
     body =
       performed.length === 0 ? (
-        <CardioInput exercise={exercise} prev={vm.performed[exercise]?.[0]} />
+        exercise === 'Treadmill' && inProgram(vm.date) ? (
+          <TreadmillInput exercise={exercise} date={vm.date} />
+        ) : (
+          <CardioInput exercise={exercise} prev={vm.performed[exercise]?.[0]} />
+        )
       ) : (
         <div class="sets"><SetLine state="done" label="Cardio" val={fmtCardio(performed[0])} /></div>
       );
@@ -604,7 +687,7 @@ function ExerciseDetail({ vm, o, exercise, exercises, grade = null }: { vm: VM; 
     body = (
       <>
         {cur ? (
-          <LogInput exercise={exercise} type={cur[0]} label={cur[1]} set={cur[2]} index={next} cue={cur[0] === 'top' ? topCue(plan) : null} setNo={next + 1} setTotal={rows.length} />
+          <LogInput exercise={exercise} type={cur[0]} label={cur[1]} set={cur[2]} index={next} cue={cur[0] === 'top' ? topCue(plan) : cur[0] === 'warm' && plan.warmWhy?.[next] ? <span class="rx-cue muted">{plan.warmWhy[next]}</span> : null} setNo={next + 1} setTotal={rows.length} />
         ) : (
           <div class="rx"><span class="rx-what all-done">✓ All sets logged</span></div>
         )}
@@ -618,7 +701,15 @@ function ExerciseDetail({ vm, o, exercise, exercises, grade = null }: { vm: VM; 
                   <IconUndo class="ico" />Undo
                 </button>
               ) : null;
-            return <SetLine state={state} label={label} val={val} trailing={undo} />;
+            const done = state === 'done' ? performed[i] : null;
+            const rir =
+              done && done.type !== 'warm' && !vm.isPast && inProgram(vm.date) ? <RirPicker date={vm.date} set={done} /> : null;
+            return (
+              <>
+                <SetLine state={state} label={label} val={val} trailing={undo} />
+                {rir}
+              </>
+            );
           })}
         </div>
       </>
@@ -647,6 +738,11 @@ function ExerciseDetail({ vm, o, exercise, exercises, grade = null }: { vm: VM; 
           {awayMode.value && exSwap(exercise) ? <span class="exswap-tag">away</span> : null}
           {grade ? <> <GradeChip grade={grade} /></> : null}
         </h2>
+        {plan?.why && !vm.isPast ? <p class="rx-why">{plan.why}</p> : null}
+        {inProgram(vm.date) && CUES[exercise] ? <p class="rx-why">{CUES[exercise]}</p> : null}
+        {inProgram(vm.date) && SUPERSETS[exercise] ? (
+          <p class="rx-why">Superset with {displayExercise(SUPERSETS[exercise]!)}: one set of each back to back, then rest 60 to 90 seconds.</p>
+        ) : null}
         {ph && <PlateBar spec={ph} />}
         {body}
         <div class="more">
@@ -754,11 +850,26 @@ export function WorkoutView() {
           {vm.isPast && vm.exercises.length === 0 && (
             <div class="placeholder">{dp?.missed ? `Missed: a planned session on ${o.dateLabel(vm.date)}, nothing logged. It counts as 0 in the week.` : `No workout logged on ${o.dateLabel(vm.date)}.`}</div>
           )}
-          <div class="exgrid">
-            {vm.exercises.map((ex) => (
-              <ExerciseCardFace vm={vm} exercise={ex} grade={gradeFor(ex)} />
-            ))}
-          </div>
+          {inProgram(date) && vm.split === 'all' ? (
+            (['Home', 'Life Time'] as const).map((loc) => {
+              const list = vm.exercises.filter((ex) => (LOCATION[ex] ?? 'Life Time') === loc);
+              if (list.length === 0) return null;
+              return (
+                <>
+                  <div class="wkgroup-h">{loc === 'Home' ? 'Home gym' : 'Life Time · any order, Lat Pulldown and Leg Press first if free, Treadmill last'}</div>
+                  <div class="exgrid">
+                    {list.map((ex) => <ExerciseCardFace vm={vm} exercise={ex} grade={gradeFor(ex)} />)}
+                  </div>
+                </>
+              );
+            })
+          ) : (
+            <div class="exgrid">
+              {vm.exercises.map((ex) => (
+                <ExerciseCardFace vm={vm} exercise={ex} grade={gradeFor(ex)} />
+              ))}
+            </div>
+          )}
           {/* On a mixed day the other split's group is part of the session and always shown. */}
           {!vm.isPast && otherSplit && !otherDone && (
             <button class="wk-showall" aria-expanded={showAll} onClick={() => (wkShowAll.value = !showAll)}>

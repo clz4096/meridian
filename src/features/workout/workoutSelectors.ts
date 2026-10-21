@@ -30,6 +30,19 @@ import { shiftDate, toId, toNum, tombstoneIds } from '@/core/util';
 import defaultWorkoutData from '@/core/data/defaultWorkout.json';
 import exSwapData from '@/core/data/exSwap.json';
 import awayStartData from '@/core/data/awayStart.json';
+import {
+  BACKOFFS,
+  BAR,
+  BENCH_LIGHT,
+  LAYOFF_DAYS,
+  REP_RANGE,
+  WARMUPS,
+  benchDay,
+  inProgram,
+  sessionE1rm,
+  trueLevel,
+  weightForReps,
+} from './program';
 
 /* ================================================================== */
 /* Away-mode swap knowledge — static, so the pure selectors reason     */
@@ -309,11 +322,12 @@ export function loggedExercises(
 
 /**
  * Selector-stack machines at the owner's gym whose plates are fixed, so every target
- * must land on a real plate. Leg Extension is a Hoist with 15 lb plates (15 to 270),
- * no add-on weight (owner, 2026-10-12).
+ * must land on a real plate. Leg Extension is the Life Time Hoist HS-355: 20 lb plates on
+ * the 5 + 20n grid (145, 165, 185), matching the log (owner, 2026-10-21). The true lowest and
+ * highest plates are not known yet, so the bounds are wide.
  */
 export const MACHINE_STACKS: Record<string, { step: number; min: number; max: number }> = {
-  'Leg Extension': { step: 15, min: 15, max: 270 },
+  'Leg Extension': { step: 20, min: 5, max: 305 },
 };
 
 /**
@@ -324,7 +338,16 @@ export const MACHINE_STACKS: Record<string, { step: number; min: number; max: nu
 export function snapToStack(exercise: string, weight: number, state?: WorkoutState): number {
   const st = MACHINE_STACKS[exercise];
   if (!st || !(weight > 0) || toNum(state?.incr?.[exercise], 0) > 0) return weight;
-  return Math.min(st.max, Math.max(st.min, Math.round(weight / st.step) * st.step));
+  return Math.min(st.max, Math.max(st.min, st.min + Math.round((weight - st.min) / st.step) * st.step));
+}
+
+/** The heaviest real plate at or below `weight` (stack lifts), else round down to the step. */
+function snapDown(exercise: string, weight: number, step: number, state: WorkoutState): number {
+  const st = MACHINE_STACKS[exercise];
+  if (st && !(toNum(state.incr?.[exercise], 0) > 0)) {
+    return Math.min(st.max, Math.max(st.min, st.min + Math.floor((weight - st.min) / st.step + 1e-9) * st.step));
+  }
+  return roundDownTo(weight, step);
 }
 
 /** Recent top-set jumps that inferIncrement learns the step from. */
@@ -620,6 +643,10 @@ export function buildPlan(
   overrides: SessionOverrides = {},
   config: ProgressionConfig = DEFAULT_CONFIG,
 ): ExercisePlan | null {
+  if (inProgram(date) && REP_RANGE[exercise]) {
+    const p = programPlan(state, exercise, date, overrides, config);
+    if (p) return p;
+  }
   const previous = lastSession(state, exercise, date);
   if (!previous) {
     // First time on an Away-mode home substitute: no logged history to progress
@@ -784,6 +811,124 @@ export function buildPlan(
   };
 }
 
+/**
+ * The full-body program's prescription (program.ts). Double progression inside the lift's
+ * rep range: hit the top of the range and the weight goes up one step and reps restart at
+ * the bottom; otherwise hold the weight and aim for one more rep. A top set below the range
+ * resets the weight to one the true level supports for the bottom of the range. It reads
+ * only sessions actually done, so a missed day just pauses the lift. Bench alternates heavy
+ * Day A and light Day B by bench sessions done; Day A progresses off the last Day A.
+ */
+function programPlan(
+  state: WorkoutState,
+  exercise: string,
+  date: string,
+  overrides: SessionOverrides,
+  config: ProgressionConfig,
+): ExercisePlan | null {
+  const range = REP_RANGE[exercise]!;
+  const allDates = exerciseDates(state, exercise);
+  const dates = allDates.filter((d) => d < date);
+  if (dates.length === 0) return null;
+  const isBench = exercise === 'Bench Press';
+  const day = isBench ? benchDay(allDates, date) : undefined;
+  const isLight = (d: string): boolean => isBench && inProgram(d) && benchDay(allDates, d) === 'B';
+  const heavy = dates.filter((d) => !isLight(d));
+  const lastDate = heavy[heavy.length - 1];
+  if (!lastDate) return null;
+  const top = topSetOf(setsOn(state, exercise, lastDate)) ?? heaviestSet(setsOn(state, exercise, lastDate));
+  if (!top) return null;
+  const step = inferIncrement(state, exercise, config);
+  const lastW = toNum(top.weight, 1) || 1;
+  const lastR = toNum(top.reps);
+  const level = trueLevel(heavy.slice(-3).map((d) => sessionE1rm(setsOn(state, exercise, d))));
+  const gap = daysSinceLast(state, exercise, date);
+  const near = (w: number): number => snapToStack(exercise, roundTo(w, step), state);
+  const down = (w: number): number => snapDown(exercise, w, step, state);
+  const { lo, hi } = range;
+
+  const manual = overrides.deload?.[exercise] === true && topSetOf(setsOn(state, exercise, date)) === null;
+  const layoff = gap != null && gap > LAYOFF_DAYS;
+  let weight: number;
+  let reps: number;
+  let bumped = false;
+  let why: string;
+
+  if (day === 'B') {
+    weight = near(lastW * BENCH_LIGHT.ratio);
+    const prevLight = dates.filter(isLight).pop();
+    const prevTop = prevLight ? topSetOf(setsOn(state, exercise, prevLight)) : null;
+    const prevR = prevTop ? toNum(prevTop.reps) : 0;
+    reps = Math.min(BENCH_LIGHT.hi, Math.max(BENCH_LIGHT.lo, prevR + 1));
+    why = `Day B (light): ${BENCH_LIGHT.sets} sets at about 85% of your last heavy top set (${lastW}). Stop with 2 to 3 reps left.`;
+    const warms = [
+      { weight: BAR, reps: 5 },
+      { weight: near(weight * 0.6), reps: 5 },
+    ].filter((s) => s.weight < weight);
+    return {
+      exercise, cardio: false, warms, top: { weight, reps },
+      backs: [{ weight, reps }, { weight, reps }],
+      bumped: false, deload: false, autoDeload: false,
+      repHigh: BENCH_LIGHT.hi, targetReps: BENCH_LIGHT.hi, repLow: BENCH_LIGHT.lo, atMinimum: false,
+      incr: step, lastTopWeight: lastW, lastTopReps: lastR, lastDate,
+      why, warmWhy: ['empty bar: practice the movement', 'about 60% of today: easy'].slice(0, warms.length), day,
+    };
+  }
+
+  if (manual) {
+    weight = down(lastW * 0.9);
+    reps = lo;
+    why = `Easy day (you tapped Feel weak): about 10% lighter, ${lo} reps. Your plan carries on next time.`;
+  } else if (lastR >= hi) {
+    weight = near(lastW + step);
+    reps = lo;
+    bumped = true;
+    why = `You hit ${lastR} reps at ${lastW}, the top of your ${lo} to ${hi} range. Up one step to ${weight}; start at ${lo} reps.`;
+  } else if (lastR < lo) {
+    const fit = level > 0 ? near(weightForReps(level, lo)) : lastW;
+    weight = fit > 0 && fit < lastW ? fit : lastW;
+    reps = lo;
+    why =
+      weight < lastW
+        ? `Last time ${lastW} × ${lastR}, below your ${lo} to ${hi} range. Set to ${weight}, a weight you can do ${lo} times with about 2 reps left.`
+        : `Last time ${lastW} × ${lastR}. Same weight, aim for ${lo}, the bottom of your ${lo} to ${hi} range.`;
+  } else {
+    weight = lastW;
+    reps = Math.min(hi, lastR + 1);
+    why = `Last time ${lastW} × ${lastR}. Same weight, aim for ${reps}. Reach ${hi} and the weight goes up.`;
+  }
+  if (layoff && !manual) {
+    const cut = down(weight * 0.9);
+    if (cut > 0 && cut < weight) {
+      weight = cut;
+      reps = lo;
+      why += ` You have had ${gap} days off this lift, so it starts about 10% lighter at ${weight} × ${lo}.`;
+    }
+  }
+
+  const recipe = WARMUPS[exercise] ?? [];
+  const warms: PrescribedSet[] = [];
+  const warmWhy: string[] = [];
+  for (const w of recipe) {
+    const ww = w.bar ? BAR : near(weight * w.ratio);
+    if (!(ww > 0) || ww >= weight || warms.some((x) => x.weight === ww)) continue;
+    warms.push({ weight: ww, reps: w.reps });
+    warmWhy.push(w.why);
+  }
+  const backs = (BACKOFFS[exercise] ?? []).map((ratio) => ({
+    weight: ratio >= 1 ? weight : near(weight * ratio),
+    reps: ratio >= 1 ? reps : Math.min(hi, reps + 2),
+  }));
+
+  return {
+    exercise, cardio: false, warms, top: { weight, reps }, backs,
+    bumped, deload: manual || layoff, autoDeload: layoff && !manual,
+    repHigh: hi, targetReps: hi, repLow: lo, atMinimum: false,
+    incr: step, lastTopWeight: lastW, lastTopReps: lastR, lastDate,
+    why, warmWhy, day,
+  };
+}
+
 /** How many sets the plan prescribes — drives the auto-complete checkbox. */
 export function plannedSetCount(
   state: WorkoutState,
@@ -860,17 +1005,19 @@ export function estimateSession(
 
 /** Canonical execution order: compounds first, grip last, cardio after lifting. */
 export const EXERCISE_ORDER: Record<string, number> = {
+  // Home gym block, in the owner's order.
   'Bench Press': 10,
-  'Leg Press': 10,
+  'Tricep Pushdown (Rope)': 12,
+  'Bicep Curl (Pulley)': 14,
+  'Bicep Curl (Dumbbell)': 16,
+  'Hammer Curl (Dumbbell)': 18,
+  // Life Time block: the most-skipped big lifts first; the rest in any order.
   'Lat Pulldown': 20,
+  'Leg Press': 22,
   'Leg Extension': 30,
+  'Calf Raise (Machine)': 32,
   'Hip Abduction': 34,
   'Hip Adduction': 36,
-  'Tricep Pushdown (Rope)': 40,
-  'Bicep Curl (Dumbbell)': 50,
-  'Bicep Curl (Pulley)': 52,
-  'Hammer Curl (Dumbbell)': 54,
-  'Calf Raise (Machine)': 60,
   'Wrist Curl (Dumbbell)': 80,
   'Reverse Wrist Curl (Dumbbell)': 82,
   Treadmill: 90,

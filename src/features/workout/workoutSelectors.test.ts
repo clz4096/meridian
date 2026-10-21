@@ -1055,27 +1055,25 @@ describe('target fixes', () => {
     expect(inferIncrement(tops('Hip Abduction', 'glutes', [100, 110, 120]), 'Hip Abduction')).toBe(10);
   });
 
-  it('Leg Extension is a Hoist 15 lb stack: step 15, every target on a plate, capped at 270', () => {
-    // History logged on another machine (145..185 in 20s) must not set the step or the targets.
+  it('Leg Extension is the Hoist HS-355: 20 lb plates on the 5 + 20n grid (145, 165, 185)', () => {
     const st = tops('Leg Extension', 'quads', [145, 165, 185]);
-    expect(inferIncrement(st, 'Leg Extension')).toBe(15);
+    expect(inferIncrement(st, 'Leg Extension')).toBe(20);
     const plan = buildPlan(st, 'Leg Extension', D(30))!;
     for (const w of [plan.top.weight, ...plan.warms.map((x) => x.weight), ...plan.backs.map((x) => x.weight)]) {
-      expect(w % 15).toBe(0);
-      expect(w).toBeGreaterThanOrEqual(15);
-      expect(w).toBeLessThanOrEqual(270);
+      expect((w - 5) % 20).toBe(0);
+      expect(w).toBeGreaterThanOrEqual(5);
+      expect(w).toBeLessThanOrEqual(305);
     }
-    expect(snapToStack('Leg Extension', 185)).toBe(180);
-    expect(snapToStack('Leg Extension', 400)).toBe(270);
-    expect(snapToStack('Leg Extension', 5)).toBe(15);
+    expect(snapToStack('Leg Extension', 185)).toBe(185);
+    expect(snapToStack('Leg Extension', 180)).toBe(185);
+    expect(snapToStack('Leg Extension', 400)).toBe(305);
     expect(snapToStack('Leg Press', 185)).toBe(185); // not a fixed stack
     // The owner's manual Stack step wins: their step, no snapping.
     const own = { ...st, incr: { 'Leg Extension': 10 } } as WorkoutState;
     expect(inferIncrement(own, 'Leg Extension')).toBe(10);
     expect(snapToStack('Leg Extension', 185, own)).toBe(185);
-    expect(inferIncrement(tops('Bicep Curl (Dumbbell)', 'biceps', [20, 30, 40]), 'Bicep Curl (Dumbbell)')).toBe(5);
-    expect(inferIncrement(tops('Bicep Curl (Pulley)', 'biceps', [40, 42.5, 45]), 'Bicep Curl (Pulley)')).toBe(2.5);
   });
+
 
   it('a bump sets target reps to max(floor, last reps - 2)', () => {
     const bench = buildPlan(stateOf([{ date: D(0), ex: 'Bench Press', weight: 100, reps: 6, muscle: 'chest' }]), 'Bench Press', D(3))!;

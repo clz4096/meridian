@@ -52,6 +52,12 @@ export interface WorkoutSet {
   mins?: Numeric;
   /** Cardio only: distance in miles. */
   dist?: Numeric;
+  /** Treadmill only: the session as segments (speed, incline, minutes). mins/dist are their totals. */
+  segs?: Array<{ kind: 'walk' | 'jog'; mins: number; mph: number; incline: number; times?: number }>;
+  /** Treadmill only: estimated calories burned. */
+  kcal?: Numeric;
+  /** Reps left in the tank when the set ended (0 to 4, 4 meaning 4 or more). */
+  rir?: Numeric;
   muscle?: Muscle;
   /** Free-text gym/session label, e.g. "Life Time — Lower". */
   group?: string;
@@ -313,6 +319,14 @@ export interface ExercisePlan {
   lastTopWeight: number;
   lastTopReps: number;
   lastDate: string | null;
+  /** Program lifts: bottom of the rep range (repHigh is the top). */
+  repLow?: number;
+  /** Plain-English reason for the prescription. */
+  why?: string;
+  /** One reason per warm-up set, in order. */
+  warmWhy?: string[];
+  /** Bench only: heavy Day A or light Day B. */
+  day?: 'A' | 'B';
 }
 
 export interface SessionEstimate {

@@ -472,6 +472,16 @@ button.tile:hover{box-shadow:var(--shadow-2)}
 .rx-what.all-done{color:var(--ok)}
 .rx-cue{font-size:var(--fs-2);color:var(--ok);font-variant-numeric:tabular-nums}
 .rx-cue.muted{color:var(--ink-3)}
+.rx-why{margin:4px 0 8px;font-size:var(--fs-2);color:var(--ink-2);line-height:1.4}
+.rir{display:flex;align-items:center;gap:6px;margin:2px 0 8px 22px;flex-wrap:wrap}
+.rir-q{font-size:var(--fs-1);color:var(--ink-3)}
+.rir-b{min-width:34px;min-height:34px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.rir-b.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tm-segs{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.tm-seg{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:var(--fs-2);color:var(--ink-2)}
+.tm-seg .fv{width:56px}
+.tm-seg select.fv{width:auto}
+.tm-presets{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
 /* Log row: weight x reps, then the one primary action. */
 .logrow{display:flex;align-items:stretch;gap:var(--sp-2)}
 .field{flex:1;min-width:0;padding:var(--sp-2);background:var(--surface);border:var(--hairline) solid var(--rule-strong);border-radius:var(--r-3);text-align:center;transition:border-color var(--dur-1) var(--ease-standard)}
