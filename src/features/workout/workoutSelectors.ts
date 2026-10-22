@@ -1618,10 +1618,8 @@ export const selectWorkoutView = indexed(function selectWorkoutView(
     ? [...new Set([...allExercises(state), ...Object.keys(overrides.away.swap)])]
     : allExercises(state);
 
-  const exercises =
-    isPast && performedToday.length > 0
-      ? performedToday
-      : forwardCandidates
+  const planned = (): string[] =>
+    forwardCandidates
           .filter((ex) => {
             if (SUB_NAMES.has(ex)) return false; // never list a substitute as its own lift
             if (isRetired(ex)) return false; // history stays, but it is no longer planned
@@ -1642,6 +1640,14 @@ export const selectWorkoutView = indexed(function selectWorkoutView(
             return s === split || s === 'both' || s === 'other';
           })
           .sort((a, b) => exerciseOrder(state, a) - exerciseOrder(state, b));
+  // A past day lists what was logged. A past program day also lists the rest of the plan,
+  // so a removed or forgotten entry can still be logged on that date.
+  const exercises =
+    isPast && performedToday.length > 0
+      ? inProgram(date)
+        ? [...new Set([...performedToday, ...planned()])].sort((a, b) => exerciseOrder(state, a) - exerciseOrder(state, b))
+        : performedToday
+      : planned();
 
   const plans: Record<string, ExercisePlan | null> = {};
   const performed: Record<string, WorkoutSet[]> = {};

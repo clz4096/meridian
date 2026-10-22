@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutSet, WorkoutState } from '@/core/types';
-import { buildPlan, snapToStack } from './workoutSelectors';
+import { buildPlan, selectWorkoutView, snapToStack } from './workoutSelectors';
 import { benchDay, blocksToSegs, jogStage, plannedBlocks, segKcal, totals, trueLevel } from './program';
 
 let n = 0;
@@ -138,5 +138,24 @@ describe('true level', () => {
   it('is the middle of the last three sessions, so one day cannot swing it', () => {
     expect(trueLevel([150, 100, 152, 149])).toBe(149);
     expect(trueLevel([])).toBe(0);
+  });
+});
+
+describe('past program days', () => {
+  it('still list a lift whose only entry was removed, so it can be logged again on that date', () => {
+    const W = state({
+      '2026-10-19': [set('Treadmill', 'cardio', 0, 0, 'cardio')],
+      '2026-10-21': [set('Bench Press', 'top', 120, 5)],
+    });
+    const v = selectWorkoutView(W, '2026-10-21', '2026-10-22', { split: 'all' });
+    expect(v.exercises).toContain('Bench Press');
+    expect(v.exercises).toContain('Treadmill');
+  });
+  it('days before the program still list only what was logged', () => {
+    const W = state({
+      '2026-10-12': [set('Treadmill', 'cardio', 0, 0, 'cardio')],
+      '2026-10-15': [set('Bench Press', 'top', 125, 3)],
+    });
+    expect(selectWorkoutView(W, '2026-10-15', '2026-10-22', { split: 'all' }).exercises).toEqual(['Bench Press']);
   });
 });
