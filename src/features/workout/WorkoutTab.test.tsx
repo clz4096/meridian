@@ -190,3 +190,38 @@ describe('WorkoutView', () => {
   });
 });
 
+
+describe('Treadmill input', () => {
+  it('pre-fills the three blocks, warns when the machine time disagrees, and logs the blocks as segments', () => {
+    const W = wk() as any;
+    W.days['2020-01-01'].push({ id: 't1', ex: 'Treadmill', muscle: 'cardio', group: 'cardio', type: 'cardio', weight: 0, reps: 0, mins: 30, dist: 1 });
+    activeExercise.value = 'Treadmill';
+    const spy = vi.spyOn(workoutActions, 'logTreadmill').mockImplementation(() => {});
+    const { container, getByLabelText } = render(<WorkoutView />);
+    expect([...container.querySelectorAll('.tm-h')].map((e) => e.textContent)).toEqual(['1. Warm-up', '2. Jogs', '3. Incline walk']);
+    expect(container.textContent).toContain('(5 walks)');
+    expect(container.textContent).toContain('16 min');
+    fireEvent.input(getByLabelText('Total minutes on the treadmill screen'), { target: { value: '30' } });
+    expect(container.textContent).toContain('machine says 30');
+    fireEvent.input(getByLabelText('Incline walk minutes'), { target: { value: '1.5' } });
+    expect(container.textContent).toContain('17.5 min');
+    fireEvent.click([...container.querySelectorAll('.logbtn')].find((b) => b.textContent === 'Log')!);
+    const segs = spy.mock.calls[0]![1];
+    expect(segs.map((g) => [g.kind, g.mins, g.times ?? 1])).toEqual([['walk', 5, 1], ['jog', 1, 6], ['walk', 1, 5], ['walk', 1.5, 1]]);
+  });
+});
+
+describe('Logged treadmill', () => {
+  it("can be removed and re-entered on today's screen", () => {
+    const W = wk() as any;
+    W.days['2020-01-01'].push({ id: 't0', ex: 'Treadmill', muscle: 'cardio', group: 'cardio', type: 'cardio', weight: 0, reps: 0, mins: 30, dist: 1 });
+    const today = new Date().toISOString().slice(0, 10);
+    wkDate.value = today;
+    W.days[today] = [{ id: 't1', ex: 'Treadmill', muscle: 'cardio', group: 'cardio', type: 'cardio', weight: 0, reps: 0, mins: 31, dist: 1.83 }];
+    activeExercise.value = 'Treadmill';
+    const spy = vi.spyOn(workoutActions, 'undoLastSet').mockImplementation(() => {});
+    const { getByText } = render(<WorkoutView />);
+    fireEvent.click(getByText('Remove and re-enter'));
+    expect(spy).toHaveBeenCalledWith('Treadmill');
+  });
+});

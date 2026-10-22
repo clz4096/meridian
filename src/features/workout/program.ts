@@ -148,18 +148,35 @@ export interface Segment {
   times?: number;
 }
 
-export const PRESETS: Array<{ label: string; seg: Segment }> = [
-  { label: 'Warm-up 5 min · 2.5 mph · 4%', seg: { kind: 'walk', mins: 5, mph: 2.5, incline: 4 } },
-  { label: 'Incline walk · 3.5 mph · 6%', seg: { kind: 'walk', mins: 10, mph: 3.5, incline: 6 } },
-];
+/** One speed and incline held for some minutes. */
+export interface Pace {
+  mins: number;
+  mph: number;
+  incline: number;
+}
 
-/** Jog progression: move up after two sessions at a stage. */
-export const JOG_STAGES: Array<{ jog: number; walk: number; times: number }> = [
-  { jog: 1, walk: 1.5, times: 6 },
-  { jog: 1.5, walk: 1.5, times: 5 },
-  { jog: 2, walk: 1, times: 5 },
-  { jog: 3, walk: 1, times: 4 },
-  { jog: 10, walk: 0, times: 1 },
+/**
+ * A treadmill session as the owner runs it: a warm-up, then jogs with a walk break
+ * between each pair, then an incline walk. Any block can be 0 minutes.
+ */
+export interface TreadmillBlocks {
+  warm: Pace;
+  jogs: number;
+  jog: Pace;
+  walkBreak: Pace;
+  inclineWalk: Pace;
+}
+
+export const WARM_UP: Pace = { mins: 5, mph: 2.5, incline: 4 };
+export const INCLINE_WALK: Pace = { mins: 10, mph: 3.5, incline: 6 };
+
+/** Jog progression: move up after two sessions at a stage. A walk break sits between jogs. */
+export const JOG_STAGES: Array<{ jog: number; walk: number; jogs: number }> = [
+  { jog: 1, walk: 1, jogs: 6 },
+  { jog: 1.5, walk: 1, jogs: 6 },
+  { jog: 2, walk: 1, jogs: 5 },
+  { jog: 3, walk: 1, jogs: 4 },
+  { jog: 10, walk: 0, jogs: 1 },
 ];
 
 export const JOG_MPH = 4.5;
@@ -170,11 +187,29 @@ export function jogStage(jogSessionsDone: number): number {
   return Math.min(JOG_STAGES.length - 1, Math.floor(jogSessionsDone / 2));
 }
 
-/** Day A pre-fill: the usual warm-up, then the due interval stage at 1% incline. */
-export function jogPlan(stage: number): Segment[] {
+/** The pre-fill: Day A is the warm-up plus the due jog stage; Day B is the warm-up plus an incline walk. */
+export function plannedBlocks(day: 'A' | 'B', stage: number): TreadmillBlocks {
   const s = JOG_STAGES[stage]!;
-  const out: Segment[] = [PRESETS[0]!.seg, { kind: 'jog', mins: s.jog, mph: JOG_MPH, incline: 1, times: s.times }];
-  if (s.walk > 0) out.push({ kind: 'walk', mins: s.walk, mph: WALK_BREAK_MPH, incline: 1, times: s.times });
+  return {
+    warm: { ...WARM_UP },
+    jogs: day === 'A' ? s.jogs : 0,
+    jog: { mins: s.jog, mph: JOG_MPH, incline: 1 },
+    walkBreak: { mins: s.walk, mph: WALK_BREAK_MPH, incline: 1 },
+    inclineWalk: { ...INCLINE_WALK, mins: day === 'A' ? 0 : INCLINE_WALK.mins },
+  };
+}
+
+/** Walk breaks sit between jogs, so there is one fewer than the jogs. */
+export function walkBreaks(b: TreadmillBlocks): number {
+  return Math.max(0, b.jogs - 1);
+}
+
+export function blocksToSegs(b: TreadmillBlocks): Segment[] {
+  const out: Segment[] = [];
+  if (b.warm.mins > 0) out.push({ kind: 'walk', ...b.warm });
+  if (b.jogs > 0 && b.jog.mins > 0) out.push({ kind: 'jog', ...b.jog, times: b.jogs });
+  if (walkBreaks(b) > 0 && b.walkBreak.mins > 0) out.push({ kind: 'walk', ...b.walkBreak, times: walkBreaks(b) });
+  if (b.inclineWalk.mins > 0) out.push({ kind: 'walk', ...b.inclineWalk });
   return out;
 }
 

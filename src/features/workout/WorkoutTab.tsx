@@ -4,7 +4,7 @@
  * tuck behind the ⚙. Ports workoutCharts (app.ts) + renderWorkoutHTML to JSX.
  */
 import { useEffect, useState } from 'preact/hooks';
-import { CUES, LOCATION, PRESETS, SUPERSETS, benchDay, inProgram, jogPlan, jogSessionsBefore, jogStage, totals, type Segment } from '@/features/workout/program';
+import { CUES, LOCATION, SUPERSETS, benchDay, blocksToSegs, inProgram, jogSessionsBefore, jogStage, plannedBlocks, totals, walkBreaks, type TreadmillBlocks } from '@/features/workout/program';
 import { selectWorkoutView, exerciseDates, restSeconds, inferIncrement, splitOfDate, sortedDates, exerciseSplit, withHistoryIndex, dayScore, weekTrend, canonicalSlot, gradeOf, type StrengthGrade, type WeekScore } from '@/features/workout/workoutSelectors';
 import type { WorkoutViewOptions } from '@/features/workout/types';
 import { bodyweightGoal, trackedLifts, bodyweightSeries, strengthSeries, volumeSeries, tonnageSeries } from '@/ui/charts/progress';
@@ -427,43 +427,61 @@ function TreadmillInput({ exercise, date }: { exercise: string; date: string }) 
   const W = wk();
   const day = benchDay(exerciseDates(W, 'Bench Press'), date);
   const stage = jogStage(jogSessionsBefore(W, date));
-  const initial: Segment[] = day === 'A' ? jogPlan(stage) : [PRESETS[0]!.seg, PRESETS[1]!.seg];
-  const [segs, setSegs] = useState<Segment[]>(initial);
-  const bw = Number(currentBW()) || 120;
-  const t = totals(segs, bw);
-  const upd = (i: number, k: keyof Segment, v: string): void =>
-    setSegs(segs.map((g, j) => (j === i ? { ...g, [k]: k === 'kind' ? v : Number(v) || 0 } : g)));
+  const [b, setB] = useState<TreadmillBlocks>(() => plannedBlocks(day, stage));
+  const [machine, setMachine] = useState('');
+  const t = totals(blocksToSegs(b), Number(currentBW()) || 120);
+  const onMachine = Number(machine) || 0;
+  const off = onMachine > 0 && Math.abs(onMachine - t.mins) > 0.5;
+  const num = (e: Event): number => Number((e.target as HTMLInputElement).value) || 0;
+  const set = <K extends keyof TreadmillBlocks>(k: K, v: TreadmillBlocks[K]): void => setB({ ...b, [k]: v });
+  const pace = (k: 'warm' | 'jog' | 'walkBreak' | 'inclineWalk'): preact.JSX.Element => (
+    <details class="tm-pace">
+      <summary>{b[k].mph} mph · {b[k].incline}% incline</summary>
+      <label><input class="fv" type="number" inputmode="decimal" value={b[k].mph} onInput={(e) => set(k, { ...b[k], mph: num(e) })} aria-label="Speed (mph)" /> mph</label>
+      <label><input class="fv" type="number" inputmode="decimal" value={b[k].incline} onInput={(e) => set(k, { ...b[k], incline: num(e) })} aria-label="Incline (%)" /> % incline</label>
+    </details>
+  );
+  const mins = (k: 'warm' | 'jog' | 'walkBreak' | 'inclineWalk', label: string): preact.JSX.Element => (
+    <input class="fv" type="number" inputmode="decimal" value={b[k].mins} onInput={(e) => set(k, { ...b[k], mins: num(e) })} aria-label={label} />
+  );
   return (
     <>
       <div class="rx">
-        <span class="rx-what">
-          {day === 'A' ? `Day A · jog stage ${stage + 1}: talk-in-short-sentences pace` : 'Day B · incline walk'}
-        </span>
+        <span class="rx-what">{day === 'A' ? `Day A · jog stage ${stage + 1}` : 'Day B · incline walk'}</span>
+        <span class="rx-why">Enter what you actually did. Set any block to 0 if you skipped it.</span>
       </div>
-      <div class="tm-segs">
-        {segs.map((g, i) => (
-          <div class="tm-seg">
-            <select class="fv" value={g.kind} onChange={(e) => upd(i, 'kind', (e.target as HTMLSelectElement).value)} aria-label="Walk or jog">
-              <option value="walk">walk</option>
-              <option value="jog">jog</option>
-            </select>
-            <label><input class="fv" type="number" inputmode="decimal" value={g.mins} onInput={(e) => upd(i, 'mins', (e.target as HTMLInputElement).value)} aria-label="Minutes" /> min</label>
-            <label><input class="fv" type="number" inputmode="decimal" value={g.mph} onInput={(e) => upd(i, 'mph', (e.target as HTMLInputElement).value)} aria-label="Speed (mph)" /> mph</label>
-            <label><input class="fv" type="number" inputmode="decimal" value={g.incline} onInput={(e) => upd(i, 'incline', (e.target as HTMLInputElement).value)} aria-label="Incline (%)" /> %</label>
-            <label>× <input class="fv" type="number" inputmode="numeric" value={g.times ?? 1} onInput={(e) => upd(i, 'times', (e.target as HTMLInputElement).value)} aria-label="Repeats" /></label>
-            <button type="button" class="setundo" onClick={() => setSegs(segs.filter((_, j) => j !== i))} aria-label="Remove segment">×</button>
-          </div>
-        ))}
-      </div>
-      <div class="tm-presets">
-        {PRESETS.map((p) => (
-          <button type="button" class="setundo" onClick={() => setSegs([...segs, { ...p.seg }])}>+ {p.label}</button>
-        ))}
-        <button type="button" class="setundo" onClick={() => setSegs(jogPlan(stage))}>+ Jog stage {stage + 1}</button>
+      <div class="tm-blocks">
+        <div class="tm-block">
+          <div class="tm-h">1. Warm-up</div>
+          <label>{mins('warm', 'Warm-up minutes')} min</label>
+          {pace('warm')}
+        </div>
+        <div class="tm-block">
+          <div class="tm-h">2. Jogs</div>
+          <label><input class="fv" type="number" inputmode="numeric" value={b.jogs} onInput={(e) => set('jogs', Math.max(0, Math.round(num(e))))} aria-label="Number of jogs" /> jogs of</label>
+          <label>{mins('jog', 'Minutes per jog')} min each</label>
+          {pace('jog')}
+          {b.jogs > 1 && (
+            <>
+              <label>with a {mins('walkBreak', 'Minutes per walk break')} min walk between each ({walkBreaks(b)} walks)</label>
+              {pace('walkBreak')}
+            </>
+          )}
+          <span class="rx-why">Jog pace: you can talk in short sentences.</span>
+        </div>
+        <div class="tm-block">
+          <div class="tm-h">3. Incline walk</div>
+          <label>{mins('inclineWalk', 'Incline walk minutes')} min</label>
+          {pace('inclineWalk')}
+        </div>
+        <div class="tm-block">
+          <label>Time on the machine's screen (optional) <input class="fv" type="number" inputmode="decimal" value={machine} onInput={(e) => setMachine((e.target as HTMLInputElement).value)} aria-label="Total minutes on the treadmill screen" /> min</label>
+          {off && <span class="rx-cue">Your blocks add up to {t.mins} min but the machine says {onMachine}. Check the blocks before logging.</span>}
+        </div>
       </div>
       <div class="logrow">
         <span class="rx-cue muted">{t.mins} min · {t.miles} mi · about {t.kcal} kcal</span>
-        <button class="logbtn" onClick={() => workoutActions.logTreadmill(exercise, segs)}>Log</button>
+        <button class="logbtn" onClick={() => workoutActions.logTreadmill(exercise, blocksToSegs(b))}>Log</button>
       </div>
     </>
   );
@@ -674,7 +692,14 @@ function ExerciseDetail({ vm, o, exercise, exercises, grade = null }: { vm: VM; 
           <CardioInput exercise={exercise} prev={vm.performed[exercise]?.[0]} />
         )
       ) : (
-        <div class="sets"><SetLine state="done" label="Cardio" val={fmtCardio(performed[0])} /></div>
+        <div class="sets">
+          <SetLine
+            state="done"
+            label="Cardio"
+            val={fmtCardio(performed[0])}
+            trailing={<button class="setundo" onClick={() => workoutActions.undoLastSet(active)}><IconUndo class="ico" />Remove and re-enter</button>}
+          />
+        </div>
       );
   } else {
     const rows: Array<[SetType, string, { weight: number; reps: number }]> = [

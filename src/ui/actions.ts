@@ -223,6 +223,8 @@ export const workoutActions: WorkoutActions = {
     if (s.type !== 'cardio' && ((patch.weight !== undefined && !(+patch.weight > 0)) || (patch.reps !== undefined && !(+patch.reps > 0)))) return;
     if (patch.weight !== undefined) s.weight = patch.weight;
     if (patch.reps !== undefined) s.reps = patch.reps;
+    // A logged treadmill's calories follow its minutes; the old estimate would be stale.
+    if (patch.mins !== undefined && s.kcal && +s.mins > 0) s.kcal = Math.round((s.kcal * +patch.mins) / +s.mins);
     if (patch.mins !== undefined) s.mins = patch.mins;
     if (patch.dist !== undefined) s.dist = patch.dist;
     if (patch.rir !== undefined) s.rir = patch.rir;

@@ -156,12 +156,12 @@ Your current routine is good: 5 minutes at 2.5 mph and 4% incline to warm up, th
 - **Intervals:** jog at about 4.5 to 5.0 mph, 1% incline. Walk breaks at 3.5 mph, 1% incline.
 - **Pace check:** you should be able to talk in short sentences. If you can't, slow down.
 
-| Stage | Each interval | Repeat |
+| Stage | Jogs | Walk between each jog |
 |---|---|---|
-| 1 | Jog 1 min, walk 1.5 min | 6 times |
-| 2 | Jog 1.5 min, walk 1.5 min | 5 times |
-| 3 | Jog 2 min, walk 1 min | 5 times |
-| 4 | Jog 3 min, walk 1 min | 4 times |
+| 1 | 6 jogs of 1 min | 1 min |
+| 2 | 6 jogs of 1.5 min | 1 min |
+| 3 | 5 jogs of 2 min | 1 min |
+| 4 | 4 jogs of 3 min | 1 min |
 | 5 | Jog 5 to 15 min continuous | |
 
 Move to the next stage after two comfortable sessions at the current one; repeat a stage as often as needed. Add about 100 calories on jog days.
@@ -172,9 +172,14 @@ Move to the next stage after two comfortable sessions at the current one; repeat
 
 Today the treadmill logs only total minutes and miles. That cannot tell a 2.5 mph flat walk from a 6% incline walk or a jog.
 
-**New logging: segments.** A session is a list of segments. Each segment has minutes, speed (mph), incline (%), and a kind (walk or jog).
+**New logging: three blocks.** A session is entered the way you run it, in three blocks. Each block has minutes, with its speed (mph) and incline (%) tucked under a tap-to-change line.
 
-- **One-tap presets** for what you actually do: "Warm-up: 5 min, 2.5 mph, 4%" and "Incline walk: 3.5 mph, 6%". On Day A, the app pre-fills today's interval stage, and you just confirm or edit.
+1. **Warm-up:** 5 min at 2.5 mph, 4%.
+2. **Jogs:** how many jogs, minutes per jog, and the walk break between each. Six jogs means five walk breaks.
+3. **Incline walk:** minutes at 3.5 mph, 6%. Day A starts this at 0; Day B starts it at 10.
+
+- **Machine check:** an optional box for the total time on the treadmill screen. If the blocks don't add up to it, the app says so before you log. (The first version was a free list of segments with presets; on 2026-10-21 it saved an unedited pre-fill as 31 minutes for a 17-minute session.)
+- **Set any block to 0** to skip it.
 - **Distance is calculated** as speed × time, so you no longer type miles.
 - **Calories are estimated** with the standard ACSM walking and running equations, which account for your bodyweight, speed and incline. Example: 5 minutes of warm-up plus 10 minutes at 3.5 mph and 6% is about 80 calories at 120 lb. The estimate feeds the bodyweight and food panel (3.9).
 - **Old entries** keep their total minutes and miles and show as a single segment.
@@ -280,7 +285,7 @@ Each phase ships separately, with tests and your approval before every commit.
 
 | Phase | What | Size |
 |---|---|---|
-| 0. Routine and cardio | Full-body session with Home and Life Time blocks, A/B days on Sun, Mon, Wed, Thu, fixed location per lift, Leg Extension on 20 lb plates, segment-based treadmill logging with presets and the jog progression | Medium |
+| 0. Routine and cardio | Full-body session with Home and Life Time blocks, A/B days on Sun, Mon, Wed, Thu, fixed location per lift, Leg Extension on 20 lb plates, three-block treadmill logging with a machine-time check and the jog progression | Medium |
 | 1. Fix the rules | Rep ranges by lift (dated so history is untouched), Leg Extension as isolation, the +1 rep progression, warm-up recipe, today-only plan list, the new stall, regression and reset logic | Medium |
 | 2. Show the truth | True level and trend on each card, rep records, bench goal tracker, e1RM chart replacing the max-weight chart, "why this number" lines, glossary taps | Medium |
 | 3. Better inputs | One-tap RIR, heaviest set auto-counted whatever its label, weekly volume bars, bodyweight and food panel | Medium |

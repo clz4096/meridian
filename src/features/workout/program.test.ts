@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutSet, WorkoutState } from '@/core/types';
 import { buildPlan, snapToStack } from './workoutSelectors';
-import { benchDay, jogPlan, jogStage, segKcal, totals, trueLevel } from './program';
+import { benchDay, blocksToSegs, jogStage, plannedBlocks, segKcal, totals, trueLevel } from './program';
 
 let n = 0;
 const set = (ex: string, type: WorkoutSet['type'], weight: number, reps: number, muscle = 'chest'): WorkoutSet =>
@@ -108,9 +108,21 @@ describe('treadmill', () => {
     expect(t.kcal).toBeGreaterThan(70);
     expect(t.kcal).toBeLessThan(95);
   });
-  it('counts repeated interval segments', () => {
-    const t = totals(jogPlan(0), 120);
-    expect(t.mins).toBe(5 + 6 * 1 + 6 * 1.5);
+  it('counts jogs with one fewer walk break between them', () => {
+    expect(totals(blocksToSegs(plannedBlocks('A', 0)), 120).mins).toBe(5 + 6 * 1 + 5 * 1);
+  });
+  it("logs the owner's 10-21 session at about 17.5 min, not 31", () => {
+    const b = { ...plannedBlocks('A', 0), inclineWalk: { mins: 1.5, mph: 3.5, incline: 6 } };
+    const t = totals(blocksToSegs(b), 120);
+    expect(t.mins).toBe(17.5);
+    expect(t.miles).toBeCloseTo(1.04, 2);
+  });
+  it('Day B is the warm-up plus a 10 min incline walk, no jogs', () => {
+    expect(blocksToSegs(plannedBlocks('B', 0)).map((g) => g.mins)).toEqual([5, 10]);
+  });
+  it('skips a block set to 0 minutes', () => {
+    const b = { ...plannedBlocks('A', 0), warm: { mins: 0, mph: 2.5, incline: 4 } };
+    expect(blocksToSegs(b).some((g) => g.incline === 4)).toBe(false);
   });
   it('jogging burns more than walking at the same speed', () => {
     expect(segKcal({ kind: 'jog', mins: 1, mph: 4.5, incline: 1 }, 120)).toBeGreaterThan(segKcal({ kind: 'walk', mins: 1, mph: 3.5, incline: 1 }, 120));
