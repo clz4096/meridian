@@ -195,18 +195,19 @@ describe('Norwegian 4x4', () => {
     expect(hrZone(38, 0.6, 0.75)).toEqual([112, 140]);
     expect(hrZone(38, 0.85, 0.95)).toEqual([159, 178]);
   });
-  it('hard day is about 36 min, easy day about 26', () => {
-    expect(totals(fourSegs('hard', 0, 4), 120).mins).toBe(36);
+  it('hard day is about 38 min with a 10 min warm-up, easy day about 26', () => {
+    expect(totals(fourSegs('hard', 0, 4), 120).mins).toBe(38);
     expect(totals(fourSegs('easy', 0, 3), 120).mins).toBe(26);
   });
-  it('stage 1 hard is 8 one-minute jogs; easy at stage 1 is a brisk walk', () => {
+  it('stage 1 hard is 8 one-minute jogs; every easy day jogs too (6 at stage 1)', () => {
     const jogs = fourSegs('hard', 0, 4).filter((g) => g.kind === 'jog');
     expect(jogs).toHaveLength(8);
     expect(jogs.every((g) => g.mins === 1 && g.mph === 4.5)).toBe(true);
-    expect(fourSegs('easy', 0, 3).some((g) => g.kind === 'jog')).toBe(false);
+    expect(fourSegs('easy', 0, 3).filter((g) => g.kind === 'jog')).toHaveLength(6);
+    expect(fourSegs('easy', 2, 3).filter((g) => g.kind === 'jog').map((g) => g.mins)).toEqual([2, 1, 2, 1, 2, 1]);
   });
   it('a short session logs only the blocks finished', () => {
-    expect(totals(fourSegs('hard', 0, 2), 120).mins).toBe(5 + 3 + 4 + 3 + 4 + 3);
+    expect(totals(fourSegs('hard', 0, 2), 120).mins).toBe(5 + 5 + 4 + 3 + 4 + 3);
   });
   it('moves up after two full hard days; a short one or an easy one does not count', () => {
     const W = state({
@@ -217,6 +218,12 @@ describe('Norwegian 4x4', () => {
     expect(fourStage(W, '2026-10-29')).toBe(0);
     W.days['2026-11-01'] = [tm({ kind: 'hard', stage: 0, blocks: 4, of: 4 })];
     expect(fourStage(W, '2026-11-02')).toBe(1);
+  });
+  it('hard-day walk minutes are steep (10%) to hold the hard zone; easy-day walks stay at 1%', () => {
+    const walks = (k: 'hard' | 'easy') => fourSegs(k, 0, 1).filter((g) => g.kind === 'walk' && g.mins === 1);
+    expect(walks('hard').every((g) => g.incline === 10 && g.mph === 3.5)).toBe(true);
+    expect(walks('easy').every((g) => g.incline === 1)).toBe(true);
+    expect(fourSegs('hard', 0, 1, 4.5, 12).filter((g) => g.mins === 1 && g.kind === 'walk').every((g) => g.incline === 12)).toBe(true);
   });
   it('speed rises 0.2 mph a stage only after the full 4 minute jog', () => {
     expect(fourMph(0)).toBe(4.5);

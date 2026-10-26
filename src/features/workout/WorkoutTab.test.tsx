@@ -198,13 +198,29 @@ describe('Treadmill 4x4', () => {
     activeExercise.value = 'Treadmill';
     const spy = vi.spyOn(workoutActions, 'logTreadmill').mockImplementation(() => {});
     const { container, getByLabelText, getByText } = render(<WorkoutView />);
-    expect(container.textContent).toContain('4x4 · Easy day, brisk walk');
+    expect(container.textContent).toContain('4x4 · Easy day, stage 1 blocks');
+    expect(container.textContent).toContain('jog 1 · walk 1 · jog 1 · walk 1 · jog 4.5 mph');
     expect(container.querySelectorAll('.tm-steps li')).toHaveLength(7); // warm-up, 3 blocks, 2 recoveries, cool-down
     expect(container.textContent).toContain('26 min');
     fireEvent.click(getByText('2'));
     fireEvent.input(getByLabelText('Average heart rate'), { target: { value: '128' } });
     fireEvent.click([...container.querySelectorAll('.logbtn')].find((b) => b.textContent === 'Log')!);
     expect(spy.mock.calls[0]![2]).toEqual({ kind: 'easy', stage: 0, blocks: 2, of: 3, avgHr: 128 });
+  });
+});
+
+describe('Treadmill 4x4 hard day', () => {
+  it('on Day B shows the real 4x4: hard zone, steep walk minutes, 4 blocks', () => {
+    const W = wk() as any;
+    W.days['2020-01-01'].push({ id: 't1', ex: 'Treadmill', muscle: 'cardio', group: 'cardio', type: 'cardio', weight: 0, reps: 0, mins: 30, dist: 1 });
+    W.days['2026-10-21'] = [{ id: 'b1', ex: 'Bench Press', muscle: 'chest', group: 'upper', type: 'top', weight: 120, reps: 5 }];
+    activeExercise.value = 'Treadmill';
+    const { container, getByLabelText } = render(<WorkoutView />);
+    expect(container.textContent).toContain('4x4 · Hard day, stage 1');
+    expect(container.textContent).toContain('159 to 178 bpm');
+    expect(container.textContent).toContain('walk 3.5 mph 10%');
+    expect(container.textContent).toContain('38 min');
+    expect((getByLabelText('Walk incline (%)') as HTMLInputElement).value).toBe('10');
   });
 });
 

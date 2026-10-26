@@ -260,10 +260,12 @@ export function jogSessionsBefore(state: WorkoutState, date: string): number {
 /* ------------------------------------------------------------------ */
 
 /**
- * Hard day: 4 blocks of 4 minutes with a 3 minute recovery walk between them (Helgerud
- * et al. 2007). The blocks start as easy jog/walk mixes and build to a full 4 minute jog,
- * then speed rises until the last 2 minutes reach 85 to 95% of max heart rate. Easy day:
- * 3 blocks, one stage easier. Hard falls on bench Day B, easy on Day A, so each training
+ * Hard day: the real 4x4 (Helgerud et al. 2007), 4 blocks of 4 minutes at 85 to 95% of max
+ * heart rate with a 3 minute recovery walk between them. Until the owner can jog 4 minutes,
+ * each block mixes jogging with steep walking so heart rate stays up the whole block; the
+ * walking shrinks stage by stage until it is a full jog, then speed rises. Easy day:
+ * 3 blocks, one stage easier but never below stage 1, so every session jogs (owner,
+ * 2026-10-26). Hard falls on bench Day B, easy on Day A, so each training
  * day carries one hard thing.
  */
 export type FourKind = 'hard' | 'easy';
@@ -288,13 +290,13 @@ const FOUR_BLOCKS: Array<Array<{ kind: 'jog' | 'walk'; mins: number }>> = [
 
 export const FOUR = {
   warm: { mins: 5, mph: 2.5, incline: 4 },
-  ramp: { mins: 3, mph: 3.5, incline: 1 },
+  ramp: { mins: 5, mph: 3.5, incline: 4 },
   recovery: { mins: 3, mph: 3.0, incline: 1 },
   cool: { mins: 3, mph: 2.5, incline: 0 },
   jogIncline: 1,
   walkMph: 3.5,
-  /** Easy day below stage 1: a brisk incline walk in place of each block. */
-  easyWalk: { mins: 4, mph: 3.5, incline: 6 },
+  /** Hard-day walk minutes go steep so heart rate stays in the hard zone for all 4 minutes. */
+  hardWalkIncline: 10,
   baseMph: 4.5,
   /** Each stage past the full 4 minute jog adds this much speed. */
   stepMph: 0.2,
@@ -321,36 +323,35 @@ export function fourMph(stage: number): number {
   return Math.round((FOUR.baseMph + Math.max(0, stage - last) * FOUR.stepMph) * 10) / 10;
 }
 
-/** One block's segments at a stage; stage -1 is the easy brisk walk. */
-export function fourBlock(stage: number, jogMph = fourMph(stage)): Segment[] {
-  if (stage < 0) return [{ kind: 'walk', ...FOUR.easyWalk }];
+/** One block's segments at a stage. */
+export function fourBlock(stage: number, jogMph = fourMph(stage), walkIncline: number = FOUR.jogIncline): Segment[] {
   const parts = FOUR_BLOCKS[Math.min(stage, FOUR_BLOCKS.length - 1)]!;
   return parts.map((p) =>
     p.kind === 'jog'
       ? { kind: 'jog', mins: p.mins, mph: jogMph, incline: FOUR.jogIncline }
-      : { kind: 'walk', mins: p.mins, mph: FOUR.walkMph, incline: FOUR.jogIncline },
+      : { kind: 'walk', mins: p.mins, mph: FOUR.walkMph, incline: walkIncline },
   );
 }
 
 /** Plain-English text for a block, e.g. "jog 2 · walk 1 · jog 1". */
 export function fourBlockText(stage: number): string {
-  if (stage < 0) return `brisk walk 4 min at ${FOUR.easyWalk.mph} mph, ${FOUR.easyWalk.incline}%`;
   return fourBlock(stage).map((g) => `${g.kind} ${g.mins}`).join(' · ');
 }
 
-/** The stage a session runs: hard is the current stage, easy is one below. */
+/** The stage a session runs: hard is the current stage, easy is one below, never below stage 1. */
 export function fourSessionStage(kind: FourKind, stage: number): number {
-  return kind === 'hard' ? stage : stage - 1;
+  return kind === 'hard' ? stage : Math.max(0, stage - 1);
 }
 
 /** Segments for a session with `blocks` of its blocks finished. */
-export function fourSegs(kind: FourKind, stage: number, blocks: number, jogMph?: number): Segment[] {
+export function fourSegs(kind: FourKind, stage: number, blocks: number, jogMph?: number, walkIncline?: number): Segment[] {
+  const incline = walkIncline ?? (kind === 'hard' ? FOUR.hardWalkIncline : FOUR.jogIncline);
   const s = fourSessionStage(kind, stage);
   const out: Segment[] = [{ kind: 'walk', ...FOUR.warm }];
   if (kind === 'hard') out.push({ kind: 'walk', ...FOUR.ramp });
   for (let i = 0; i < blocks; i++) {
     if (i > 0) out.push({ kind: 'walk', ...FOUR.recovery });
-    out.push(...fourBlock(s, s >= 0 ? (jogMph ?? fourMph(s)) : undefined));
+    out.push(...fourBlock(s, jogMph ?? fourMph(s), incline));
   }
   out.push({ kind: 'walk', ...FOUR.cool });
   return out;
