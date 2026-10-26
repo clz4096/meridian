@@ -841,11 +841,28 @@ function programPlan(
   const heavy = dates.filter((d) => !isLight(d));
   const lastDate = heavy[heavy.length - 1];
   if (!lastDate) return null;
-  const top = topSetOf(setsOn(state, exercise, lastDate)) ?? heaviestSet(setsOn(state, exercise, lastDate));
-  if (!top) return null;
+  const logged = topSetOf(setsOn(state, exercise, lastDate)) ?? heaviestSet(setsOn(state, exercise, lastDate));
+  if (!logged) return null;
+  // A working set heavier than the top set, in range and stronger by e1RM, on the last heavy
+  // day or a light day since, becomes the basis: it shows the true level moved (bench 125 x 6
+  // logged as a Day B back-off, owner 2026-10-25).
+  let top = logged;
+  let beatOn: string | null = null;
+  for (const d of dates.filter((x) => x >= lastDate && inProgram(x))) {
+    for (const s of setsOn(state, exercise, d)) {
+      if (s.type !== 'top' && s.type !== 'back') continue;
+      const w = toNum(s.weight);
+      const r = toNum(s.reps);
+      if (w > toNum(top.weight) && r >= range.lo && sessionE1rm([s]) > sessionE1rm([top])) {
+        top = s;
+        beatOn = d;
+      }
+    }
+  }
   const step = inferIncrement(state, exercise, config);
   const lastW = toNum(top.weight, 1) || 1;
   const lastR = toNum(top.reps);
+  const beat = beatOn ? `Your best set since the last heavy day: ${lastW} × ${lastR} on ${beatOn.slice(5)}.` : '';
   const level = trueLevel(heavy.slice(-3).map((d) => sessionE1rm(setsOn(state, exercise, d))));
   const gap = daysSinceLast(state, exercise, date);
   const near = (w: number): number => snapToStack(exercise, roundTo(w, step), state);
@@ -900,7 +917,9 @@ function programPlan(
   } else {
     weight = lastW;
     reps = Math.min(hi, lastR + 1);
-    why = `Last time ${lastW} × ${lastR}. Same weight, aim for ${reps}. Reach ${hi} and the weight goes up.`;
+    why = beat
+      ? `${beat} Same weight, aim for ${reps}. Reach ${hi} and the weight goes up.`
+      : `Last time ${lastW} × ${lastR}. Same weight, aim for ${reps}. Reach ${hi} and the weight goes up.`;
   }
   if (layoff && !manual) {
     const cut = down(weight * 0.9);
@@ -920,10 +939,11 @@ function programPlan(
     warms.push({ weight: ww, reps: w.reps });
     warmWhy.push(w.why);
   }
-  const backs = (BACKOFFS[exercise] ?? []).map((ratio) => ({
-    weight: ratio >= 1 ? weight : near(weight * ratio),
-    reps: ratio >= 1 ? reps : Math.min(hi, reps + 2),
-  }));
+  // A lighter back-off earns 2 more reps; one the stack rounds back up to the top weight does not.
+  const backs = (BACKOFFS[exercise] ?? []).map((ratio) => {
+    const w = ratio >= 1 ? weight : near(weight * ratio);
+    return { weight: w, reps: w >= weight ? reps : Math.min(hi, reps + 2) };
+  });
 
   return {
     exercise, cardio: false, warms, top: { weight, reps }, backs,

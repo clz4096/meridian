@@ -168,6 +168,17 @@ Move to the next stage after two comfortable sessions at the current one; repeat
 
 **Fitness signal:** total jog minutes per session, and, once you jog continuously, the speed you hold for 10 minutes. Both are shown as a trend, the same way lifts show true level.
 
+### 3.0c-2 Norwegian 4x4 (owner, 2026-10-26; replaces the jog stages above)
+
+Every treadmill session uses the 4x4 layout (Helgerud et al. 2007): 4-minute blocks with a 3-minute recovery walk between them.
+
+- **Hard day (bench Day B), about 36 min:** 5 min warm-up (2.5 mph, 4%), 3 min ramp (3.5 mph, 1%), 4 blocks, 3 recovery walks (3.0 mph, 1%), 3 min cool-down (2.5 mph, 0%). Do it after the leg machines.
+- **Easy day (bench Day A), about 26 min:** warm-up, 3 blocks one stage easier, 2 recovery walks, cool-down. At stage 1 the easy blocks are a brisk walk at 3.5 mph, 6%.
+- **Inside each block** (jog 4.5 mph, walk 3.5 mph, 1%): stage 1 is jog 1, walk 1, jog 1, walk 1; stage 2 is jog 2, walk 1, jog 1; stage 3 is jog 3, walk 1; stage 4 is a full 4-minute jog; each stage after that adds 0.2 mph.
+- **Moving up:** two hard days with all 4 blocks finished at a stage. A short hard day repeats it.
+- **Heart rate at 38** (max 211 - 0.64 x age, Nes et al. 2013, about 187): easy 112 to 140 bpm, hard 159 to 178 bpm. The hard zone applies once the full 4-minute jog is reached. The Oura average and peak are optional fields.
+- **Logged** as segments plus the session's kind, stage, blocks finished and heart rate. "Log a different session" keeps the three-block entry for anything else.
+
 ### 3.0d Treadmill logging
 
 Today the treadmill logs only total minutes and miles. That cannot tell a 2.5 mph flat walk from a 6% incline walk or a jog.

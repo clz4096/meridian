@@ -4,7 +4,7 @@
  * tuck behind the ⚙. Ports workoutCharts (app.ts) + renderWorkoutHTML to JSX.
  */
 import { useEffect, useState } from 'preact/hooks';
-import { CUES, LOCATION, SUPERSETS, benchDay, blocksToSegs, inProgram, jogSessionsBefore, jogStage, plannedBlocks, totals, walkBreaks, type TreadmillBlocks } from '@/features/workout/program';
+import { AGE, CUES, FOUR, LOCATION, SUPERSETS, benchDay, blocksToSegs, fourBlockText, fourMph, fourSegs, fourSessionStage, fourStage, hrZone, inProgram, jogSessionsBefore, jogStage, plannedBlocks, totals, walkBreaks, type FourKind, type FourLog, type TreadmillBlocks } from '@/features/workout/program';
 import { selectWorkoutView, exerciseDates, restSeconds, inferIncrement, splitOfDate, sortedDates, exerciseSplit, withHistoryIndex, dayScore, weekTrend, canonicalSlot, gradeOf, type StrengthGrade, type WeekScore } from '@/features/workout/workoutSelectors';
 import type { WorkoutViewOptions } from '@/features/workout/types';
 import { bodyweightGoal, trackedLifts, bodyweightSeries, strengthSeries, volumeSeries, tonnageSeries } from '@/ui/charts/progress';
@@ -423,7 +423,96 @@ function RirPicker({ date, set }: { date: string; set: Any }) {
 }
 
 /** Treadmill as segments: speed, incline and minutes per stretch; miles and calories derived. */
+/** Today's Norwegian 4x4: hard on bench Day B, easy on Day A; the stage builds from hard days done. */
 function TreadmillInput({ exercise, date }: { exercise: string; date: string }) {
+  const W = wk();
+  const [custom, setCustom] = useState(false);
+  const kind: FourKind = benchDay(exerciseDates(W, 'Bench Press'), date) === 'B' ? 'hard' : 'easy';
+  const stage = fourStage(W, date);
+  const run = fourSessionStage(kind, stage);
+  const of = kind === 'hard' ? FOUR.hardBlocks : FOUR.easyBlocks;
+  const [blocks, setBlocks] = useState<number>(of);
+  const [mph, setMph] = useState(run >= 0 ? fourMph(run) : 0);
+  const [avgHr, setAvgHr] = useState('');
+  const [peakHr, setPeakHr] = useState('');
+  if (custom) return <CustomTreadmill exercise={exercise} date={date} onBack={() => setCustom(false)} />;
+  const segs = fourSegs(kind, stage, blocks, run >= 0 ? mph : undefined);
+  const t = totals(segs, Number(currentBW()) || 120);
+  const [easyLo, easyHi] = hrZone(AGE, 0.6, 0.75);
+  const [hardLo, hardHi] = hrZone(AGE, 0.85, 0.95);
+  const full = run >= 3;
+  const effort =
+    kind === 'easy'
+      ? `Easy: full sentences the whole time, about ${easyLo} to ${easyHi} bpm.`
+      : run > 3
+        ? `Hard: the last 2 minutes of each block reach ${hardLo} to ${hardHi} bpm. You can say a few words, not a sentence.`
+        : 'Jog easy enough to talk in short sentences. You are building up to jogging the full 4 minutes.';
+  const steps: Array<[string, string]> = [
+    ['Warm-up', `${FOUR.warm.mins} min · ${FOUR.warm.mph} mph · ${FOUR.warm.incline}%`],
+    ...(kind === 'hard' ? [['Ramp', `${FOUR.ramp.mins} min · ${FOUR.ramp.mph} mph · ${FOUR.ramp.incline}%`] as [string, string]] : []),
+    ...Array.from({ length: of }, (_, i): Array<[string, string]> => [
+      ...(i > 0 ? [['Recovery walk', `${FOUR.recovery.mins} min · ${FOUR.recovery.mph} mph · ${FOUR.recovery.incline}%`] as [string, string]] : []),
+      [`Block ${i + 1} · 4 min`, run >= 0 ? `${fourBlockText(run)} · jog ${mph} mph, walk ${FOUR.walkMph} mph, ${FOUR.jogIncline}%` : fourBlockText(run)],
+    ]).flat(),
+    ['Cool-down', `${FOUR.cool.mins} min · ${FOUR.cool.mph} mph · ${FOUR.cool.incline}%`],
+  ];
+  const hr = (v: string): number | undefined => (Number(v) > 0 ? Math.round(Number(v)) : undefined);
+  const log = (): void => {
+    const fx: FourLog = { kind, stage, blocks, of };
+    const a = hr(avgHr);
+    const p = hr(peakHr);
+    if (a) fx.avgHr = a;
+    if (p) fx.peakHr = p;
+    workoutActions.logTreadmill(exercise, segs, fx);
+  };
+  return (
+    <>
+      <div class="rx">
+        <span class="rx-what">
+          4x4 · {kind === 'hard' ? `Hard day, stage ${stage + 1}` : `Easy day${run >= 0 ? `, stage ${run + 1} pace` : ', brisk walk'}`}
+        </span>
+        <span class="rx-why">{effort}</span>
+        {kind === 'hard' && (
+          <span class="rx-why">
+            {full ? 'Finish all 4 blocks on two hard days and the jog speeds up 0.2 mph.' : 'Finish all 4 blocks on two hard days and the blocks get more jogging.'} Do the treadmill after your leg machines today.
+          </span>
+        )}
+      </div>
+      <ol class="tm-steps">
+        {steps.map(([h, v]) => (
+          <li><span class="tm-h">{h}</span> <span>{v}</span></li>
+        ))}
+      </ol>
+      <div class="tm-blocks">
+        <div class="tm-block">
+          <span class="tm-h">Blocks finished</span>
+          <span class="rir">
+            {Array.from({ length: of + 1 }, (_, n) => (
+              <button type="button" class={'rir-b' + (n === blocks ? ' on' : '')} aria-pressed={n === blocks} onClick={() => setBlocks(n)}>{n}</button>
+            ))}
+          </span>
+        </div>
+        {run >= 0 && (
+          <div class="tm-block">
+            <label>Jog speed <input class="fv" type="number" inputmode="decimal" value={mph} onInput={(e) => setMph(Number((e.target as HTMLInputElement).value) || 0)} aria-label="Jog speed (mph)" /> mph</label>
+          </div>
+        )}
+        <div class="tm-block">
+          <span class="tm-h">Oura heart rate (optional)</span>
+          <label>average <input class="fv" type="number" inputmode="numeric" value={avgHr} onInput={(e) => setAvgHr((e.target as HTMLInputElement).value)} aria-label="Average heart rate" /></label>
+          <label>peak <input class="fv" type="number" inputmode="numeric" value={peakHr} onInput={(e) => setPeakHr((e.target as HTMLInputElement).value)} aria-label="Peak heart rate" /></label>
+        </div>
+      </div>
+      <div class="logrow">
+        <span class="rx-cue muted">{t.mins} min · {t.miles} mi · about {t.kcal} kcal</span>
+        <button class="logbtn" onClick={log}>Log</button>
+      </div>
+      <button type="button" class="setundo" onClick={() => setCustom(true)}>Did something else? Log a different session</button>
+    </>
+  );
+}
+
+function CustomTreadmill({ exercise, date, onBack }: { exercise: string; date: string; onBack: () => void }) {
   const W = wk();
   const day = benchDay(exerciseDates(W, 'Bench Press'), date);
   const stage = jogStage(jogSessionsBefore(W, date));
@@ -447,8 +536,9 @@ function TreadmillInput({ exercise, date }: { exercise: string; date: string }) 
   return (
     <>
       <div class="rx">
-        <span class="rx-what">{day === 'A' ? `Day A · jog stage ${stage + 1}` : 'Day B · incline walk'}</span>
+        <span class="rx-what">Different session</span>
         <span class="rx-why">Enter what you actually did. Set any block to 0 if you skipped it.</span>
+        <button type="button" class="setundo" onClick={onBack}>‹ Back to the 4x4</button>
       </div>
       <div class="tm-blocks">
         <div class="tm-block">

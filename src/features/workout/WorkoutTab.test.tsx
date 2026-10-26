@@ -191,13 +191,31 @@ describe('WorkoutView', () => {
 });
 
 
+describe('Treadmill 4x4', () => {
+  it('shows an easy day on Day A and logs the blocks finished with the Oura heart rate', () => {
+    const W = wk() as any;
+    W.days['2020-01-01'].push({ id: 't1', ex: 'Treadmill', muscle: 'cardio', group: 'cardio', type: 'cardio', weight: 0, reps: 0, mins: 30, dist: 1 });
+    activeExercise.value = 'Treadmill';
+    const spy = vi.spyOn(workoutActions, 'logTreadmill').mockImplementation(() => {});
+    const { container, getByLabelText, getByText } = render(<WorkoutView />);
+    expect(container.textContent).toContain('4x4 · Easy day, brisk walk');
+    expect(container.querySelectorAll('.tm-steps li')).toHaveLength(7); // warm-up, 3 blocks, 2 recoveries, cool-down
+    expect(container.textContent).toContain('26 min');
+    fireEvent.click(getByText('2'));
+    fireEvent.input(getByLabelText('Average heart rate'), { target: { value: '128' } });
+    fireEvent.click([...container.querySelectorAll('.logbtn')].find((b) => b.textContent === 'Log')!);
+    expect(spy.mock.calls[0]![2]).toEqual({ kind: 'easy', stage: 0, blocks: 2, of: 3, avgHr: 128 });
+  });
+});
+
 describe('Treadmill input', () => {
   it('pre-fills the three blocks, warns when the machine time disagrees, and logs the blocks as segments', () => {
     const W = wk() as any;
     W.days['2020-01-01'].push({ id: 't1', ex: 'Treadmill', muscle: 'cardio', group: 'cardio', type: 'cardio', weight: 0, reps: 0, mins: 30, dist: 1 });
     activeExercise.value = 'Treadmill';
     const spy = vi.spyOn(workoutActions, 'logTreadmill').mockImplementation(() => {});
-    const { container, getByLabelText } = render(<WorkoutView />);
+    const { container, getByLabelText, getByText } = render(<WorkoutView />);
+    fireEvent.click(getByText('Did something else? Log a different session'));
     expect([...container.querySelectorAll('.tm-h')].map((e) => e.textContent)).toEqual(['1. Warm-up', '2. Jogs', '3. Incline walk']);
     expect(container.textContent).toContain('(5 walks)');
     expect(container.textContent).toContain('16 min');

@@ -189,7 +189,7 @@ export const workoutActions: WorkoutActions = {
     appState.markWorkoutDirty();
     st.bump();
   },
-  logTreadmill(ex, segs) {
+  logTreadmill(ex, segs, fx) {
     const clean = segs.filter((g) => g.mins > 0 && g.mph > 0);
     if (!ex || clean.length === 0) return;
     const t = treadmillTotals(clean, Number(currentBW()) || 120);
@@ -197,7 +197,7 @@ export const workoutActions: WorkoutActions = {
     const td = st.wkDate.value ?? dstr();
     if (!W.days[td]) W.days[td] = [];
     const m = exMeta(ex);
-    W.days[td].push({ id: uid(), ex, muscle: m.muscle || 'cardio', group: m.group || '', type: 'cardio', weight: 0, reps: 0, mins: t.mins, dist: t.miles, kcal: t.kcal, segs: clean });
+    W.days[td].push({ id: uid(), ex, muscle: m.muscle || 'cardio', group: m.group || '', type: 'cardio', weight: 0, reps: 0, mins: t.mins, dist: t.miles, kcal: t.kcal, segs: clean, ...(fx ? { fx } : {}) });
     if (!W.done) W.done = {};
     if (!W.done[td]) W.done[td] = [];
     if (W.done[td].indexOf(ex) < 0) W.done[td].push(ex);

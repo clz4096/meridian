@@ -54,6 +54,8 @@ export interface WorkoutSet {
   dist?: Numeric;
   /** Treadmill only: the session as segments (speed, incline, minutes). mins/dist are their totals. */
   segs?: Array<{ kind: 'walk' | 'jog'; mins: number; mph: number; incline: number; times?: number }>;
+  /** a Norwegian 4x4 session: hard or easy, stage, blocks finished, optional Oura heart rate */
+  fx?: { kind: 'hard' | 'easy'; stage: number; blocks: number; of: number; avgHr?: number; peakHr?: number };
   /** Treadmill only: estimated calories burned. */
   kcal?: Numeric;
   /** Reps left in the tank when the set ended (0 to 4, 4 meaning 4 or more). */

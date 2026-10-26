@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutSet, WorkoutState } from '@/core/types';
 import { buildPlan, selectWorkoutView, snapToStack } from './workoutSelectors';
-import { benchDay, blocksToSegs, jogStage, plannedBlocks, segKcal, totals, trueLevel } from './program';
+import { benchDay, blocksToSegs, fourMph, fourSegs, fourStage, hrZone, jogStage, maxHr, plannedBlocks, segKcal, totals, trueLevel } from './program';
 
 let n = 0;
 const set = (ex: string, type: WorkoutSet['type'], weight: number, reps: number, muscle = 'chest'): WorkoutSet =>
@@ -157,5 +157,70 @@ describe('past program days', () => {
       '2026-10-15': [set('Bench Press', 'top', 125, 3)],
     });
     expect(selectWorkoutView(W, '2026-10-15', '2026-10-22', { split: 'all' }).exercises).toEqual(['Bench Press']);
+  });
+});
+
+describe('bench basis and stack back-offs', () => {
+  it('a heavier Day B set in range becomes the Day A basis (125 x 6 -> 125 x 7)', () => {
+    const W = state({
+      '2026-10-21': [set('Bench Press', 'top', 120, 5), set('Bench Press', 'back', 110, 7)],
+      '2026-10-25': [set('Bench Press', 'top', 105, 8), set('Bench Press', 'back', 125, 6), set('Bench Press', 'back', 105, 8)],
+    });
+    const p = buildPlan(W, 'Bench Press', '2026-10-26')!;
+    expect(p.day).toBe('A');
+    expect(p.top).toEqual({ weight: 125, reps: 7 });
+    expect(p.why).toContain('125 × 6 on 10-25');
+  });
+  it('a lighter set never becomes the basis', () => {
+    const W = state({ '2026-10-21': [set('Bench Press', 'top', 120, 5), set('Bench Press', 'back', 110, 8)] });
+    expect(buildPlan(W, 'Bench Press', '2026-10-23')!.day).toBe('B');
+    const W2 = state({
+      '2026-10-21': [set('Bench Press', 'top', 120, 5), set('Bench Press', 'back', 110, 8)],
+      '2026-10-23': [set('Bench Press', 'top', 100, 8)],
+    });
+    expect(buildPlan(W2, 'Bench Press', '2026-10-25')!.top).toEqual({ weight: 120, reps: 6 });
+  });
+  it('a Leg Press back-off the stack rounds up to the top weight keeps the top reps', () => {
+    const W = state({ '2026-10-25': [set('Leg Press', 'top', 100, 9, 'quads')] });
+    const p = buildPlan(W, 'Leg Press', '2026-10-26')!;
+    expect(p.top).toEqual({ weight: 100, reps: 10 });
+    expect(p.backs).toEqual([{ weight: 100, reps: 10 }, { weight: 100, reps: 10 }]);
+  });
+});
+
+describe('Norwegian 4x4', () => {
+  const tm = (fx: object): WorkoutSet => ({ ...set('Treadmill', 'cardio', 0, 0, 'cardio'), fx } as WorkoutSet);
+  it('heart-rate zones at 38: max 187, easy 112-140, hard 159-177', () => {
+    expect(maxHr(38)).toBe(187);
+    expect(hrZone(38, 0.6, 0.75)).toEqual([112, 140]);
+    expect(hrZone(38, 0.85, 0.95)).toEqual([159, 178]);
+  });
+  it('hard day is about 36 min, easy day about 26', () => {
+    expect(totals(fourSegs('hard', 0, 4), 120).mins).toBe(36);
+    expect(totals(fourSegs('easy', 0, 3), 120).mins).toBe(26);
+  });
+  it('stage 1 hard is 8 one-minute jogs; easy at stage 1 is a brisk walk', () => {
+    const jogs = fourSegs('hard', 0, 4).filter((g) => g.kind === 'jog');
+    expect(jogs).toHaveLength(8);
+    expect(jogs.every((g) => g.mins === 1 && g.mph === 4.5)).toBe(true);
+    expect(fourSegs('easy', 0, 3).some((g) => g.kind === 'jog')).toBe(false);
+  });
+  it('a short session logs only the blocks finished', () => {
+    expect(totals(fourSegs('hard', 0, 2), 120).mins).toBe(5 + 3 + 4 + 3 + 4 + 3);
+  });
+  it('moves up after two full hard days; a short one or an easy one does not count', () => {
+    const W = state({
+      '2026-10-25': [tm({ kind: 'hard', stage: 0, blocks: 4, of: 4 })],
+      '2026-10-26': [tm({ kind: 'easy', stage: 0, blocks: 3, of: 3 })],
+      '2026-10-28': [tm({ kind: 'hard', stage: 0, blocks: 3, of: 4 })],
+    });
+    expect(fourStage(W, '2026-10-29')).toBe(0);
+    W.days['2026-11-01'] = [tm({ kind: 'hard', stage: 0, blocks: 4, of: 4 })];
+    expect(fourStage(W, '2026-11-02')).toBe(1);
+  });
+  it('speed rises 0.2 mph a stage only after the full 4 minute jog', () => {
+    expect(fourMph(0)).toBe(4.5);
+    expect(fourMph(3)).toBe(4.5);
+    expect(fourMph(5)).toBe(4.9);
   });
 });

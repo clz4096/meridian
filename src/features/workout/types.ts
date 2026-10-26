@@ -13,7 +13,7 @@ export interface WorkoutActions {
   /** Log a cardio bout as time + distance (not weight×reps). */
   logCardio(exercise: string, mins: number, dist: number): void;
   /** Log a treadmill session as segments; minutes, miles and calories are derived. */
-  logTreadmill(exercise: string, segs: Array<{ kind: 'walk' | 'jog'; mins: number; mph: number; incline: number; times?: number }>): void;
+  logTreadmill(exercise: string, segs: Array<{ kind: 'walk' | 'jog'; mins: number; mph: number; incline: number; times?: number }>, fx?: import('@/core/types').WorkoutSet['fx']): void;
   deleteSet(date: string, setId: string): void;
   /** Correct a logged set in place (weight/reps for lifts, mins/dist for cardio). */
   editSet(date: string, setId: string, patch: { weight?: number; reps?: number; mins?: number; dist?: number; rir?: number }): void;

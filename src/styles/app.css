@@ -477,6 +477,8 @@ button.tile:hover{box-shadow:var(--shadow-2)}
 .rir-q{font-size:var(--fs-1);color:var(--ink-3)}
 .rir-b{min-width:34px;min-height:34px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--ink-2);font-variant-numeric:tabular-nums}
 .rir-b.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tm-steps{margin:8px 0;padding-left:20px;font-size:var(--fs-2);color:var(--ink-2);display:flex;flex-direction:column;gap:4px}
+.tm-steps .tm-h{display:inline;font-weight:600}
 .tm-blocks{display:flex;flex-direction:column;gap:12px;margin:8px 0}
 .tm-block{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:var(--fs-2);color:var(--ink-2)}
 .tm-block .fv{width:56px}

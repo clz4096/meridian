@@ -254,3 +254,126 @@ export function jogSessionsBefore(state: WorkoutState, date: string): number {
   }
   return n;
 }
+
+/* ------------------------------------------------------------------ */
+/* Norwegian 4x4 (owner, 2026-10-26)                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Hard day: 4 blocks of 4 minutes with a 3 minute recovery walk between them (Helgerud
+ * et al. 2007). The blocks start as easy jog/walk mixes and build to a full 4 minute jog,
+ * then speed rises until the last 2 minutes reach 85 to 95% of max heart rate. Easy day:
+ * 3 blocks, one stage easier. Hard falls on bench Day B, easy on Day A, so each training
+ * day carries one hard thing.
+ */
+export type FourKind = 'hard' | 'easy';
+
+/** What a 4x4 session recorded, stored on the treadmill set. */
+export interface FourLog {
+  kind: FourKind;
+  stage: number;
+  blocks: number;
+  of: number;
+  avgHr?: number;
+  peakHr?: number;
+}
+
+/** Inside each 4 minute block, by stage (0 based). Stage 3 is the full 4 minute jog. */
+const FOUR_BLOCKS: Array<Array<{ kind: 'jog' | 'walk'; mins: number }>> = [
+  [{ kind: 'jog', mins: 1 }, { kind: 'walk', mins: 1 }, { kind: 'jog', mins: 1 }, { kind: 'walk', mins: 1 }],
+  [{ kind: 'jog', mins: 2 }, { kind: 'walk', mins: 1 }, { kind: 'jog', mins: 1 }],
+  [{ kind: 'jog', mins: 3 }, { kind: 'walk', mins: 1 }],
+  [{ kind: 'jog', mins: 4 }],
+];
+
+export const FOUR = {
+  warm: { mins: 5, mph: 2.5, incline: 4 },
+  ramp: { mins: 3, mph: 3.5, incline: 1 },
+  recovery: { mins: 3, mph: 3.0, incline: 1 },
+  cool: { mins: 3, mph: 2.5, incline: 0 },
+  jogIncline: 1,
+  walkMph: 3.5,
+  /** Easy day below stage 1: a brisk incline walk in place of each block. */
+  easyWalk: { mins: 4, mph: 3.5, incline: 6 },
+  baseMph: 4.5,
+  /** Each stage past the full 4 minute jog adds this much speed. */
+  stepMph: 0.2,
+  hardBlocks: 4,
+  easyBlocks: 3,
+} as const;
+
+/** Max heart rate estimate (Nes et al. 2013, HUNT): 211 - 0.64 x age. */
+export function maxHr(age: number): number {
+  return Math.round(211 - 0.64 * age);
+}
+
+export function hrZone(age: number, lo: number, hi: number): [number, number] {
+  const m = maxHr(age);
+  return [Math.round(m * lo), Math.round(m * hi)];
+}
+
+/** The owner's age (2026-10-26), for the heart-rate zones. */
+export const AGE = 38;
+
+/** Jog speed for a stage: the base until the full 4 minute jog, then +0.2 mph a stage. */
+export function fourMph(stage: number): number {
+  const last = FOUR_BLOCKS.length - 1;
+  return Math.round((FOUR.baseMph + Math.max(0, stage - last) * FOUR.stepMph) * 10) / 10;
+}
+
+/** One block's segments at a stage; stage -1 is the easy brisk walk. */
+export function fourBlock(stage: number, jogMph = fourMph(stage)): Segment[] {
+  if (stage < 0) return [{ kind: 'walk', ...FOUR.easyWalk }];
+  const parts = FOUR_BLOCKS[Math.min(stage, FOUR_BLOCKS.length - 1)]!;
+  return parts.map((p) =>
+    p.kind === 'jog'
+      ? { kind: 'jog', mins: p.mins, mph: jogMph, incline: FOUR.jogIncline }
+      : { kind: 'walk', mins: p.mins, mph: FOUR.walkMph, incline: FOUR.jogIncline },
+  );
+}
+
+/** Plain-English text for a block, e.g. "jog 2 · walk 1 · jog 1". */
+export function fourBlockText(stage: number): string {
+  if (stage < 0) return `brisk walk 4 min at ${FOUR.easyWalk.mph} mph, ${FOUR.easyWalk.incline}%`;
+  return fourBlock(stage).map((g) => `${g.kind} ${g.mins}`).join(' · ');
+}
+
+/** The stage a session runs: hard is the current stage, easy is one below. */
+export function fourSessionStage(kind: FourKind, stage: number): number {
+  return kind === 'hard' ? stage : stage - 1;
+}
+
+/** Segments for a session with `blocks` of its blocks finished. */
+export function fourSegs(kind: FourKind, stage: number, blocks: number, jogMph?: number): Segment[] {
+  const s = fourSessionStage(kind, stage);
+  const out: Segment[] = [{ kind: 'walk', ...FOUR.warm }];
+  if (kind === 'hard') out.push({ kind: 'walk', ...FOUR.ramp });
+  for (let i = 0; i < blocks; i++) {
+    if (i > 0) out.push({ kind: 'walk', ...FOUR.recovery });
+    out.push(...fourBlock(s, s >= 0 ? (jogMph ?? fourMph(s)) : undefined));
+  }
+  out.push({ kind: 'walk', ...FOUR.cool });
+  return out;
+}
+
+/**
+ * The current 4x4 stage, from the hard days logged before `date`: two hard days with every
+ * block finished at a stage move it up one. A short hard day repeats the stage.
+ */
+export function fourStage(state: WorkoutState, date: string): number {
+  let stage = 0;
+  let clean = 0;
+  for (const d of Object.keys(state.days ?? {}).sort()) {
+    if (d < PROGRAM_FROM || d >= date) continue;
+    for (const s of state.days[d] ?? []) {
+      const f = s.ex === 'Treadmill' ? s.fx : undefined;
+      if (!f || f.kind !== 'hard' || f.stage !== stage) continue;
+      if (f.blocks >= f.of) clean++;
+      if (clean >= 2) {
+        stage++;
+        clean = 0;
+      }
+    }
+  }
+  return stage;
+}
