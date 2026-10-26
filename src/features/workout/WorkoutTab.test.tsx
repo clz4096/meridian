@@ -12,7 +12,7 @@
  * a card render (which also bypasses the rest-day schedule).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render } from '@testing-library/preact';
+import { act, cleanup, fireEvent, render } from '@testing-library/preact';
 import { WorkoutView } from '@/features/workout/WorkoutTab';
 import tpl from '@/core/data/defaultWorkout.json';
 import { wk, workoutActions } from '@/ui/actions';
@@ -191,36 +191,59 @@ describe('WorkoutView', () => {
 });
 
 
-describe('Treadmill 4x4', () => {
-  it('shows an easy day on Day A and logs the blocks finished with the Oura heart rate', () => {
+describe('Treadmill 4x4 timer', () => {
+  const seedTreadmill = () => {
     const W = wk() as any;
     W.days['2020-01-01'].push({ id: 't1', ex: 'Treadmill', muscle: 'cardio', group: 'cardio', type: 'cardio', weight: 0, reps: 0, mins: 30, dist: 1 });
     activeExercise.value = 'Treadmill';
+  };
+  const logBtn = (c: Element) => [...c.querySelectorAll('button')].find((b) => b.textContent === 'Log treadmill')!;
+
+  it('Day A is an easy day that opens on the warm-up; ending without the timer logs what you tap', () => {
+    seedTreadmill();
     const spy = vi.spyOn(workoutActions, 'logTreadmill').mockImplementation(() => {});
     const { container, getByLabelText, getByText } = render(<WorkoutView />);
     expect(container.textContent).toContain('4x4 · Easy day, stage 1 blocks');
-    expect(container.textContent).toContain('jog 1 · walk 1 · jog 1 · walk 1 · jog 4.5 mph');
-    expect(container.querySelectorAll('.tm-steps li')).toHaveLength(7); // warm-up, 3 blocks, 2 recoveries, cool-down
-    expect(container.textContent).toContain('26 min');
+    expect(container.querySelector('.tmr-what')!.textContent).toBe('WALK');
+    expect(container.querySelector('.tmr-left')!.textContent).toContain('5:00');
+    expect(container.querySelector('.tmr-clock')!.textContent).toBe('0:00 / 26:00');
+    fireEvent.click(getByText('End session and log'));
     fireEvent.click(getByText('2'));
     fireEvent.input(getByLabelText('Average heart rate'), { target: { value: '128' } });
-    fireEvent.click([...container.querySelectorAll('.logbtn')].find((b) => b.textContent === 'Log')!);
+    fireEvent.click(logBtn(container));
     expect(spy.mock.calls[0]![2]).toEqual({ kind: 'easy', stage: 0, blocks: 2, of: 3, avgHr: 128 });
+    expect(spy.mock.calls[0]![1].filter((g: any) => g.kind === 'jog')).toHaveLength(4);
   });
-});
 
-describe('Treadmill 4x4 hard day', () => {
-  it('on Day B shows the real 4x4: hard zone, steep walk minutes, 4 blocks', () => {
-    const W = wk() as any;
-    W.days['2020-01-01'].push({ id: 't1', ex: 'Treadmill', muscle: 'cardio', group: 'cardio', type: 'cardio', weight: 0, reps: 0, mins: 30, dist: 1 });
-    W.days['2026-10-21'] = [{ id: 'b1', ex: 'Bench Press', muscle: 'chest', group: 'upper', type: 'top', weight: 120, reps: 5 }];
-    activeExercise.value = 'Treadmill';
-    const { container, getByLabelText } = render(<WorkoutView />);
+  it('Day B is the hard 4x4 at one incline; the treadmill clock jumps to the same spot', () => {
+    seedTreadmill();
+    (wk() as any).days['2026-10-21'] = [{ id: 'b1', ex: 'Bench Press', muscle: 'chest', group: 'upper', type: 'top', weight: 120, reps: 5 }];
+    const { container, getByLabelText, getByText } = render(<WorkoutView />);
     expect(container.textContent).toContain('4x4 · Hard day, stage 1');
-    expect(container.textContent).toContain('159 to 178 bpm');
-    expect(container.textContent).toContain('walk 3.5 mph 10%');
-    expect(container.textContent).toContain('38 min');
-    expect((getByLabelText('Walk incline (%)') as HTMLInputElement).value).toBe('10');
+    expect(container.textContent).toContain('hold 159 to 178 bpm');
+    expect(container.querySelector('.tmr-clock')!.textContent).toBe('0:00 / 38:00');
+    fireEvent.input(getByLabelText('Time on the treadmill screen'), { target: { value: '12:30' } });
+    fireEvent.click(getByText('Match it'));
+    expect(container.querySelector('.tmr-where')!.textContent).toBe('Block 1 of 4 · minute 3 of 4');
+    expect(container.querySelector('.tmr-what')!.textContent).toBe('JOG');
+    expect(container.querySelector('.tmr-set')!.textContent).toBe('4.5 mph · 4%');
+    expect(container.querySelector('.tmr-left')!.textContent).toContain('0:30');
+    expect(container.querySelector('.tmr-next')!.textContent).toContain('→ 3.5 mph · incline stays 4%');
+    expect(container.querySelectorAll('.tmr-pip')).toHaveLength(4);
+  });
+
+  it('runs on the wall clock: Start, a minute passes, the countdown moves', () => {
+    vi.useFakeTimers();
+    try {
+      seedTreadmill();
+      const { container, getByText } = render(<WorkoutView />);
+      fireEvent.click(getByText('Start'));
+      act(() => { vi.advanceTimersByTime(61_000); });
+      expect(container.querySelector('.tmr-left')!.textContent).toContain('3:59');
+      expect(getByText('Pause')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

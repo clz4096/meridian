@@ -262,11 +262,11 @@ export function jogSessionsBefore(state: WorkoutState, date: string): number {
 /**
  * Hard day: the real 4x4 (Helgerud et al. 2007), 4 blocks of 4 minutes at 85 to 95% of max
  * heart rate with a 3 minute recovery walk between them. Until the owner can jog 4 minutes,
- * each block mixes jogging with steep walking so heart rate stays up the whole block; the
- * walking shrinks stage by stage until it is a full jog, then speed rises. Easy day:
- * 3 blocks, one stage easier but never below stage 1, so every session jogs (owner,
- * 2026-10-26). Hard falls on bench Day B, easy on Day A, so each training
- * day carries one hard thing.
+ * each block mixes jogging and brisk walking; the walking shrinks stage by stage until it
+ * is a full jog, then speed rises. The incline is set once for the main set (4% hard, 1%
+ * easy) so only the speed changes mid-block (owner, 2026-10-26). Easy day: 3 blocks, one
+ * stage easier but never below stage 1, so every session jogs. Hard falls on bench Day B,
+ * easy on Day A, so each training day carries one hard thing.
  */
 export type FourKind = 'hard' | 'easy';
 
@@ -291,12 +291,12 @@ const FOUR_BLOCKS: Array<Array<{ kind: 'jog' | 'walk'; mins: number }>> = [
 export const FOUR = {
   warm: { mins: 5, mph: 2.5, incline: 4 },
   ramp: { mins: 5, mph: 3.5, incline: 4 },
-  recovery: { mins: 3, mph: 3.0, incline: 1 },
+  recoveryMins: 3,
+  recoveryMph: 3.0,
   cool: { mins: 3, mph: 2.5, incline: 0 },
-  jogIncline: 1,
+  /** The one incline for blocks and recoveries. */
+  incline: { hard: 4, easy: 1 } as Record<'hard' | 'easy', number>,
   walkMph: 3.5,
-  /** Hard-day walk minutes go steep so heart rate stays in the hard zone for all 4 minutes. */
-  hardWalkIncline: 10,
   baseMph: 4.5,
   /** Each stage past the full 4 minute jog adds this much speed. */
   stepMph: 0.2,
@@ -323,19 +323,9 @@ export function fourMph(stage: number): number {
   return Math.round((FOUR.baseMph + Math.max(0, stage - last) * FOUR.stepMph) * 10) / 10;
 }
 
-/** One block's segments at a stage. */
-export function fourBlock(stage: number, jogMph = fourMph(stage), walkIncline: number = FOUR.jogIncline): Segment[] {
-  const parts = FOUR_BLOCKS[Math.min(stage, FOUR_BLOCKS.length - 1)]!;
-  return parts.map((p) =>
-    p.kind === 'jog'
-      ? { kind: 'jog', mins: p.mins, mph: jogMph, incline: FOUR.jogIncline }
-      : { kind: 'walk', mins: p.mins, mph: FOUR.walkMph, incline: walkIncline },
-  );
-}
-
 /** Plain-English text for a block, e.g. "jog 2 · walk 1 · jog 1". */
 export function fourBlockText(stage: number): string {
-  return fourBlock(stage).map((g) => `${g.kind} ${g.mins}`).join(' · ');
+  return FOUR_BLOCKS[Math.min(stage, FOUR_BLOCKS.length - 1)]!.map((g) => `${g.kind} ${g.mins}`).join(' · ');
 }
 
 /** The stage a session runs: hard is the current stage, easy is one below, never below stage 1. */
@@ -343,18 +333,69 @@ export function fourSessionStage(kind: FourKind, stage: number): number {
   return kind === 'hard' ? stage : Math.max(0, stage - 1);
 }
 
-/** Segments for a session with `blocks` of its blocks finished. */
-export function fourSegs(kind: FourKind, stage: number, blocks: number, jogMph?: number, walkIncline?: number): Segment[] {
-  const incline = walkIncline ?? (kind === 'hard' ? FOUR.hardWalkIncline : FOUR.jogIncline);
-  const s = fourSessionStage(kind, stage);
-  const out: Segment[] = [{ kind: 'walk', ...FOUR.warm }];
-  if (kind === 'hard') out.push({ kind: 'walk', ...FOUR.ramp });
-  for (let i = 0; i < blocks; i++) {
-    if (i > 0) out.push({ kind: 'walk', ...FOUR.recovery });
-    out.push(...fourBlock(s, jogMph ?? fourMph(s), incline));
+/** One timed step of a session, as the treadmill screen walks through it. */
+export interface FourStep {
+  /** where in the session, e.g. "Block 2 of 4" */
+  where: string;
+  /** jog or walk inside a block; easy for warm-up, recovery and cool-down */
+  tone: 'jog' | 'walk' | 'easy';
+  kind: 'jog' | 'walk';
+  mins: number;
+  mph: number;
+  incline: number;
+  /** block index (0 based) for steps inside a block */
+  block?: number;
+  /** minute within the block where this step starts */
+  from?: number;
+  /** seconds from the session start */
+  start: number;
+}
+
+/** The whole session in order. `blocks` caps how many blocks are included (for logging). */
+export function fourSteps(kind: FourKind, stage: number, opts: { jogMph?: number; incline?: number; blocks?: number } = {}): FourStep[] {
+  const run = fourSessionStage(kind, stage);
+  const mph = opts.jogMph ?? fourMph(run);
+  const inc = opts.incline ?? FOUR.incline[kind];
+  const of = kind === 'hard' ? FOUR.hardBlocks : FOUR.easyBlocks;
+  const n = Math.min(of, opts.blocks ?? of);
+  const out: Array<Omit<FourStep, 'start'>> = [{ where: 'Warm-up', tone: 'easy', kind: 'walk', ...FOUR.warm }];
+  if (kind === 'hard') out.push({ where: 'Warm-up, part 2', tone: 'easy', kind: 'walk', ...FOUR.ramp });
+  const parts = FOUR_BLOCKS[Math.min(run, FOUR_BLOCKS.length - 1)]!;
+  for (let b = 0; b < n; b++) {
+    if (b > 0) out.push({ where: `Recovery ${b} of ${of - 1}`, tone: 'easy', kind: 'walk', mins: FOUR.recoveryMins, mph: FOUR.recoveryMph, incline: inc });
+    let minute = 0;
+    for (const p of parts) {
+      out.push({ where: `Block ${b + 1} of ${of}`, tone: p.kind, kind: p.kind, mins: p.mins, mph: p.kind === 'jog' ? mph : FOUR.walkMph, incline: inc, block: b, from: minute });
+      minute += p.mins;
+    }
   }
-  out.push({ kind: 'walk', ...FOUR.cool });
-  return out;
+  out.push({ where: 'Cool-down', tone: 'easy', kind: 'walk', ...FOUR.cool });
+  let at = 0;
+  return out.map((s) => {
+    const step = { ...s, start: at };
+    at += s.mins * 60;
+    return step;
+  });
+}
+
+/** Segments for a session with `blocks` of its blocks finished. */
+export function fourSegs(kind: FourKind, stage: number, blocks: number, jogMph?: number, incline?: number): Segment[] {
+  return fourSteps(kind, stage, { jogMph, incline, blocks }).map((s) => ({ kind: s.kind, mins: s.mins, mph: s.mph, incline: s.incline }));
+}
+
+/** Blocks whose every step ends at or before `elapsed` seconds. */
+export function blocksDoneAt(steps: readonly FourStep[], elapsed: number): number {
+  const ends = new Map<number, number>();
+  for (const s of steps) if (s.block != null) ends.set(s.block, s.start + s.mins * 60);
+  let n = 0;
+  for (const end of ends.values()) if (elapsed >= end) n++;
+  return n;
+}
+
+/** Index of the step running at `elapsed` seconds (the last one once the session is over). */
+export function stepAt(steps: readonly FourStep[], elapsed: number): number {
+  const i = steps.findIndex((s) => elapsed < s.start + s.mins * 60);
+  return i < 0 ? steps.length - 1 : i;
 }
 
 /**

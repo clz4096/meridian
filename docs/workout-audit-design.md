@@ -172,12 +172,13 @@ Move to the next stage after two comfortable sessions at the current one; repeat
 
 Every treadmill session uses the 4x4 layout (Helgerud et al. 2007): 4-minute blocks with a 3-minute recovery walk between them.
 
-- **Hard day (bench Day B), about 38 min, the real 4x4:** 10 min warm-up (5 at 2.5 mph, 4%, then 5 at 3.5 mph, 4%), 4 blocks held at 85 to 95% of max heart rate, 3 recovery walks (3.0 mph, 1%, falling to about 70%), 3 min cool-down (2.5 mph, 0%). Until a full 4-minute jog, the walk minutes inside each block are steep (3.5 mph, 10%, up to 15%) so heart rate stays in the hard zone. Do it after the leg machines.
+- **Hard day (bench Day B), about 38 min, the real 4x4:** 10 min warm-up (5 at 2.5 mph, 4%, then 5 at 3.5 mph, 4%), 4 blocks held at 85 to 95% of max heart rate, 3 recovery walks (3.0 mph, 1%, falling to about 70%), 3 min cool-down (2.5 mph, 0%). The incline is set once to 4% for the blocks and recoveries, so only the speed changes mid-block; jogging at 4% keeps heart rate in the hard zone. Do it after the leg machines.
 - **Easy day (bench Day A), about 26 min:** warm-up, 3 blocks one stage easier (never below stage 1), 2 recovery walks, cool-down. Every session jogs; easy means a slower jog at full-sentence effort.
-- **Inside each block** (jog 4.5 mph at 1%; walk 3.5 mph, 10% on hard days and 1% on easy days): stage 1 is jog 1, walk 1, jog 1, walk 1; stage 2 is jog 2, walk 1, jog 1; stage 3 is jog 3, walk 1; stage 4 is a full 4-minute jog; each stage after that adds 0.2 mph.
+- **Inside each block** (jog 4.5 mph, walk 3.5 mph; 4% on hard days and 1% on easy days, unchanged through the block): stage 1 is jog 1, walk 1, jog 1, walk 1; stage 2 is jog 2, walk 1, jog 1; stage 3 is jog 3, walk 1; stage 4 is a full 4-minute jog; each stage after that adds 0.2 mph.
 - **Moving up:** two hard days with all 4 blocks finished at a stage. A short hard day repeats it.
 - **Heart rate at 38** (max 211 - 0.64 x age, Nes et al. 2013, about 187): easy 112 to 140 bpm, hard 159 to 178 bpm on every hard day, recovery about 131. The Oura average and peak are optional fields.
-- **Logged** as segments plus the session's kind, stage, blocks finished and heart rate. "Log a different session" keeps the three-block entry for anything else.
+- **Treadmill timer:** the screen walks through the session step by step. A large card shows jog or walk, the speed and incline to set, and the time left; tiles show each minute of the current block; the next step shows only what changes; beeps mark each change; the screen stays awake. "Treadmill clock says" jumps to the time on the machine. The timer uses the wall clock and survives a reload.
+- **Logged** at the end as segments plus the session's kind, stage, blocks finished (counted from the timer, correctable) and the optional Oura heart rate. "Log a different session" keeps the three-block entry for anything else.
 
 ### 3.0d Treadmill logging
 

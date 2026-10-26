@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutSet, WorkoutState } from '@/core/types';
 import { buildPlan, selectWorkoutView, snapToStack } from './workoutSelectors';
-import { benchDay, blocksToSegs, fourMph, fourSegs, fourStage, hrZone, jogStage, maxHr, plannedBlocks, segKcal, totals, trueLevel } from './program';
+import { benchDay, blocksDoneAt, blocksToSegs, fourMph, fourSegs, fourStage, fourSteps, hrZone, jogStage, maxHr, plannedBlocks, segKcal, stepAt, totals, trueLevel } from './program';
 
 let n = 0;
 const set = (ex: string, type: WorkoutSet['type'], weight: number, reps: number, muscle = 'chest'): WorkoutSet =>
@@ -219,11 +219,22 @@ describe('Norwegian 4x4', () => {
     W.days['2026-11-01'] = [tm({ kind: 'hard', stage: 0, blocks: 4, of: 4 })];
     expect(fourStage(W, '2026-11-02')).toBe(1);
   });
-  it('hard-day walk minutes are steep (10%) to hold the hard zone; easy-day walks stay at 1%', () => {
-    const walks = (k: 'hard' | 'easy') => fourSegs(k, 0, 1).filter((g) => g.kind === 'walk' && g.mins === 1);
-    expect(walks('hard').every((g) => g.incline === 10 && g.mph === 3.5)).toBe(true);
-    expect(walks('easy').every((g) => g.incline === 1)).toBe(true);
-    expect(fourSegs('hard', 0, 1, 4.5, 12).filter((g) => g.mins === 1 && g.kind === 'walk').every((g) => g.incline === 12)).toBe(true);
+  it('one incline for blocks and recoveries: 4% hard, 1% easy; only the speed changes', () => {
+    const main = (k: 'hard' | 'easy') => fourSteps(k, 0).filter((g) => g.block != null || g.where.startsWith('Recovery'));
+    expect(new Set(main('hard').map((g) => g.incline))).toEqual(new Set([4]));
+    expect(new Set(main('easy').map((g) => g.incline))).toEqual(new Set([1]));
+    expect(new Set(main('hard').map((g) => g.mph))).toEqual(new Set([4.5, 3.5, 3]));
+  });
+  it('finds the step at a treadmill clock time and counts blocks finished', () => {
+    const st = fourSteps('hard', 0); // 10 min warm-up, then block 1: jog 10-11, walk 11-12, jog 12-13
+    const i = stepAt(st, 12.5 * 60);
+    expect(st[i]!.where).toBe('Block 1 of 4');
+    expect(st[i]!.kind).toBe('jog');
+    expect(st[i]!.from).toBe(2);
+    expect(blocksDoneAt(st, 13.9 * 60)).toBe(0);
+    expect(blocksDoneAt(st, 14 * 60)).toBe(1);
+    expect(blocksDoneAt(st, 99 * 60)).toBe(4);
+    expect(stepAt(st, 99 * 60)).toBe(st.length - 1);
   });
   it('speed rises 0.2 mph a stage only after the full 4 minute jog', () => {
     expect(fourMph(0)).toBe(4.5);
