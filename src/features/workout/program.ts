@@ -26,6 +26,12 @@ export const REP_RANGE: Record<string, { lo: number; hi: number }> = {
   'Calf Raise (Machine)': { lo: 10, hi: 15 },
   'Hip Abduction': { lo: 12, hi: 20 },
   'Hip Adduction': { lo: 12, hi: 20 },
+  'One-Arm Dumbbell Row': { lo: 8, hi: 12 },
+  'Bulgarian Split Squat': { lo: 8, hi: 12 },
+  'Leg Extension (Bench)': { lo: 8, hi: 14 },
+  'Cable Hip Abduction': { lo: 12, hi: 20 },
+  'Cable Hip Adduction': { lo: 12, hi: 20 },
+  'Single-Leg Calf Raise': { lo: 10, hi: 15 },
 };
 
 /** Day B bench: three straight sets at this share of the last heavy top set. */
@@ -48,6 +54,8 @@ export const WARMUPS: Record<string, Array<{ ratio: number; reps: number; bar?: 
   ],
   'Lat Pulldown': [{ ratio: 0.5, reps: 10, why: 'about half your working weight: easy' }],
   'Leg Extension': [{ ratio: 0.6, reps: 10, why: 'about 60% of your working weight: easy' }],
+  'Bulgarian Split Squat': [{ ratio: 0.5, reps: 8, why: 'about half your working weight: easy' }],
+  'Leg Extension (Bench)': [{ ratio: 0.6, reps: 10, why: 'about 60% of your working level: easy' }],
 };
 
 /** Back-off sets after the top set, as a share of the top-set weight. */
@@ -62,6 +70,12 @@ export const BACKOFFS: Record<string, number[]> = {
   'Calf Raise (Machine)': [1, 1],
   'Hip Abduction': [1],
   'Hip Adduction': [1],
+  'One-Arm Dumbbell Row': [1, 1],
+  'Bulgarian Split Squat': [1, 1],
+  'Leg Extension (Bench)': [1, 1],
+  'Cable Hip Abduction': [1],
+  'Cable Hip Adduction': [1],
+  'Single-Leg Calf Raise': [1, 1],
 };
 
 /** Lifts done back to back as a pair, shown with a superset label. */
@@ -70,11 +84,19 @@ export const SUPERSETS: Record<string, string> = {
   'Bicep Curl (Pulley)': 'Tricep Pushdown (Rope)',
   'Hip Abduction': 'Hip Adduction',
   'Hip Adduction': 'Hip Abduction',
+  'Cable Hip Abduction': 'Cable Hip Adduction',
+  'Cable Hip Adduction': 'Cable Hip Abduction',
 };
 
 /** Form cues shown on the card. */
 export const CUES: Record<string, string> = {
   'Leg Extension': 'Hold 2 seconds at the top of every rep.',
+  'Leg Extension (Bench)': 'Hold 2 seconds at the top of every rep. The weight is the level number on the attachment.',
+  'One-Arm Dumbbell Row': 'Reps are per arm. Pull the dumbbell to your hip.',
+  'Bulgarian Split Squat': 'Weight is per hand. Do every rep on one leg, then the other.',
+  'Cable Hip Abduction': 'Ankle strap on the low pulley. Reps are per leg.',
+  'Cable Hip Adduction': 'Ankle strap on the low pulley. Reps are per leg.',
+  'Single-Leg Calf Raise': 'On the step, dumbbell in the same-side hand. Full stretch at the bottom. Reps are per leg.',
 };
 
 export type Location = 'Home' | 'Life Time';
@@ -90,8 +112,54 @@ export const LOCATION: Record<string, Location> = {
   'Calf Raise (Machine)': 'Life Time',
   'Hip Abduction': 'Life Time',
   'Hip Adduction': 'Life Time',
-  Treadmill: 'Life Time',
+  Treadmill: 'Home',
+  'One-Arm Dumbbell Row': 'Home',
+  'Bulgarian Split Squat': 'Home',
+  'Leg Extension (Bench)': 'Home',
+  'Cable Hip Abduction': 'Home',
+  'Cable Hip Adduction': 'Home',
+  'Single-Leg Calf Raise': 'Home',
 };
+
+/** The Life Time membership ended; from this date every lift is done in the home gym (owner, 2026-11-02). */
+export const HOME_FROM = '2026-11-02';
+
+/**
+ * Home replacements for the Life Time lifts, with the owner's approved first session
+ * (2026-11-02). Muscle and group seed the lift before it has history, so it lands on the
+ * right day and logs under the right label. Dumbbell weights are per hand.
+ */
+export const HOME_START: Record<string, { weight: number; reps: number; muscle: string; group: string }> = {
+  'One-Arm Dumbbell Row': { weight: 35, reps: 10, muscle: 'back', group: 'Apartment — Upper' },
+  'Bulgarian Split Squat': { weight: 20, reps: 10, muscle: 'quads', group: 'Apartment — Lower' },
+  'Leg Extension (Bench)': { weight: 3, reps: 12, muscle: 'quads', group: 'Apartment — Lower' },
+  'Cable Hip Abduction': { weight: 10, reps: 15, muscle: 'hips', group: 'Apartment — Lower' },
+  'Cable Hip Adduction': { weight: 10, reps: 15, muscle: 'hips', group: 'Apartment — Lower' },
+  'Single-Leg Calf Raise': { weight: 25, reps: 12, muscle: 'calves', group: 'Apartment — Lower' },
+};
+
+/** Life Time lifts the home lifts replace: history stays, but they are not planned from HOME_FROM. */
+export const LIFE_TIME_ONLY: ReadonlySet<string> = new Set([
+  'Lat Pulldown',
+  'Leg Press',
+  'Leg Extension',
+  'Calf Raise (Machine)',
+  'Hip Abduction',
+  'Hip Adduction',
+]);
+
+/** True when `exercise` is a Life Time lift and `date` is after the move home. */
+export function leftLifeTime(exercise: string, date: string): boolean {
+  return date >= HOME_FROM && LIFE_TIME_ONLY.has(exercise);
+}
+
+/** The attachment is set by a numbered level, not pounds (owner, 2026-11-02). */
+const UNITS: Record<string, string> = { 'Leg Extension (Bench)': 'level' };
+
+/** Unit shown next to a lift's weight. */
+export function unitOf(exercise: string): string {
+  return UNITS[exercise] ?? 'lb';
+}
 
 /** Days off a lift beyond which its weight comes down about 10%. */
 export const LAYOFF_DAYS = 14;

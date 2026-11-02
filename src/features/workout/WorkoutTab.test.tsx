@@ -26,7 +26,7 @@ beforeEach(() => {
   // bypasses the upper/lower filter so the seed always shows.
   const W = wk() as any;
   W.days['2020-01-01'] = [
-    { id: 's1', ex: 'Leg Press', muscle: 'quads', group: 'legs', type: 'top', weight: 200, reps: 8 },
+    { id: 's1', ex: 'Tricep Pushdown (Rope)', muscle: 'triceps', group: 'legs', type: 'top', weight: 200, reps: 8 },
   ];
   W.bw['2026-08-01'] = '150';
   wkSplit.value = 'all';
@@ -57,34 +57,34 @@ describe('WorkoutView', () => {
     expect(container.querySelector('.wkweek')).toBeTruthy(); // your-week strip
     expect(container.querySelector('.todayhd-split')).toBeTruthy(); // today's split header (the lead)
     const names = [...container.querySelectorAll('.excard-name')].map((e) => e.textContent);
-    expect(names.some((n) => n?.includes('Leg Press'))).toBe(true);
+    expect(names.some((n) => n?.includes('Tricep Pushdown (Rope)'))).toBe(true);
   });
 
   it('shows the list of cards, not the log inputs, until an exercise is opened', () => {
     const { queryByText, container } = render(<WorkoutView />);
     // the grid: a card face shows, no Log set / no weight input
     expect(queryByText('Log set')).toBeNull();
-    expect(container.querySelector('#w-leg-press-top0')).toBeNull();
+    expect(container.querySelector('#w-tricep-pushdown-rope-top0')).toBeNull();
 
     cleanup();
-    activeExercise.value = 'Leg Press'; // open the full-screen detail
+    activeExercise.value = 'Tricep Pushdown (Rope)'; // open the full-screen detail
     const r = render(<WorkoutView />);
     expect(r.queryByText('Log set')).toBeTruthy();
     // The first input is the current set: a warm-up under the full-body program, else the top set.
-    expect(r.container.querySelector('[id^="w-leg-press-"]')).toBeTruthy();
-    expect(r.container.querySelector('[id^="r-leg-press-"]')).toBeTruthy();
+    expect(r.container.querySelector('[id^="w-tricep-pushdown-rope-"]')).toBeTruthy();
+    expect(r.container.querySelector('[id^="r-tricep-pushdown-rope-"]')).toBeTruthy();
   });
 
   it('reads the weight/reps inputs by id and passes them to workoutActions.logSet', () => {
     const logSpy = vi.spyOn(workoutActions, 'logSet').mockImplementation(() => {});
-    activeExercise.value = 'Leg Press';
+    activeExercise.value = 'Tricep Pushdown (Rope)';
     const { getByText, container } = render(<WorkoutView />);
-    const w = container.querySelector('[id^="w-leg-press-"]') as HTMLInputElement;
+    const w = container.querySelector('[id^="w-tricep-pushdown-rope-"]') as HTMLInputElement;
     const type = w.id.includes('-warm') ? 'warm' : 'top';
     w.value = '185';
-    (container.querySelector('[id^="r-leg-press-"]') as HTMLInputElement).value = '10';
+    (container.querySelector('[id^="r-tricep-pushdown-rope-"]') as HTMLInputElement).value = '10';
     fireEvent.click(getByText('Log set'));
-    expect(logSpy).toHaveBeenCalledWith('Leg Press', type, 185, 10);
+    expect(logSpy).toHaveBeenCalledWith('Tricep Pushdown (Rope)', type, 185, 10);
   });
 
   it('fires toggleSessionDone when the Mark-session-complete button is tapped', () => {
@@ -119,7 +119,7 @@ describe('WorkoutView', () => {
     const { container } = render(<WorkoutView />);
     expect(activeExercise.value).toBeNull();
     fireEvent.click(container.querySelector('.ex-top')!);
-    expect(activeExercise.value).toBe('Leg Press');
+    expect(activeExercise.value).toBe('Tricep Pushdown (Rope)');
     // re-render reflects the detail (the switcher + log inputs)
     cleanup();
     const r = render(<WorkoutView />);

@@ -196,6 +196,25 @@ Today the treadmill logs only total minutes and miles. That cannot tell a 2.5 mp
 - **Calories are estimated** with the standard ACSM walking and running equations, which account for your bodyweight, speed and incline. Example: 5 minutes of warm-up plus 10 minutes at 3.5 mph and 6% is about 80 calories at 120 lb. The estimate feeds the bodyweight and food panel (3.9).
 - **Old entries** keep their total minutes and miles and show as a single segment.
 
+### 3.0e Home gym only (owner, 2026-11-02)
+
+The Life Time membership ended. From 2026-11-02 every lift is done in the home gym, which has the bench and barbell (plates up to 135 lb), a cable pulley with an ankle strap, dumbbells from 5 to 50 lb, a leg extension attachment set by level, a step and a treadmill.
+
+| Life Time lift | Home lift | First session | Reps |
+|---|---|---|---|
+| Lat Pulldown | One-Arm Dumbbell Row | 35 × 10 | 8 to 12 |
+| Leg Press | Bulgarian Split Squat (weight per hand) | 20 × 10 | 8 to 12 |
+| Leg Extension | Leg Extension (Bench), by level | level 3 × 12 | 8 to 14 |
+| Hip Abduction | Cable Hip Abduction | 10 × 15 | 12 to 20 |
+| Hip Adduction | Cable Hip Adduction | 10 × 15 | 12 to 20 |
+| Calf Raise (Machine) | Single-Leg Calf Raise on the step | 25 × 12 | 10 to 15 |
+
+- **The home lifts are program lifts.** They follow the same rules as the rest of the program: rep ranges, back-offs, warm-ups, layoff deloads and progression.
+- **Dumbbell lifts stop at 50 lb.** At the top of the range at 50, the plan holds 50 and asks for slower reps.
+- **The leg extension counts levels, not pounds,** and goes up one level at a time.
+- **Life Time history stays.** Days and weeks before 2026-11-02 list and grade as before. From that date the Life Time lifts are no longer planned.
+- **The treadmill and the 4x4 plan are unchanged.**
+
 ### 3.1 Rep ranges per lift
 
 | Lift | Range | Why |

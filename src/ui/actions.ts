@@ -11,7 +11,7 @@ import { signal } from '@preact/signals';
 import { RestTimer } from '@/ui/restTimer';
 import { chime, unlockChime } from '@/ui/chime';
 import { inferIncrement, restSeconds, plannedSetCount, isExerciseComplete, weekScore } from '@/features/workout/workoutSelectors';
-import { totals as treadmillTotals } from '@/features/workout/program';
+import { HOME_START, totals as treadmillTotals, unitOf } from '@/features/workout/program';
 import type { WorkoutActions } from '@/features/workout/types';
 import { groupThousands, shiftDate } from '@/core/util';
 import { navStart } from '@/core/telemetry';
@@ -145,8 +145,8 @@ export const workoutActions: WorkoutActions = {
     // sets accrue under the sub (the machine lift is never polluted). Seed the
     // muscle from the approved starting map the first time, before the sub has
     // any logged history of its own to read a muscle from.
-    const muscle = m.muscle || AWAY_START[ex]?.muscle || '';
-    W.days[td].push({ id: uid(), ex, muscle, group: m.group || '', type, weight, reps });
+    const muscle = m.muscle || AWAY_START[ex]?.muscle || HOME_START[ex]?.muscle || '';
+    W.days[td].push({ id: uid(), ex, muscle, group: m.group || HOME_START[ex]?.group || '', type, weight, reps });
     // One-shot manual deload: once today's TOP set is logged, clear the flag so the
     // eased prescription isn't re-applied on the next render (buildPlan also guards
     // on the logged top, but clearing keeps the toggle's UI state honest).
@@ -274,7 +274,7 @@ export const workoutActions: WorkoutActions = {
     const v = host.prompt(
       'Smallest weight step for ' +
         ex +
-        ' at your gym (lb).\n\nPlate-loaded: 5 or 10. Selectorized stack: often 10, 12.5, 15 or 20.',
+        ' at your gym (' + unitOf(ex) + ').\n\nPlate-loaded: 5 or 10. Selectorized stack: often 10, 12.5, 15 or 20.',
       String(cur),
     );
     if (v === null || v === '') return;

@@ -4,7 +4,7 @@
  * tuck behind the ⚙. Ports workoutCharts (app.ts) + renderWorkoutHTML to JSX.
  */
 import { useEffect, useState } from 'preact/hooks';
-import { CUES, LOCATION, SUPERSETS, benchDay, blocksToSegs, inProgram, jogSessionsBefore, jogStage, plannedBlocks, totals, walkBreaks, type TreadmillBlocks } from '@/features/workout/program';
+import { CUES, LOCATION, SUPERSETS, unitOf, benchDay, blocksToSegs, inProgram, jogSessionsBefore, jogStage, plannedBlocks, totals, walkBreaks, type TreadmillBlocks } from '@/features/workout/program';
 import { TreadmillRun } from '@/features/workout/TreadmillRun';
 import { selectWorkoutView, exerciseDates, restSeconds, inferIncrement, splitOfDate, sortedDates, exerciseSplit, withHistoryIndex, dayScore, weekTrend, canonicalSlot, gradeOf, type StrengthGrade, type WeekScore } from '@/features/workout/workoutSelectors';
 import type { WorkoutViewOptions } from '@/features/workout/types';
@@ -513,8 +513,8 @@ function LogInput({ exercise, type, label, set, index, cue, setNo, setTotal }: {
       </div>
       <div class="logrow">
         <div class="field">
-          <input class="fv" key={wid} id={wid} type="number" inputmode="decimal" defaultValue={String(set.weight)} aria-label={`${label} weight (lb)`} />
-          <div class="k">lb</div>
+          <input class="fv" key={wid} id={wid} type="number" inputmode="decimal" defaultValue={String(set.weight)} aria-label={`${label} weight (${unitOf(active)})`} />
+          <div class="k">{unitOf(active)}</div>
         </div>
         <span class="times" aria-hidden="true">×</span>
         <div class="field">
@@ -623,7 +623,7 @@ function PastSetRow({ date, s }: { date: string; s: Any }) {
           </span>
         ) : (
           <span class="setedit-fields">
-            <input key={wid} id={wid} class="fv" type="number" inputmode="decimal" defaultValue={String(s.weight)} aria-label="Weight (lb)" />
+            <input key={wid} id={wid} class="fv" type="number" inputmode="decimal" defaultValue={String(s.weight)} aria-label={`Weight (${unitOf(String(s.ex))})`} />
             <span class="times" aria-hidden="true">×</span>
             <input key={rid} id={rid} class="fv" type="number" inputmode="numeric" defaultValue={String(s.reps)} aria-label="Reps" />
           </span>
@@ -786,7 +786,7 @@ function ExerciseDetail({ vm, o, exercise, exercises, grade = null }: { vm: VM; 
         {plan && !plan.cardio && (
           <>
             <button type="button" onClick={() => workoutActions.toggleDeload(active)}>{plan.deload ? '✓ Rebuilding' : 'Feel weak'}</button>
-            <button type="button" onClick={() => workoutActions.editIncrement(active)}>Stack&nbsp;step · {o.increments[active] ?? plan.incr} lb</button>
+            <button type="button" onClick={() => workoutActions.editIncrement(active)}>Stack&nbsp;step · {o.increments[active] ?? plan.incr} {unitOf(active)}</button>
             {rest && <span class="more-rest">rest {rest.warm}/{rest.top}/{rest.back}s</span>}
           </>
         )}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutSet, WorkoutState } from '@/core/types';
-import { buildPlan, selectWorkoutView, snapToStack } from './workoutSelectors';
-import { benchDay, blocksDoneAt, blocksToSegs, fourMph, fourSegs, fourStage, fourSteps, hrZone, jogStage, maxHr, plannedBlocks, segKcal, stepAt, totals, trueLevel } from './program';
+import { buildPlan, dayScore, exerciseSplit, plannedSlots, selectWorkoutView, snapToStack } from './workoutSelectors';
+import { HOME_START, benchDay, blocksDoneAt, blocksToSegs, fourMph, fourSegs, fourStage, fourSteps, hrZone, jogStage, maxHr, plannedBlocks, segKcal, stepAt, totals, trueLevel } from './program';
 
 let n = 0;
 const set = (ex: string, type: WorkoutSet['type'], weight: number, reps: number, muscle = 'chest'): WorkoutSet =>
@@ -240,5 +240,91 @@ describe('Norwegian 4x4', () => {
     expect(fourMph(0)).toBe(4.5);
     expect(fourMph(3)).toBe(4.5);
     expect(fourMph(5)).toBe(4.9);
+  });
+});
+
+describe('home gym (Life Time ended 2026-11-02)', () => {
+  const lifeTime = () =>
+    state({
+      '2026-10-25': [
+        set('Bench Press', 'top', 125, 6),
+        set('Lat Pulldown', 'top', 90, 9, 'back'),
+        set('Leg Press', 'top', 100, 9, 'quads'),
+        set('Leg Extension', 'top', 165, 10, 'quads'),
+        set('Hip Abduction', 'top', 115, 12, 'hips'),
+        set('Calf Raise (Machine)', 'top', 180, 11, 'calves'),
+      ],
+    });
+
+  it('lists the home lifts in place of the Life Time lifts', () => {
+    const lower = selectWorkoutView(lifeTime(), '2026-11-02', '2026-11-02', { split: 'lower' });
+    expect(lower.exercises).toEqual(['Bulgarian Split Squat', 'Leg Extension (Bench)', 'Single-Leg Calf Raise', 'Cable Hip Abduction', 'Cable Hip Adduction']);
+    const upper = selectWorkoutView(lifeTime(), '2026-11-02', '2026-11-02', { split: 'upper' });
+    expect(upper.exercises).toEqual(['Bench Press', 'One-Arm Dumbbell Row']);
+  });
+
+  it('first session uses the approved start weights', () => {
+    const W = lifeTime();
+    const at = (ex: string) => buildPlan(W, ex, '2026-11-02')!;
+    expect(at('One-Arm Dumbbell Row').top).toEqual({ weight: 35, reps: 10 });
+    expect(at('Bulgarian Split Squat').top).toEqual({ weight: 20, reps: 10 });
+    expect(at('Bulgarian Split Squat').warms).toEqual([{ weight: 10, reps: 8 }]);
+    expect(at('Leg Extension (Bench)').top).toEqual({ weight: 3, reps: 12 });
+    expect(at('Cable Hip Abduction').top).toEqual({ weight: 10, reps: 15 });
+    expect(at('Cable Hip Adduction').top).toEqual({ weight: 10, reps: 15 });
+    expect(at('Single-Leg Calf Raise').top).toEqual({ weight: 25, reps: 12 });
+    expect(at('Single-Leg Calf Raise').backs).toHaveLength(2);
+  });
+
+  it('a home lift lands on its own day before it has any history', () => {
+    for (const [ex, sp] of [['One-Arm Dumbbell Row', 'upper'], ['Bulgarian Split Squat', 'lower'], ['Cable Hip Abduction', 'lower']] as const) {
+      expect(exerciseSplit(state({}), ex)).toBe(sp);
+    }
+    expect(Object.keys(HOME_START)).toHaveLength(6);
+  });
+
+  it('progresses from the first logged session', () => {
+    const W = state({ '2026-11-02': [set('Bulgarian Split Squat', 'top', 20, 12, 'quads')] });
+    const p = buildPlan(W, 'Bulgarian Split Squat', '2026-11-04')!;
+    expect(p.top).toEqual({ weight: 25, reps: 8 });
+    const L = state({ '2026-11-02': [set('Leg Extension (Bench)', 'top', 3, 14, 'quads')] });
+    expect(buildPlan(L, 'Leg Extension (Bench)', '2026-11-04')!.top).toEqual({ weight: 4, reps: 8 });
+  });
+
+  it('a dumbbell lift stops at the 50 lb dumbbell and asks for slower reps', () => {
+    const W = state({ '2026-11-02': [set('One-Arm Dumbbell Row', 'top', 50, 12, 'back')] });
+    const p = buildPlan(W, 'One-Arm Dumbbell Row', '2026-11-04')!;
+    expect(p.top).toEqual({ weight: 50, reps: 12 });
+    expect(p.bumped).toBe(false);
+    expect(snapToStack('Bulgarian Split Squat', 55)).toBe(50);
+  });
+
+  it('days before the move still list and grade the Life Time lifts', () => {
+    const v = selectWorkoutView(lifeTime(), '2026-10-25', '2026-11-02', { split: 'all' });
+    expect(v.exercises).toContain('Leg Press');
+    expect(plannedSlots(lifeTime(), '2026-10-30', 'lower')).toContain('Leg Press');
+    expect(plannedSlots(lifeTime(), '2026-11-02', 'lower')).not.toContain('Leg Press');
+  });
+
+  it('a past day never lists a home lift, even after it has been logged', () => {
+    const W = lifeTime();
+    W.days['2026-11-02'] = [set('Bulgarian Split Squat', 'top', 20, 10, 'quads')];
+    const v = selectWorkoutView(W, '2026-10-25', '2026-11-02', { split: 'all' });
+    expect(v.exercises).not.toContain('Bulgarian Split Squat');
+    expect(v.exercises).toContain('Leg Press');
+  });
+
+  it('a home lift skipped before its first log still counts as skipped', () => {
+    const W = lifeTime();
+    W.days['2026-11-02'] = [set('Bulgarian Split Squat', 'top', 20, 10, 'quads')];
+    expect(plannedSlots(W, '2026-11-02', 'lower')).toContain('Leg Extension (Bench)');
+    const d = dayScore(W, '2026-11-02')!;
+    expect(d.exercises.find((e) => e.slot === 'Leg Extension (Bench)')?.score).toBe(0);
+  });
+
+  it('a manual Stack step does not lift the 50 lb dumbbell cap', () => {
+    const W = state({ '2026-11-02': [set('One-Arm Dumbbell Row', 'top', 50, 12, 'back')] });
+    W.incr = { 'One-Arm Dumbbell Row': 5 };
+    expect(buildPlan(W, 'One-Arm Dumbbell Row', '2026-11-04')!.top).toEqual({ weight: 50, reps: 12 });
   });
 });

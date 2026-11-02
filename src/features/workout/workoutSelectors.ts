@@ -34,11 +34,14 @@ import {
   BACKOFFS,
   BAR,
   BENCH_LIGHT,
+  HOME_FROM,
+  HOME_START,
   LAYOFF_DAYS,
   REP_RANGE,
   WARMUPS,
   benchDay,
   inProgram,
+  leftLifeTime,
   sessionE1rm,
   trueLevel,
   weightForReps,
@@ -56,8 +59,13 @@ import {
  * it stands in for — neither of which the per-render `overrides.away` (present only in
  * Away mode) can do on its own.
  */
-/** Gym lift → its dumbbell substitute. */
-const GYM_TO_SUB: Record<string, string> = exSwapData as Record<string, string>;
+/**
+ * Gym lift → its dumbbell substitute. A substitute that became a home program lift is
+ * left out: it is now a lift in its own right, listed and graded under its own name.
+ */
+const GYM_TO_SUB: Record<string, string> = Object.fromEntries(
+  Object.entries(exSwapData as Record<string, string>).filter(([, sub]) => !HOME_START[sub]),
+);
 /** Dumbbell substitute → the gym lift (slot) it stands in for. */
 const SUB_TO_GYM: Record<string, string> = Object.fromEntries(
   Object.entries(GYM_TO_SUB).map(([gym, sub]) => [sub, gym]),
@@ -267,6 +275,9 @@ function exerciseMetaScan(state: WorkoutState, exercise: string): { muscle: Musc
     const set = setsOn(state, exercise, dates[i])[0];
     if (set) return { muscle: set.muscle ?? null, group: set.group ?? null };
   }
+  // A home lift not logged yet: its approved start says which day it belongs to.
+  const start = HOME_START[exercise];
+  if (start) return { muscle: start.muscle as Muscle, group: start.group };
   return { muscle: null, group: null };
 }
 
@@ -326,11 +337,17 @@ export function loggedExercises(
  * start, then 20 lb plates on the 25 + 20n grid up to 345 (145, 165, 185 match the log;
  * owner, 2026-10-21). Leg Press (Life Time) is 10 lb, then 20, 40, 60 ... (owner,
  * 2026-10-21); its top plate is not known yet, so the max is wide. `first` is a lone stop
- * below the grid.
+ * below the grid. The home gym's dumbbells run 5 to 50 lb in 5 lb steps, so a dumbbell lift
+ * never goes past 50 per hand. The home leg extension attachment is set by level (1, 2,
+ * 3 ...; owner, 2026-11-02); its top level is not known yet.
  */
 export const MACHINE_STACKS: Record<string, { step: number; min: number; max: number; first?: number }> = {
   'Leg Extension': { step: 20, min: 25, max: 345, first: 15 },
   'Leg Press': { step: 20, min: 20, max: 1000, first: 10 },
+  'One-Arm Dumbbell Row': { step: 5, min: 5, max: 50 },
+  'Bulgarian Split Squat': { step: 5, min: 5, max: 50 },
+  'Single-Leg Calf Raise': { step: 5, min: 5, max: 50 },
+  'Leg Extension (Bench)': { step: 1, min: 1, max: 100 },
 };
 
 /**
@@ -340,7 +357,9 @@ export const MACHINE_STACKS: Record<string, { step: number; min: number; max: nu
  */
 export function snapToStack(exercise: string, weight: number, state?: WorkoutState): number {
   const st = MACHINE_STACKS[exercise];
-  if (!st || !(weight > 0) || toNum(state?.incr?.[exercise], 0) > 0) return weight;
+  if (!st || !(weight > 0)) return weight;
+  // A manual step governs the grid, but the top of the stack is still the top (the 50 lb dumbbell).
+  if (toNum(state?.incr?.[exercise], 0) > 0) return Math.min(weight, st.max);
   const grid = Math.min(st.max, Math.max(st.min, st.min + Math.round((weight - st.min) / st.step) * st.step));
   return st.first !== undefined && weight - st.first < grid - weight ? st.first : grid;
 }
@@ -834,7 +853,7 @@ function programPlan(
   const range = REP_RANGE[exercise]!;
   const allDates = exerciseDates(state, exercise);
   const dates = allDates.filter((d) => d < date);
-  if (dates.length === 0) return null;
+  if (dates.length === 0) return homeStartPlan(state, exercise, config);
   const isBench = exercise === 'Bench Press';
   const day = isBench ? benchDay(allDates, date) : undefined;
   const isLight = (d: string): boolean => isBench && inProgram(d) && benchDay(allDates, d) === 'B';
@@ -901,6 +920,10 @@ function programPlan(
     weight = down(lastW * 0.9);
     reps = lo;
     why = `Easy day (you tapped Feel weak): about 10% lighter, ${lo} reps. Your plan carries on next time.`;
+  } else if (lastR >= hi && near(lastW + step) <= lastW) {
+    weight = lastW;
+    reps = hi;
+    why = `You hit ${lastR} reps at ${lastW}, the most this equipment loads. Stay at ${lastW} × ${hi} and slow each rep down to make it harder.`;
   } else if (lastR >= hi) {
     weight = near(lastW + step);
     reps = lo;
@@ -951,6 +974,32 @@ function programPlan(
     repHigh: hi, targetReps: hi, repLow: lo, atMinimum: false,
     incr: step, lastTopWeight: lastW, lastTopReps: lastR, lastDate,
     why, warmWhy, day,
+  };
+}
+
+/** First session on a home lift: the approved start weight, the lift's own warm-ups and back-offs. */
+function homeStartPlan(state: WorkoutState, exercise: string, config: ProgressionConfig): ExercisePlan | null {
+  const start = HOME_START[exercise];
+  const range = REP_RANGE[exercise];
+  if (!start || !range) return null;
+  const step = inferIncrement(state, exercise, config);
+  const { weight, reps } = start;
+  const warms: PrescribedSet[] = [];
+  const warmWhy: string[] = [];
+  for (const w of WARMUPS[exercise] ?? []) {
+    const ww = snapToStack(exercise, roundTo(weight * w.ratio, step), state);
+    if (!(ww > 0) || ww >= weight || warms.some((x) => x.weight === ww)) continue;
+    warms.push({ weight: ww, reps: w.reps });
+    warmWhy.push(w.why);
+  }
+  return {
+    exercise, cardio: false, warms, top: { weight, reps },
+    backs: (BACKOFFS[exercise] ?? []).map(() => ({ weight, reps })),
+    bumped: false, deload: false, autoDeload: false,
+    repHigh: range.hi, targetReps: range.hi, repLow: range.lo, atMinimum: false,
+    incr: step, lastTopWeight: weight, lastTopReps: reps, lastDate: null,
+    why: `First time: start at ${weight} × ${reps} and stop with about 2 reps left. If it is far too easy or too hard, change the weight; the plan follows what you log.`,
+    warmWhy,
   };
 }
 
@@ -1043,6 +1092,13 @@ export const EXERCISE_ORDER: Record<string, number> = {
   'Calf Raise (Machine)': 32,
   'Hip Abduction': 34,
   'Hip Adduction': 36,
+  // Home replacements for the Life Time lifts (2026-11-02), in the same slots.
+  'One-Arm Dumbbell Row': 20,
+  'Bulgarian Split Squat': 22,
+  'Leg Extension (Bench)': 30,
+  'Single-Leg Calf Raise': 32,
+  'Cable Hip Abduction': 34,
+  'Cable Hip Adduction': 36,
   'Wrist Curl (Dumbbell)': 80,
   'Reverse Wrist Curl (Dumbbell)': 82,
   Treadmill: 90,
@@ -1334,11 +1390,13 @@ export function plannedSlots(
   config: ProgressionConfig = DEFAULT_CONFIG,
 ): string[] {
   const ix = historyIndex(state);
-  const names = ix ? [...ix.byEx.keys()] : allExercises(state);
+  const logged = ix ? [...ix.byEx.keys()] : allExercises(state);
+  // From the move, a home lift is planned even before its first log, so skipping it counts.
+  const names = date >= HOME_FROM ? [...new Set([...logged, ...Object.keys(HOME_START)])] : logged;
   const out = new Set<string>();
   for (const ex of names) {
-    if (isRetired(ex) || isCardio(state, ex)) continue;
-    const first = exerciseDates(state, ex)[0];
+    if (isRetired(ex) || leftLifeTime(ex, date) || isCardio(state, ex)) continue;
+    const first = HOME_START[ex] && date >= HOME_FROM ? HOME_FROM : exerciseDates(state, ex)[0];
     if (first === undefined || first > date) continue;
     const slot = canonicalSlot(ex);
     if (slotSplit(state, slot, config) === split) out.add(slot);
@@ -1634,15 +1692,18 @@ export const selectWorkoutView = indexed(function selectWorkoutView(
   // (Gym mode was leaking them, e.g. Goblet Squat next to Leg Press). In Away mode also
   // seed the candidate list with the swap KEYS, so a machine whose only history is under
   // its substitute still shows its slot (driven by the sub) rather than vanishing.
+  const logged = date >= HOME_FROM ? [...allExercises(state), ...Object.keys(HOME_START)] : allExercises(state);
   const forwardCandidates = overrides.away
-    ? [...new Set([...allExercises(state), ...Object.keys(overrides.away.swap)])]
-    : allExercises(state);
+    ? [...new Set([...logged, ...Object.keys(overrides.away.swap)])]
+    : [...new Set(logged)];
 
   const planned = (): string[] =>
     forwardCandidates
           .filter((ex) => {
             if (SUB_NAMES.has(ex)) return false; // never list a substitute as its own lift
             if (isRetired(ex)) return false; // history stays, but it is no longer planned
+            if (leftLifeTime(ex, date)) return false; // replaced by a home lift
+            if (HOME_START[ex] && date < HOME_FROM) return false; // not part of the plan before the move
             if (split === 'all') return true;
             let s = exerciseSplit(state, ex, config);
             // A gym slot with no logged history classifies as 'other' (null muscle). In
